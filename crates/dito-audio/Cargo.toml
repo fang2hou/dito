@@ -1,0 +1,16 @@
+[package]
+name = "dito-audio"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+dito-core = { path = "../dito-core" }
+cpal = "0.18"
+objc2-core-audio = { version = "0.3", features = ["AudioHardware"] }
+objc2-core-foundation = { version = "0.3", features = ["CFString"] }
+thiserror.workspace = true
+tracing.workspace = true

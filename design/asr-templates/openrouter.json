@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "connection": {
+    "base_url": "https://openrouter.ai/api/v1",
+    "model": ""
+  },
+  "language_map": {
+    "ja": "ja",
+    "en": "en",
+    "zh": "zh",
+    "auto": null,
+    "other": "en"
+  },
+  "request": {
+    "method": "POST",
+    "path": "/audio/transcriptions",
+    "query": {},
+    "headers": {
+      "Authorization": "Bearer {{api_key}}"
+    },
+    "encoding": "json",
+    "body": {
+      "model": "{{model}}",
+      "input_audio": {
+        "data": "{{audio.base64}}",
+        "format": "wav"
+      },
+      "language": "{{language}}",
+      "response_format": "json"
+    }
+  },
+  "response": {
+    "text_pointer": "/text"
+  }
+}

@@ -1,0 +1,147 @@
+{
+  "features": [
+    "refractivity",
+    "specular-location"
+  ],
+  "fill-specializations": [
+    {
+      "value": {
+        "linear-gradient": [
+          "srgb:1,0.9764705882352941,0.9215686274509803,1",
+          "srgb:1,0.9254901960784314,0.7411764705882353,1"
+        ],
+        "orientation": {
+          "start": {
+            "x": 0.5,
+            "y": 0
+          },
+          "stop": {
+            "x": 0.5,
+            "y": 1
+          }
+        }
+      }
+    },
+    {
+      "appearance": "dark",
+      "value": {
+        "linear-gradient": [
+          "srgb:0.29411764705882354,0.2784313725490196,0.23921568627450981,1",
+          "srgb:0.2196078431372549,0.20784313725490197,0.1843137254901961,1"
+        ],
+        "orientation": {
+          "start": {
+            "x": 0.5,
+            "y": 0
+          },
+          "stop": {
+            "x": 0.5,
+            "y": 1
+          }
+        }
+      }
+    }
+  ],
+  "groups": [
+    {
+      "name": "front",
+      "layers": [
+        {
+          "name": "front",
+          "glass": true,
+          "image-name": "front.svg"
+        }
+      ],
+      "lighting": "individual",
+      "specular": true,
+      "specular-highlight-placement": "automatic",
+      "blur-material": 0.5,
+      "refractivity": {
+        "enabled": true,
+        "strength": 0.5,
+        "depth": 0.5
+      },
+      "translucency": {
+        "enabled": false,
+        "value": 0.3
+      },
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.3
+      }
+    },
+    {
+      "name": "d",
+      "layers": [
+        {
+          "name": "d",
+          "glass": true,
+          "image-name-specializations": [
+            {
+              "value": "d.svg"
+            },
+            {
+              "appearance": "dark",
+              "value": "d-dark.svg"
+            }
+          ]
+        }
+      ],
+      "lighting": "individual",
+      "specular": true,
+      "specular-highlight-placement": "automatic",
+      "blur-material": 0.3,
+      "refractivity": {
+        "enabled": true,
+        "strength": 0.7,
+        "depth": 0.7
+      },
+      "translucency": {
+        "enabled": true,
+        "value": 0.3
+      },
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.3
+      }
+    },
+    {
+      "name": "back",
+      "layers": [
+        {
+          "name": "back",
+          "glass": true,
+          "image-name-specializations": [
+            {
+              "value": "back.svg"
+            },
+            {
+              "appearance": "dark",
+              "value": "back-dark.svg"
+            }
+          ]
+        }
+      ],
+      "lighting": "individual",
+      "specular": true,
+      "specular-highlight-placement": "automatic",
+      "blur-material": 0.5,
+      "refractivity": {
+        "enabled": true,
+        "strength": 0.5,
+        "depth": 0.5
+      },
+      "translucency": {
+        "enabled": false,
+        "value": 0.3
+      },
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.3
+      }
+    }
+  ],
+  "supported-platforms": {
+    "squares": "shared"
+  }
+}

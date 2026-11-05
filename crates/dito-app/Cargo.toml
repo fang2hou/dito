@@ -1,0 +1,46 @@
+[package]
+name = "dito-app"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "dito"
+path = "src/main.rs"
+
+[dev-dependencies]
+toml.workspace = true
+tempfile = "3"
+
+[features]
+default = ["mock", "runtimes"]
+# On-device inference (sherpa-onnx SenseVoice + llama.cpp Qwen3). Heavy native build.
+runtimes = ["dep:dito-runtimes"]
+# In-process mock cloud endpoints (`dito --mock`).
+mock = ["dep:dito-testkit"]
+# Dev only: render windows to PNG (`dito --screenshots <dir>`).
+screenshots = ["gpui-kit/test-support"]
+
+[dependencies]
+serde_json.workspace = true
+dito-core = { path = "../dito-core" }
+dito-audio = { path = "../dito-audio" }
+dito-local = { path = "../dito-local" }
+dito-platform = { path = "../dito-platform" }
+dito-runtimes = { path = "../dito-runtimes", optional = true }
+dito-testkit = { path = "../dito-testkit", optional = true }
+gpui-kit = "0.8"
+ttf-parser = "0.25"
+raw-window-handle = "0.6"
+anyhow.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+async-channel = "2"
+rust-embed = "8"
+tray-icon = "0.26"
+image = { version = "0.25", default-features = false, features = ["png"] }
+time.workspace = true

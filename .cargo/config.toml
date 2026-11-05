@@ -1,0 +1,10 @@
+# Re-sign freshly built binaries with the local dev identity before cargo run/test
+# (one-time setup: scripts/certs.sh). Unsigned/ad-hoc binaries get a new signature on
+# every rebuild, so macOS TCC drops the app's microphone / accessibility / input
+# monitoring grants each time. A stable local identity keeps them.
+[target.'cfg(target_os = "macos")']
+runner = [
+  "bash", "-c",
+  'r="$(git rev-parse --show-toplevel 2>/dev/null)/scripts/dev-runner.sh"; if [ -x "$r" ]; then exec "$r" "$@"; fi; exec "$@"',
+  "dito-dev-runner",
+]
