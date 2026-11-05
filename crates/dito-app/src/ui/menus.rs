@@ -97,15 +97,25 @@ fn chevron(id: ElementId, color: Hsla, open: bool) -> AnyElement {
         .into_any_element()
 }
 
+/// The select's hover outline (design 12.02 Select): a hairline in `color` that fades in over the resting
+/// border while hovered, and stays out of the way while the menu is open (the accent ring takes over).
+fn hover_border(id: &ElementId, color: Hsla, open: bool) -> AnyElement {
+    let target = if !open && is_hovered(id) { 1. } else { 0. };
+    tweened(ElementId::from((id.clone(), "hover-border")), target, HOVER_MS, move |v| {
+        div().absolute().inset(px(-1.)).rounded(px(12.)).border_1().border_color(Hsla { a: color.a * v, ..color })
+    })
+}
+
 /// An inert select: same chrome, muted content, no menu. For the "nothing to pick" case (e.g. no
 /// AWS profiles configured) — the control must not look operable.
 pub fn select_disabled(p: &Palette, label: SharedString) -> Div {
     field_chrome((ElementId::from("select-disabled"), "ring"), p, false)
         .w_full()
-        .px(px(12.))
+        .px(px(14.))
+        .gap(px(10.))
         .justify_between()
         .opacity(0.6)
-        .child(text(label, 13., FontWeight::NORMAL, p.muted).line_height(px(20.)))
+        .child(text(label, 14., FontWeight::NORMAL, p.muted).line_height(px(20.)))
         .child(icon(Ic::ChevronDown, 14., p.muted))
 }
 
@@ -199,20 +209,21 @@ pub fn select_items(
     let scope = motion_scope();
     let mut button = field_chrome((ElementId::from(id), "ring"), p, open)
         .id(id)
-        .px(px(12.))
+        .px(px(14.))
         .cursor_pointer()
         .justify_between()
         // The open menu closes itself on any press outside it, including this button's; so a click that began
         // while the menu was open must not toggle it back open.
         .on_hover(hover_tracker(ElementId::from(id)))
-        .child(hover_fill(&ElementId::from(id), Some(12.), hex_alpha(p.seg, 0.55)))
+        .child(hover_fill(&ElementId::from(id), Some(12.), p.select_hover))
+        .child(hover_border(&ElementId::from(id), p.select_hover_border, open))
         .on_mouse_down(MouseButton::Left, press_mark(scope.clone(), ElementId::from(id), open))
         .on_click(press_toggle(scope.clone(), ElementId::from(id), toggle))
-        .gap(px(8.))
+        .gap(px(10.))
         // `truncate` clips both axes. A font-size-high line box cuts off Outfit descenders
         // (notably the g in English); reserve a full 20 pt line and center it in the control.
-        .child(text(label, 13., FontWeight::NORMAL, p.text).line_height(px(20.)).min_w(px(0.)).truncate())
-        .child(chevron(ElementId::from((ElementId::from(id), "chevron")), p.text, open));
+        .child(text(label, 14., FontWeight::NORMAL, p.text).line_height(px(20.)).min_w(px(0.)).truncate())
+        .child(chevron(ElementId::from((ElementId::from(id), "chevron")), p.muted, open));
     button = match width {
         Some(w) => button.w(px(w)),
         None => button.w_full(),
@@ -269,17 +280,17 @@ pub fn select_items(
             panel = panel.child(
                 div()
                     .id((id, i))
+                    .relative()
                     .h(px(34.))
-                    .px(px(7.))
+                    .px(px(12.))
                     .flex()
                     .items_center()
                     .justify_between()
-                    .gap(px(12.))
-                    // Concentric with the panel (12 − 1 border − 6 padding), so the first/last rows
-                    // hug the menu's own corners instead of showing a step.
-                    .rounded(px(5.))
+                    .gap(px(10.))
+                    .rounded(px(8.))
                     .cursor_pointer()
-                    .hover(|s| s.bg(p.seg))
+                    .on_hover(hover_tracker(ElementId::from((id, i))))
+                    .child(hover_fill(&ElementId::from((id, i)), Some(8.), p.seg))
                     .on_click(move |_, w, cx| {
                         pick(i, w, cx);
                         toggle(w, cx);
@@ -347,7 +358,7 @@ pub fn popup_menu(id: impl Into<ElementId>, p: &Palette, items: Vec<MenuItem>, o
         .flex_col()
         .gap(px(1.))
         .rounded(px(12.))
-        .bg(p.menu_bg)
+        .bg(p.card)
         .border_1()
         .border_color(p.border)
         .shadow(vec![BoxShadow {
@@ -376,18 +387,20 @@ pub fn popup_menu(id: impl Into<ElementId>, p: &Palette, items: Vec<MenuItem>, o
             MenuTone::Default => p.text,
         };
         let (cb, close) = (it.on_click, on_close.clone());
+        let item_id = ElementId::from((id.clone(), SharedString::from(format!("m{i}"))));
         m = m.child(
             div()
-                .id((id.clone(), SharedString::from(format!("m{i}"))))
+                .id(item_id.clone())
+                .relative()
                 .h(px(34.))
                 .px(px(12.))
                 .flex()
                 .items_center()
                 .gap(px(10.))
-                // Concentric with the panel (12 − 1 border − 6 padding); see `select`.
-                .rounded(px(5.))
+                .rounded(px(8.))
                 .cursor_pointer()
-                .hover(|s| s.bg(p.seg))
+                .on_hover(hover_tracker(item_id.clone()))
+                .child(hover_fill(&item_id, Some(8.), p.seg))
                 .on_click(move |_, w, cx| {
                     close(w, cx);
                     cb(w, cx);

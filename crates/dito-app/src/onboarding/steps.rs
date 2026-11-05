@@ -13,7 +13,7 @@ use gpui_kit::*;
 use crate::assets::Ic;
 use crate::settings::Ctx;
 use crate::theme::Palette;
-use crate::ui::{self, BtnKind, TestState, cbk, text};
+use crate::ui::{self, BtnKind, BtnSize, TestState, cbk, text};
 
 use super::components::{key_tile, keycap, keycap_waiting, recommend_tag, static_primary};
 use super::{Onboarding, PERMS, PreparePhase, Step};
@@ -472,16 +472,16 @@ fn prepare_local(w: &Onboarding, c: &Ctx, cx: &mut Context<Onboarding>) -> (Shar
                         c.lang,
                         &ui::fmt_bytes(w.models_bytes(&[&cfg.asr.local_model, &cfg.polish.engine.local_model])),
                     ),
-                    ui::button(
+                    ui::button_with(
                         "wizard-prepare",
                         p,
                         &label,
                         BtnKind::Primary,
+                        BtnSize::Large,
                         Some(ic),
+                        None,
                         cbk(cx, |this: &mut Onboarding, _, cx| this.start_prepare(cx)),
                     )
-                    .h(px(40.))
-                    .px(px(22.))
                     .into_any_element(),
                 )
             }

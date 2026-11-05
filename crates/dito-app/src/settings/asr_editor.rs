@@ -1,6 +1,5 @@
 use super::Ctx;
 use crate::{
-    assets::Ic,
     state::AppState,
     ui::{self, BtnKind, cbk, text},
 };
@@ -348,34 +347,34 @@ impl Render for AsrEditor {
             let height =
                 (f32::from(window.viewport_size().height) - 48.).min(if self.help { 836. } else { 900. }).max(400.);
             let width = (f32::from(window.viewport_size().width) - 48.).clamp(320., 900.);
+            // A short window trims its top and bottom padding to 14, so the cross sits 24 from the top and 38 from
+            // the right edge, a golden-ratio pair (design 20.06). A taller window keeps 28 and 38 on both sides.
+            let pad_v = if height < 700. { 14. } else { 28. };
+            let close = cbk(cx, |this: &mut Self, _, cx| {
+                if this.help {
+                    this.help = false;
+                    cx.notify();
+                } else {
+                    cx.emit(Closed(false));
+                }
+            });
             let header = div()
                 .w_full()
+                .h(px(32.))
                 .flex_none()
                 .flex()
                 .items_center()
                 .justify_between()
-                .child(text(
-                    self.translate(if self.help { "設定の書き方" } else { "接続設定" }),
-                    26.,
-                    FontWeight::BOLD,
-                    p.text,
-                ))
                 .child(
-                    ui::bare_icon_button(
-                        "asr-close",
-                        &p,
-                        Ic::X,
-                        cbk(cx, |this: &mut Self, _, cx| {
-                            if this.help {
-                                this.help = false;
-                                cx.notify();
-                            } else {
-                                cx.emit(Closed(false));
-                            }
-                        }),
+                    text(
+                        self.translate(if self.help { "設定の書き方" } else { "接続設定" }),
+                        26.,
+                        FontWeight::BOLD,
+                        p.text,
                     )
-                    .size(px(32.)),
-                );
+                    .line_height(px(32.)),
+                )
+                .child(ui::close_button("asr-close", &p, close));
             let mut body = div().w_full().flex_1().min_h(px(0.)).flex().flex_col().gap(px(14.));
             let footer = if self.help {
                 let scroll = self.help_scroll.clone();
@@ -610,7 +609,8 @@ impl Render for AsrEditor {
                     div()
                         .w(px(width))
                         .h(px(height))
-                        .p(px(28.))
+                        .px(px(28.))
+                        .py(px(pad_v))
                         .rounded(px(20.))
                         .bg(p.bg)
                         .border_1()

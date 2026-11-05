@@ -23,9 +23,9 @@ use crate::ui::{self, BtnKind, Cb, MenuItem, MenuTone, TestState, cbk, cbk_idx, 
 
 /// Model-row layout (design 04d): every row occupies a fixed slot sized for the tallest state
 /// (name + meta + status lines), so the section height never changes; state transitions animate
-/// inside the slot. EXTRAS_H is the stacked height of the two optional lines.
+/// inside the slot. STATUS_H is the height of the engine-state pill that grows in under the memory line.
 const ROW_SLOT_H: f32 = 112.;
-const EXTRAS_H: f32 = 42.;
+const STATUS_H: f32 = 24.;
 const EXPAND_MS: u64 = 200;
 
 fn idx(r: Role) -> usize {
@@ -477,8 +477,8 @@ impl ModelsPage {
             .flex()
             .items_center()
             .gap(px(10.))
-            .child(text(spec.name.clone(), 14., FontWeight::MEDIUM, if ghost { p.muted } else { p.text }))
-            .child(ui::muted12(p, ui::fmt_bytes(spec.total_size())));
+            .child(text(spec.name.clone(), 14., FontWeight::MEDIUM, p.text))
+            .child(text(ui::fmt_bytes(spec.total_size()), 12., FontWeight::NORMAL, p.model_meta));
         if state != ModelState::Installed {
             body = body.child(name_line);
         }
@@ -489,79 +489,94 @@ impl ModelsPage {
                 // single line, the active row expands to meta + live status, easing between the
                 // two inside the same slot. The section height never jumps — the expansion moves
                 // from row to row.
+                let running = matches!(status, EngineStatus::Running);
+                let pill = !matches!(status, EngineStatus::Failed(_));
                 let (dot, status_txt, status_fg) = match &status {
-                    EngineStatus::Running => (p.success, c.t(Tr::ModelsRunning), p.success_text),
+                    EngineStatus::Running => (p.model_running_dot, c.t(Tr::ModelsRunning), p.model_running_text),
                     EngineStatus::Loading => (p.primary, c.t(Tr::MenubarLoading), p.primary),
                     EngineStatus::Failed(reason) => (
                         p.danger,
                         SharedString::from(format!("{}：{reason}", c.t(Tr::ModelsFailed))),
                         if p.dark { p.danger } else { p.danger_text },
                     ),
-                    _ => (p.muted, c.t(Tr::MenubarStopped), p.muted),
+                    _ => (p.model_meta, c.t(Tr::MenubarStopped), p.model_meta),
                 };
                 let (name, size_txt) = (spec.name.clone(), SharedString::from(ui::fmt_bytes(spec.total_size())));
                 let mem_txt =
                     SharedString::from(format!("{} {:.1} GB", c.t(Tr::ModelsMemory), spec.memory_mb as f32 / 1000.0));
-                let name_c = if ghost { p.muted } else { p.text };
-                let muted_c = p.muted;
+                let name_c = p.text;
+                let muted_c = p.model_meta;
                 let palette = *p;
                 let downloaded = c.t(Tr::ModelsDownloaded);
                 let expand_id = ElementId::from(SharedString::from(format!("model-expand-{}-{}", idx(role), spec.id)));
-                body = body.child(ui::tweened(expand_id, if selected { 1. } else { 0. }, EXPAND_MS, move |t| {
-                    let mut col = div().flex().flex_col().gap(px(6.)).child(
-                        div()
+                // One progress value `t` (0 idle, 1 in use) drives the whole block, so nothing pops: the "downloaded"
+                // tag fades while the block rises, the memory line only rises, and the status pill grows in from
+                // nothing. The block is vertically centred in the card, so growing it is what moves the lines up.
+                body =
+                    body.child(ui::tweened(expand_id, if selected { 1. } else { 0. }, EXPAND_MS, move |t| {
+                        let mut name_line = div()
                             .flex()
                             .items_center()
                             .gap(px(10.))
+                            .h(px(20. + 3. * (1. - t)))
                             .child(text(name.clone(), 14., FontWeight::MEDIUM, name_c))
-                            .child(text(size_txt.clone(), 12., FontWeight::NORMAL, muted_c))
-                            .when(!selected, |d| {
-                                d.child(div().px(px(8.)).py(px(3.)).rounded(px(4.)).bg(palette.seg).child(text(
-                                    downloaded.clone(),
-                                    11.,
-                                    FontWeight::MEDIUM,
-                                    palette.muted,
-                                )))
-                            }),
-                    );
-                    if t > 0.02 {
-                        col = col.child(
-                            div()
-                                .h(px(EXTRAS_H * t))
-                                .flex()
-                                .flex_col()
-                                .gap(px(6.))
-                                .overflow_hidden()
-                                .opacity(t)
-                                .child(text(mem_txt.clone(), 12., FontWeight::NORMAL, muted_c))
-                                .child(
-                                    div()
-                                        .flex()
-                                        .items_center()
-                                        .gap(px(6.))
-                                        .child(div().size(px(6.)).rounded_full().bg(dot))
-                                        .child(
-                                            text(status_txt.clone(), 12., FontWeight::MEDIUM, status_fg)
-                                                .whitespace_nowrap(),
-                                        ),
-                                ),
-                        );
-                    }
-                    if !selected {
-                        col = col.child(text(mem_txt.clone(), 12., FontWeight::NORMAL, muted_c));
-                    }
-                    col
-                }));
+                            .child(text(size_txt.clone(), 12., FontWeight::NORMAL, muted_c));
+                        if t < 0.99 {
+                            name_line =
+                                name_line.child(
+                                    div().px(px(8.)).py(px(3.)).rounded(px(6.)).bg(palette.seg).opacity(1. - t).child(
+                                        text(downloaded.clone(), 11., FontWeight::MEDIUM, palette.model_badge_text),
+                                    ),
+                                );
+                        }
+                        let mut col = div().flex().flex_col().child(name_line).child(div().mt(px(6.)).child(text(
+                            mem_txt.clone(),
+                            12.,
+                            FontWeight::NORMAL,
+                            muted_c,
+                        )));
+                        if t > 0.01 {
+                            col = col.child(
+                                div()
+                                    .flex()
+                                    .flex_col()
+                                    .mt(px(6. * t))
+                                    .h(px(STATUS_H * t))
+                                    .overflow_hidden()
+                                    .opacity(t)
+                                    .child(
+                                        // Engine state as a pill (design 20.04, model card 7): green while running, grey
+                                        // while loading or stopped. A failure keeps plain text because it carries a reason.
+                                        div()
+                                            .flex()
+                                            .flex_none()
+                                            .self_start()
+                                            .items_center()
+                                            .gap(px(6.))
+                                            .when(pill, |d| {
+                                                let bg = if running { palette.model_running_bg } else { palette.seg };
+                                                d.h(px(STATUS_H)).px(px(8.)).rounded_full().bg(bg)
+                                            })
+                                            .child(div().size(px(6.)).rounded_full().bg(dot))
+                                            .child(
+                                                text(status_txt.clone(), 12., FontWeight::MEDIUM, status_fg)
+                                                    .whitespace_nowrap(),
+                                            ),
+                                    ),
+                            );
+                        }
+                        col
+                    }));
                 let use_action = if selected {
                     div()
                         .h(px(36.))
-                        .px(px(20.))
+                        .px(px(16.))
                         .rounded_full()
-                        .bg(p.accent_soft)
+                        .bg(p.model_in_use_pill_bg)
                         .flex()
                         .items_center()
                         .justify_center()
-                        .child(text(c.t(Tr::ModelsInUse), 13., FontWeight::MEDIUM, p.accent_text))
+                        .child(text(c.t(Tr::ModelsInUse), 13., FontWeight::MEDIUM, p.model_in_use_pill_text))
                         .into_any_element()
                 } else {
                     let id_use = id.clone();
@@ -569,7 +584,7 @@ impl ModelsPage {
                         SharedString::from(format!("use-{id}")),
                         p,
                         &c.t(Tr::ModelsUse),
-                        BtnKind::Secondary,
+                        BtnKind::Outline,
                         None,
                         cbk(cx, move |this: &mut Self, _, cx| {
                             cx.stop_propagation();
@@ -602,7 +617,8 @@ impl ModelsPage {
                     }
                     None => format!("{} / {}", ui::fmt_bytes(*done), ui::fmt_bytes(*total)),
                 };
-                body = body.child(ui::progress_bar(p, frac)).child(ui::muted12(p, progress));
+                body =
+                    body.child(ui::progress_bar(p, frac)).child(text(progress, 12., FontWeight::NORMAL, p.model_meta));
                 let (id_a, id_b) = (id.clone(), id.clone());
                 ctl = ctl
                     .child(ui::button(
@@ -623,9 +639,11 @@ impl ModelsPage {
                     ));
             }
             ModelState::Verifying { done, total } => {
-                body = body.child(ui::progress_bar(p, *done as f32 / (*total).max(1) as f32)).child(ui::muted12(
-                    p,
+                body = body.child(ui::progress_bar(p, *done as f32 / (*total).max(1) as f32)).child(text(
                     format!("{}（{} / {}）", c.t(Tr::ModelsVerifying), ui::fmt_bytes(*done), ui::fmt_bytes(*total)),
+                    12.,
+                    FontWeight::NORMAL,
+                    p.model_meta,
                 ));
                 let id2 = id.clone();
                 ctl = ctl.child(ui::button(
@@ -668,12 +686,12 @@ impl ModelsPage {
             ModelState::Failed { message, done, total } => {
                 // All bytes on disk → the checksum pass failed; otherwise the download itself.
                 let title = if *done >= *total { c.t(Tr::ModelsVerifyFailed) } else { c.t(Tr::ModelsDownloadFailed) };
-                body = body
-                    .child(text(title, 12., FontWeight::MEDIUM, if p.dark { p.danger } else { p.danger_text }))
-                    .child(ui::muted12(
-                        p,
-                        format!("{}（{} / {}）", message, ui::fmt_bytes(*done), ui::fmt_bytes(*total)),
-                    ));
+                body = body.child(text(title, 12., FontWeight::MEDIUM, p.model_error_text)).child(text(
+                    format!("{}（{} / {}）", message, ui::fmt_bytes(*done), ui::fmt_bytes(*total)),
+                    12.,
+                    FontWeight::NORMAL,
+                    p.model_meta,
+                ));
                 let (id_a, id_b) = (id.clone(), id.clone());
                 ctl = ctl
                     .child(ui::button(
@@ -696,13 +714,13 @@ impl ModelsPage {
                     ));
             }
             ModelState::NotInstalled => {
-                body = body.child(text(c.t(Tr::ModelsDownloadAvailable), 12., FontWeight::NORMAL, p.blue_text));
+                body = body.child(text(c.t(Tr::ModelsDownloadAvailable), 12., FontWeight::NORMAL, p.model_download));
                 let id2 = id.clone();
                 ctl = ctl.child(ui::button(
                     SharedString::from(format!("dl-{}-{id}", idx(role))),
                     p,
                     &c.t(Tr::MenubarDownload),
-                    BtnKind::Primary,
+                    BtnKind::Download,
                     Some(Ic::Download),
                     cbk(cx, move |this: &mut Self, _, _| {
                         let _ = this.st.models.start_download(&id2);
@@ -711,47 +729,36 @@ impl ModelsPage {
             }
         }
 
-        // Plate ladder (design 20.04.3): ghost outline (not downloaded) < idle < hover
-        // (tile_idle) < active (in use, with a primary ring). The ring replaces the old radio and
-        // "in use" tag; idle rows cross-fade to their hover plate over ~160ms.
+        // Card plates (design 20.04, Model card states): a dashed blue plate for models still to download, a gold
+        // plate with a 3 pt border for the one in use, an outlined plate for downloaded ones whose border darkens
+        // on hover, and a plain plate while a download is in progress.
         let tile_id = ElementId::from(SharedString::from(format!("model-row-{}-{}", idx(role), spec.id)));
+        let plate = || div().absolute().inset_0().rounded(px(12.));
         let tile: AnyElement = if ghost {
-            div()
-                .absolute()
-                .inset_0()
-                .rounded(px(12.))
-                .bg(p.blue_soft)
-                .border_1()
+            plate()
+                .bg(p.model_download_bg)
+                .border(px(1.5))
                 .border_dashed()
-                .border_color(p.blue_text)
+                .border_color(p.model_download_border)
                 .into_any_element()
         } else if selected {
-            // 2px primary ring, eased in — noticeably heavier than the idle hairline.
-            div()
-                .absolute()
-                .inset_0()
-                .rounded(px(12.))
-                .bg(p.accent_soft)
-                .child(ui::ring_overlay(
-                    ElementId::from((tile_id.clone(), SharedString::from("ring"))),
-                    true,
-                    12.,
-                    ui::transparent(),
-                    p.accent,
-                ))
-                .into_any_element()
-        } else {
-            let (idle_c, hover_c) = (p.row_idle, p.row_active);
-            let hover = state == ModelState::Installed && ui::is_hovered(&tile_id);
+            plate().bg(p.model_in_use_bg).border(px(3.)).border_color(p.model_in_use_border).into_any_element()
+        } else if state == ModelState::Installed {
+            let (bg, idle_c, hover_c) = (p.model_idle_bg, p.model_idle_border, p.model_idle_border_hover);
+            let hover = ui::is_hovered(&tile_id);
             ui::tweened(tile_id.clone(), if hover { 1. } else { 0. }, ui::HOVER_MS, move |t| {
-                div().absolute().inset_0().rounded(px(12.)).bg(ui::mix(idle_c, hover_c, t)).into_any_element()
+                plate().bg(bg).border_1().border_color(ui::mix(idle_c, hover_c, t)).into_any_element()
             })
+        } else {
+            plate().bg(p.row_idle).into_any_element()
         };
 
         let base = div()
             .w_full()
             .h(px(ROW_SLOT_H))
             .relative()
+            // The plate's border is a separate absolute layer, so it never moves the content: the same inset in every
+            // state keeps the text from jumping sideways when a card is selected.
             .px(px(22.))
             .py(px(18.))
             .flex()
@@ -953,20 +960,31 @@ impl ModelsPage {
             let profiles = self.st.cfg.get().asr.cloud_asr.clone().unwrap_or_default();
             for (i, name) in AsrProfiles::NAMES.iter().enumerate() {
                 let on = profiles.selected == i;
+                let card_id = ElementId::from(SharedString::from(format!("asr-preset-{i}")));
                 row = row.child(
                     div()
-                        .id(("asr-preset", i))
+                        .id(card_id.clone())
                         .flex_1()
                         .h(px(56.))
                         .px(px(18.))
                         .flex()
                         .items_center()
                         .justify_between()
-                        .rounded(px(12.))
-                        .border_1()
-                        .border_color(if on { p.accent } else { p.border_strong })
-                        .bg(if on { p.accent_soft } else { p.card })
+                        .rounded(px(14.))
                         .cursor_pointer()
+                        .bg(if on { p.accent_soft } else { p.card })
+                        .relative()
+                        .border_1()
+                        .border_color(ui::transparent())
+                        .on_hover(ui::hover_tracker(card_id.clone()))
+                        .child(ui::hover_fill_if(&card_id, Some(14.), ui::hex_alpha(p.seg, 0.6), !on))
+                        .child(ui::ring_overlay(
+                            SharedString::from(format!("asr-preset-ring-{i}")),
+                            on,
+                            14.,
+                            p.border_strong,
+                            p.accent,
+                        ))
                         .on_click(cx.listener(move |this, _, window, cx| {
                             let _ = this
                                 .st
@@ -985,7 +1003,7 @@ impl ModelsPage {
                             this.tests[0] = TestState::Idle;
                             cx.notify();
                         }))
-                        .child(text(*name, 14., FontWeight::NORMAL, p.text))
+                        .child(ui::choice_label(&card_id, p, SharedString::from(*name), 14., on))
                         .child(ui::radio(p, on)),
                 );
             }
@@ -1035,31 +1053,31 @@ impl ModelsPage {
         let cfg = self.st.cfg.get();
         let e = engine(&cfg, role);
         let inp = &self.inputs[idx(role)];
-        let wide = |label: SharedString, ent: &Entity<InputState>| {
-            ui::field(p, label, ui::text_input(p, ent, None)).flex_1().min_w(px(0.))
-        };
-        let key = |ent: &Entity<InputState>| {
-            ui::field(p, c.t(Tr::ModelsApiKey), ui::text_input(p, ent, Some(Ic::Lock))).flex_1().min_w(px(0.))
-        };
+        let input = |ent: &Entity<InputState>| ui::text_input(p, ent, None).form();
+        let wide =
+            |label: SharedString, ent: &Entity<InputState>| ui::form_field(p, label, input(ent)).flex_1().min_w(px(0.));
+        let key =
+            |ent: &Entity<InputState>| ui::form_field(p, c.t(Tr::ModelsApiKey), input(ent)).flex_1().min_w(px(0.));
+        let hint = || text(c.t(Tr::ModelsReasoningHint), 12., FontWeight::NORMAL, p.muted);
         let llm = role == Role::Polish;
-        let mut col = div().w_full().flex().flex_col().gap(px(16.));
+        let mut col = div().w_full().flex().flex_col().gap(px(18.));
         if role == Role::Asr {
             return col
-                .child(ui::field(p, c.t(Tr::ModelsBaseUrl), ui::text_input(p, &inp.compat_base, None)))
-                .child(ui::field(p, c.t(Tr::ModelsModelId), ui::text_input(p, &inp.compat_model, None)))
-                .child(ui::field(p, c.t(Tr::ModelsApiKey), ui::text_input(p, &inp.key_compat, Some(Ic::Lock))))
+                .child(ui::form_field(p, c.t(Tr::ModelsBaseUrl), input(&inp.compat_base)))
+                .child(ui::form_field(p, c.t(Tr::ModelsModelId), input(&inp.compat_model)))
+                .child(ui::form_field(p, c.t(Tr::ModelsApiKey), input(&inp.key_compat)))
                 .child(
                     div()
                         .w_full()
                         .flex()
                         .items_center()
                         .justify_between()
-                        .child(text(c.t(Tr::ModelsConnectionSettings), 13., FontWeight::MEDIUM, p.text))
+                        .child(text(c.t(Tr::ModelsConnectionSettings), 14., FontWeight::MEDIUM, p.text))
                         .child(ui::button(
                             "asr-edit",
                             p,
                             &c.t(Tr::AsrEditorEdit),
-                            BtnKind::Secondary,
+                            BtnKind::Subtle,
                             None,
                             cbk(cx, |this: &mut Self, w, cx| this.open_editor(w, cx)),
                         )),
@@ -1067,19 +1085,19 @@ impl ModelsPage {
         }
         match e.provider.kind {
             ProviderKind::Azure => {
-                col = col.child(ui::field(p, c.t(Tr::ModelsEndpoint), ui::text_input(p, &inp.azure_endpoint, None)));
+                col = col.child(ui::form_field(p, c.t(Tr::ModelsEndpoint), input(&inp.azure_endpoint)));
                 let mut r =
                     div().w_full().flex().gap(px(16.)).child(wide(c.t(Tr::ModelsDeployment), &inp.azure_deployment));
                 if llm {
-                    r = r.child(div().w(px(200.)).flex_none().child(ui::field(
+                    r = r.child(div().w(px(200.)).flex_none().child(ui::form_field(
                         p,
                         c.t(Tr::ModelsReasoningEffort),
-                        ui::text_input(p, &inp.effort_azure, None),
+                        input(&inp.effort_azure),
                     )));
-                    col = col.child(r).child(ui::field(
+                    col = col.child(r).child(hint()).child(ui::form_field(
                         p,
                         c.t(Tr::ModelsApiKey),
-                        ui::text_input(p, &inp.key_azure, Some(Ic::Lock)),
+                        input(&inp.key_azure),
                     ));
                 } else {
                     col = col.child(r.child(key(&inp.key_azure)));
@@ -1109,30 +1127,35 @@ impl ModelsPage {
                         }),
                     )
                 };
-                col = col.child(ui::field(p, c.t(Tr::ModelsRegion), ui::text_input(p, &inp.bedrock_region, None)));
+                col = col.child(ui::form_field(p, c.t(Tr::ModelsRegion), input(&inp.bedrock_region)));
                 let mut r = div().w_full().flex().gap(px(16.)).child(wide(c.t(Tr::ModelsModelId), &inp.bedrock_model));
                 if llm {
-                    r = r.child(div().w(px(200.)).flex_none().child(ui::field(
+                    r = r.child(div().w(px(200.)).flex_none().child(ui::form_field(
                         p,
                         c.t(Tr::ModelsReasoningEffort),
-                        ui::text_input(p, &inp.effort_bedrock, None),
+                        input(&inp.effort_bedrock),
                     )));
                 }
-                col = col.child(r).child(ui::field(p, c.t(Tr::ModelsAwsProfile), profile));
+                if llm {
+                    col = col.child(r).child(hint());
+                } else {
+                    col = col.child(r);
+                }
+                col = col.child(ui::form_field(p, c.t(Tr::ModelsAwsProfile), profile));
             }
             ProviderKind::Compat => {
-                col = col.child(ui::field(p, c.t(Tr::ModelsBaseUrl), ui::text_input(p, &inp.compat_base, None)));
+                col = col.child(ui::form_field(p, c.t(Tr::ModelsBaseUrl), input(&inp.compat_base)));
                 let mut r = div().w_full().flex().gap(px(16.)).child(wide(c.t(Tr::NavModels), &inp.compat_model));
                 if llm {
-                    r = r.child(div().w(px(200.)).flex_none().child(ui::field(
+                    r = r.child(div().w(px(200.)).flex_none().child(ui::form_field(
                         p,
                         c.t(Tr::ModelsReasoningEffort),
-                        ui::text_input(p, &inp.effort_compat, None),
+                        input(&inp.effort_compat),
                     )));
-                    col = col.child(r).child(ui::field(
+                    col = col.child(r).child(hint()).child(ui::form_field(
                         p,
                         c.t(Tr::ModelsApiKey),
-                        ui::text_input(p, &inp.key_compat, Some(Ic::Lock)),
+                        input(&inp.key_compat),
                     ));
                 } else {
                     col = col.child(r.child(key(&inp.key_compat)));
@@ -1152,23 +1175,38 @@ impl ModelsPage {
                 && (!profiles.active()["request"].to_string().contains("{{api_key}}")
                     || !self.st.secrets.get(&profiles.account()).unwrap_or_default().trim().is_empty());
         }
-        let label = match state {
-            TestState::Idle => c.t(Tr::ModelsUnchecked),
-            TestState::Running => c.t(Tr::ModelsChecking),
-            TestState::Ok(_) => c.t(Tr::ModelsConnected),
-            TestState::Failed(_) => c.t(Tr::ModelsConnectionError),
+        // Test state as a small tag (design 20.05): neutral while unchecked or running, green on success with the
+        // response time beside it, and the danger tones on failure with the reason underneath.
+        let (label, bg, fg, weight) = match state {
+            TestState::Idle => (c.t(Tr::ModelsUnchecked), p.seg, p.muted, FontWeight::NORMAL),
+            TestState::Running => (c.t(Tr::ModelsChecking), p.seg, p.muted, FontWeight::NORMAL),
+            TestState::Ok(_) => (c.t(Tr::ModelsTestOk), p.model_running_bg, p.model_running_text, FontWeight::MEDIUM),
+            TestState::Failed(_) => {
+                (c.t(Tr::ModelsConnectionError), p.button_danger_bg, p.button_danger_text, FontWeight::MEDIUM)
+            }
         };
-        let tone = match state {
-            TestState::Ok(_) => p.success_text,
-            TestState::Failed(_) => p.danger_text,
-            _ => p.muted,
-        };
-        let mut left = div().flex_1().min_w(px(0.)).flex().flex_col().gap(px(6.)).child(ui::status_chip(label, tone));
+        let tag = div()
+            .flex_none()
+            .px(px(10.))
+            .py(px(4.))
+            .rounded(px(6.))
+            .bg(bg)
+            .child(text(label, 12., weight, fg).line_height(relative(1.5)));
+        let mut status = div().flex().items_center().gap(px(12.)).child(tag);
         if role == Role::Polish
             && let TestState::Ok(ms) = state
         {
-            left = left.child(text(format!("{}  {ms} ms", c.t(Tr::ModelsLatency)), 12., FontWeight::NORMAL, p.muted));
+            status = status.child(
+                div()
+                    .flex()
+                    .items_baseline()
+                    .gap(px(6.))
+                    .child(text(c.t(Tr::ModelsLatency), 12., FontWeight::NORMAL, p.muted))
+                    .child(text(ms.to_string(), 13., FontWeight::MEDIUM, p.text))
+                    .child(text("ms", 12., FontWeight::NORMAL, p.muted)),
+            );
         }
+        let mut left = div().flex_1().min_w(px(0.)).flex().flex_col().gap(px(6.)).child(status);
         if let TestState::Failed(message) = state {
             left = left.child(text(ui::error_line(c.lang, message), 12., FontWeight::NORMAL, p.text));
         }
@@ -1178,19 +1216,21 @@ impl ModelsPage {
                 SharedString::from(format!("test-{}", idx(role))),
                 p,
                 &c.t(Tr::ModelsTestConnection),
-                BtnKind::Secondary,
+                BtnKind::Subtle,
                 None,
                 cbk(cx, move |this: &mut Self, _, cx| this.run_test(role, cx)),
             )
+            .w(px(140.))
             .into_any_element()
         } else {
             div()
                 .h(px(36.))
-                .px(px(18.))
+                .w(px(140.))
                 .rounded_full()
                 .bg(p.seg)
                 .flex()
                 .items_center()
+                .justify_center()
                 .child(text(c.t(Tr::ModelsTestConnection), 13., FontWeight::MEDIUM, p.muted))
                 .into_any_element()
         };
