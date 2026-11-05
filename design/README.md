@@ -37,11 +37,52 @@ New pages and sections take the next free number; existing numbers are not compa
 
 | Page | Sections |
 | --- | --- |
+| 11 Type, Space & Components | 11.01 Type, Space & Components, 11.02 Icons, 11.03 Controls |
 | 12 Motion | 12.00 Overview, 12.01 Motion Tokens, 12.02 Controls, 12.03 Slider, 12.04 Dropdown |
 | 14 Localization | 14.01 Languages, 14.02 Localized Screens |
 | 20 Settings | 20.00 Overview, 20.01 General, 20.02 Dictionary, 20.03 Prompts, 20.04 Local Models, 20.05 Cloud Models, 20.06 ASR Connection JSON, 20.07 History, 20.08 Stats, 20.09 Status, 20.10 Sidebar |
-| 21 HUD & Menu Bar | 21.00 Overview, 21.01 States, 21.02 Recording, 21.03 Errors, 21.04 Menu Bar, 21.05 HUD Motion Tokens, 21.06 HUD Processing, 21.07 Width & Pop-ups, 21.08 Follow Pointer |
+| 21 HUD & Menu Bar | 21.00 Overview, 21.01 States, 21.02 Recording, 21.03 Errors, 21.04 Menu Bar, 21.05 HUD Motion Tokens, 21.06 HUD Processing, 21.07 Width & Pop-ups, 21.08 Follow Pointer, 21.09 HUD Buttons |
 | 22 Onboarding | 22.00 Overview, 22.01 Welcome, 22.02 Permissions, 22.03 How to Use, 22.04 Shortcut, 22.05 Engine, 22.06 Cloud, 22.07 Try It, 22.08 Page Slide, 22.09 Usage Demo |
+
+### Components and icons
+
+- Anything drawn more than once is a component, and screens use instances of it. Shared components live on page `11`; parts used by one screen live in that screen's section.
+- Main components sit directly in a named frame, not wrapped one per cell, because the Assets panel builds its folders from the frames around a component. Labels go next to them as sibling text.
+- Icons live in `11.02 Icons`, one component per SVG in `crates/dito-app/assets/icons`, named after its path (`lucide/book-open`, `hud/finish`, `appearance/dark`). The description names the code that draws it.
+- Size an icon instance with the scale tool (K) to the size the code passes, so the stroke scales the way GPUI draws the SVG. Change its color as an override on the `glyph` layer.
+- When code adds, renames or removes an SVG, update its component in `11.02` in the same change.
+
+### Controls
+
+`11.03 Controls` holds the shared controls; screens use instances of them, never copies.
+
+| Set | Properties | Notes |
+| --- | --- | --- |
+| `Button` | Kind (Primary, Secondary, Danger, Download, Outline), Size (Regular 36, Large 40, Hero 50), State (Rest, Hover), Label, Leading icon, Trailing icon, Icon, Trailing | Regular is for Settings, Large for onboarding, Hero for the welcome step. A Secondary button on a page background binds its fill to `card` instead of `input_bg`. Download is the blue model download button; Outline is the model card's 使用する |
+| `Icon Button` | State (Rest, Hover, Active), Icon | 36 round, 16 pt icon |
+| `Switch` | Value (On, Off) | 42 × 24, 18 knob |
+| `Radio` | Value (On, Off) | 18, ring style when on |
+| `Select` | State (Rest, Hover, Open), Label | Width is set per instance |
+| `Segment`, `Segmented` | State (Selected, Unselected, Hover), Label; the `Segments` slot | Put `Segment` instances in the slot of a `Segmented` track. Each option is as wide as its label in Medium plus 16 on each side, so selecting never changes the width |
+| `Appearance Control` | Value (System, Light, Dark) | The icon-only appearance switcher |
+| `Slider` | State (Rest, Hover, Pressed), Start label, End label | 220 × 24 track, 24 thumb (26 on hover, 32 pressed). Set the thumb position and selected width per instance |
+| `Menu`, `Menu Item`, `Menu Separator` | Menu Item: Tone (Default, Danger), State (Rest, Hover), Label, Leading icon, Icon, Check; Menu: the `Items` slot | One menu style for selects and action menus |
+
+Every control's motion is a table in `12.02` (buttons, selects, segmented, switch, sliding plate), `12.03` (slider) and `12.04` (dropdown and menu): trigger, change, timing, interruption and the Reduce Motion fallback.
+
+- Connection forms (`20.05`) use the form field: 40 high, radius 8, `field/bg` with a `field/border` hairline, captions 13 Regular in `muted`. Other screens keep the 36 pt field with radius 12.
+- Dialogs (`20.06`): 28 side padding; top and bottom padding 14 in a short window (under 700 high) and 28 otherwise. The title row is 32 high and the 32 pt close button sits flush at its right end, so the cross is 38 from the right edge and 24 from the top in a short window (a golden-ratio pair), 38 from both in a tall one.
+- A disabled control is the same instance at 45% opacity.
+- After swapping an icon through a property, check its size and stroke: a swap brings the icon in at its own size and keeps the old stroke weight. A scaled icon's stroke is 2 × size ÷ 24.
+- These specs are the design's and the code follows them; differences still open in code are listed in the change that introduced them.
+
+### Color follows the surface
+
+- Content color comes from the surface it sits on: dark content on light surfaces, light content on dark ones. This is done with the `Color` mode, not with separate light and dark components.
+- Every screen frame sets the `Color` mode (Light or Dark). Components bind their fills, strokes, rings and shadows to `Color` variables, so one component draws correctly in either theme. Never make a Light and a Dark copy of a component.
+- Content on a tinted surface uses the matching `*_text` variable (`success_text` on `success_soft`, `danger_text` on `danger_soft`); content on a solid primary or accent fill uses `on_primary`.
+- A component that brings its own background owns both colors. `21.09 HUD Buttons` (Kind: Cancel, Finish, Dismiss, Retry, Settings; State: Rest, Hover) and `Close Button` on `20.06` (State: Default, Hover) are the reference.
+- A hex value on an instance is allowed only where no variable matches yet; it is a gap to close, not a style.
 
 Settings sections follow the app's navigation order. The prompt editor matches gpui-kit's Textarea: 13 px text, 20 px lines, no letter spacing. Older numbers (`03A`, `10c`, `20.0x` from the short-lived Japanese layout) are retired; code comments cite the new numbers or token names.
 
@@ -62,7 +103,9 @@ Layer names derived from UI copy use the English string of the same i18n key. Ab
 
 - Screen pages and `12 Motion` start with `NN.00 Overview` at the far left (title, purpose, section list).
 - Sections run left to right in number order, top-aligned, 240 apart.
-- Board: white, radius 24, padding 64, auto layout. Top-left: number chip (Gold 05), title (32), one-line purpose (15, muted).
+- Section: radius 64 with 60% corner smoothing, holding its board 40 in from every edge so the corners stay concentric.
+- Board: white, radius 24 with 60% corner smoothing, padding 64, auto layout. Top-left: number chip (Gold 05), title (32), one-line purpose (15, muted).
+- Corner smoothing is for sections and boards only, because they are canvas, not product UI. Screen frames and everything inside them keep plain radii, since GPUI draws only circular corners.
 - Item: title (20), optional one-line note, then rows. Each frame sits in a cell with a small caption above it.
 - Light on the left, dark on the right. When a row holds only one theme, a small gold "Light" or "Dark" label sits above the row and the captions drop the theme.
 - Captions are 3 to 5 words. Longer explanation goes in the Notes card.
@@ -93,11 +136,11 @@ Annotation categories: **Interaction**, **Motion**, **Content**, **Measure**. An
 
 | Collection | Modes | Content |
 | --- | --- | --- |
-| `Color` | Light / Dark | `Palette` semantic colors from `crates/dito-app/src/theme.rs` (`bg`, `side`, `card`, `text`, `muted`, `accent`, `danger`, …) |
+| `Color` | Light / Dark | Every `Palette` field in `crates/dito-app/src/theme.rs` under the same name (`bg`, `text`, `muted`, `on_primary`, `seg_on`, `menu_bg`, …), the constants `white` and `plain_black`, and `hud/*` for each `hud_color` pair in `crates/dito-app/src/hud` plus `hud/danger_ring` and `hud/button_shadow` |
 | `Motion` | — | Shared: `motion/hover` 160, `tip` 150, `ring` 180, `sidebar` 260, `switch` 380, `glass` 460. HUD and onboarding: `pill` 150, `hud-pop` 420, `hud-widen` 300, `hud-label` 120, `onboarding-slide` 360 (ms) |
 | `Size` | — | `radius/input` 12, `radius/card` 16, `radius/window` 20, `window/width` 1120, `sidebar/width` 232 |
 
-Existing layers are not bound to variables yet; new components bind from the start.
+Icon instances, HUD buttons, the close button and the `11.03` controls are bound to variables; other existing layers still carry hex values. New components bind from the start, and a variable's values change together with the code that defines it.
 
 ## 8. Language in the product
 
