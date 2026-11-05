@@ -1,0 +1,127 @@
+//! LocalEngines with a fake runtime: lazy load, status, restart, failure reasons.
+
+use std::path::Path;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+use dito_core::audio::AudioClip;
+use dito_core::config::ConfigStore;
+use dito_core::error::ErrorKind;
+use dito_core::factory::LocalBackend;
+use dito_core::health::EngineStatus;
+use dito_core::provider::{AsrRequest, PolishRequest};
+use dito_local::catalog::{FileSpec, ModelKind, ModelSpec, Runtime};
+use dito_local::engine::NoRuntime;
+use dito_local::{AsrOutput, AsrRuntime, LlmRuntime, LocalEngines, ModelManager, RuntimeLoader};
+
+struct Fake {
+    loads: AtomicUsize,
+    fail: bool,
+}
+
+struct FakeAsr;
+impl AsrRuntime for FakeAsr {
+    fn transcribe(&self, samples: &[f32], _: Option<&str>, _: &[String]) -> Result<AsrOutput, String> {
+        Ok(AsrOutput { text: format!("{} samples", samples.len()), language: Some("ja".into()) })
+    }
+}
+struct FakeLlm;
+impl LlmRuntime for FakeLlm {
+    fn generate(&self, _: &str, user: &str) -> Result<String, String> {
+        Ok(user.to_uppercase())
+    }
+}
+
+impl RuntimeLoader for Fake {
+    fn load_asr(&self, _: &ModelSpec, _: &Path) -> Result<Arc<dyn AsrRuntime>, String> {
+        self.loads.fetch_add(1, Ordering::SeqCst);
+        if self.fail { Err("out of memory".into()) } else { Ok(Arc::new(FakeAsr)) }
+    }
+    fn load_llm(&self, _: &ModelSpec, _: &Path) -> Result<Arc<dyn LlmRuntime>, String> {
+        self.loads.fetch_add(1, Ordering::SeqCst);
+        Ok(Arc::new(FakeLlm))
+    }
+}
+
+fn installed_manager() -> (ModelManager, tempfile::TempDir) {
+    let dir = tempfile::tempdir().unwrap();
+    let cfg = Arc::new(ConfigStore::open(dir.path().join("c.toml")).unwrap());
+    cfg.update(|c| c.models_dir = Some(dir.path().join("models"))).unwrap();
+    let mk = |id: &str, kind| ModelSpec {
+        id: id.into(),
+        name: id.into(),
+        kind,
+        files: vec![FileSpec { name: "f".into(), url: String::new(), size: 3, sha256: None }],
+        memory_mb: 1,
+        runtime: Runtime::SherpaOnnx,
+    };
+    let mgr = ModelManager::with_catalog(
+        vec![mk("asr", ModelKind::Asr), mk("llm", ModelKind::Polish), mk("missing", ModelKind::Asr)],
+        cfg,
+    );
+    for id in ["asr", "llm"] {
+        std::fs::create_dir_all(mgr.model_dir(id)).unwrap();
+        std::fs::write(mgr.model_dir(id).join("f"), b"abc").unwrap();
+    }
+    mgr.refresh();
+    (mgr, dir)
+}
+
+#[tokio::test]
+async fn loads_lazily_once_and_runs_inference_off_the_async_thread() {
+    let (mgr, _d) = installed_manager();
+    let fake = Arc::new(Fake { loads: AtomicUsize::new(0), fail: false });
+    let eng = LocalEngines::new(mgr, fake.clone());
+    assert_eq!(eng.status("asr"), EngineStatus::Stopped);
+
+    let clip = AudioClip::new(vec![0.1; 1600]);
+    for _ in 0..2 {
+        let t = eng.transcriber("asr").await.unwrap();
+        let out = t.transcribe(&AsrRequest { clip: &clip, language: None, hotwords: &[] }).await.unwrap();
+        assert_eq!(out.text, "1600 samples");
+        assert_eq!(out.language.as_deref(), Some("ja"));
+    }
+    assert_eq!(fake.loads.load(Ordering::SeqCst), 1, "second call reuses the loaded runtime");
+    assert_eq!(eng.status("asr"), EngineStatus::Running);
+
+    let p = eng.polisher("llm").await.unwrap();
+    assert_eq!(p.polish(&PolishRequest { system: "s", text: "hi" }).await.unwrap(), "HI");
+}
+
+#[tokio::test]
+async fn restart_reloads_and_unload_returns_to_stopped() {
+    let (mgr, _d) = installed_manager();
+    let fake = Arc::new(Fake { loads: AtomicUsize::new(0), fail: false });
+    let eng = LocalEngines::new(mgr, fake.clone());
+    eng.transcriber("asr").await.unwrap();
+    assert_eq!(eng.restart("asr").await, EngineStatus::Running);
+    assert_eq!(fake.loads.load(Ordering::SeqCst), 2);
+    eng.unload("asr");
+    assert_eq!(eng.status("asr"), EngineStatus::Stopped);
+}
+
+#[tokio::test]
+async fn not_installed_and_load_failures_are_reported_with_reasons() {
+    let (mgr, _d) = installed_manager();
+    let eng = LocalEngines::new(mgr, Arc::new(Fake { loads: AtomicUsize::new(0), fail: true }));
+    assert_eq!(eng.status("missing"), EngineStatus::NotInstalled);
+    assert_eq!(eng.transcriber("missing").await.err().unwrap().kind, ErrorKind::Unavailable);
+    let err = eng.transcriber("asr").await.err().unwrap();
+    assert_eq!(err.kind, ErrorKind::Unavailable);
+    assert_eq!(eng.status("asr"), EngineStatus::Failed("out of memory".into()));
+}
+
+#[tokio::test]
+async fn without_a_runtime_the_status_is_failed_never_a_fake_success() {
+    let (mgr, _d) = installed_manager();
+    let eng = LocalEngines::new(mgr, Arc::new(NoRuntime));
+    assert!(eng.transcriber("asr").await.is_err());
+    assert!(matches!(eng.status("asr"), EngineStatus::Failed(m) if m.contains("no inference runtime")));
+}
+
+#[tokio::test]
+async fn wrong_model_kind_is_rejected() {
+    let (mgr, _d) = installed_manager();
+    let eng = LocalEngines::new(mgr, Arc::new(Fake { loads: AtomicUsize::new(0), fail: false }));
+    assert!(eng.polisher("asr").await.is_err());
+}

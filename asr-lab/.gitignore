@@ -1,0 +1,6 @@
+.venv/
+models/
+results/
+recordings/
+audio/*.wav
+audio/*.aiff

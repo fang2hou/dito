@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "connection": {
+    "base_url": "https://dashscope.aliyuncs.com/api/v1",
+    "model": ""
+  },
+  "language_map": {
+    "ja": "ja",
+    "en": "en",
+    "zh": "zh",
+    "auto": null,
+    "other": "en"
+  },
+  "request": {
+    "method": "POST",
+    "path": "/services/aigc/multimodal-generation/generation",
+    "query": {},
+    "headers": {
+      "Authorization": "Bearer {{api_key}}"
+    },
+    "encoding": "json",
+    "body": {
+      "model": "{{model}}",
+      "input": {
+        "messages": [
+          {
+            "role": "user",
+            "content": [
+              {
+                "audio": "{{audio.data_uri}}"
+              }
+            ]
+          }
+        ]
+      },
+      "parameters": {
+        "format": "wav"
+      },
+      "resources": []
+    }
+  },
+  "response": {
+    "text_pointer": "/output/text"
+  }
+}
