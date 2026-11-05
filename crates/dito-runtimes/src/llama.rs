@@ -356,11 +356,11 @@ mod tests {
 
     /// Run explicitly against local GGUF files; no downloads or paid provider calls.
     #[test]
-    #[ignore = "requires DITO_ASR_MODEL_DIR and the local asr-lab audio fixtures"]
+    #[ignore = "requires DITO_ASR_MODEL_DIR and the local bench audio clips (`mise run bench clips`)"]
     fn asr_reference_vocabulary_audio_regression() {
         use dito_local::AsrRuntime;
         let model = super::Asr::load(std::path::Path::new(&std::env::var("DITO_ASR_MODEL_DIR").unwrap())).unwrap();
-        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../asr-lab/audio");
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../bench/audio");
         let unrelated = vec!["星际菠萝研究所".into(), "银河量子仓库".into(), "NebulaBanana".into()];
         for (file, lang, relevant) in
             [("zh_01.wav", "zh", "会议室"), ("ja_01.wav", "ja", "新機能"), ("en_01.wav", "en", "QA")]

@@ -49,7 +49,7 @@ pub fn default_catalog() -> Vec<ModelSpec> {
     let hf = "https://huggingface.co";
     // Display order within a kind is the order here: the Models page lists them as written.
     vec![
-        // Measured on M4 Pro (asr-lab, 2026-11): 0.4-0.6 s per clip, the most accurate tier and
+        // Measured on M4 Pro (bench, 2026-11): 0.4-0.6 s per clip, the most accurate tier and
         // the default; same hotword/context path as the 0.6B. Official repo ships Q8_0 only (no Q4).
         ModelSpec {
             id: "qwen3-asr-1.7b".into(),
@@ -72,7 +72,7 @@ pub fn default_catalog() -> Vec<ModelSpec> {
             memory_mb: 3100,
             runtime: Runtime::LlamaCpp,
         },
-        // Measured on M4 Pro (asr-lab, 2026-11): 0.15-0.24 s per dictation clip, ~90x realtime;
+        // Measured on M4 Pro (bench, 2026-11): 0.15-0.24 s per dictation clip, ~90x realtime;
         // hotword (context) support. The long-audio defect (llama.cpp #21847, pre-2026-05) is fixed
         // in the vendored llama.cpp: a 336.7 s clip transcribes in full (CER 0.003, 9.6 s).
         ModelSpec {
@@ -148,7 +148,7 @@ pub fn default_catalog() -> Vec<ModelSpec> {
             memory_mb: 3400,
             runtime: Runtime::LlamaCpp,
         },
-        // Measured on M4 Pro (asr-lab, 2026-11): 9B is the only tier where ASR-hotword →
+        // Measured on M4 Pro (bench, 2026-11): 9B is the only tier where ASR-hotword →
         // polish-dictionary injection stays stable (4B drops entries); 2B keeps English
         // terms at 0.25–0.32 s latency.
         ModelSpec {
