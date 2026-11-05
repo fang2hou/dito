@@ -1,0 +1,70 @@
+[priorities]
+static = 10
+rust = 20
+rust-lint = 30
+
+[[repos]]
+repo = "builtin"
+hooks = [
+  { id = "check-merge-conflict" },
+  { id = "check-toml" },
+  { id = "check-json" },
+  { id = "check-yaml" },
+  { id = "check-added-large-files" },
+]
+
+[[repos]]
+repo = "local"
+
+[[repos.hooks]]
+id = "secrets"
+name = "Scan staged changes for secrets"
+language = "system"
+entry = "gitleaks git --staged --redact --no-banner"
+always_run = true
+pass_filenames = false
+priority = "static"
+
+[[repos.hooks]]
+id = "workflows"
+name = "Lint GitHub Actions workflows"
+language = "system"
+entry = "mise run lint:actions"
+files = '^\.github/workflows/'
+pass_filenames = false
+priority = "static"
+
+[[repos.hooks]]
+id = "commit-message"
+name = "Conventional Commit message"
+language = "system"
+entry = "mise run hooks:commit-msg"
+stages = ["commit-msg"]
+priority = "static"
+
+[[repos.hooks]]
+id = "rust-check"
+name = "Rust format and tests"
+language = "system"
+entry = "mise run check"
+files = '^(crates/|Cargo\.(toml|lock)$|rustfmt\.toml$|\.cargo/|scripts/check\.sh$|mise\.toml$)'
+pass_filenames = false
+priority = "rust"
+
+[[repos.hooks]]
+id = "rust-clippy"
+name = "Rust clippy"
+language = "system"
+entry = "mise run lint:rust"
+files = '^(crates/|Cargo\.(toml|lock)$|rustfmt\.toml$|\.cargo/|mise\.toml$)'
+pass_filenames = false
+priority = "rust-lint"
+
+[[repos.hooks]]
+id = "bench"
+name = "Bench lint, types and tests"
+language = "system"
+entry = "mise run bench:check"
+files = '^(bench/|mise\.toml$)'
+pass_filenames = false
+priority = "rust"

@@ -1,0 +1,2 @@
+[commit_types]
+design = { changelog_title = "Design" }
