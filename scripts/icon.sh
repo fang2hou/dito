@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# App icon tooling around assets/icon/Dito.icon (an Icon Composer document; see docs/engineering/IMPLEMENTATION.md, Engineering Traps).
+# App icon tooling around assets/icon/Dito.icon (an Icon Composer document; see docs/IMPLEMENTATION.md, Engineering Traps).
 #   scripts/icon.sh compile <resources-dir>   actool: Dito.icon -> Assets.car (Liquid Glass) + Dito.icns (fallback)
 #   scripts/icon.sh preview [out-dir]         ictool: render every appearance to PNG (default /tmp/dito-icon-preview)
 set -euo pipefail

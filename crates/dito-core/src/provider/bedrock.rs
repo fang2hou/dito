@@ -1,7 +1,7 @@
 //! Amazon Bedrock through the Converse API. Credentials come from the user's AWS profile.
 //!
 //! ASR works only with models that accept audio content blocks in Converse; this is unverified against
-//! a real account (see docs/engineering/IMPLEMENTATION.md, Known Limitations).
+//! a real account (see docs/IMPLEMENTATION.md, Known Limitations).
 
 use async_trait::async_trait;
 use aws_config::{BehaviorVersion, Region};

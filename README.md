@@ -16,11 +16,12 @@ Dito records your voice, recognizes it on your Mac or through a cloud provider, 
 Work in this repository. Read AGENTS.md at the repository root first and follow it.
 ```
 
-**As a human**: requires macOS, Rust 1.99.1 (pinned in `rust-toolchain.toml`), Xcode with its Metal Toolchain, and cmake.
+**As a human**: requires macOS, [mise](https://mise.jdx.dev) (installs the pinned Rust and Python tools from `mise.toml`), Xcode with its Metal Toolchain, and cmake.
 
 ```bash
-./scripts/certs.sh                          # once per machine: signing identity that keeps permissions across rebuilds
-cargo run -p dito-app -- --mock --log-sink  # the whole app with mock providers; nothing is typed into other apps
+mise install          # pinned Rust, Python, uv and ruff
+mise run certs        # once per machine: signing identity that keeps permissions across rebuilds
+mise run dev:mock     # the whole app with mock providers; nothing is typed into other apps
 ```
 
 The settings window opens and a menu bar icon appears. Put the cursor in a text field and press right ⌘ to start and stop a dictation. Dito needs Microphone and Accessibility permissions; the settings window links to both.
@@ -28,8 +29,9 @@ The settings window opens and a menu bar icon appears. Put the cursor in a text 
 <details>
 <summary>Real mode and release builds</summary>
 
-- `cargo run -p dito-app` uses the real microphone, local models and providers. Download local models under Models → Local, or set up a provider under Models.
-- `./scripts/bundle.sh` builds `target/bundle/Dito.app`.
+- `mise run dev` uses the real microphone, local models and providers. Download local models under Models → Local, or set up a provider under Models.
+- `mise run release` builds the optimized `target/bundle/Dito.app` and launches it.
+- `mise run release:install` builds the release bundle and installs it to `~/Applications`. It creates the `dito-dev` signing identity first when it is missing (one macOS authorization prompt).
 - If only the Command Line Tools are selected, export `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` and run `xcodebuild -downloadComponent MetalToolchain` once.
 
 </details>
@@ -48,9 +50,9 @@ The settings window opens and a menu bar icon appears. Put the cursor in a text 
 | --- | --- |
 | What the app does and why | [design/features.md](design/features.md) |
 | UI and motion design | [design/README.md](design/README.md) |
-| Architecture and decisions | [docs/engineering/ARCHITECTURE.md](docs/engineering/ARCHITECTURE.md), [ADRs](docs/engineering/adr/README.md) |
-| Build, test and debug | [docs/engineering/IMPLEMENTATION.md](docs/engineering/IMPLEMENTATION.md) |
-| Contribute a change | [docs/engineering/CONTRIBUTING.md](docs/engineering/CONTRIBUTING.md) |
+| Architecture and decisions | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [ADRs](docs/adr/README.md) |
+| Build, test and debug | [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md) |
+| Contribute a change | [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) |
 | Give it to an agent | [AGENTS.md](AGENTS.md) |
 
 ## 📄 License

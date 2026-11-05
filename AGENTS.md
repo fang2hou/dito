@@ -7,7 +7,12 @@ Dito is a macOS dictation app in Rust and GPUI: press a shortcut, speak, and pol
 ## Commands
 
 ```bash
-cargo run -p dito-app -- --mock --log-sink   # run with mock cloud, mic and data; never types into other apps
+mise install                                 # Rust, Python, uv and ruff at the pinned versions (mise.toml)
+mise run dev:mock                            # run with mock cloud, mic and data; never types into other apps
+mise run dev                                 # run with the real microphone, models and providers
+mise run release                             # optimized release bundle, launched from target/bundle
+mise run release:install                     # install the release bundle to ~/Applications, creating the signing identity if needed
+mise run bench:lint                          # ruff and ty for the Python bench project; mise run bench:test runs its tests
 cargo test -p <crate>                        # tests for the crate you changed
 cargo test -p dito-app --test i18n_coverage  # after editing crates/dito-core/src/i18n/messages.toml
 cargo fmt --all -- --check                   # format check
@@ -17,7 +22,7 @@ cargo clippy --workspace --all-targets -- -D warnings  # lint
 figcraft-cli render design/dito.figcraft -o out.png --page "<page>"  # render a design page headlessly
 ```
 
-First-time setup (Xcode Metal toolchain, signing certificate) is in `docs/engineering/IMPLEMENTATION.md`.
+First-time setup (Xcode Metal toolchain, signing certificate) is in `docs/IMPLEMENTATION.md`.
 
 ## Engineering Standards
 
@@ -25,9 +30,10 @@ This project follows the shared engineering guidelines: <https://github.com/fang
 
 Project-specific overrides:
 
-- Tooling runs through `cargo` and `scripts/check.sh`; mise and prek are not set up yet.
+- Tool versions (Rust, Python, uv, ruff, ty) and common tasks live in `mise.toml`; Rust code runs through `cargo` and `scripts/check.sh`, the Python bench project through uv. prek is not set up yet.
+- `bench/` pins Python 3.15, newer than the guideline default of 3.12, at the owner's request; every dependency it uses ships 3.15 wheels or builds from source.
 - Tests stay light (see Project Conventions); this narrows the testing guideline for a fast-moving personal app.
-- Architecture, development (`IMPLEMENTATION.md`) and contributing docs live in `docs/engineering/` instead of the repository root, at the owner's request.
+- Architecture, development (`IMPLEMENTATION.md`) and contributing docs live in `docs/` instead of the repository root, at the owner's request.
 
 ## Layout
 
@@ -36,8 +42,9 @@ Project-specific overrides:
 - `crates/dito-platform`: macOS integration (hotkeys, text insertion, permissions, windows).
 - `crates/dito-audio`, `crates/dito-local`, `crates/dito-runtimes`: capture, local model management, on-device inference.
 - `crates/dito-testkit`: mock cloud servers.
+- `bench/`: Python benchmark harness for ASR and polish models (`dito-bench`), with stored results per chip. See `bench/README.md`.
 - `design/`: `dito.figcraft` (source of truth for UI and motion), its conventions, `features.md` (goals and features), and `asr-templates/` (compiled into the app; never move or delete).
-- `docs/engineering/`: architecture, implementation, contributing and ADRs. `docs/workflow/`: step-by-step workflows. `scripts/`: bundling, signing, checks.
+- `docs/`: architecture, implementation, contributing and ADRs. `docs/workflow/`: step-by-step workflows. `scripts/`: bundling, install, signing, checks.
 
 ## Boundaries
 
@@ -79,6 +86,6 @@ Do not infer UI language from conversation language.
 - Tests: write one when logic is easy to break and hard to notice in the app (parsing, config migration, state machines, i18n coverage, protocols). No defensive tests for layout, every error branch or hypothetical misuse; delete a test that blocks a legitimate change and protects nothing a user would notice.
 - Scripts may check exact geometry (alignment, sizes, bounds, overflow). Color and motion feel are judged by the user in the running app.
 - Design file structure, naming, note cards and where shared versus screen-specific changes go: `design/README.md`.
-- Before changing code an ADR covers, read it in `docs/engineering/adr/`; update or supersede it in the same change instead of working around it.
+- Before changing code an ADR covers, read it in `docs/adr/`; update or supersede it in the same change instead of working around it.
 
-Depth: `docs/workflow/` for the UI and code-fix workflows, `docs/engineering/README.md` for architecture, implementation, contributing and ADRs, `design/README.md` and `design/features.md` for design.
+Depth: `docs/workflow/` for the UI and code-fix workflows, `docs/README.md` for architecture, implementation, contributing and ADRs, `design/README.md` and `design/features.md` for design.

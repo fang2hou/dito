@@ -1,11 +1,11 @@
 # Contributing
 
-How a change lands. Setup lives in [IMPLEMENTATION.md](IMPLEMENTATION.md); rules for AI agents live in [AGENTS.md](../../AGENTS.md).
+How a change lands. Setup lives in [IMPLEMENTATION.md](IMPLEMENTATION.md); rules for AI agents live in [AGENTS.md](../AGENTS.md).
 
 ## Ground Rules
 
 - The smallest complete change that solves the request; no unrelated cleanup.
-- UI changes start in the design and need the owner's approval before code ([adjust the UI](../workflow/ui-adjustment.md)).
+- UI changes start in the design and need the owner's approval before code ([adjust the UI](workflow/ui-adjustment.md)).
 - No new dependency without a reason the change can't do without.
 - Nothing internal: no company or client names, internal hosts or internal documents in code, docs, the design file or sample data.
 

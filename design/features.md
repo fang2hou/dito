@@ -1,6 +1,6 @@
 # Dito: Goals and Features
 
-What the app is for and what it does, from the user's side. How it looks and moves is in `dito.figcraft` (conventions in [README.md](README.md)); how it is built is in [docs/engineering](../docs/engineering/README.md).
+What the app is for and what it does, from the user's side. How it looks and moves is in `dito.figcraft` (conventions in [README.md](README.md)); how it is built is in [docs](../docs/README.md).
 
 ## Goals
 

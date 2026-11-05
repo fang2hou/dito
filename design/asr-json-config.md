@@ -1,6 +1,6 @@
 # Cloud ASR Connection Config (v1)
 
-The contract behind the cloud speech presets: what the JSON config means, how the editor behaves, and how it is stored. `dito-core` implements the request, language mapping, validation and storage; `dito-app` implements the editor and help. The decision itself is [ADR 0007](../docs/engineering/adr/0007-declarative-cloud-asr.md).
+The contract behind the cloud speech presets: what the JSON config means, how the editor behaves, and how it is stored. `dito-core` implements the request, language mapping, validation and storage; `dito-app` implements the editor and help. The decision itself is [ADR 0007](../docs/adr/0007-declarative-cloud-asr.md).
 
 ## UI and Config
 

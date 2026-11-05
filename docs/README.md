@@ -1,4 +1,4 @@
-# Engineering Docs
+# Docs
 
 | Goal | Read |
 | --- | --- |
@@ -6,5 +6,5 @@
 | Build, run, test and debug | [IMPLEMENTATION.md](IMPLEMENTATION.md) |
 | Land a change | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | Know why something is the way it is | [adr/](adr/README.md) |
-| Follow a step-by-step procedure | [docs/workflow](../workflow/README.md) |
-| See what the app does and why | [design/features.md](../../design/features.md) |
+| Follow a step-by-step procedure | [workflow/](workflow/README.md) |
+| See what the app does and why | [design/features.md](../design/features.md) |
