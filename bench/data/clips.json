@@ -1,0 +1,39 @@
+[
+  {
+    "name": "zh_01",
+    "voice": "Tingting",
+    "lang": "zh",
+    "text": "今天下午三点，我们在会议室讨论新版本的功能设计，然后把结果同步给测试团队。"
+  },
+  {
+    "name": "en_01",
+    "voice": "Samantha",
+    "lang": "en",
+    "text": "Let's ship the new release tomorrow morning, and sync the results with the QA team."
+  },
+  {
+    "name": "ja_01",
+    "voice": "Kyoko",
+    "lang": "ja",
+    "text": "明日の午後三時に、会議室で新機能について話し合います。"
+  },
+  {
+    "name": "ja_en_mix_01",
+    "voice": "Kyoko",
+    "lang": "mixed",
+    "text": "このissueは次のsprintでfixする予定なので、まずquickなreviewをお願いします。"
+  },
+  {
+    "name": "zh_en_mix_01",
+    "voice": "Tingting",
+    "lang": "mixed",
+    "text": "这个需求先做一个quick prototype，然后我们再review一下design。"
+  },
+  {
+    "name": "zh_hotwords_01",
+    "voice": "Tingting",
+    "lang": "zh",
+    "text": "岐伯山的桫椤要移栽到蕲春，顺便核对美卓乐和芪苈强心胶囊的处方。",
+    "hotwords": ["桫椤", "蕲春", "岐伯", "美卓乐", "芪苈强心胶囊"]
+  }
+]

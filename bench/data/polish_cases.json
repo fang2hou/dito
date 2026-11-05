@@ -1,0 +1,45 @@
+[
+  {
+    "id": "ja-spaced-asr",
+    "lang": "ja",
+    "note": "SenseVoice output with spaces between Japanese words",
+    "text": "明日の午後3時に 会議室 で 新機能 について話し合います。"
+  },
+  {
+    "id": "ja-self-correction",
+    "lang": "ja",
+    "note": "Fillers and a self-correction",
+    "text": "えーと、あの、明日の件なんですけど、その、三時じゃなくて三時半で会議室を予約しといてくれますか、お願いします"
+  },
+  {
+    "id": "ja-katakana-mixed",
+    "lang": "ja",
+    "note": "English terms transcribed as katakana, no dictionary",
+    "text": "このイシュは次のスプリントでフィックスする予定なので、まずクイックなレビューをお願いします。"
+  },
+  {
+    "id": "ja-katakana-dictionary",
+    "lang": "ja",
+    "note": "Same text, with a dictionary that maps the katakana back to Latin terms",
+    "text": "このイシュは次のスプリントでフィックスする予定なので、まずクイックなレビューをお願いします。",
+    "dictionary": ["issue", "sprint", "fix", "quick", "review"]
+  },
+  {
+    "id": "zh-halfwidth-punctuation",
+    "lang": "zh",
+    "note": "Whisper-style half-width digits and punctuation",
+    "text": "今天下午3点,我们在会议室讨论新版本的功能设计,然后把结果同步给测试团队。"
+  },
+  {
+    "id": "zh-spoken-mixed",
+    "lang": "zh",
+    "note": "Spoken Chinese with English terms, fillers and an afterthought",
+    "text": "嗯 那个 这个需求的话 就是先做一个 quick prototype 吧 然后我们再 review 一下 哦对了记得同步给测试组"
+  },
+  {
+    "id": "en-spoken",
+    "lang": "en",
+    "note": "Spoken English with fillers",
+    "text": "um so let's ship this tomorrow morning I think and yeah sync the results with the QA team"
+  }
+]

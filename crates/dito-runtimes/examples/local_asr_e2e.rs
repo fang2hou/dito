@@ -9,7 +9,7 @@ use std::path::Path;
 use dito_local::RuntimeLoader;
 use dito_runtimes::Runtimes;
 
-/// Minimal RIFF reader for 16-bit PCM mono wav files (as produced by asr-lab).
+/// Minimal RIFF reader for 16-bit PCM mono wav files (as produced by dito-bench).
 fn read_wav_mono_f32(path: &Path) -> Result<Vec<f32>, String> {
     let b = std::fs::read(path).map_err(|e| e.to_string())?;
     if b.len() < 44 || &b[0..4] != b"RIFF" || &b[8..12] != b"WAVE" {
