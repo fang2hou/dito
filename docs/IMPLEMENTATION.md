@@ -24,7 +24,10 @@ mise run release                              # optimized release bundle at targ
 mise run release:install                      # release bundle installed to ~/Applications/Dito.app
 mise run check                                # ./scripts/check.sh fast: fmt, unit tests, mock-server tests, i18n coverage
 mise run check:full                           # fast, plus compile checks of every build flavor
-mise run lint                                 # clippy for the workspace, ruff and ty for bench
+mise run lint                                 # clippy for the workspace, ruff and ty for bench, actionlint for workflows
+mise run hooks:install                        # once per clone: install the prek commit hooks (see CONTRIBUTING.md, Checks)
+mise run hooks                                # run every hook against all files
+mise run setup:macos                          # install the Xcode Metal Toolchain if it is missing
 mise run format                               # cargo fmt and ruff format
 cargo test -p <crate>                         # tests for one crate
 cargo test -p dito-app --test i18n_coverage   # after editing messages.toml
@@ -50,7 +53,7 @@ The Python benchmark harness has its own tasks: `mise run bench:sync`, `bench:te
 - `design/`: `dito.figcraft` (UI and motion), `features.md`, the ASR connection config contract, and `asr-templates/` (compiled into the app).
 - `assets/icon/`: the Icon Composer document.
 - `bench/`: Python benchmark harness for ASR and polish models, with stored results.
-- `mise.toml`: tool versions and the project tasks.
+- `mise.toml`: tool versions and the project tasks. `prek.toml`: commit hooks. `.github/`: PR rules, and the release workflow (see [CONTRIBUTING.md](CONTRIBUTING.md)).
 - `scripts/`: `bundle.sh` (release app), `install.sh` (install to `~/Applications`), `quit.sh` (quit a running Dito), `certs.sh` (signing identity), `check.sh` (checks), `dev-runner.sh` (wraps runs in `DitoDev.app`), `icon.sh` (icon build and preview).
 - `docs/`: this document, architecture, contributing and ADRs. `docs/workflow/`: step-by-step workflows.
 

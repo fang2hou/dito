@@ -1,0 +1,53 @@
+name: Pull request rules
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  MISE_TASK_RUN_AUTO_INSTALL: "false"
+
+jobs:
+  title:
+    name: Validate PR title
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+      - name: Install cocogitto (mise)
+        uses: jdx/mise-action@v5
+        with:
+          install_args: cocogitto
+      - name: Configure a Git identity for cog
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+      - name: Check the title follows Conventional Commits
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: mise run ci:pr-title
+
+  flow:
+    name: Validate branch flow
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+      - name: Install mise
+        uses: jdx/mise-action@v5
+        with:
+          install: false
+      - name: Check the source and target branches follow Git Flow
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          BASE_REF: ${{ github.base_ref }}
+        run: mise run ci:flow

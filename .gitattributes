@@ -1,0 +1,7 @@
+* -linguist-detectable
+crates/** linguist-detectable
+bench/src/** linguist-detectable
+scripts/** linguist-detectable
+*.toml -linguist-detectable
+*.json -linguist-detectable
+*.lock linguist-generated
