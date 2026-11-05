@@ -23,7 +23,7 @@ if [[ "$(basename "$bin")" == dito ]]; then
   app="$(dirname "$bin")/../bundle/DitoDev.app"
   mkdir -p "$app/Contents/MacOS"
   cp "$bin" "$app/Contents/MacOS/dito"
-  # Liquid Glass icon, same pipeline as bundle.sh (cached; see docs/engineering/IMPLEMENTATION.md, Engineering Traps).
+  # Liquid Glass icon, same pipeline as bundle.sh (cached; see docs/IMPLEMENTATION.md, Engineering Traps).
   # With CFBundleIconName present the system draws the icon from Assets.car in every
   # appearance, and system.rs::set_app_icon keeps out of the way.
   "$(dirname "$0")/icon.sh" compile-cached "$app/Contents/Resources"

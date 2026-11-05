@@ -11,7 +11,7 @@ mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp target/release/dito "$app/Contents/MacOS/dito"
 
 # The Icon Composer document becomes Assets.car (Liquid Glass, macOS 26/27) plus a flat Dito.icns fallback.
-# Do not set the Dock icon at runtime from a bundle: the system draws the icon from Assets.car (see docs/engineering/IMPLEMENTATION.md, Engineering Traps).
+# Do not set the Dock icon at runtime from a bundle: the system draws the icon from Assets.car (see docs/IMPLEMENTATION.md, Engineering Traps).
 scripts/icon.sh compile "$app/Contents/Resources"
 
 # Localize the system permission prompt (it reads InfoPlist.strings, not our UI code).

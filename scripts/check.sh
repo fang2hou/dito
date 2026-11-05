@@ -14,7 +14,7 @@
 #         build), app with screenshots+mock features, and the default app build (pulls
 #         dito-runtimes: needs cmake + Xcode Metal toolchain, slow from scratch).
 #
-# Intentionally NOT run here — see docs/engineering/IMPLEMENTATION.md (Testing) for the full map:
+# Intentionally NOT run here — see docs/IMPLEMENTATION.md (Testing) for the full map:
 #   - dito-app --test demo_run: launches the real app binary (needs a macOS GUI session)
 #   - dito-platform --test keychain: real macOS Keychain
 #   - dito-platform --test loopback: posts real system key events (F20) into the live event

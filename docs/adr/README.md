@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-ADRs record the judgments that should steer future work: the direction the product and code take, and the tempting moves that would take them somewhere worse. Design details live in `design/`, and one-time facts and engineering traps live in `docs/engineering/IMPLEMENTATION.md`.
+ADRs record the judgments that should steer future work: the direction the product and code take, and the tempting moves that would take them somewhere worse. Design details live in `design/`, and one-time facts and engineering traps live in `docs/IMPLEMENTATION.md`.
 
 Before changing something an ADR covers, read it. When a request conflicts with one, raise it, then update or supersede the ADR in the same change instead of working around it.
 

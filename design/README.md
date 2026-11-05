@@ -162,7 +162,7 @@ The app is drawn in Rust with GPUI. Avoid, or check with engineering first:
 - Moving the title bar or traffic lights.
 - Motion without numbers.
 
-Engineering background: `docs/engineering/ARCHITECTURE.md` and the ADRs in `docs/engineering/adr/`.
+Engineering background: `docs/ARCHITECTURE.md` and the ADRs in `docs/adr/`.
 
 ## 10. Workflow
 

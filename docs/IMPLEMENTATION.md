@@ -1,36 +1,44 @@
 # Implementation
 
-How to build, run, test and change Dito, for people and AI agents. Product behavior lives in [design/features.md](../../design/features.md); structure lives in [ARCHITECTURE.md](ARCHITECTURE.md).
+How to build, run, test and change Dito, for people and AI agents. Product behavior lives in [design/features.md](../design/features.md); structure lives in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Setup
 
 | Tool | Purpose | Managed via |
 | --- | --- | --- |
-| Rust 1.99.1 with rustfmt and clippy | Compiler and checks | `rust-toolchain.toml` |
+| Rust 1.99.1 with rustfmt and clippy | Compiler and checks | mise (`mise.toml`) |
+| Python 3.15, uv, ruff and ty | The `bench/` benchmark project | mise (`mise.toml`); packages through uv |
 | Xcode and its Metal Toolchain | GPUI shaders, `actool` and `ictool` for the icon | Xcode (`xcodebuild -downloadComponent MetalToolchain`) |
 | cmake | llama.cpp and sherpa-onnx builds | Homebrew |
-| `dito-dev` signing identity | Stable permissions across rebuilds (see Engineering Traps) | `./scripts/certs.sh`, once per machine |
+| `dito-dev` signing identity | Stable permissions across rebuilds (see Engineering Traps) | `mise run certs` (also run by `release:install`), once per machine |
 
 If only the Command Line Tools are selected, export `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
 
 ## Commands
 
 ```bash
-cargo run -p dito-app -- --mock --log-sink    # whole app with mocks; never types into other apps
-cargo run -p dito-app                         # real mode (real microphone, models and providers)
-./scripts/check.sh fast                       # fmt, unit tests, mock-server tests, i18n coverage
-./scripts/check.sh full                       # fast, plus compile checks of every build flavor
-cargo clippy --workspace --all-targets -- -D warnings
+mise install                                  # tools at the pinned versions
+mise run dev:mock                             # whole app with mocks; never types into other apps
+mise run dev                                  # real mode (real microphone, models and providers)
+mise run release                              # optimized release bundle at target/bundle/Dito.app, launched
+mise run release:install                      # release bundle installed to ~/Applications/Dito.app
+mise run check                                # ./scripts/check.sh fast: fmt, unit tests, mock-server tests, i18n coverage
+mise run check:full                           # fast, plus compile checks of every build flavor
+mise run lint                                 # clippy for the workspace, ruff and ty for bench
+mise run format                               # cargo fmt and ruff format
 cargo test -p <crate>                         # tests for one crate
 cargo test -p dito-app --test i18n_coverage   # after editing messages.toml
-./scripts/bundle.sh                           # release build at target/bundle/Dito.app
 ```
 
-Install a release build by quitting Dito, replacing `~/Applications/Dito.app` with `target/bundle/Dito.app`, and opening it.
+Extra arguments reach the app: `mise run dev:mock -- --data-dir <empty dir>`.
+
+`mise run release` builds with `scripts/bundle.sh` (release profile with thin LTO and one codegen unit). `mise run release:install` runs `scripts/certs.sh` first (idempotent; the first run shows one macOS authorization prompt), refuses to install an ad-hoc signed build, quits any running Dito, replaces `~/Applications/Dito.app`, verifies the signature and opens the app.
+
+The Python benchmark harness has its own tasks: `mise run bench:sync`, `bench:test`, `bench:lint`, `bench:format`, and `mise run bench <args>` for `dito-bench` (see `bench/README.md`).
 
 ## Workflow
 
-1. Pick the matching workflow in [docs/workflow](../workflow/README.md): [adjust the UI](../workflow/ui-adjustment.md) or [fix code](../workflow/code-fix.md).
+1. Pick the matching workflow in [workflow](workflow/README.md): [adjust the UI](workflow/ui-adjustment.md) or [fix code](workflow/code-fix.md).
 2. Read the ADRs that touch the change.
 3. Make the smallest complete change.
 4. Run `./scripts/check.sh fast` and clippy.
@@ -41,8 +49,10 @@ Install a release build by quitting Dito, replacing `~/Applications/Dito.app` wi
 - `crates/`: the workspace crates (see [ARCHITECTURE.md](ARCHITECTURE.md)).
 - `design/`: `dito.figcraft` (UI and motion), `features.md`, the ASR connection config contract, and `asr-templates/` (compiled into the app).
 - `assets/icon/`: the Icon Composer document.
-- `scripts/`: `bundle.sh` (release app), `certs.sh` (signing identity), `check.sh` (checks), `dev-runner.sh` (wraps runs in `DitoDev.app`), `icon.sh` (icon build and preview).
-- `docs/engineering/`: this document, architecture, contributing and ADRs. `docs/workflow/`: step-by-step workflows.
+- `bench/`: Python benchmark harness for ASR and polish models, with stored results.
+- `mise.toml`: tool versions and the project tasks.
+- `scripts/`: `bundle.sh` (release app), `install.sh` (install to `~/Applications`), `quit.sh` (quit a running Dito), `certs.sh` (signing identity), `check.sh` (checks), `dev-runner.sh` (wraps runs in `DitoDev.app`), `icon.sh` (icon build and preview).
+- `docs/`: this document, architecture, contributing and ADRs. `docs/workflow/`: step-by-step workflows.
 
 ## Coding Standards
 
@@ -50,7 +60,7 @@ Install a release build by quitting Dito, replacing `~/Applications/Dito.app` wi
 - Never join text fragments with `·`, `|`, `｜` or a separating `・`; write natural phrases.
 - Keep platform code in `dito-platform` and logic in `dito-core`; the app wires them together.
 - Every `unsafe` block states its safety conditions; AppKit calls stay on the main thread.
-- Prefer a clearer ownership or type over a defensive check (see [fix code](../workflow/code-fix.md)).
+- Prefer a clearer ownership or type over a defensive check (see [fix code](workflow/code-fix.md)).
 
 ## Testing
 

@@ -4,9 +4,9 @@ Use this for bugs and wrong behavior. The aim is to fix the cause and leave the 
 
 ## 1. Locate the problem
 
-- Reproduce it, preferably with `cargo run -p dito-app -- --mock --log-sink` so nothing is typed into other apps.
+- Reproduce it, preferably with `mise run dev:mock` so nothing is typed into other apps.
 - Confirm where it happens from evidence, not guesses: find the code by the identifiers involved (element ids, `Tr::` keys, command names, log messages) and check the trace output for the text it prints.
-- Read the relevant ADRs in [docs/engineering/adr](../engineering/adr) before changing anything they cover. Several macOS workarounds look removable but are deliberate.
+- Read the relevant ADRs in [docs/adr](../adr) before changing anything they cover. Several macOS workarounds look removable but are deliberate.
 
 ## 2. Find the root cause
 

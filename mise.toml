@@ -1,0 +1,86 @@
+[tools]
+python = "3.15.2"
+uv = "0.13.7"
+rust = { version = "1.99.1", profile = "minimal", components = "rustfmt,clippy,rust-analyzer" }
+ruff = "0.17.3"
+ty = "0.0.97"
+
+[env]
+UV_PYTHON_DOWNLOADS = "never"
+
+[tasks.dev]
+description = "Run the app against real microphone, models and providers (debug build)"
+run = "cargo run -p dito-app --"
+
+[tasks."dev:mock"]
+description = "Run the app with mock cloud, microphone and data; never types into other apps"
+run = "cargo run -p dito-app -- --mock --log-sink"
+
+[tasks.release]
+description = "Build the optimized release bundle and launch it"
+run = ["scripts/bundle.sh", "scripts/quit.sh", "open target/bundle/Dito.app"]
+
+[tasks."release:install"]
+description = "Build the release bundle and install it to ~/Applications, creating the signing identity if needed"
+run = "scripts/install.sh"
+
+[tasks.certs]
+description = "Create the local dito-dev code-signing identity if it is missing"
+run = "scripts/certs.sh"
+
+[tasks.check]
+description = "Format check and fast tests"
+run = "scripts/check.sh fast"
+
+[tasks."check:full"]
+description = "Fast checks plus compile checks of every build flavor"
+run = "scripts/check.sh full"
+
+[tasks.lint]
+description = "Clippy for the workspace and ruff plus type checks for bench"
+depends = ["lint:rust", "bench:lint"]
+
+[tasks."lint:rust"]
+description = "Clippy over the whole workspace"
+run = "cargo clippy --workspace --all-targets -- -D warnings"
+
+[tasks.format]
+description = "Format Rust and Python sources"
+depends = ["format:rust", "bench:format"]
+
+[tasks."format:rust"]
+run = "cargo fmt --all"
+
+[tasks."bench:sync"]
+description = "Install the bench Python environment with every runtime extra"
+dir = "bench"
+run = "uv sync --all-extras --all-groups"
+
+[tasks."bench:lint"]
+description = "Ruff lint, format check and type check for bench"
+dir = "bench"
+depends = ["bench:sync"]
+run = ["ruff check .", "ruff format --check .", "ty check"]
+
+[tasks."bench:format"]
+description = "Format and autofix bench sources with ruff"
+dir = "bench"
+run = ["ruff check --fix .", "ruff format ."]
+
+[tasks."bench:test"]
+description = "Run the bench unit tests"
+dir = "bench"
+depends = ["bench:sync"]
+run = "uv run pytest"
+
+[tasks.bench]
+description = "Run dito-bench, e.g. `mise run bench asr run -m sensevoice`"
+dir = "bench"
+depends = ["bench:sync"]
+run = "uv run dito-bench"
+
+[tasks."bench:notebook"]
+description = "Open JupyterLab on the bench notebooks"
+dir = "bench"
+depends = ["bench:sync"]
+run = "uv run jupyter lab notebooks"

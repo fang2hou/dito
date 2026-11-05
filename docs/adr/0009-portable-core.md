@@ -37,4 +37,4 @@ A second front end (another OS, a CLI) is planned.
 
 ## Code
 
-`crates/dito-core/src/controller.rs`, `crates/dito-app/src/state.rs`, `docs/engineering/ARCHITECTURE.md`.
+`crates/dito-core/src/controller.rs`, `crates/dito-app/src/state.rs`, `docs/ARCHITECTURE.md`.

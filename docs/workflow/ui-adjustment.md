@@ -30,4 +30,4 @@ Point the user at the section that changed and wait. Code work starts only after
 1. Change the code so it matches the approved section, and name the section in the reply.
 2. Run `./scripts/check.sh fast` and `cargo clippy --workspace --all-targets -- -D warnings`.
 3. Don't write tests for look and feel. Animation feel, timing and color are checked by the user in the running app.
-4. Before asking for that check, start the app (`cargo run -p dito-app -- --mock --log-sink`, with `--data-dir <empty dir>` to land on onboarding) and say exactly what to do and where to look.
+4. Before asking for that check, start the app (`mise run dev:mock`, with `-- --data-dir <empty dir>` appended to land on onboarding) and say exactly what to do and where to look.
