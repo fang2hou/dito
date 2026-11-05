@@ -7,7 +7,7 @@ use gpui_kit::*;
 
 use crate::assets::Ic;
 use crate::theme::{Palette, hex};
-use crate::ui::{self, BtnKind, cbk, text};
+use crate::ui::{self, BtnKind, BtnSize, cbk, text};
 
 use super::{Onboarding, Step};
 
@@ -18,7 +18,7 @@ pub(super) fn static_primary(p: &Palette, label: &str, lead: Option<Ic>, trail: 
     if let Some(ic) = lead {
         b = b.child(ui::icon(ic, 14., p.on_primary));
     }
-    b = b.child(text(label.to_string(), 13., FontWeight::MEDIUM, p.on_primary).line_height(relative(1.)));
+    b = b.child(text(label.to_string(), 14., FontWeight::MEDIUM, p.on_primary).line_height(relative(1.)));
     if let Some(ic) = trail {
         b = b.child(ui::icon(ic, 14., p.on_primary));
     }
@@ -201,23 +201,20 @@ pub(super) fn footer(
         _ => (None, Some(Ic::ArrowRight)),
     };
     let next = if can_next {
-        let mut b = ui::button(
+        ui::button_with(
             "wizard-next",
             p,
             &next_label,
             BtnKind::Primary,
+            BtnSize::Large,
             lead,
+            trail,
             cbk(cx, |this: &mut Onboarding, _, cx| this.next(cx)),
         )
-        .h(px(40.))
-        .px(px(24.));
-        if let Some(ic) = trail {
-            b = b.child(ui::icon(ic, 14., p.on_primary));
-        }
-        b.into_any_element()
+        .into_any_element()
     } else {
         ui::reset_hover(&ElementId::from("wizard-next"));
-        static_primary(p, &next_label, lead, trail).px(px(24.)).opacity(0.45).into_any_element()
+        static_primary(p, &next_label, lead, trail).opacity(0.45).into_any_element()
     };
     div()
         .w_full()
@@ -227,18 +224,16 @@ pub(super) fn footer(
         .child(if step == Step::Welcome {
             div()
         } else {
-            div().child(
-                ui::button(
-                    "wizard-back",
-                    p,
-                    &c.t(Tr::OnboardingBack),
-                    BtnKind::Secondary,
-                    Some(Ic::ArrowLeft),
-                    cbk(cx, |this: &mut Onboarding, _, cx| this.back(cx)),
-                )
-                .h(px(40.))
-                .px(px(24.)),
-            )
+            div().child(ui::button_with(
+                "wizard-back",
+                p,
+                &c.t(Tr::OnboardingBack),
+                BtnKind::Secondary,
+                BtnSize::Large,
+                Some(Ic::ArrowLeft),
+                None,
+                cbk(cx, |this: &mut Onboarding, _, cx| this.back(cx)),
+            ))
         })
         .child(next)
 }

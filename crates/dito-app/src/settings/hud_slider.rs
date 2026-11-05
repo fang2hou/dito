@@ -15,7 +15,10 @@ use crate::ui::text;
 const MIN: i8 = -2;
 const MAX: i8 = 12;
 const TRACK: f32 = 220.;
-const KNOB: f32 = 28.;
+const KNOB: f32 = 24.;
+/// Thumb sizes from design 12.03: it grows a little under the pointer and more while pressed.
+const KNOB_HOVER: f32 = 26.;
+const KNOB_PRESSED: f32 = 32.;
 const TRAVEL: f32 = TRACK - KNOB;
 
 /// A damped, time-based transition; the target may change without restarting the motion.
@@ -88,7 +91,13 @@ impl HudHeightSlider {
                         let dt = now.duration_since(this.tick).as_secs_f32();
                         this.tick = now;
                         let target = (this.slider.read(cx).value().end() - MIN as f32) / (MAX - MIN) as f32;
-                        let size_target = if this.pressed { 36. } else { 28. };
+                        let size_target = if this.pressed {
+                            KNOB_PRESSED
+                        } else if this.hovered {
+                            KNOB_HOVER
+                        } else {
+                            KNOB
+                        };
                         let old = (this.position, this.size);
                         if this.dragging || dito_platform::system::reduce_motion() {
                             this.position = target;
@@ -97,7 +106,8 @@ impl HudHeightSlider {
                             (this.position, this.velocity) = spring_step(this.position, this.velocity, target, dt);
                         }
                         if dito_platform::system::reduce_motion() {
-                            this.size = size_target;
+                            // Reduce Motion keeps the thumb's size; only color and shadow respond.
+                            this.size = KNOB;
                             this.size_velocity = 0.;
                         } else {
                             (this.size, this.size_velocity) =
@@ -107,6 +117,7 @@ impl HudHeightSlider {
                             this.position = target;
                             this.velocity = 0.;
                         }
+                        let size_target = if dito_platform::system::reduce_motion() { KNOB } else { size_target };
                         if (this.size - size_target).abs() < 0.01 && this.size_velocity.abs() < 0.1 {
                             this.size = size_target;
                             this.size_velocity = 0.;
@@ -155,19 +166,22 @@ impl Render for HudHeightSlider {
         let c = Ctx::new(&self.st, cx);
         let p = c.p;
         let center = KNOB / 2. + TRAVEL * self.position.clamp(0., 1.);
-        let knob_color =
-            if self.hovered { crate::theme::hex(if p.dark { "#524F46" } else { "#F0EEE9" }) } else { p.knob_on };
+        let knob_color = if self.hovered { p.slider_thumb_hover } else { p.knob_on };
         // The pressed knob lifts off the track: a deeper, wider shadow that scales with the
         // press expansion, so the enlarged edge stays clearly readable against the fill.
-        let press = ((self.size - KNOB) / 8.).clamp(0., 1.);
+        let press = if dito_platform::system::reduce_motion() {
+            if self.pressed { 1. } else { 0. }
+        } else {
+            ((self.size - KNOB_HOVER) / (KNOB_PRESSED - KNOB_HOVER)).clamp(0., 1.)
+        };
         let shadow = vec![BoxShadow {
-            color: crate::ui::hex_alpha(crate::theme::hex("#000000"), 0.18 + 0.22 * press),
+            color: crate::ui::mix(p.slider_thumb_shadow, p.slider_thumb_shadow_pressed, press),
             offset: point(px(0.), px(1. + 2. * press)),
             blur_radius: px(2. + 6. * press),
             spread_radius: px(0.),
             inset: false,
         }];
-        let size = self.size.clamp(28., 38.);
+        let size = self.size.clamp(KNOB, KNOB_PRESSED + 2.);
         let stretch = if dito_platform::system::reduce_motion() {
             0.
         } else {
@@ -231,7 +245,7 @@ impl Render for HudHeightSlider {
                                 SliderTrack::new(&self.slider)
                                     .relative()
                                     .w(px(TRACK))
-                                    .h(px(28.))
+                                    .h(px(KNOB))
                                     .rounded_full()
                                     .bg(p.toggle_off)
                                     .cursor_pointer()
@@ -241,7 +255,7 @@ impl Render for HudHeightSlider {
                                             .left(px(KNOB / 2.))
                                             .top_0()
                                             .w(px(TRAVEL))
-                                            .h(px(28.)),
+                                            .h(px(KNOB)),
                                     )
                                     // Fill = a rounded left cap plus a square-edged body ending on the thumb's
                                     // centre line; empty at the lowest level. gpui's overflow clip is
@@ -254,18 +268,18 @@ impl Render for HudHeightSlider {
                                                     .absolute()
                                                     .left_0()
                                                     .top_0()
-                                                    .w(px(center.min(28.)))
-                                                    .h(px(28.))
+                                                    .w(px(center.min(KNOB)))
+                                                    .h(px(KNOB))
                                                     .rounded_full()
                                                     .bg(p.primary),
                                             )
                                             .child(
                                                 div()
                                                     .absolute()
-                                                    .left(px(14.))
+                                                    .left(px(KNOB / 2.))
                                                     .top_0()
-                                                    .w(px((center - 14.).max(0.)))
-                                                    .h(px(28.))
+                                                    .w(px((center - KNOB / 2.).max(0.)))
+                                                    .h(px(KNOB))
                                                     .bg(p.primary),
                                             )
                                     })

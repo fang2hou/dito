@@ -16,10 +16,6 @@ pub fn mix(a: Hsla, b: Hsla, t: f32) -> Hsla {
     Hsla { h: l(a.h, b.h), s: l(a.s, b.s), l: l(a.l, b.l), a: l(a.a, b.a) }
 }
 
-pub(super) fn hex_black(a: f32) -> Hsla {
-    Hsla { h: 0., s: 0., l: 0., a }
-}
-
 pub fn white() -> Hsla {
     hex_white()
 }

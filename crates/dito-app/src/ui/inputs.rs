@@ -64,9 +64,15 @@ pub fn field_chrome(id: impl Into<ElementId>, p: &Palette, focused: bool) -> Div
     with_ring(base, id, focused, 12., p.border_strong, p.accent)
 }
 
+/// The taller connection-form field (design 20.05): 40 high, radius 8, on the form field surface.
+fn form_chrome(id: impl Into<ElementId>, p: &Palette, focused: bool) -> Div {
+    let base = div().h(px(40.)).px(px(14.)).flex().items_center().gap(px(8.)).rounded(px(8.)).bg(p.field_bg);
+    with_ring(base, id, focused, 8., p.field_border, p.accent)
+}
+
 /// Bordered single-line text field backed by an `InputState`; the border turns accent while it has focus.
 pub fn text_input(p: &Palette, state: &Entity<InputState>, leading: Option<Ic>) -> TextInput {
-    TextInput { p: *p, state: state.clone(), leading, scope: motion_scope() }
+    TextInput { p: *p, state: state.clone(), leading, scope: motion_scope(), form: false }
 }
 
 #[derive(IntoElement)]
@@ -77,22 +83,26 @@ pub struct TextInput {
     /// The scope the input was built under: RenderOnce runs after the building page's scope guard
     /// has ended, so the focus ring would otherwise read and write no registry at all.
     scope: ScopeHandle,
+    form: bool,
+}
+
+impl TextInput {
+    /// Use the connection-form look (see [`form_field`]).
+    pub fn form(mut self) -> Self {
+        self.form = true;
+        self
+    }
 }
 
 impl RenderOnce for TextInput {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let Self { p, state, leading, scope } = self;
+        let Self { p, state, leading, scope, form } = self;
         // Restore the build scope for the deferred render (see the field above).
         with_motion_scope(scope, move || {
             let focused = state.read(cx).focus_handle(cx).contains_focused(window, cx);
-            let mut d = field_chrome(
-                (ElementId::from(("text-input", state.entity_id().as_u64() as usize)), "ring"),
-                &p,
-                focused,
-            )
-            .w_full()
-            .flex_1()
-            .min_w(px(0.));
+            let ring_id = (ElementId::from(("text-input", state.entity_id().as_u64() as usize)), "ring");
+            let chrome = if form { form_chrome(ring_id, &p, focused) } else { field_chrome(ring_id, &p, focused) };
+            let mut d = chrome.w_full().flex_1().min_w(px(0.));
             if let Some(ic) = leading {
                 d = d.child(icon(ic, 14., p.muted));
             }
@@ -120,4 +130,9 @@ impl RenderOnce for TextInput {
 /// Labelled form field: caption above a control.
 pub fn field(p: &Palette, label: impl Into<SharedString>, control: impl IntoElement) -> Div {
     div().flex().flex_col().gap(px(8.)).child(text(label, 13., FontWeight::MEDIUM, p.text)).child(control)
+}
+
+/// A connection-form field (design 20.05): a quieter caption above a [`TextInput::form`] control.
+pub fn form_field(p: &Palette, label: impl Into<SharedString>, control: impl IntoElement) -> Div {
+    div().flex().flex_col().gap(px(8.)).child(text(label, 13., FontWeight::NORMAL, p.muted)).child(control)
 }

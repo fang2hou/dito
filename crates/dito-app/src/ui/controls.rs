@@ -7,7 +7,7 @@ use super::callbacks::{Cb, IndexCb, ToggleCb, click_cb};
 use super::motion::{
     HOVER_MS, count_flips, coverage, hover_tracker, is_hovered, motion_scope, plate_state, spring, tweened, tweened_at,
 };
-use super::primitives::{hex_black, icon, mix};
+use super::primitives::{icon, mix};
 use super::tooltip::{tip_above, tip_label};
 use super::typography::{text, text_width};
 use crate::assets::Ic;
@@ -20,6 +20,19 @@ pub enum BtnKind {
     Primary,
     Secondary,
     Danger,
+    /// The blue model download button.
+    Download,
+    /// The model card's 使用する: an outlined pill on the input surface.
+    Outline,
+    /// A quiet pill on the sub surface, for form actions (編集, 接続テスト).
+    Subtle,
+}
+
+/// Button sizes from design 11.03: Regular in Settings, Large in onboarding.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum BtnSize {
+    Regular,
+    Large,
 }
 
 /// Empty background that drags the window when pressed: for custom-titlebar zones outside AppKit's
@@ -62,7 +75,7 @@ pub fn choice_label(id: &ElementId, p: &Palette, label: SharedString, size: f32,
     })
 }
 
-/// Pill button, 36px high (40 when `large`).
+/// Pill button (design 11.03 `Button`), Regular size.
 pub fn button(
     id: impl Into<ElementId>,
     p: &Palette,
@@ -71,32 +84,43 @@ pub fn button(
     ic: Option<Ic>,
     on_click: Cb,
 ) -> Stateful<Div> {
-    // Secondary sits raised on its card (card fill + hairline), Danger carries the red:
-    // a soft red plate in light, the solid danger fill with white text in dark.
-    let (bg, fg, border) = match kind {
-        BtnKind::Primary => (p.primary, p.on_primary, None),
-        BtnKind::Secondary => (p.card, p.text, Some(p.border_strong)),
+    button_with(id, p, label, kind, BtnSize::Regular, ic, None, on_click)
+}
+
+/// [`button`] with a size and an optional trailing icon.
+#[allow(clippy::too_many_arguments)]
+pub fn button_with(
+    id: impl Into<ElementId>,
+    p: &Palette,
+    label: &str,
+    kind: BtnKind,
+    size: BtnSize,
+    lead: Option<Ic>,
+    trail: Option<Ic>,
+    on_click: Cb,
+) -> Stateful<Div> {
+    let (h, pad, label_size) = match size {
+        BtnSize::Regular => (CONTROL_H, 16., 13.),
+        BtnSize::Large => (40., 22., 14.),
+    };
+    // A Secondary button sits on the input surface inside cards and on the card surface on a page.
+    let secondary_bg = if size == BtnSize::Large { p.card } else { p.input_bg };
+    let (bg, fg, border, tint) = match kind {
+        BtnKind::Primary => (p.primary, p.on_primary, None, p.button_primary_hover),
+        BtnKind::Secondary => (secondary_bg, p.text, Some(p.border_strong), p.seg),
         BtnKind::Danger => {
-            if p.dark {
-                (p.danger, p.danger_text, None)
-            } else {
-                (p.danger_soft, p.danger_text, Some(p.danger))
-            }
+            (p.button_danger_bg, p.button_danger_text, Some(p.button_danger_border), p.button_danger_hover)
         }
+        BtnKind::Download => (p.model_download, p.model_on_download, None, p.button_primary_hover),
+        BtnKind::Outline => (p.input_bg, p.text, Some(p.model_use_border), p.nav_on),
+        BtnKind::Subtle => (p.sub, p.text, Some(p.field_border), p.seg),
     };
-    // Hover tint: lighten a dark button, darken a light one, strongly enough to read at a glance.
-    let tint = if kind == BtnKind::Primary {
-        if bg.l < 0.5 { hsla(0., 0., 1., 0.24) } else { hsla(0., 0., 0., 0.16) }
-    } else if kind == BtnKind::Danger {
-        Hsla { a: if p.dark { 0.22 } else { 0.14 }, ..p.danger }
-    } else {
-        p.seg
-    };
+    let icon_size = if kind == BtnKind::Download { 16. } else { 14. };
     let id: ElementId = id.into();
     let mut el = div()
         .id(id.clone())
-        .h(px(CONTROL_H))
-        .px(px(16.))
+        .h(px(h))
+        .px(px(pad))
         .flex()
         .items_center()
         .justify_center()
@@ -111,10 +135,14 @@ pub fn button(
     if let Some(b) = border {
         el = el.border_1().border_color(b);
     }
-    if let Some(ic) = ic {
-        el = el.child(icon(ic, 14., fg));
+    if let Some(ic) = lead {
+        el = el.child(icon(ic, icon_size, fg));
     }
-    el.child(text(label.to_string(), 13., FontWeight::MEDIUM, fg).line_height(relative(1.)))
+    el = el.child(text(label.to_string(), label_size, FontWeight::MEDIUM, fg).line_height(relative(1.)));
+    if let Some(ic) = trail {
+        el = el.child(icon(ic, icon_size, fg));
+    }
+    el
 }
 
 /// 36px circular icon button (copy, ⋮ ...).
@@ -130,12 +158,31 @@ pub fn icon_button(id: impl Into<ElementId>, p: &Palette, ic: Ic, active: bool, 
         .rounded_full()
         .border_1()
         .border_color(p.border_strong)
-        .bg(if active { p.seg } else { p.input_bg })
+        .when(active, |d| d.bg(p.seg))
         .cursor_pointer()
         .on_click(click_cb(on_click))
         .on_hover(hover_tracker(id.clone()))
         .child(hover_fill(&id, None, p.seg))
         .child(icon(ic, 16., p.text))
+}
+
+/// The dialog close button (design 11.03 `Close Button`): 32 round, a 12 pt cross, a surface on hover.
+pub fn close_button(id: impl Into<ElementId>, p: &Palette, on_click: Cb) -> Stateful<Div> {
+    let id: ElementId = id.into();
+    div()
+        .id(id.clone())
+        .size(px(32.))
+        .flex_none()
+        .flex()
+        .items_center()
+        .justify_center()
+        .relative()
+        .rounded_full()
+        .cursor_pointer()
+        .on_click(click_cb(on_click))
+        .on_hover(hover_tracker(id.clone()))
+        .child(hover_fill(&id, None, p.sub))
+        .child(icon(Ic::X, 24., p.text))
 }
 
 /// Plain (borderless) icon button, e.g. the × beside a sample row.
@@ -177,7 +224,7 @@ pub struct SegStyle {
 
 /// Shared default feedback for text and icon segmented controls.
 fn segment_hover_colors(p: &Palette) -> (Hsla, Hsla) {
-    (Hsla { a: 0.55, ..p.seg_on }, mix(p.muted, p.text, 0.6))
+    (p.segment_hover, p.segment_hover_label)
 }
 
 pub fn seg(
@@ -370,9 +417,9 @@ pub fn appearance_seg(
     }))
 }
 
-const SWITCH_W: f32 = 44.;
-const SWITCH_H: f32 = 26.;
-const KNOB: f32 = 20.;
+const SWITCH_W: f32 = 42.;
+const SWITCH_H: f32 = 24.;
+const KNOB: f32 = 18.;
 const KNOB_INSET: f32 = 3.;
 const SWITCH_TRAVEL: f32 = SWITCH_W - KNOB - 2. * KNOB_INSET;
 const SWITCH_MS: u64 = 380;
@@ -382,6 +429,7 @@ pub fn switch(id: impl Into<ElementId>, p: &Palette, on: bool, on_toggle: Toggle
     let id: ElementId = id.into();
     let flips = count_flips(&id, on, Duration::from_millis(SWITCH_MS));
     let (track_off, track_on, knob_off, knob_on) = (p.toggle_off, p.primary, p.knob_off, p.knob_on);
+    let knob_shadow = p.switch_knob_shadow;
     let track_at = move |f: f32| {
         div().absolute().top(px(0.)).left(px(0.)).size_full().rounded_full().bg(mix(
             track_off,
@@ -398,9 +446,9 @@ pub fn switch(id: impl Into<ElementId>, p: &Palette, on: bool, on_toggle: Toggle
             .rounded_full()
             .bg(mix(knob_off, knob_on, f.clamp(0., 1.)))
             .shadow(vec![BoxShadow {
-                color: hex_black(0.18),
+                color: knob_shadow,
                 offset: point(px(0.), px(1.)),
-                blur_radius: px(2.),
+                blur_radius: px(3.),
                 spread_radius: px(0.),
                 inset: false,
             }])
@@ -445,13 +493,10 @@ pub fn progress_bar(p: &Palette, fraction: f32) -> Div {
         .child(div().h_full().w(relative(fraction.clamp(0., 1.))).rounded(px(4.)).bg(p.accent))
 }
 
+/// Radio (design 11.03): an 18 pt circle on the input surface; when on, a 6 pt primary ring.
 pub fn radio(p: &Palette, on: bool) -> Div {
-    let d = div().size(px(16.)).flex_none().rounded_full().flex().items_center().justify_center();
-    if on {
-        d.bg(p.primary).child(div().size(px(6.)).rounded_full().bg(p.on_primary))
-    } else {
-        d.border_1().border_color(p.border_strong)
-    }
+    let d = div().size(px(18.)).flex_none().rounded_full().bg(p.input_bg);
+    if on { d.border(px(6.)).border_color(p.primary) } else { d.border(px(1.5)).border_color(p.border_strong) }
 }
 
 #[derive(Clone, Debug, PartialEq)]
