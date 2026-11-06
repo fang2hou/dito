@@ -57,7 +57,7 @@ The Python benchmark harness has its own tasks: `mise run bench:sync`, `bench:te
 - `assets/icon/`: the Icon Composer document.
 - `bench/`: Python benchmark harness for ASR and polish models, with stored results.
 - `mise.toml`: tool versions and the project tasks. `prek.toml`: commit hooks. `.github/`: PR rules, and the release workflow (see [CONTRIBUTING.md](CONTRIBUTING.md)).
-- `scripts/`: `bundle.sh` (release app), `install.sh` (install to `~/Applications`), `quit.sh` (quit a running Dito), `certs.sh` (signing identity), `check.sh` (checks), `dev-runner.sh` (wraps runs in `DitoDev.app`), `icon.sh` (icon build and preview).
+- `scripts/`: `bundle.sh` (release app), `install.sh` (install to `~/Applications`), `quit.sh` (quit the running release Dito), `certs.sh` (signing identity), `check.sh` (checks), `dev-runner.sh` (wraps runs in `DitoDev.app`), `icon.sh` (icon build and preview).
 - `docs/`: this document, architecture, contributing and ADRs. `docs/workflow/`: step-by-step workflows.
 
 ## Coding Standards
@@ -93,6 +93,7 @@ The Python benchmark harness has its own tasks: `mise run bench:sync`, `bench:te
 
 - Logs go to stdout through `tracing`; the dev runner tails the app's output into the terminal. Override with `RUST_LOG`.
 - Data lives in `~/Library/Application Support/com.fang2hou.Dito`: `config.toml`, `dito.db`, `audio/` and `models/`. Keys are in the Keychain under `com.fang2hou.dito`. The login item is `~/Library/LaunchAgents/com.fang2hou.dito.plist`.
+- Debug builds (`mise run dev`, `cargo run`, tests) use a separate identity, `com.fang2hou.dito-dev` (data in `com.fang2hou.Dito-dev`, own Keychain items, login item, and Microphone and Accessibility grants), so they never read or change the installed app's config, history, keys or login item. API keys, models and permissions start empty there; point `models_dir` at the release folder to reuse downloaded models.
 - `--data-dir` doesn't move the models folder; set `models_dir` for that.
 - Use `--mock --log-sink` for any automated or agent run.
 - Examples for manual checks: `cargo run -p dito-audio --example record`, `cargo run -p dito-platform --example probe`, `cargo run -p dito-platform --example press_shortcut -- 2` (presses right Command, to drive a running Dito), `cargo run -p dito-platform --example request -- accessibility` or `-- mic` (asks for a permission and watches its status), `cargo run -p dito-runtimes --example local_e2e`.
@@ -102,7 +103,7 @@ The Python benchmark harness has its own tasks: `mise run bench:sync`, `bench:te
 Things that look removable or simplifiable but exist for a reason. Product-level judgments are in the [ADRs](adr/README.md).
 
 - **Signing and the dev runner.** macOS ties Microphone and Accessibility grants to the code signature. `scripts/certs.sh` creates the `dito-dev` identity once; `.cargo/config.toml` routes runs through `scripts/dev-runner.sh`, which wraps the binary in `target/bundle/DitoDev.app`, signs it and launches it with `open`. A bare `target/debug/dito` gets no permission prompts and no accessibility answers, so never use it for permission or insertion work. `scripts/check.sh` bypasses the runner for automated tests.
-- **Identifiers.** `com.fang2hou.dito` is the bundle id, signing identifier, Keychain service and login item label, and the data directory is `com.fang2hou.Dito`. Changing any of them resets permissions and orphans data and keys; change all of them together, with a migration plan, or not at all.
+- **Identifiers.** `com.fang2hou.dito` is the bundle id, signing identifier, Keychain service and login item label, and the data directory is `com.fang2hou.Dito`. Changing any of them resets permissions and orphans data and keys; change all of them together, with a migration plan, or not at all. They live in `dito-core/src/identity.rs` (and `scripts/bundle.sh`); debug builds take the `-dev` variants from there, and `scripts/dev-runner.sh` signs `DitoDev.app` with the same `com.fang2hou.dito-dev`.
 - **Background frame rate.** The HUD is never key and Dito runs in the background, so macOS throttles it. While the HUD is open a `NapGuard` holds a user-interactive activity, and `HudView` drives its own 16 ms timer. Don't replace either with frame callbacks without measuring an unfocused HUD.
 - **Unload models on quit.** `LocalEngines::unload_all()` runs on quit because llama.cpp's Metal backend crashes at exit when a model is still loaded.
 - **Cancel means stop waiting.** The pipeline's cancellation stops waiting for local inference; the computation in `spawn_blocking` runs to completion and its result is dropped.

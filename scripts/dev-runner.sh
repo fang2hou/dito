@@ -17,6 +17,8 @@ set -euo pipefail
 bin="$1"; shift
 
 identity="${DITO_CODESIGN_IDENTITY:-dito-dev}"
+# Debug builds have their own id (dito_core::identity), so permissions, config and keys never mix with the installed app.
+bundle_id=com.fang2hou.dito-dev
 have_identity() { security find-identity -v -p codesigning | grep -q "\"$identity\""; }
 
 if [[ "$(basename "$bin")" == dito ]]; then
@@ -40,9 +42,9 @@ if [[ "$(basename "$bin")" == dito ]]; then
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleName</key><string>Dito</string>
-  <key>CFBundleDisplayName</key><string>Dito</string>
-  <key>CFBundleIdentifier</key><string>com.fang2hou.dito</string>
+  <key>CFBundleName</key><string>Dito Dev</string>
+  <key>CFBundleDisplayName</key><string>Dito Dev</string>
+  <key>CFBundleIdentifier</key><string>com.fang2hou.dito-dev</string>
   <key>CFBundleExecutable</key><string>dito</string>
   <key>CFBundleIconFile</key><string>Dito</string>
   <key>CFBundleIconName</key><string>Dito</string>
@@ -56,7 +58,7 @@ if [[ "$(basename "$bin")" == dito ]]; then
 </plist>
 PLIST
   if have_identity; then
-    codesign --force --identifier com.fang2hou.dito --sign "$identity" "$app"
+    codesign --force --identifier "$bundle_id" --sign "$identity" "$app"
   else
     echo "dev-signing: identity \"$identity\" not found; run scripts/certs.sh to stop TCC permission resets" >&2
   fi
@@ -78,7 +80,7 @@ fi
 
 if have_identity; then
   # Stable identifier + stable cert = stable designated requirement = stable TCC entry.
-  codesign --force --identifier com.fang2hou.dito --sign "$identity" "$bin"
+  codesign --force --identifier "$bundle_id" --sign "$identity" "$bin"
 else
   echo "dev-signing: identity \"$identity\" not found; run scripts/certs.sh to stop TCC permission resets" >&2
 fi
