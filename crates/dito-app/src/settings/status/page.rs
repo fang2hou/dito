@@ -13,7 +13,7 @@ use crate::assets::Ic;
 use crate::services;
 use crate::settings::{self, Ctx, Page, role};
 use crate::state::AppState;
-use crate::ui::{self, BtnKind, TestState, cbk};
+use crate::ui::{self, BtnKind, TestState, cbk, text};
 
 /// Status cards are read-only: starting, restarting, retrying and enabling live in Models or
 /// General settings. This page reports engine state, provider facts, permissions — nothing else.
@@ -134,9 +134,24 @@ impl StatusPage {
                 .w_full()
                 .flex()
                 .flex_col()
-                .gap(px(20.))
-                .child(self.engine_card(&c, Role::Asr))
-                .child(self.engine_card(&c, Role::Polish))
+                .gap(px(28.))
+                .child(
+                    div()
+                        .w_full()
+                        .flex()
+                        .flex_col()
+                        .gap(px(10.))
+                        .child(text(c.t(Tr::NavModels), 13., FontWeight::BOLD, p.muted))
+                        .child(
+                            div()
+                                .w_full()
+                                .flex()
+                                .flex_col()
+                                .gap(px(12.))
+                                .child(self.engine_card(&c, Role::Asr))
+                                .child(self.engine_card(&c, Role::Polish)),
+                        ),
+                )
                 .child(self.permissions_card(&c, cx)),
         )
     }

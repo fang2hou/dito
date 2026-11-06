@@ -75,6 +75,16 @@ pub fn text_width(s: &str, size: f32, weight: FontWeight) -> f32 {
     })
 }
 
+/// Measure the same glyph spacing as [`text_tracked`] for controls with fitted widths.
+pub fn text_tracked_width(s: &str, size: f32, weight: FontWeight, cjk_em: f32) -> f32 {
+    let em = tracking_for(s, cjk_em);
+    if em == 0. {
+        return text_width(s, size, weight);
+    }
+    s.chars().map(|ch| text_width(&ch.to_string(), size, weight)).sum::<f32>()
+        + s.chars().count().saturating_sub(1) as f32 * size * em
+}
+
 /// Text with the design's CJK letter-spacing `cjk_em`, applied only where [`tracking_for`] says so.
 pub fn text_tracked(s: &str, size: f32, weight: FontWeight, color: Hsla, cjk_em: f32) -> Div {
     let em = tracking_for(s, cjk_em);

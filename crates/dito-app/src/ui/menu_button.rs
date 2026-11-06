@@ -49,6 +49,18 @@ pub(super) fn press_toggle(
 
 /// Circular ⋮-style button that opens a menu: like [`icon_button`], but a press while the menu is open closes it.
 pub fn menu_button(id: impl Into<ElementId>, p: &Palette, ic: Ic, open: bool, toggle: Cb) -> Stateful<Div> {
+    menu_button_sized(id, p, ic, 16., open, toggle)
+}
+
+/// Circular menu control with a context-specific optical icon size.
+pub fn menu_button_sized(
+    id: impl Into<ElementId>,
+    p: &Palette,
+    ic: Ic,
+    icon_size: f32,
+    open: bool,
+    toggle: Cb,
+) -> Stateful<Div> {
     let id: ElementId = id.into();
     let scope = motion_scope();
     div()
@@ -67,7 +79,7 @@ pub fn menu_button(id: impl Into<ElementId>, p: &Palette, ic: Ic, open: bool, to
         .on_hover(hover_tracker(id.clone()))
         .relative()
         .child(hover_fill(&id, None, p.seg))
-        .child(icon(ic, 16., p.text))
+        .child(icon(ic, icon_size, p.text))
 }
 
 #[cfg(test)]

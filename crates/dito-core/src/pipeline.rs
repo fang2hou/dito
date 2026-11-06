@@ -126,7 +126,7 @@ async fn polish(
     let words: &[String] = if cfg.dictionary_for_polish { job.dictionary } else { &[] };
     let system = build_system_prompt(&PromptInput {
         prompts: &cfg.prompts,
-        style: job.style,
+        style: job.style.clone(),
         text: &out.raw,
         dictionary: words,
     });

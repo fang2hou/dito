@@ -11,15 +11,16 @@ workspace = true
 default = ["llama", "sherpa"]
 # llama.cpp (GGUF language models, Metal)
 llama = ["dep:llama-cpp-2", "dep:encoding_rs"]
-# sherpa-onnx (SenseVoice speech recognition)
-sherpa = ["dep:sherpa-rs"]
+# sherpa-onnx (offline speech recognition)
+sherpa = ["dep:sherpa-onnx-sys", "dep:serde_json"]
 
 [dependencies]
 dito-local = { path = "../dito-local" }
 tracing.workspace = true
 encoding_rs = { version = "0.8", optional = true }
 llama-cpp-2 = { version = "0.1", optional = true, features = ["metal", "mtmd"] }
-sherpa-rs = { version = "0.6", optional = true, default-features = false, features = ["download-binaries", "static"] }
+sherpa-onnx-sys = { version = "=2.0.1", optional = true }
+serde_json = { workspace = true, optional = true }
 
 [dev-dependencies]
 dito-core = { path = "../dito-core" }

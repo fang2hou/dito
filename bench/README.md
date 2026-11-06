@@ -79,3 +79,7 @@ audio/            synthesized clips (git-ignored)
 models/           downloaded weights (git-ignored)
 recordings/       microphone recordings (git-ignored)
 ```
+
+## Haas-ja exploration
+
+`haas-ja` is an opt-in Japanese-only model using a community mixed INT4/INT8 ONNX conversion through the existing sherpa-onnx CPU runtime. Run `mise run bench asr run -m haas-ja`. See [HAAS_JA.md](HAAS_JA.md) for M5 Pro CPU and MLX Metal measurements, quantized formats, limitations and reproduction commands.

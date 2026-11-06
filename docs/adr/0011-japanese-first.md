@@ -21,6 +21,8 @@ Japanese is the primary UI language and the design's language; English and Simpl
 
 ## Consequences
 
+The native renderer uses the bundled fonts at their declared weights without color-dependent macOS smoothing dilation. A process-local volatile preference is set before GPUI initializes; no persistent user or system preference is changed.
+
 Adding a language means adding it to the TOML and choosing fonts; screens don't branch on language. The intended default display language is Japanese (today the code follows the system).
 
 ## Pitfalls

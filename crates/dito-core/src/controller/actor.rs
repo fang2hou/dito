@@ -197,7 +197,7 @@ impl Actor {
         let mute = (self.deps.config.get().general.music_mute == MusicMuteMode::Auto)
             .then(|| self.deps.env.music_mute.mute_if_active());
         let app = self.deps.env.frontmost.frontmost();
-        let meta = Meta { style: Style::for_bundle_id(&app.bundle_id), app, ts: now() };
+        let meta = Meta { style: self.deps.config.get().prompts.for_application(&app.bundle_id), app, ts: now() };
         let started = Instant::now();
         self.state = State::Listening { meta, mute };
         self.recording_started.send_replace(Some(started));
@@ -252,7 +252,7 @@ impl Actor {
         self.set_hud(HudState::Recognizing);
         let (tx, engines, config, store) =
             (self.tx.clone(), self.deps.engines.clone(), self.deps.config.clone(), self.deps.store.clone());
-        let (job_clip, style, token) = (clip.clone(), meta.style, cancel.clone());
+        let (job_clip, style, token) = (clip.clone(), meta.style.clone(), cancel.clone());
         tokio::spawn(async move {
             let cfg = config.get();
             let words = load_dictionary(store).await;
@@ -326,7 +326,7 @@ impl Actor {
         let entry = NewHistory {
             ts: meta.ts,
             kind,
-            style: meta.style,
+            style: meta.style.clone(),
             app: meta.app.name.clone(),
             lang: out.map(|o| o.lang.code().to_string()).unwrap_or_default(),
             duration_ms: clip.duration_ms(),

@@ -173,7 +173,7 @@ impl Store {
                 h.ts,
                 self.day_of(h.ts),
                 encode(h.kind),
-                encode(h.style),
+                encode(&h.style),
                 h.app,
                 h.lang,
                 h.duration_ms as i64,
@@ -217,7 +217,7 @@ impl Store {
             sql.push_str(&format!(" AND ts >= ?{}", args.len() + 1));
             args.push(since.into());
         }
-        if let Some(style) = f.style {
+        if let Some(style) = &f.style {
             sql.push_str(&format!(" AND style = ?{}", args.len() + 1));
             args.push(encode(style).into());
         }
@@ -355,6 +355,16 @@ mod tests {
             error: None,
             audio_path: None,
         }
+    }
+
+    #[test]
+    fn custom_application_style_round_trips_in_history() {
+        let store = Store::open_in_memory().unwrap();
+        let mut row = entry(1, "Editor", "en", "hello", None);
+        row.style = Style::Application("example.editor".into());
+        store.add_history(&row).unwrap();
+        let rows = store.list_history(&HistoryFilter::default()).unwrap();
+        assert_eq!(rows[0].style, row.style);
     }
 
     #[test]

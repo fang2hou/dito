@@ -1,94 +1,141 @@
 use dito_core::i18n::Tr;
 use dito_core::provider::configured_asr::AsrProfiles;
+use gpui_kit::base::input::{Redo, Undo};
 use gpui_kit::component::input::Editor;
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
-use super::{AsrEditor, Closed, ISO_CODES, LOCALE_CODES};
+use super::{AsrEditor, ISO_CODES, LOCALE_CODES};
+use crate::assets::Ic;
 use crate::settings::Ctx;
 use crate::theme::Palette;
-use crate::ui::{self, BtnKind, cbk, text};
+use crate::ui::{self, BtnKind, cbk, cbk_idx, text};
 
 impl AsrEditor {
-    pub(super) fn edit_panels(&self, body: Div, c: &Ctx, cx: &mut Context<Self>) -> Div {
-        body.child(self.templates(&c.p, cx))
-            .child(self.toolbar(c, cx))
-            .child(self.code_box(c, cx))
-            .child(self.validation_card(c))
-    }
-
-    fn templates(&self, p: &Palette, cx: &mut Context<Self>) -> Div {
-        let mut templates = div().w_full().flex().gap(px(12.));
-        for (i, name) in AsrProfiles::NAMES.iter().enumerate() {
-            let selected = self.selected == i;
-            templates = templates.child(
-                div()
-                    .id(("json-template", i))
-                    .flex_1()
-                    .h(px(44.))
-                    .rounded(px(12.))
-                    .border_1()
-                    .border_color(if selected { p.accent } else { p.border_strong })
-                    .bg(if selected { p.accent_soft } else { p.bg })
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .cursor_pointer()
-                    .on_click(cx.listener(move |this, _, window, cx| this.switch(i, window, cx)))
-                    .child(text(*name, 14., FontWeight::MEDIUM, p.text)),
-            );
+    pub(super) fn inline(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> Div {
+        let c = Ctx::new(&self.st, cx);
+        let p = c.p;
+        self.style_source(&p, cx);
+        if self.tested_language.is_some_and(|language| language != self.st.cfg.get().general.preferred_language) {
+            self.test = ui::TestState::Idle;
+            self.tested_language = None;
         }
-        templates
+        div()
+            .w_full()
+            .flex()
+            .flex_col()
+            .gap(px(20.))
+            .child(self.templates(&c, cx))
+            .child(ui::form_field(&p, c.t(Tr::ModelsApiKey), ui::text_input(&p, &self.key, None).form()))
+            .child(self.toolbar(&c, cx))
+            .child(self.code_box(&c, cx))
+            .child(self.validation_card(&c))
+            .child(self.connection_footer(&c, cx))
     }
 
-    fn toolbar(&self, c: &Ctx, cx: &mut Context<Self>) -> Div {
-        let p = &c.p;
+    fn templates(&self, c: &Ctx, cx: &mut Context<Self>) -> Div {
+        let names = AsrProfiles::NAMES.iter().map(|s| SharedString::from(*s)).collect::<Vec<_>>();
         div()
             .w_full()
             .flex()
             .items_center()
             .gap(px(12.))
-            .child(text(c.t(Tr::AsrEditorLanguage), 13., FontWeight::NORMAL, p.muted))
-            .child(ui::button(
-                "map-iso",
-                p,
-                "ja / en / zh",
-                BtnKind::Secondary,
-                None,
-                cbk(cx, |this: &mut Self, w, cx| this.map_language_codes(ISO_CODES, w, cx)),
-            ))
-            .child(ui::button(
-                "map-locale",
-                p,
-                "ja-JP / en-US / zh-CN",
-                BtnKind::Secondary,
-                None,
-                cbk(cx, |this: &mut Self, w, cx| this.map_language_codes(LOCALE_CODES, w, cx)),
-            ))
-            .child(div().flex_1())
-            .child(ui::button(
-                "copy-config",
-                p,
-                &c.t(Tr::AsrEditorCopy),
-                BtnKind::Secondary,
-                None,
+            .child(text(c.t(Tr::AsrEditorTemplate), 13., FontWeight::MEDIUM, c.p.muted))
+            .child(ui::select(
+                "asr-template",
+                &c.p,
+                &names,
+                self.selected,
+                self.template_open,
+                Some(200.),
                 cbk(cx, |this: &mut Self, _, cx| {
-                    cx.write_to_clipboard(ClipboardItem::new_string(this.source.read(cx).value().to_string()))
+                    this.template_open = !this.template_open;
+                    cx.notify();
                 }),
+                cbk_idx(cx, |this: &mut Self, i, w, cx| this.switch(i, w, cx)),
             ))
     }
 
-    fn code_box(&self, c: &Ctx, cx: &mut Context<Self>) -> Div {
+    fn toolbar(&self, c: &Ctx, cx: &mut Context<Self>) -> Div {
+        let p = &c.p;
+        let actions = div()
+            .flex()
+            .items_center()
+            .gap(px(8.))
+            .child(editor_icon(
+                "asr-undo",
+                p,
+                c.t(Tr::AsrEditorUndo),
+                Ic::Undo,
+                cbk(cx, |this: &mut Self, w, cx| {
+                    this.source.read(cx).focus_handle(cx).focus(w, cx);
+                    w.dispatch_action(Box::new(Undo), cx);
+                }),
+            ))
+            .child(editor_icon(
+                "asr-redo",
+                p,
+                c.t(Tr::AsrEditorRedo),
+                Ic::Redo,
+                cbk(cx, |this: &mut Self, w, cx| {
+                    this.source.read(cx).focus_handle(cx).focus(w, cx);
+                    w.dispatch_action(Box::new(Redo), cx);
+                }),
+            ))
+            .child(editor_icon(
+                "copy-config",
+                p,
+                c.t(Tr::AsrEditorCopy),
+                Ic::Copy,
+                cbk(cx, |this: &mut Self, _, cx| {
+                    cx.write_to_clipboard(ClipboardItem::new_string(this.source.read(cx).value().to_string()));
+                }),
+            ));
+        div()
+            .w_full()
+            .flex()
+            .flex_wrap()
+            .items_center()
+            .gap(px(12.))
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap(px(8.))
+                    .child(text(c.t(Tr::AsrEditorLanguage), 13., FontWeight::NORMAL, p.muted))
+                    .child(ui::button(
+                        "map-iso",
+                        p,
+                        "ja / en / zh",
+                        BtnKind::Secondary,
+                        None,
+                        cbk(cx, |this: &mut Self, w, cx| this.map_language_codes(ISO_CODES, w, cx)),
+                    ))
+                    .child(ui::button(
+                        "map-locale",
+                        p,
+                        "ja-JP / en-US / zh-CN",
+                        BtnKind::Secondary,
+                        None,
+                        cbk(cx, |this: &mut Self, w, cx| this.map_language_codes(LOCALE_CODES, w, cx)),
+                    )),
+            )
+            .child(div().flex_1())
+            .child(actions)
+    }
+
+    fn code_box(&self, c: &Ctx, cx: &App) -> Div {
         let p = &c.p;
         let source = self.source.read(cx).value().to_string();
         div()
-            .flex_1()
-            .min_h(px(0.))
+            .w_full()
+            .h(px(360.))
+            .flex_none()
             .flex()
             .flex_col()
             .rounded(px(12.))
             .border_1()
-            .border_color(p.border_strong)
+            .border_color(p.border)
             .bg(p.sub)
             .overflow_hidden()
             .child(
@@ -134,66 +181,74 @@ impl AsrEditor {
         } else {
             p.success
         };
-        ui::card(p)
-            .flex_none()
-            .p(px(16.))
-            .gap(px(4.))
-            .child(text(c.t(Tr::AsrEditorValidation), 13., FontWeight::MEDIUM, p.text))
-            .child(
-                div().flex().items_center().gap(px(8.)).child(div().size(px(7.)).rounded_full().bg(dot)).child(text(
-                    status,
-                    13.,
-                    FontWeight::NORMAL,
-                    p.text,
-                )),
-            )
+        div()
+            .w_full()
+            .p(px(14.))
+            .rounded(px(12.))
+            .bg(p.sub)
+            .border_1()
+            .border_color(p.border)
+            .flex()
+            .items_start()
+            .gap(px(8.))
+            .child(div().size(px(7.)).mt(px(6.)).flex_none().rounded_full().bg(dot))
+            .child(text(status, 13., FontWeight::NORMAL, p.text).line_height(px(20.)))
     }
 
-    pub(super) fn edit_footer(&self, c: &Ctx, cx: &mut Context<Self>) -> Div {
+    fn connection_footer(&self, c: &Ctx, cx: &mut Context<Self>) -> Div {
         let p = &c.p;
-        let can_save = !self.pending && self.error.is_none();
+        let mut status = div()
+            .flex_1()
+            .min_w(px(0.))
+            .flex()
+            .flex_col()
+            .gap(px(6.))
+            .child(crate::settings::models::test_status(c, &self.test));
+        if let ui::TestState::Failed(message) = &self.test {
+            status = status.child(text(ui::error_line(c.lang, message), 12., FontWeight::NORMAL, p.text));
+        }
+        let ready = self.can_test(cx);
         div()
+            .w_full()
+            .pt(px(16.))
+            .border_t_1()
+            .border_color(p.border)
             .flex()
             .items_center()
-            .gap(px(12.))
+            .gap(px(16.))
+            .child(status)
             .child(
-                ui::button(
-                    "asr-help",
-                    p,
-                    &c.t(Tr::AsrEditorHelp),
-                    BtnKind::Secondary,
-                    None,
-                    cbk(cx, |this: &mut Self, _, cx| {
-                        this.help = true;
-                        cx.notify();
-                    }),
-                )
-                .bg(p.accent_soft)
-                .border_color(p.accent),
-            )
-            .child(div().flex_1())
-            .child(ui::button(
-                "asr-cancel",
-                p,
-                &c.t(Tr::AsrEditorCancel),
-                BtnKind::Secondary,
-                None,
-                cbk(cx, |_: &mut Self, _, cx| cx.emit(Closed(false))),
-            ))
-            .child(
-                ui::button(
-                    "asr-save",
-                    p,
-                    &c.t(Tr::AsrEditorSave),
-                    BtnKind::Primary,
-                    None,
-                    cbk(cx, move |this: &mut Self, _, cx| {
-                        if can_save {
-                            this.save(cx);
-                        }
-                    }),
-                )
-                .opacity(if can_save { 1. } else { 0.4 }),
+                div()
+                    .flex()
+                    .items_center()
+                    .gap(px(10.))
+                    .child(
+                        ui::button(
+                            "asr-test",
+                            p,
+                            &c.t(Tr::ModelsTestConnection),
+                            BtnKind::Subtle,
+                            None,
+                            cbk(cx, |this: &mut Self, _, cx| this.run_test(cx)),
+                        )
+                        .opacity(if ready { 1. } else { 0.45 }),
+                    )
+                    .child(ui::button_with_icon_size(
+                        "asr-help",
+                        p,
+                        &c.t(Tr::AsrEditorHelp),
+                        BtnKind::Secondary,
+                        Ic::BookOpen,
+                        12.,
+                        cbk(cx, |this: &mut Self, w, cx| this.open_help(w, cx)),
+                    )),
             )
     }
+}
+
+fn editor_icon(id: &'static str, p: &Palette, label: SharedString, icon: Ic, action: ui::Cb) -> Stateful<Div> {
+    let key = ElementId::from(id);
+    ui::tip_label(key.clone(), label);
+    ui::icon_button_sized(key.clone(), p, icon, false, if icon == Ic::Copy { 18. } else { 20. }, action)
+        .child(ui::tip_above(p, &key))
 }

@@ -14,6 +14,12 @@ def _sensevoice(weights: Weights) -> AsrModel:
     return SenseVoiceSherpa(weights)
 
 
+def _haas(weights: Weights) -> AsrModel:
+    from .haas import HaasJaSherpa
+
+    return HaasJaSherpa(weights)
+
+
 def _whisper(weights: Weights) -> AsrModel:
     from .whisper import WhisperMlx
 
@@ -46,6 +52,27 @@ _QWEN3 = ("mlx", "mlx-qwen3-asr")
 ASR_MODELS: dict[str, AsrSpec] = {
     spec.key: spec
     for spec in (
+        AsrSpec(
+            "haas-ja",
+            "Haas-ja v1.0 mixed INT4/INT8",
+            "sherpa-onnx CPU",
+            Weights(
+                "oboroge0/Haas-ja-v1.0-onnx-quantized",
+                MODELS_DIR / "haas-ja",
+                (
+                    "encoder.quantized.onnx",
+                    "encoder.data",
+                    "decoder.onnx",
+                    "joiner.onnx",
+                    "tokens.txt",
+                ),
+            ),
+            _haas,
+            _SHERPA,
+            supports_hotwords=False,
+            in_default_set=False,
+            note=("Japanese only, offline. Community conversion; features differ from NeMo."),
+        ),
         AsrSpec(
             "sensevoice",
             "SenseVoice-Small int8",

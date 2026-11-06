@@ -10,7 +10,7 @@ use dito_core::error::ErrorKind;
 use dito_core::factory::LocalBackend;
 use dito_core::health::EngineStatus;
 use dito_core::provider::{AsrRequest, PolishRequest};
-use dito_local::catalog::{FileSpec, ModelKind, ModelSpec, Runtime};
+use dito_local::catalog::{FileSpec, ModelFormat, ModelKind, ModelSpec};
 use dito_local::{
     AsrOutput, AsrRuntime, LlmRuntime, LocalEngines, ModelManager, NoRuntime, RuntimeError, RuntimeLoader,
 };
@@ -54,7 +54,8 @@ fn installed_manager() -> (ModelManager, tempfile::TempDir) {
         kind,
         files: vec![FileSpec { name: "f".into(), url: String::new(), size: 3, sha256: None }],
         memory_mb: 1,
-        runtime: Runtime::SherpaOnnx,
+        format: ModelFormat::SenseVoice { model: "f", tokens: "f" },
+        language_focus: None,
     };
     let mgr = ModelManager::with_catalog(
         vec![mk("asr", ModelKind::Asr), mk("llm", ModelKind::Polish), mk("missing", ModelKind::Asr)],
@@ -116,4 +117,76 @@ async fn without_a_runtime_the_status_is_failed_never_a_fake_success() {
     let eng = LocalEngines::new(mgr, Arc::new(NoRuntime));
     assert!(eng.transcriber("asr").await.is_err());
     assert!(matches!(eng.status("asr"), EngineStatus::Failed(m) if m.contains("no inference runtime")));
+}
+
+#[derive(Clone)]
+struct ControlledLoader {
+    entered: std::sync::mpsc::Sender<()>,
+    release: Arc<std::sync::Mutex<std::sync::mpsc::Receiver<()>>>,
+    block_drop: bool,
+}
+struct ControlledAsr {
+    gate: Arc<ControlledLoader>,
+}
+impl AsrRuntime for ControlledAsr {
+    fn transcribe(&self, _: &[f32], _: Option<&str>, _: &[String]) -> Result<AsrOutput, RuntimeError> {
+        Ok(AsrOutput { text: "test".into(), language: None })
+    }
+}
+impl Drop for ControlledAsr {
+    fn drop(&mut self) {
+        self.gate.entered.send(()).unwrap();
+        self.gate.release.lock().unwrap().recv().unwrap();
+    }
+}
+impl RuntimeLoader for ControlledLoader {
+    fn load_asr(&self, _: &ModelSpec, _: &Path) -> Result<Arc<dyn AsrRuntime>, RuntimeError> {
+        if self.block_drop {
+            Ok(Arc::new(ControlledAsr { gate: Arc::new(self.clone()) }))
+        } else {
+            self.entered.send(()).unwrap();
+            self.release.lock().unwrap().recv().unwrap();
+            Ok(Arc::new(FakeAsr))
+        }
+    }
+    fn load_llm(&self, _: &ModelSpec, _: &Path) -> Result<Arc<dyn LlmRuntime>, RuntimeError> {
+        Ok(Arc::new(FakeLlm))
+    }
+}
+fn controlled_engine(
+    block_drop: bool,
+) -> (Arc<LocalEngines>, tempfile::TempDir, std::sync::mpsc::Receiver<()>, std::sync::mpsc::Sender<()>) {
+    let (manager, dir) = installed_manager();
+    let (entered, observe) = std::sync::mpsc::channel();
+    let (release, gate) = std::sync::mpsc::channel();
+    let loader = Arc::new(ControlledLoader { entered, release: Arc::new(std::sync::Mutex::new(gate)), block_drop });
+    (LocalEngines::new(manager, loader), dir, observe, release)
+}
+
+#[tokio::test]
+async fn runtime_release_is_observable_as_stopping_without_holding_the_status_lock() {
+    let (engine, _dir, entered, release) = controlled_engine(true);
+    engine.warm("asr").await;
+    let retiring = engine.clone();
+    let task = tokio::task::spawn_blocking(move || retiring.unload("asr"));
+    entered.recv_timeout(std::time::Duration::from_secs(5)).unwrap();
+    assert_eq!(engine.status("asr"), EngineStatus::Stopping);
+    release.send(()).unwrap();
+    task.await.unwrap();
+    assert_eq!(engine.status("asr"), EngineStatus::Stopped);
+}
+
+#[tokio::test]
+async fn stopping_during_load_does_not_publish_the_finished_runtime() {
+    let (engine, _dir, entered, release) = controlled_engine(false);
+    let loading = engine.clone();
+    let task = tokio::spawn(async move { loading.warm("asr").await });
+    // Let the async task reach its blocking loader before waiting on its signal.
+    tokio::task::yield_now().await;
+    entered.recv_timeout(std::time::Duration::from_secs(5)).unwrap();
+    engine.unload("asr");
+    assert_eq!(engine.status("asr"), EngineStatus::Stopping);
+    release.send(()).unwrap();
+    task.await.unwrap();
+    assert_eq!(engine.status("asr"), EngineStatus::Stopped);
 }

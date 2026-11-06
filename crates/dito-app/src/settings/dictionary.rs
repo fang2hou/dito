@@ -219,7 +219,8 @@ impl DictionaryPage {
     fn add_card(&self, c: &Ctx, cx: &mut Context<Self>) -> Div {
         let p = c.p;
         let cfg = self.st.cfg.get();
-        let hotwords_unsupported = cfg.asr.source == Source::Local && cfg.asr.local_model == "sensevoice-small";
+        let hotwords_unsupported = cfg.asr.source == Source::Local
+            && self.st.models.spec(&cfg.asr.local_model).is_some_and(|spec| !spec.format.supports_hotwords());
         let mut add_card = ui::card(&p).bg(p.sub).px(px(26.)).py(px(18.)).gap(px(12.)).child(
             div()
                 .w_full()

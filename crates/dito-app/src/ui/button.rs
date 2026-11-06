@@ -4,7 +4,7 @@ use gpui_kit::*;
 use super::callbacks::{Cb, click_cb};
 use super::hover::{hover_fill, hover_tracker};
 use super::primitives::icon;
-use super::typography::text;
+use super::typography::text_tracked;
 use crate::assets::Ic;
 use crate::theme::Palette;
 
@@ -15,10 +15,8 @@ pub enum BtnKind {
     Primary,
     Secondary,
     Danger,
-    /// The blue model download button.
+    /// Model download action.
     Download,
-    /// The model card's 使用する: an outlined pill on the input surface.
-    Outline,
     /// A quiet pill on the sub surface, for form actions (編集, 接続テスト).
     Subtle,
 }
@@ -48,7 +46,6 @@ impl BtnColors {
                 (p.button_danger_bg, p.button_danger_text, Some(p.button_danger_border), p.button_danger_hover)
             }
             BtnKind::Download => (p.model_download, p.model_on_download, None, p.button_primary_hover),
-            BtnKind::Outline => (p.input_bg, p.text, Some(p.model_use_border), p.nav_on),
             BtnKind::Subtle => (p.sub, p.text, Some(p.field_border), p.seg),
         };
         Self { bg, fg, border, tint }
@@ -79,12 +76,40 @@ pub fn button_with(
     trail: Option<Ic>,
     on_click: Cb,
 ) -> Stateful<Div> {
+    button_impl(id, p, label, kind, size, lead, trail, None, on_click)
+}
+
+/// A regular button with an optically adjusted leading glyph.
+pub fn button_with_icon_size(
+    id: impl Into<ElementId>,
+    p: &Palette,
+    label: &str,
+    kind: BtnKind,
+    icon: Ic,
+    glyph_size: f32,
+    on_click: Cb,
+) -> Stateful<Div> {
+    button_impl(id, p, label, kind, BtnSize::Regular, Some(icon), None, Some(glyph_size), on_click)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn button_impl(
+    id: impl Into<ElementId>,
+    p: &Palette,
+    label: &str,
+    kind: BtnKind,
+    size: BtnSize,
+    lead: Option<Ic>,
+    trail: Option<Ic>,
+    glyph_size: Option<f32>,
+    on_click: Cb,
+) -> Stateful<Div> {
     let (h, pad, label_size) = match size {
         BtnSize::Regular => (CONTROL_H, 16., 13.),
         BtnSize::Large => (40., 22., 14.),
     };
     let BtnColors { bg, fg, border, tint } = BtnColors::of(p, kind, size);
-    let icon_size = if kind == BtnKind::Download { 16. } else { 14. };
+    let icon_size = glyph_size.unwrap_or(if kind == BtnKind::Download { 16. } else { 14. });
     let id: ElementId = id.into();
     let mut el = div()
         .id(id.clone())
@@ -107,7 +132,8 @@ pub fn button_with(
     if let Some(ic) = lead {
         el = el.child(icon(ic, icon_size, fg));
     }
-    el = el.child(text(label.to_string(), label_size, FontWeight::MEDIUM, fg).line_height(relative(1.)));
+    let tracking = if size == BtnSize::Regular { 0.05 } else { 0.04 };
+    el = el.child(text_tracked(label, label_size, FontWeight::MEDIUM, fg, tracking));
     if let Some(ic) = trail {
         el = el.child(icon(ic, icon_size, fg));
     }
@@ -116,6 +142,18 @@ pub fn button_with(
 
 /// Circular icon button (copy, ⋮ ...).
 pub fn icon_button(id: impl Into<ElementId>, p: &Palette, ic: Ic, active: bool, on_click: Cb) -> Stateful<Div> {
+    icon_button_sized(id, p, ic, active, 16., on_click)
+}
+
+/// A circular action with a context-specific optical glyph size.
+pub fn icon_button_sized(
+    id: impl Into<ElementId>,
+    p: &Palette,
+    ic: Ic,
+    active: bool,
+    glyph_size: f32,
+    on_click: Cb,
+) -> Stateful<Div> {
     let id: ElementId = id.into();
     div()
         .id(id.clone())
@@ -132,7 +170,7 @@ pub fn icon_button(id: impl Into<ElementId>, p: &Palette, ic: Ic, active: bool, 
         .on_click(click_cb(on_click))
         .on_hover(hover_tracker(id.clone()))
         .child(hover_fill(&id, None, p.seg))
-        .child(icon(ic, 16., p.text))
+        .child(icon(ic, glyph_size, p.text))
 }
 
 /// The dialog close button: a cross that gets a surface on hover.

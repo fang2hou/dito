@@ -70,6 +70,19 @@ async fn render_app_shots(st: &Arc<AppState>, dir: &Path, groups: &Groups, cx: &
     if groups.selects("navrepro") {
         pages::nav_repro(cx).await;
     }
+    if groups.selects("promptmotion") {
+        pages::prompt_motion_shots(st, dir, cx).await;
+    }
+    if groups.selects("prompts") {
+        pages::prompt_shots(st, dir, cx).await;
+    }
+    if groups.selects("status") {
+        pages::status_shots(st, dir, cx).await;
+    }
+    #[cfg(feature = "mock")]
+    if groups.selects("inlineasr") {
+        super::inline_asr::run(st, dir, cx).await;
+    }
     if groups.selects("models") {
         pages::model_shots(st, dir, cx).await;
     }

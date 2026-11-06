@@ -11,6 +11,10 @@ use crate::settings::asr_editor::EditorPreview;
 use super::Settings;
 
 impl Settings {
+    pub fn asr_config_editor(&self, cx: &App) -> Entity<crate::settings::asr_editor::AsrEditor> {
+        self.models.read(cx).editor.clone()
+    }
+
     pub fn health_hover_probe(&self) -> (Option<Bounds<Pixels>>, bool) {
         (self.health_dot_bounds.get(), Self::health_hovered(&self.motion.handle()))
     }
@@ -29,6 +33,10 @@ impl Settings {
 
     pub fn open_general_select(&mut self, id: &'static str, cx: &mut Context<Self>) {
         self.general.update(cx, |g, cx| g.open_select(id, cx));
+    }
+
+    pub fn preview_prompts(&self, case: &str, window: &mut Window, cx: &mut Context<Self>) {
+        self.prompts.update(cx, |p, cx| p.preview(case, window, cx));
     }
 
     pub fn preview_models(

@@ -123,3 +123,13 @@ Things that look removable or simplifiable but exist for a reason. Product-level
 ## Validation
 
 The commit hooks run `./scripts/check.sh fast` and `mise run lint:rust`; run `./scripts/check.sh full` before a release build. A green run proves the commands passed, not that the behavior is right; check UI changes in the running app.
+
+### Adding a local model
+
+The catalog in `dito-local` owns model files, pinned URLs, sizes, checksums, memory estimates, language-focus hints and the inference layout. For another checkpoint of an existing `ModelFormat`, add one catalog entry; downloads, verification, selection and engine lifecycle reuse the existing path. `ModelFormat` declares exact filenames for each role, so a projector or unrelated ONNX file cannot be mistaken for the main model. Keep external data files such as Haas-ja's `encoder.data` in the same download entry and directory.
+
+For a new architecture, add a `ModelFormat` variant and its adapter in `dito-runtimes`, declare its hotword capability, and extend the loader. Update ADR-0002 when introducing another backend library. A language-focus hint is descriptive and must not reject other input languages; return no detected language when the decoder cannot provide one. Check the license and attribution of each conversion. Haas-ja uses `oboroge0/Haas-ja-v1.0-onnx-quantized`, a community Apache-2.0 conversion of Third Intelligence's model, pinned at `7f5ab0a4b1bf39db78afd6691eeecbc4f9d42e39`.
+
+For an actual sherpa ASR check, use `cargo run -p dito-runtimes --no-default-features --features sherpa --example asr_e2e -- /tmp/dito-asr-e2e haas-ja /path/to/bench/audio`. This downloads and verifies real weights, checks Japanese recognition, accepts other language hints, processes long audio, checks silence and exercises stop/restart without microphone access or text insertion.
+
+The native sherpa binding is the official `sherpa-onnx-sys` 2.0.1 static package. Its build script downloads matching libraries automatically. Keep the binding and native version aligned; do not override `SHERPA_ONNX_LIB_DIR` with an older binary. The C ABI adapter reads the full result JSON because the upstream high-level Rust result type currently omits SenseVoice's language field. For model-page screenshots with a real running engine, set `DITO_MODEL_WARM=haas-ja` with `DITO_SHOTS_ONLY=models` and `DITO_MODEL_SHOTS=local-asr`; use an isolated `--data-dir` containing verified weights. No synthetic running status is created.

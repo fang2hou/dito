@@ -2,7 +2,6 @@ use std::rc::Rc;
 
 use dito_core::config::ProviderKind;
 use dito_core::i18n::Tr;
-use dito_core::provider::configured_asr::AsrProfiles;
 use dito_core::secrets::Role;
 use gpui_kit::component::input::InputState;
 use gpui_kit::prelude::*;
@@ -19,26 +18,6 @@ impl ModelsPage {
     pub(super) fn provider_tiles(&self, c: &Ctx, cx: &mut Context<Self>, role: Role, kind: ProviderKind) -> Div {
         let p = &c.p;
         let mut row = div().w_full().flex().gap(px(12.));
-        if role == Role::Asr {
-            let selected = self.st.cfg.get().asr.cloud_asr.clone().unwrap_or_default().selected;
-            for (i, name) in AsrProfiles::NAMES.iter().enumerate() {
-                row = row.child(choice_tile(
-                    p,
-                    format!("asr-preset-{i}"),
-                    format!("asr-preset-ring-{i}"),
-                    selected == i,
-                    SharedString::from(*name),
-                    cx.listener(move |this, _, window, cx| {
-                        services::save_config(&this.st, |c| {
-                            c.asr.cloud_asr.get_or_insert_with(AsrProfiles::default).selected = i
-                        });
-                        this.show_active_preset(window, cx);
-                        cx.notify();
-                    }),
-                ));
-            }
-            return row;
-        }
         let role_index = role::index(role);
         for k in ProviderKind::ALL {
             row = row.child(choice_tile(
@@ -60,9 +39,6 @@ impl ModelsPage {
     pub(super) fn provider_fields(&self, c: &Ctx, cx: &mut Context<Self>, role: Role) -> Div {
         let col = div().w_full().flex().flex_col().gap(px(18.));
         let inputs = &self.inputs[role::index(role)];
-        if role == Role::Asr {
-            return self.cloud_asr_fields(c, cx, inputs, col);
-        }
         let cfg = self.st.cfg.get();
         let engine = role::engine(&cfg, role);
         let llm = role == Role::Polish;
@@ -74,29 +50,6 @@ impl ModelsPage {
             }
             ProviderKind::Compat => compat_fields(c, llm, inputs, col),
         }
-    }
-
-    fn cloud_asr_fields(&self, c: &Ctx, cx: &mut Context<Self>, inputs: &RoleInputs, col: Div) -> Div {
-        let p = &c.p;
-        col.child(ui::form_field(p, c.t(Tr::ModelsBaseUrl), form_input(p, &inputs[Field::CompatBase])))
-            .child(ui::form_field(p, c.t(Tr::ModelsModelId), form_input(p, &inputs[Field::CompatModel])))
-            .child(ui::form_field(p, c.t(Tr::ModelsApiKey), form_input(p, &inputs[Field::KeyCompat])))
-            .child(
-                div()
-                    .w_full()
-                    .flex()
-                    .items_center()
-                    .justify_between()
-                    .child(text(c.t(Tr::ModelsConnectionSettings), 14., FontWeight::MEDIUM, p.text))
-                    .child(ui::button(
-                        "asr-edit",
-                        p,
-                        &c.t(Tr::AsrEditorEdit),
-                        BtnKind::Subtle,
-                        None,
-                        cbk(cx, |this: &mut Self, w, cx| this.open_editor(w, cx)),
-                    )),
-            )
     }
 
     fn aws_profile_select(&self, c: &Ctx, cx: &mut Context<Self>, role: Role, current: &str) -> AnyElement {
@@ -128,7 +81,7 @@ impl ModelsPage {
     pub(super) fn test_footer(&self, c: &Ctx, cx: &mut Context<Self>, role: Role) -> Div {
         let p = &c.p;
         let state = &self.tests[role::index(role)];
-        let mut left = div().flex_1().min_w(px(0.)).flex().flex_col().gap(px(6.)).child(test_status(c, role, state));
+        let mut left = div().flex_1().min_w(px(0.)).flex().flex_col().gap(px(6.)).child(test_status(c, state));
         if let TestState::Failed(message) = state {
             left = left.child(text(ui::error_line(c.lang, message), 12., FontWeight::NORMAL, p.text));
         }
@@ -160,7 +113,7 @@ impl ModelsPage {
 
 /// Test state as a small tag: neutral while unchecked or running, green on success with the response time beside
 /// it, and the danger tones on failure.
-fn test_status(c: &Ctx, role: Role, state: &TestState) -> Div {
+pub(in crate::settings) fn test_status(c: &Ctx, state: &TestState) -> Div {
     let p = &c.p;
     let (label, bg, fg, weight) = match state {
         TestState::Idle => (c.t(Tr::ModelsUnchecked), p.seg, p.muted, FontWeight::NORMAL),
@@ -178,9 +131,7 @@ fn test_status(c: &Ctx, role: Role, state: &TestState) -> Div {
         .bg(bg)
         .child(text(label, 12., weight, fg).line_height(relative(1.5)));
     let mut status = div().flex().items_center().gap(px(12.)).child(tag);
-    if role == Role::Polish
-        && let TestState::Ok(ms) = state
-    {
+    if let TestState::Ok(ms) = state {
         status = status.child(
             div()
                 .flex()

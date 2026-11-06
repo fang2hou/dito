@@ -4,6 +4,7 @@ use std::time::{Duration, Instant};
 
 use dito_core::config::{Appearance, DisplayLanguage, HudPosition, ProviderKind, Source};
 use dito_core::controller::{Command, HudState};
+use dito_core::factory::LocalBackend;
 use dito_core::provider::configured_asr::AsrProfiles;
 use dito_core::secrets::Role;
 use dito_core::store::HistoryFilter;
@@ -13,7 +14,7 @@ use super::capture::{
     page_shot, refresh_settings_window, render, render_settings_window, resize_settings_window, save, theme_tag,
     wait_for_frame,
 };
-use super::input::{click, on_settings_window};
+use super::input::{click, hover, on_settings_window, press, release};
 use super::verify;
 use crate::hotkeys::CaptureState;
 use crate::services;
@@ -51,6 +52,109 @@ pub async fn page_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
             }
         }
     }
+}
+
+/// Capture contextual-help entrance, exit, and interrupted re-entry at native render frames.
+pub async fn prompt_motion_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
+    let original = st.cfg.get();
+    for appearance in [Appearance::Light, Appearance::Dark] {
+        services::save_config(st, |c| {
+            c.general.appearance = appearance;
+            c.general.display_language = DisplayLanguage::Ja;
+        });
+        open_page_sized(st, Page::Prompts, 1120., 980., cx);
+        on_settings_window(cx, |w, cx, _| {
+            if let Some((_, view)) = settings::handle(cx) {
+                view.update(cx, |s, cx| s.preview_prompts("normal", w, cx));
+            }
+        });
+        page_shot(cx, dir, &format!("help-{}-before.png", theme_tag(appearance))).await;
+        let scope = cx.update(|cx| settings::page_motion(Page::Prompts, cx)).expect("prompt motion scope");
+        let mut frames = Vec::new();
+        for (phase, on, moments) in [
+            ("enter", true, &[0, 50, 100, 150, 220, 350][..]),
+            ("exit", false, &[0, 50, 100, 150, 220, 350][..]),
+            ("interrupted-enter", true, &[0][..]),
+            ("interrupted-exit", false, &[0][..]),
+            ("reenter", true, &[0, 50, 100, 150, 220, 350][..]),
+        ] {
+            ui::force_hover(&scope, ElementId::from("prompt-examples-help"), on);
+            let start = Instant::now();
+            for &elapsed in moments {
+                if let Some(remaining) = Duration::from_millis(elapsed).checked_sub(start.elapsed()) {
+                    cx.background_executor().timer(remaining).await;
+                }
+                if let Some(Ok(image)) = render_settings_window(cx) {
+                    println!("captured help {} {phase} at {} ms", theme_tag(appearance), start.elapsed().as_millis());
+                    frames.push((format!("help-{}-{phase}-{elapsed:03}.png", theme_tag(appearance)), image));
+                }
+            }
+        }
+        // Encoding during capture stalls the UI thread and skips the intermediate frames.
+        for (name, image) in frames {
+            save(dir, &name, image);
+        }
+    }
+    services::save_config(st, |c| {
+        c.general.appearance = original.general.appearance;
+        c.general.display_language = original.general.display_language;
+    });
+}
+
+/// Prompt controls at default and narrow widths, with both appearances.
+pub async fn prompt_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
+    let original = st.cfg.get();
+    for appearance in [Appearance::Light, Appearance::Dark] {
+        services::save_config(st, |c| {
+            c.general.appearance = appearance;
+            c.general.display_language = DisplayLanguage::Ja;
+        });
+        for (width, label) in [(1120., "default"), (900., "narrow")] {
+            for case in ["normal", "menu", "add", "reset", "help", "herdr"] {
+                open_page_sized(st, Page::Prompts, width, 980., cx);
+                on_settings_window(cx, |w, cx, _| {
+                    if let Some((_, view)) = settings::handle(cx) {
+                        view.update(cx, |s, cx| s.preview_prompts(case, w, cx));
+                    }
+                });
+                page_shot(cx, dir, &format!("prompts-{}-{label}-{case}.png", theme_tag(appearance))).await;
+            }
+        }
+    }
+    services::save_config(st, |c| {
+        c.general.appearance = original.general.appearance;
+        c.general.display_language = original.general.display_language;
+    });
+}
+
+/// Status layout in both appearances, including narrow windows and long provider facts.
+pub async fn status_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
+    let original = st.cfg.get();
+    for appearance in [Appearance::Light, Appearance::Dark] {
+        for (width, size) in [(1120., "default"), (900., "narrow")] {
+            for case in ["local", "cloud", "disabled"] {
+                services::save_config(st, |c| {
+                    c.general.appearance = appearance;
+                    c.general.display_language = DisplayLanguage::Ja;
+                    c.asr.source = Source::Local;
+                    c.polish.enabled = case != "disabled";
+                    c.polish.engine.source = if case == "local" { Source::Local } else { Source::Provider };
+                    c.polish.engine.provider.kind = ProviderKind::Compat;
+                    c.polish.engine.provider.compat.base_url =
+                        "https://regional-transcription-gateway.ap-northeast-1.example.com/v1".into();
+                    c.polish.engine.provider.compat.model = "gpt-4o-mini".into();
+                });
+                open_page_sized(st, Page::Status, width, 1000., cx);
+                page_shot(cx, dir, &format!("status-{}-{size}-{case}.png", theme_tag(appearance))).await;
+            }
+        }
+    }
+    services::save_config(st, |c| {
+        c.general.appearance = original.general.appearance;
+        c.general.display_language = original.general.display_language;
+        c.asr = original.asr.clone();
+        c.polish = original.polish.clone();
+    });
 }
 
 /// Click through the sidebar in a fixed pattern, to reproduce navigation glitches. Opt-in: `DITO_SHOTS_ONLY=navrepro`.
@@ -191,7 +295,7 @@ const fn model_case(
     ModelCase { name, role, local, preset, editor }
 }
 
-const MODEL_CASES: [ModelCase; 11] = [
+const MODEL_CASES: [ModelCase; 12] = [
     model_case("local-asr", Role::Asr, true, 0, None),
     model_case("local-polish", Role::Polish, true, 0, None),
     model_case("funasr", Role::Asr, false, 0, None),
@@ -201,6 +305,7 @@ const MODEL_CASES: [ModelCase; 11] = [
     model_case("bedrock", Role::Polish, false, 1, None),
     model_case("compatible", Role::Polish, false, 2, None),
     model_case("editor", Role::Asr, false, 1, Some(EditorPreview::Valid)),
+    model_case("editor-end", Role::Asr, false, 1, Some(EditorPreview::End)),
     model_case("editor-error", Role::Asr, false, 1, Some(EditorPreview::Invalid)),
     model_case("help", Role::Asr, false, 1, Some(EditorPreview::Help)),
 ];
@@ -209,6 +314,13 @@ const MODEL_CASES: [ModelCase; 11] = [
 pub async fn model_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     let original = st.cfg.get();
     let only = std::env::var("DITO_MODEL_SHOTS").ok();
+    // Opt in to a real engine state, without fabricating a running status for the screenshot.
+    if let Ok(id) = std::env::var("DITO_MODEL_WARM") {
+        let local = st.local.clone();
+        let selected = id.clone();
+        st.rt.spawn(async move { local.warm(&selected).await }).await.expect("model warmup task");
+        assert_eq!(st.local.status(&id), dito_core::health::EngineStatus::Running, "screenshot model failed to load");
+    }
     for appearance in [Appearance::Light, Appearance::Dark] {
         let tag = theme_tag(appearance);
         for case in &MODEL_CASES {
@@ -217,6 +329,9 @@ pub async fn model_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
             }
             apply_model_case(st, appearance, case);
             open_page(st, Page::Models, cx);
+            if case.role == Role::Asr && !case.local {
+                cx.update(|cx| resize_settings_window(cx, 1120., 1120.));
+            }
             cx.update(|cx| {
                 let (w, view) = settings::handle(cx).expect("settings window");
                 let _ = w.update(cx, |_, window, cx| {
@@ -224,7 +339,7 @@ pub async fn model_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
                 });
             });
             page_shot(cx, dir, &format!("models-{}-{tag}.png", case.name)).await;
-            if matches!(case.editor, Some(EditorPreview::Valid | EditorPreview::Help)) {
+            if matches!(case.editor, Some(EditorPreview::Valid | EditorPreview::End | EditorPreview::Help)) {
                 cx.update(|cx| resize_settings_window(cx, 1000., 680.));
                 page_shot(cx, dir, &format!("models-{}-compact-{tag}.png", case.name)).await;
                 cx.update(|cx| resize_settings_window(cx, 1120., 860.));
@@ -275,9 +390,35 @@ pub async fn hud_height_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp)
             });
             open_page_sized(st, Page::General, 1120., 1200., cx);
             let mode = if position == HudPosition::Pointer { "pointer" } else { "centered" };
+            if position == HudPosition::Pointer {
+                // Keep intermediate row-collapse frames: settled screenshots cannot expose overlapping fill layers.
+                let _ = render_settings_window(cx);
+                for frame in 1..=3 {
+                    cx.background_executor().timer(Duration::from_millis(30)).await;
+                    if let Some(Ok(img)) = render_settings_window(cx) {
+                        save(dir, &format!("hud-height-{}-hide-{frame}.png", theme_tag(appearance)), img);
+                    }
+                }
+            }
             page_shot(cx, dir, &format!("hud-height-{}-{mode}.png", theme_tag(appearance))).await;
-            if appearance == Appearance::Light && position == HudPosition::Centered {
-                verify::hud_height_slider(st, cx).await;
+            if position == HudPosition::Centered {
+                let mut thumb = Point::default();
+                on_settings_window(cx, |w, cx, view| {
+                    let bounds = view.read(cx).hud_height_bounds(cx);
+                    thumb = point(bounds.left() + bounds.size.width / 7., bounds.center().y);
+                    hover(w, cx, thumb);
+                });
+                page_shot(cx, dir, &format!("hud-height-{}-hover.png", theme_tag(appearance))).await;
+                on_settings_window(cx, |w, cx, _| press(w, cx, thumb));
+                page_shot(cx, dir, &format!("hud-height-{}-pressed.png", theme_tag(appearance))).await;
+                on_settings_window(cx, |w, cx, _| {
+                    release(w, cx, thumb);
+                    hover(w, cx, point(px(0.), px(0.)));
+                });
+                page_shot(cx, dir, &format!("hud-height-{}-leave.png", theme_tag(appearance))).await;
+                if appearance == Appearance::Light {
+                    verify::hud_height_slider(st, cx).await;
+                }
             }
         }
     }

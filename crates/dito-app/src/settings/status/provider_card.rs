@@ -1,13 +1,13 @@
-use dito_core::config::{EngineConfig, ProviderKind};
+use dito_core::config::{EngineConfig, ProviderKind, Source};
 use dito_core::i18n::Tr;
 use dito_core::provider::configured_asr::AsrProfiles;
 use dito_core::secrets::Role;
 use gpui_kit::*;
 
-use super::engine_card::{EngineParts, info_row};
+use super::engine_card::{EngineParts, detail_grid, hint, model_line};
 use super::page::StatusPage;
 use crate::settings::{Ctx, role};
-use crate::ui::{self, TestState, text};
+use crate::ui::{self, StatusTone, TestState};
 
 /// Local wall-clock "HH:MM" stamp for the last check; offset comes from the platform.
 fn hh_mm(epoch: Option<u64>) -> String {
@@ -35,16 +35,16 @@ impl StatusPage {
         let p = &c.p;
         let idx = role::index(role);
         let name = provider_name(c, e);
-        let head_extra = Some(text(name, 12., FontWeight::NORMAL, p.muted));
         let (label, tone) = match &self.checks[idx] {
-            TestState::Ok(_) => (c.t(Tr::ModelsConnected), p.success),
-            TestState::Failed(_) => (c.t(Tr::ModelsConnectionError), p.danger),
-            TestState::Running | TestState::Idle => (c.t(Tr::ModelsChecking), p.warning_text),
+            TestState::Ok(_) => (c.t(Tr::ModelsConnected), StatusTone::Success),
+            TestState::Failed(_) => (c.t(Tr::ModelsConnectionError), StatusTone::Danger),
+            TestState::Running | TestState::Idle => (c.t(Tr::ModelsChecking), StatusTone::Warning),
         };
-        let chip = ui::status_chip(label, tone);
+        let chip = ui::status_chip(p, label, tone);
         let mut body: Vec<AnyElement> =
-            vec![text(provider_model(e).to_owned(), 15., FontWeight::MEDIUM, p.text).into_any_element()];
-        let mut cells = vec![(c.t(Tr::ModelsProvider), name.to_string()), endpoint_cell(c, e)];
+            vec![model_line(c, provider_model(e).to_owned(), Source::Provider).into_any_element()];
+        let mut error = None;
+        let mut cells = vec![(c.t(Tr::StatusProvider), name.to_string()), endpoint_cell(c, e)];
         match &self.checks[idx] {
             TestState::Ok(ms) => {
                 cells.push((c.t(Tr::ModelsLatency), format!("{ms} ms")));
@@ -54,8 +54,9 @@ impl StatusPage {
                 cells.push((c.t(Tr::ModelsLatency), "—".into()));
                 let kind_txt = msg.split(':').next().unwrap_or("—").trim().to_string();
                 cells.push((c.t(Tr::HudError), kind_txt));
-                body.push(
-                    text(msg.clone(), 13., FontWeight::NORMAL, if p.dark { p.danger } else { p.danger_text })
+                error = Some(
+                    hint(p, msg.clone().into())
+                        .text_color(if p.dark { p.danger } else { p.danger_text })
                         .into_any_element(),
                 );
             }
@@ -64,8 +65,9 @@ impl StatusPage {
                 cells.push((c.t(Tr::ModelsLastChecked), "—".into()));
             }
         }
-        body.push(info_row(p, cells).into_any_element());
-        (chip, head_extra, body)
+        body.push(detail_grid(p, cells).into_any_element());
+        body.extend(error);
+        (chip, body)
     }
 }
 
