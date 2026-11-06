@@ -2,7 +2,6 @@ use std::num::NonZeroU32;
 use std::path::Path;
 use std::sync::{Mutex, OnceLock};
 
-use dito_local::catalog::ModelSpec;
 use dito_local::{AsrOutput, AsrRuntime, LlmRuntime, RuntimeError};
 use llama_cpp_2::context::LlamaContext;
 use llama_cpp_2::context::params::LlamaContextParams;
@@ -13,7 +12,6 @@ use llama_cpp_2::model::params::LlamaModelParams;
 use llama_cpp_2::mtmd::{MtmdBitmap, MtmdContext, MtmdContextParams, MtmdInputText};
 use llama_cpp_2::sampling::LlamaSampler;
 
-use crate::find_file;
 use crate::qwen_text::{asr_prompt, chat_prompt, is_vocabulary_echo, parse_output, strip_think};
 
 fn backend() -> Result<&'static LlamaBackend, RuntimeError> {
@@ -33,12 +31,9 @@ pub struct Chat {
 }
 
 impl Chat {
-    pub fn load(spec: &ModelSpec, dir: &Path) -> Result<Self, RuntimeError> {
-        let path = find_file(dir, |n| n.ends_with(".gguf"))?;
+    pub fn load(path: &Path, disable_thinking: bool) -> Result<Self, RuntimeError> {
         let params = LlamaModelParams::default().with_n_gpu_layers(1000);
         let model = LlamaModel::load_from_file(backend()?, path, &params).map_err(RuntimeError::engine)?;
-        // The 2507 "Instruct" checkpoint never thinks; the older hybrid ones do.
-        let disable_thinking = !spec.files.iter().any(|f| f.name.contains("Instruct-2507"));
         Ok(Self { model, gate: Mutex::new(()), disable_thinking })
     }
 }
@@ -121,9 +116,7 @@ pub struct Asr {
 const MAX_SAMPLES: usize = 600 * 16_000;
 
 impl Asr {
-    pub fn load(dir: &Path) -> Result<Self, RuntimeError> {
-        let model_path = find_file(dir, |n| n.ends_with(".gguf") && !n.starts_with("mmproj"))?;
-        let mmproj_path = find_file(dir, |n| n.starts_with("mmproj"))?;
+    pub fn load(model_path: &Path, mmproj_path: &Path) -> Result<Self, RuntimeError> {
         let model =
             LlamaModel::load_from_file(backend()?, model_path, &LlamaModelParams::default().with_n_gpu_layers(1000))
                 .map_err(RuntimeError::engine)?;
@@ -213,8 +206,9 @@ mod tests {
         use dito_core::prompts::{PromptInput, Prompts, Style, build_system_prompt};
         use dito_local::LlmRuntime;
         let spec = dito_local::catalog::default_catalog().into_iter().find(|s| s.id == "qwen3.5-4b-instruct").unwrap();
-        let model =
-            super::Chat::load(&spec, std::path::Path::new(&std::env::var("DITO_POLISH_MODEL_DIR").unwrap())).unwrap();
+        let dito_local::catalog::ModelFormat::Chat { model, disable_thinking } = spec.format else { unreachable!() };
+        let path = std::path::PathBuf::from(std::env::var("DITO_POLISH_MODEL_DIR").unwrap()).join(model);
+        let model = super::Chat::load(&path, disable_thinking).unwrap();
         let terms = vec!["NebulaBanana".into(), "银河量子仓库".into()];
         let prompts = Prompts::default();
         for text in
@@ -241,7 +235,14 @@ mod tests {
     #[ignore = "requires DITO_ASR_MODEL_DIR and the local bench audio clips (`mise run bench clips`)"]
     fn asr_reference_vocabulary_audio_regression() {
         use dito_local::AsrRuntime;
-        let model = super::Asr::load(std::path::Path::new(&std::env::var("DITO_ASR_MODEL_DIR").unwrap())).unwrap();
+        let directory = std::path::PathBuf::from(std::env::var("DITO_ASR_MODEL_DIR").unwrap());
+        let spec = dito_local::catalog::default_catalog()
+            .into_iter()
+            .filter(|s| s.kind == dito_local::catalog::ModelKind::Asr)
+            .find(|s| s.format.files().iter().all(|name| directory.join(name).is_file()))
+            .expect("catalog ASR files");
+        let dito_local::catalog::ModelFormat::QwenAsr { model, projector } = spec.format else { unreachable!() };
+        let model = super::Asr::load(&directory.join(model), &directory.join(projector)).unwrap();
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../bench/audio");
         let unrelated = vec!["星际菠萝研究所".into(), "银河量子仓库".into(), "NebulaBanana".into()];
         for (file, lang, relevant) in

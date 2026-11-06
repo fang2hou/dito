@@ -70,17 +70,32 @@ pub fn status_tag(p: &Palette, ok: bool, label: impl Into<SharedString>) -> Div 
     solid_tag(label, bg, fg, true)
 }
 
-/// Dot + label chip: the colour carries the tone, no background pill. The single status
-/// vocabulary on settings cards and permissions (12px label, 7px dot).
-pub fn status_chip(label: impl Into<SharedString>, tone: Hsla) -> Div {
-    let label = label.into();
+/// Semantic colors for the shared inverse labels in 11.03 Controls and 20.09 Status.
+#[derive(Clone, Copy)]
+pub enum StatusTone {
+    Success,
+    Warning,
+    Danger,
+    Neutral,
+}
+
+/// A compact status label, with paired palette colors in both appearances.
+pub fn status_chip(p: &Palette, label: impl Into<SharedString>, tone: StatusTone) -> Div {
+    let (bg, fg) = match tone {
+        StatusTone::Success => (p.success, white()),
+        StatusTone::Warning => (p.warning_text, p.warning_soft),
+        StatusTone::Danger => (p.danger, white()),
+        StatusTone::Neutral => (p.muted, p.card),
+    };
     div()
+        .h(px(24.))
+        .px(px(10.))
+        .rounded_full()
+        .bg(bg)
         .flex()
         .items_center()
-        .gap(px(6.))
         .flex_none()
-        .child(div().size(px(7.)).rounded_full().bg(tone))
-        .child(text(label, 12., FontWeight::MEDIUM, tone).line_height(relative(1.4)))
+        .child(text(label, 12., FontWeight::MEDIUM, fg).line_height(px(18.)))
 }
 
 pub fn page_title(p: &Palette, s: impl Into<SharedString>) -> Div {

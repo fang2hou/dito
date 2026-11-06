@@ -18,6 +18,7 @@ use crate::runtime::{AsrRuntime, LlmRuntime, RuntimeLoader};
 #[derive(Clone)]
 enum Slot {
     Loading,
+    Stopping,
     Asr(Arc<dyn AsrRuntime>),
     Llm(Arc<dyn LlmRuntime>),
     Failed(String),
@@ -70,7 +71,23 @@ impl LocalEngines {
 
     /// Drop the loaded runtime; it is reloaded on next use.
     pub fn unload(&self, id: &str) {
-        self.slots.lock().expect("engine state mutex poisoned").remove(id);
+        let old = {
+            let mut slots = self.slots.lock().expect("engine state mutex poisoned");
+            if matches!(slots.get(id), None | Some(Slot::Stopping)) {
+                return;
+            }
+            slots.insert(id.to_string(), Slot::Stopping)
+        };
+        if matches!(old, Some(Slot::Loading)) {
+            // The loader completes the stop after releasing any runtime it produced.
+            return;
+        }
+        // Runtime destruction may wait for Metal. Keep status reads and the UI responsive.
+        drop(old);
+        let mut slots = self.slots.lock().expect("engine state mutex poisoned");
+        if matches!(slots.get(id), Some(Slot::Stopping)) {
+            slots.remove(id);
+        }
     }
 
     /// Drop every loaded runtime. The app calls this before it quits: llama.cpp's Metal backend asserts at process
@@ -105,7 +122,13 @@ impl LocalEngines {
         if let Some(slot @ (Slot::Asr(_) | Slot::Llm(_))) = existing {
             return Ok(slot);
         }
-        self.slots.lock().expect("engine state mutex poisoned").insert(id.to_string(), Slot::Loading);
+        {
+            let mut slots = self.slots.lock().expect("engine state mutex poisoned");
+            if matches!(slots.get(id), Some(Slot::Stopping)) {
+                return Err(ProviderError::new(ErrorKind::Unavailable, "model is stopping"));
+            }
+            slots.insert(id.to_string(), Slot::Loading);
+        }
         let (loader, dir) = (self.loader.clone(), self.manager.model_dir(id));
         let loaded = tokio::task::spawn_blocking(move || match spec.kind {
             ModelKind::Asr => loader.load_asr(&spec, &dir).map(Slot::Asr),
@@ -113,17 +136,24 @@ impl LocalEngines {
         })
         .await
         .map_err(|e| ProviderError::new(ErrorKind::Other, e.to_string()))?;
+        let mut slots = self.slots.lock().expect("engine state mutex poisoned");
+        if !matches!(slots.get(id), Some(Slot::Loading)) {
+            let stopping = matches!(slots.get(id), Some(Slot::Stopping));
+            drop(slots);
+            drop(loaded);
+            if stopping {
+                self.slots.lock().expect("engine state mutex poisoned").remove(id);
+            }
+            return Err(ProviderError::new(ErrorKind::Unavailable, "model loading was stopped"));
+        }
         match loaded {
             Ok(slot) => {
-                self.slots.lock().expect("engine state mutex poisoned").insert(id.to_string(), slot.clone());
+                slots.insert(id.to_string(), slot.clone());
                 Ok(slot)
             }
             Err(error) => {
                 let msg = error.to_string();
-                self.slots
-                    .lock()
-                    .expect("engine state mutex poisoned")
-                    .insert(id.to_string(), Slot::Failed(msg.clone()));
+                slots.insert(id.to_string(), Slot::Failed(msg.clone()));
                 Err(ProviderError::new(ErrorKind::Unavailable, msg))
             }
         }
@@ -213,6 +243,7 @@ impl LocalBackend for LocalEngines {
         match self.slots.lock().expect("engine state mutex poisoned").get(model_id) {
             None => EngineStatus::Stopped,
             Some(Slot::Loading) => EngineStatus::Loading,
+            Some(Slot::Stopping) => EngineStatus::Stopping,
             Some(Slot::Asr(_) | Slot::Llm(_)) => EngineStatus::Running,
             Some(Slot::Failed(e)) => EngineStatus::Failed(e.clone()),
         }

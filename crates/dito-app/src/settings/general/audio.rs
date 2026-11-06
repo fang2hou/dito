@@ -13,11 +13,11 @@ const LANGUAGES: [PreferredLanguage; 4] =
     [PreferredLanguage::Auto, PreferredLanguage::Ja, PreferredLanguage::En, PreferredLanguage::Zh];
 
 impl GeneralPage {
-    pub(super) fn audio_group(&self, c: &Ctx, cx: &mut Context<Self>) -> impl IntoElement {
+    pub(super) fn speech_recognition_group(&self, c: &Ctx, cx: &mut Context<Self>) -> impl IntoElement {
         let p = c.p;
         ui::group(
             &p,
-            c.t(Tr::GeneralAudio),
+            c.t(Tr::GeneralSpeechRecognition),
             vec![
                 ui::row(&p, c.t(Tr::GeneralMicrophone), self.microphone_select(c, cx), false),
                 ui::row(&p, c.t(Tr::GeneralPreferredLanguage), self.preferred_language_select(c, cx), true),

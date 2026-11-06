@@ -72,23 +72,24 @@ impl Settings {
             || ui::is_hovered_in(shell, &ElementId::from("health-card-hit"))
     }
 
-    /// Status chip in the models page's language: a 6 px state dot and a short label — no pill, no
-    /// sentences; the color and the word carry the state.
+    /// A dot and unfilled text distinguish runtime status from the role labels in this popover.
     pub(super) fn health_chip(p: Palette, lang: Lang, status: &EngineStatus) -> Div {
-        let (dot, label) = match status {
-            EngineStatus::Remote => (p.blue_text, lang.tr(Tr::ModelsConfigured)),
+        let (tone, label) = match status {
+            EngineStatus::Remote => (p.muted, lang.tr(Tr::ModelsConfigured)),
             EngineStatus::Running => (p.success, lang.tr(Tr::ModelsRunning)),
-            EngineStatus::Loading => (p.primary, lang.tr(Tr::MenubarLoading)),
+            EngineStatus::Stopping => (p.warning_text, lang.tr(Tr::ModelsStopping)),
+            EngineStatus::Loading => (p.warning_text, lang.tr(Tr::MenubarLoading)),
             EngineStatus::Failed(_) => (p.danger, lang.tr(Tr::ModelsFailed)),
-            EngineStatus::Stopped | EngineStatus::NotInstalled => (p.muted, lang.tr(Tr::MenubarStopped)),
+            EngineStatus::Stopped => (p.muted, lang.tr(Tr::MenubarStopped)),
+            EngineStatus::NotInstalled => (p.muted, lang.tr(Tr::ModelsNotInstalled)),
         };
         div()
             .flex()
             .items_center()
             .gap(px(6.))
             .flex_none()
-            .child(div().size(px(6.)).rounded_full().bg(dot))
-            .child(text(label, 12., FontWeight::MEDIUM, dot).line_height(px(16.)))
+            .child(text(label, 12., FontWeight::MEDIUM, p.muted).line_height(px(16.)))
+            .child(div().size(px(6.)).rounded_full().bg(tone))
     }
 
     /// Fixed text geometry inside the growing surface: reveal text without scaling or reflow.

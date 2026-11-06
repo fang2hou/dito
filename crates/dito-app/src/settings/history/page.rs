@@ -160,7 +160,7 @@ impl HistoryPage {
             Period::Today => Some(crate::timefmt::day_start(local_day(now(), off), off)),
             Period::Week => Some(now() - 7 * 86_400),
         };
-        HistoryFilter { query: Some(self.query.clone()), since_ts: since, style: self.style, limit: Some(500) }
+        HistoryFilter { query: Some(self.query.clone()), since_ts: since, style: self.style.clone(), limit: Some(500) }
     }
 
     /// Page visibility lifecycle, driven by `Settings`. While inactive the page launches no

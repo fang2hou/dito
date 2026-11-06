@@ -26,12 +26,16 @@ impl AsrEditor {
         let pad_v = if height < 700. { 14. } else { 28. };
         let body = div().w_full().flex_1().min_h(px(0.)).flex().flex_col().gap(px(14.));
         let (body, footer) = if self.help {
-            (self.help_panel(body, &c, cx), self.help_footer(&c, cx))
+            (self.help_panel(body, &c, cx).into_any_element(), self.help_footer(&c, cx))
         } else {
-            (self.edit_panels(body, &c, cx), self.edit_footer(&c, cx))
+            (
+                body.id("onboarding-asr-editor").overflow_y_scroll().child(self.inline(window, cx)).into_any_element(),
+                div(),
+            )
         };
         div()
-            .id("asr-modal-blocker")
+            .id("asr-help-modal")
+            .track_focus(&self.help_focus)
             .absolute()
             .inset_0()
             .occlude()
@@ -39,10 +43,16 @@ impl AsrEditor {
             .flex()
             .items_center()
             .justify_center()
-            .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-            .on_key_down(cx.listener(|this, event: &KeyDownEvent, _, cx| {
+            .on_mouse_down(
+                MouseButton::Left,
+                cx.listener(|this, _, window, cx| {
+                    this.help_focus.focus(window, cx);
+                    cx.stop_propagation();
+                }),
+            )
+            .on_key_down(cx.listener(|this, event: &KeyDownEvent, window, cx| {
                 if event.keystroke.key == "escape" {
-                    this.back_or_close(cx);
+                    this.back_or_close(window, cx);
                     cx.stop_propagation();
                 }
             }))
@@ -65,7 +75,7 @@ impl AsrEditor {
             )
     }
 
-    fn style_source(&mut self, p: &Palette, cx: &mut Context<Self>) {
+    pub(super) fn style_source(&mut self, p: &Palette, cx: &mut Context<Self>) {
         let p = *p;
         if self.highlighter_dark != Some(p.dark) {
             self.highlighter_dark = Some(p.dark);
@@ -101,7 +111,11 @@ impl AsrEditor {
             .items_center()
             .justify_between()
             .child(text(c.t(title), 26., FontWeight::BOLD, c.p.text).line_height(px(32.)))
-            .child(ui::close_button("asr-close", &c.p, cbk(cx, |this: &mut Self, _, cx| this.back_or_close(cx))))
+            .child(ui::close_button(
+                "asr-close",
+                &c.p,
+                cbk(cx, |this: &mut Self, window, cx| this.back_or_close(window, cx)),
+            ))
     }
 
     pub(super) fn help_panel(&self, body: Div, c: &Ctx, cx: &mut Context<Self>) -> Div {
@@ -120,7 +134,10 @@ impl AsrEditor {
                         .h_full()
                         .overflow_y_scroll()
                         .track_scroll(&scroll)
-                        .on_scroll(cx.listener(|_, _, _, cx| cx.notify()))
+                        .on_scroll(cx.listener(|_, _, _, cx| {
+                            cx.emit(super::Changed);
+                            cx.notify();
+                        }))
                         .child(help_body(p, c.lang)),
                 )
                 .when(offset > 1., |d| d.child(edge_fade(Edge::Top, p.bg, 24., 0.)))

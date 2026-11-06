@@ -17,8 +17,8 @@ const EXEMPT: &[(&str, &str)] = &[
     ("settings/general/audio.rs", "中文"),
     ("settings/stats.rs", "日本語"),
     ("settings/stats.rs", "中文"),
-    ("settings/prompts.rs", "日本語"),
-    ("settings/prompts.rs", "中文"),
+    ("settings/prompts/view.rs", "日本語"),
+    ("settings/prompts/view.rs", "中文"),
     // Demo/seed history entries in full (user content, not UI copy).
     ("dev/seed.rs", "*"),
     // List separator chosen per language in code (、 only for Japanese).

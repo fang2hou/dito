@@ -23,6 +23,8 @@ Each window, page and onboarding step owns its motion state (`MotionScope`, reac
 
 New views follow the same pattern: own your state, load in the background, apply only current results.
 
+The inline Cloud ASR editor owns one persistent editor entity per template, including drafts and native undo history. Opening or closing documentation does not remount these editors. A revision-guarded 200 ms validation task saves only valid drafts; invalid edits retain the last valid saved configuration. Connection-test results are accepted only for the same draft revision and preferred language. The settings shell presents the editor-owned help overlay as the sole dialog. Its header and footer stay fixed while only the four-card documentation body scrolls.
+
 ## Pitfalls
 
 Moves that look reasonable but go against this decision:

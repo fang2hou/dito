@@ -35,6 +35,7 @@ fn main() -> Result<()> {
     let rt = tokio::runtime::Builder::new_multi_thread().enable_all().thread_name("dito-rt").build()?;
     let st = AppState::build(opts, &rt)?;
 
+    dito_platform::system::configure_text_rendering();
     let mut app = gpui_kit::application().with_assets(AppAssets);
     if st.opts.is_headless() {
         // Accessory activation policy: no Dock icon, no menu bar, never the frontmost app.

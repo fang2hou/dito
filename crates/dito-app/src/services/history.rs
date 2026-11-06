@@ -64,7 +64,7 @@ pub async fn recognize_again(st: Arc<AppState>, entry: HistoryEntry) -> Result<(
             let out = pipeline::run(
                 engines,
                 &cfg,
-                &Job { clip: &clip, style: entry.style, dictionary: &words },
+                &Job { clip: &clip, style: entry.style.clone(), dictionary: &words },
                 &|_| {},
                 &CancellationToken::new(),
             )
@@ -103,7 +103,7 @@ pub async fn polish_again(st: Arc<AppState>, entry: HistoryEntry) -> Result<(), 
             };
             let system = build_system_prompt(&PromptInput {
                 prompts: &cfg.prompts,
-                style: entry.style,
+                style: entry.style.clone(),
                 text: &entry.raw,
                 dictionary: &words,
             });

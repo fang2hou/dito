@@ -4,7 +4,7 @@
 use std::sync::Arc;
 
 use dito_core::error::ErrorKind;
-use dito_core::prompts::{PromptInput, build_system_prompt, detect_lang};
+use dito_core::prompts::{PromptInput, build_system_prompt_for_language};
 use dito_core::provider::PolishRequest;
 use dito_core::provider::{TestOutcome, test_polisher, test_transcriber_with_language};
 use dito_core::secrets::Role;
@@ -36,11 +36,30 @@ pub async fn test_connection(st: Arc<AppState>, role: Role) -> TestOutcome {
     job.await.unwrap_or_else(|e| TestOutcome::Failed { kind: ErrorKind::Other, message: e.to_string() })
 }
 
+/// Test the validated ASR draft with its transient key, without changing saved settings.
+pub async fn test_asr_draft(
+    st: Arc<AppState>,
+    profile: serde_json::Value,
+    key: String,
+    language: dito_core::config::PreferredLanguage,
+) -> TestOutcome {
+    st.rt
+        .spawn(async move {
+            match dito_core::provider::configured_asr::ConfiguredAsr::new(profile, key) {
+                Ok(engine) => test_transcriber_with_language(&engine, language.code()).await,
+                Err(error) => TestOutcome::Failed { kind: error.kind, message: error.message },
+            }
+        })
+        .await
+        .unwrap_or_else(|error| TestOutcome::Failed { kind: ErrorKind::Other, message: error.to_string() })
+}
+
 /// Polish `text` with the given prompt set (the prompt page's "try it" panel).
 pub async fn try_polish(
     st: Arc<AppState>,
     prompts: dito_core::prompts::Prompts,
     style: dito_core::prompts::Style,
+    lang: dito_core::i18n::Lang,
     text: String,
 ) -> Result<(String, u64), String> {
     let st2 = st.clone();
@@ -48,8 +67,10 @@ pub async fn try_polish(
         .spawn(async move {
             let cfg = st2.cfg.get();
             let polisher = st2.factory.polisher_for(&cfg.polish.engine).await.map_err(|e| e.to_string())?;
-            let _ = detect_lang(&text);
-            let system = build_system_prompt(&PromptInput { prompts: &prompts, style, text: &text, dictionary: &[] });
+            let system = build_system_prompt_for_language(
+                &PromptInput { prompts: &prompts, style, text: &text, dictionary: &[] },
+                lang,
+            );
             let started = std::time::Instant::now();
             let out =
                 polisher.polish(&PolishRequest { system: &system, text: &text }).await.map_err(|e| e.to_string())?;

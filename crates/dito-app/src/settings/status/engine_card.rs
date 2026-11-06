@@ -6,39 +6,52 @@ use dito_core::secrets::Role;
 use gpui_kit::*;
 
 use super::page::StatusPage;
+use crate::assets::Ic;
 use crate::settings::{Ctx, role};
 use crate::theme::Palette;
-use crate::ui::{self, text};
+use crate::ui::{self, StatusTone, text};
 
 impl StatusPage {
     pub(super) fn engine_card(&self, c: &Ctx, role: Role) -> Div {
         let p = &c.p;
         let cfg = self.st.cfg.get();
         let e = role::engine(&cfg, role);
-        let pill = if role == Role::Asr { c.t(Tr::ModelsDictation) } else { c.t(Tr::ModelsPolish) };
-        let (chip, head_extra, body) = if role == Role::Polish && !cfg.polish.enabled {
+        let (title, icon) = if role == Role::Asr {
+            (c.t(Tr::StatusAsrModel), Ic::Mic)
+        } else {
+            (c.t(Tr::StatusPolishModel), Ic::Sparkles)
+        };
+        let (chip, body) = if role == Role::Polish && !cfg.polish.enabled {
             Self::polish_off_card(c)
         } else if e.source == Source::Local {
             self.local_engine_card(c, e)
         } else {
             self.provider_engine_card(c, role, e)
         };
-        let head_left = div().flex().items_center().gap(px(12.)).child(role_pill(p, pill)).children(head_extra);
+        let head_left = div()
+            .h(px(24.))
+            .flex()
+            .items_center()
+            .gap(px(8.))
+            .child(ui::icon(icon, 18., p.text))
+            .child(text(title, 16., FontWeight::BOLD, p.text).line_height(px(24.)));
         let header = div()
             .w_full()
+            .px(px(10.))
+            .pt(px(4.))
             .flex()
             .items_center()
             .justify_between()
             .child(head_left)
             .child(div().flex().items_center().child(chip));
-        ui::card(p).p(px(22.)).gap(px(16.)).child(header).children(body)
+        ui::card(p).p(px(11.)).gap(px(8.)).child(header).children(body)
     }
 
     /// Off is a first-class state: neutral chip plus a pointer to the General toggle.
     fn polish_off_card(c: &Ctx) -> EngineParts {
         let p = &c.p;
-        let chip = ui::status_chip(c.t(Tr::ModelsPolishOff), p.muted);
-        (chip, None, vec![hint(p, c.t(Tr::ModelsTurnOnInGeneral)).into_any_element()])
+        let chip = ui::status_chip(p, c.t(Tr::ModelsPolishOff), StatusTone::Neutral);
+        (chip, vec![hint(p, c.t(Tr::ModelsTurnOnInGeneral)).into_any_element()])
     }
 
     fn local_engine_card(&self, c: &Ctx, e: &EngineConfig) -> EngineParts {
@@ -46,23 +59,22 @@ impl StatusPage {
         let mut body: Vec<AnyElement> = Vec::new();
         let status = self.st.local.status(&e.local_model);
         let spec = self.st.models.spec(&e.local_model).cloned();
-        let head_extra = Some(text(c.t(Tr::ModelsLocal), 12., FontWeight::NORMAL, p.muted));
         let (label, tone) = match &status {
-            EngineStatus::Running => (c.t(Tr::ModelsRunning), p.success),
-            EngineStatus::Loading => (c.t(Tr::MenubarLoading), p.warning_text),
-            EngineStatus::Stopped => (c.t(Tr::MenubarStopped), p.danger),
-            EngineStatus::NotInstalled => (c.t(Tr::ModelsNotInstalled), p.muted),
-            EngineStatus::Failed(_) => (c.t(Tr::ModelsStartupError), p.danger),
-            EngineStatus::Remote => (SharedString::from("—"), p.muted),
+            EngineStatus::Running => (c.t(Tr::ModelsRunning), StatusTone::Success),
+            EngineStatus::Stopping => (c.t(Tr::ModelsStopping), StatusTone::Neutral),
+            EngineStatus::Loading => (c.t(Tr::MenubarLoading), StatusTone::Warning),
+            EngineStatus::Stopped => (c.t(Tr::MenubarStopped), StatusTone::Danger),
+            EngineStatus::NotInstalled => (c.t(Tr::ModelsNotInstalled), StatusTone::Neutral),
+            EngineStatus::Failed(_) => (c.t(Tr::ModelsStartupError), StatusTone::Danger),
+            EngineStatus::Remote => (SharedString::from("—"), StatusTone::Neutral),
         };
-        let chip = ui::status_chip(label, tone);
+        let chip = ui::status_chip(p, label, tone);
         let running = matches!(status, EngineStatus::Running);
         body.push(
-            text(
+            model_line(
+                c,
                 spec.as_ref().map(|s| s.name.clone()).unwrap_or_else(|| e.local_model.clone()),
-                15.,
-                FontWeight::MEDIUM,
-                p.text,
+                Source::Local,
             )
             .into_any_element(),
         );
@@ -72,7 +84,8 @@ impl StatusPage {
             }
             EngineStatus::Failed(r) => {
                 body.push(
-                    text(r.clone(), 13., FontWeight::NORMAL, if p.dark { p.danger } else { p.danger_text })
+                    hint(p, r.clone().into())
+                        .text_color(if p.dark { p.danger } else { p.danger_text })
                         .into_any_element(),
                 );
             }
@@ -82,7 +95,7 @@ impl StatusPage {
             let m = self.st.local.metrics(&e.local_model);
             let mem_gb = spec.as_ref().map(|s| s.memory_mb as f32 / 1000.0).unwrap_or(0.0);
             body.push(
-                info_row(
+                detail_grid(
                     p,
                     vec![
                         (c.t(Tr::ModelsMemory), format!("{mem_gb:.1} GB")),
@@ -96,41 +109,69 @@ impl StatusPage {
                 .into_any_element(),
             );
         }
-        (chip, head_extra, body)
+        (chip, body)
     }
 }
 
-/// The status chip, an optional engine name beside the role badge, and the card body.
-pub(super) type EngineParts = (Div, Option<Div>, Vec<AnyElement>);
+/// The status chip and the model slot's content.
+pub(super) type EngineParts = (Div, Vec<AnyElement>);
 
-/// Neutral role badge: muted text on the secondary surface, never a status colour.
-fn role_pill(p: &Palette, label: SharedString) -> Div {
-    div()
+pub(super) fn model_line(c: &Ctx, name: impl Into<SharedString>, source: Source) -> Div {
+    let p = &c.p;
+    let (label, icon) = match source {
+        Source::Local => (c.t(Tr::ModelsLocal), Ic::Cpu),
+        Source::Provider => (c.t(Tr::ModelsProvider), Ic::Globe),
+    };
+    let badge = div()
+        .h(px(24.))
         .px(px(8.))
-        .py(px(3.))
-        .rounded(px(5.))
-        .bg(p.sub)
+        .rounded_full()
+        .border_1()
+        .border_color(p.border_strong)
+        .bg(p.card)
+        .flex()
+        .flex_none()
+        .items_center()
+        .gap(px(6.))
+        .child(ui::icon(icon, 14., p.muted))
+        .child(text(label, 12., FontWeight::MEDIUM, p.muted).line_height(px(18.)));
+    div()
+        .w_full()
+        .pl(px(12.))
+        .pr(px(10.))
         .flex()
         .items_center()
-        .flex_none()
-        .child(text(label, 11., FontWeight::MEDIUM, p.muted).line_height(relative(1.45)))
+        .gap(px(10.))
+        .child(text(name, 15., FontWeight::MEDIUM, p.text).min_w(px(0.)).line_height(px(22.)))
+        .child(badge)
 }
 
-fn hint(p: &Palette, label: SharedString) -> Div {
-    text(label, 13., FontWeight::NORMAL, p.muted)
+pub(super) fn hint(p: &Palette, label: SharedString) -> Div {
+    text(label, 13., FontWeight::NORMAL, p.muted).px(px(10.)).pb(px(4.)).line_height(px(20.))
 }
 
-/// Equal-width metric cells: label left, value right — mirrors the card header's
-/// left-text / right-value rhythm.
-pub(super) fn info_row(p: &Palette, cells: Vec<(SharedString, String)>) -> Div {
-    div().w_full().flex().gap(px(28.)).children(cells.into_iter().map(|(label, value)| {
+/// Two equal columns, with each row growing to fit its longest value.
+pub(super) fn detail_grid(p: &Palette, cells: Vec<(SharedString, String)>) -> Div {
+    div().w_full().px(px(10.)).grid().grid_cols(2).gap(px(12.)).children(cells.into_iter().map(|(label, value)| {
         div()
-            .flex_1()
+            .min_w(px(0.))
+            .min_h(px(64.))
+            .px(px(16.))
+            .py(px(10.))
+            .rounded(px(16.))
+            .border_1()
+            .border_color(p.border)
+            .bg(p.sub)
             .flex()
-            .items_center()
-            .justify_between()
-            .gap(px(8.))
-            .child(text(label, 12., FontWeight::MEDIUM, p.muted))
-            .child(text(value, 13., FontWeight::MEDIUM, p.text))
+            .flex_col()
+            .gap(px(4.))
+            .child(text(label, 12., FontWeight::NORMAL, p.muted).line_height(px(18.)))
+            .child(
+                text(value, 13., FontWeight::MEDIUM, p.text)
+                    .w_full()
+                    .min_w(px(0.))
+                    .whitespace_normal()
+                    .line_height(px(20.)),
+            )
     }))
 }

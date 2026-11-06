@@ -218,7 +218,7 @@ async fn toggle_mode_runs_listen_recognize_polish_insert_then_hides() {
 
     let h = history_of(&r.store, 1).await;
     assert_eq!(h.len(), 1);
-    assert_eq!((h[0].app.as_str(), h[0].style), ("Slack", Style::Slack), "style follows the frontmost app");
+    assert_eq!((h[0].app.as_str(), h[0].style.clone()), ("Slack", Style::Slack), "style follows the frontmost app");
     assert_eq!(h[0].raw, "えーと 会議です");
     assert!(h[0].audio_path.as_deref().is_some_and(|p| std::path::Path::new(p).exists()));
 }

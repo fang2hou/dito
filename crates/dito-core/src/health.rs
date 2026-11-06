@@ -9,6 +9,8 @@ pub enum EngineStatus {
     Remote,
     Running,
     Loading,
+    /// The loaded runtime is being released.
+    Stopping,
     /// Model is installed but not loaded.
     Stopped,
     NotInstalled,
@@ -17,7 +19,7 @@ pub enum EngineStatus {
 
 impl EngineStatus {
     pub fn is_problem(&self) -> bool {
-        matches!(self, Self::Stopped | Self::NotInstalled | Self::Failed(_))
+        matches!(self, Self::Stopping | Self::Stopped | Self::NotInstalled | Self::Failed(_))
     }
 }
 

@@ -1,0 +1,75 @@
+{
+  "schema": 1,
+  "weights": "files:ba3936a2dadd9196",
+  "environment": {
+    "chip": "Apple M5 Pro",
+    "memory_gb": 48,
+    "macos": "27.2",
+    "python": "3.15.2",
+    "packages": {
+      "sherpa-onnx": "2.0.1"
+    }
+  },
+  "records": {
+    "en_01": {
+      "fingerprint": "e7b8e8f80b5c437a",
+      "recorded_at": "2026-11-06T08:35:54+00:00",
+      "result": {
+        "text": "nince。",
+        "language": "ja",
+        "audio_s": 4.532,
+        "elapsed_s": 0.113
+      }
+    },
+    "ja_01": {
+      "fingerprint": "484bcd6446c9c3c0",
+      "recorded_at": "2026-11-06T08:35:54+00:00",
+      "result": {
+        "text": "明日の午後3時に会議室で新機能について話し合います。",
+        "language": "ja",
+        "audio_s": 4.958,
+        "elapsed_s": 0.13
+      }
+    },
+    "ja_en_mix_01": {
+      "fingerprint": "0b58abcffbc5ef2d",
+      "recorded_at": "2026-11-06T08:35:54+00:00",
+      "result": {
+        "text": "このeシューは次のスプリントでフィックスする予定なので、まずクイックなレビューをお願いします。",
+        "language": "ja",
+        "audio_s": 6.799,
+        "elapsed_s": 0.176
+      }
+    },
+    "zh_01": {
+      "fingerprint": "fd75b8f770d7a188",
+      "recorded_at": "2026-11-06T08:35:54+00:00",
+      "result": {
+        "text": "チンキエンシャをサンディエン: worme tikio y rince 承知 lanover jo to kaig 2 t un day",
+        "language": "ja",
+        "audio_s": 8.283,
+        "elapsed_s": 0.21
+      }
+    },
+    "zh_en_mix_01": {
+      "fingerprint": "8d9197918f0c3df1",
+      "recorded_at": "2026-11-06T08:35:54+00:00",
+      "result": {
+        "text": "ヤンホーメンビューシャディーザイン",
+        "language": "ja",
+        "audio_s": 5.896,
+        "elapsed_s": 0.146
+      }
+    },
+    "zh_hotwords_01": {
+      "fingerprint": "adc5176521009b2c",
+      "recorded_at": "2026-11-06T08:35:55+00:00",
+      "result": {
+        "text": "シリーズ",
+        "language": "ja",
+        "audio_s": 7.296,
+        "elapsed_s": 0.161
+      }
+    }
+  }
+}

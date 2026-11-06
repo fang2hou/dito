@@ -1,7 +1,7 @@
 //! Long clips are cut at pauses before recognition, and the pieces' text is joined back.
 
-/// SenseVoice-Small was trained on utterances up to 30 s; fed longer clips it loses punctuation and
-/// whole syllables. Cut at the quietest 25 ms frame inside the last 6 s of a 28 s stretch so the
+/// SenseVoice and the Haas NeMo TDT conversion need bounded utterances. Long
+/// clips can lose punctuation and syllables. Cut at the quietest 25 ms frame inside the last 6 s of a 28 s stretch so the
 /// seam lands in a pause when there is one.
 const CHUNK: usize = 28 * 16_000;
 const SEARCH_BACK: usize = 6 * 16_000;

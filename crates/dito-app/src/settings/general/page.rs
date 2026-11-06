@@ -145,10 +145,11 @@ impl GeneralPage {
                 .w_full()
                 .flex()
                 .flex_col()
-                .gap(px(28.))
+                .gap(px(16.))
                 .children(self.banner(&c, cx))
                 .child(self.input_group(&c, cx))
-                .child(self.audio_group(&c, cx))
+                .child(self.speech_recognition_group(&c, cx))
+                .child(self.hud_group(&c, cx))
                 .child(self.system_group(&c, cx))
                 .child(self.setup_group(&c, cx)),
         )

@@ -54,6 +54,7 @@ impl Settings {
         };
         // The modal is painted by the window shell, above the sidebar as well as the page.
         cx.subscribe(&this.models, |_, _, _: &models::ModalChanged, cx| cx.notify()).detach();
+        cx.observe(&this.prompts, |_, _, cx| cx.notify()).detach();
         this.activate(page, cx);
         this
     }
@@ -104,7 +105,7 @@ impl Settings {
     pub(super) fn reset_page_motion(&self, page: Page, cx: &mut Context<Self>) {
         match page {
             Page::General => self.general.update(cx, |g, _| g.reset_motion()),
-            Page::Models => self.models.update(cx, |m, _| m.reset_motion()),
+            Page::Models => self.models.update(cx, |m, cx| m.reset_motion(cx)),
             Page::Dictionary => self.dictionary.update(cx, |d, _| d.reset_motion()),
             Page::Prompts => self.prompts.update(cx, |p, _| p.reset_motion()),
             Page::History => self.history.update(cx, |h, _| h.reset_motion()),
@@ -196,6 +197,13 @@ impl Settings {
         let c = Ctx::new(&self.st, cx);
         let p = c.p;
         theme::apply(&p, cx);
+        let prompt_overlay =
+            if self.page == Page::Prompts { self.prompts.update(cx, |p, cx| p.overlay(window, cx)) } else { None };
+        let help_overlay = if self.page == Page::Models {
+            self.models.update(cx, |models, cx| models.help_overlay(window, cx))
+        } else {
+            None
+        };
         div()
             .size_full()
             .flex()
@@ -210,6 +218,7 @@ impl Settings {
             .when(rail, |el| el.child(self.rail_hover(&c, cx)))
             // Painted last so the health card floats above the page content, not under it.
             .child(self.health_overlay(&c))
-            .children(if self.page == Page::Models { self.models.read(cx).editor_view() } else { None })
+            .children(prompt_overlay)
+            .children(help_overlay)
     }
 }

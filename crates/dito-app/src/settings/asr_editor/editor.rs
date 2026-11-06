@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use dito_core::provider::configured_asr::AsrProfiles;
 use gpui_kit::base::input::{Diagnostic, DiagnosticSeverity, Position};
-use gpui_kit::component::input::{EditorState, InputEvent};
+use gpui_kit::component::input::{EditorState, InputEvent, InputState};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 use serde_json::Value;
@@ -14,11 +14,18 @@ use crate::ui;
 
 mod edit_panels;
 mod modal;
+#[cfg(feature = "screenshots")]
+mod probe;
+#[cfg(feature = "screenshots")]
+pub use probe::EditorCommand;
 
 const ISO_CODES: [(&str, &str); 4] = [("ja", "ja"), ("en", "en"), ("zh", "zh"), ("other", "en")];
 const LOCALE_CODES: [(&str, &str); 4] = [("ja", "ja-JP"), ("en", "en-US"), ("zh", "zh-CN"), ("other", "en-US")];
 const CHECK_DELAY: Duration = Duration::from_millis(200);
 
+pub struct Changed;
+
+/// Completion event for the onboarding wizard's legacy advanced editor.
 pub struct Closed(pub bool);
 
 /// How a frozen editor is set up for screenshots.
@@ -26,6 +33,7 @@ pub struct Closed(pub bool);
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum EditorPreview {
     Valid,
+    End,
     Invalid,
     Help,
 }
@@ -33,17 +41,27 @@ pub enum EditorPreview {
 pub struct AsrEditor {
     st: Arc<AppState>,
     source: Entity<EditorState>,
+    sources: [Entity<EditorState>; 3],
+    key: Entity<InputState>,
+    keys: [String; 3],
+    saved_keys: [String; 3],
+    template_open: bool,
+    help_focus: FocusHandle,
+    test: ui::TestState,
+    tested_language: Option<dito_core::config::PreferredLanguage>,
     drafts: Vec<String>,
     selected: usize,
     error: Option<String>,
     pending: bool,
     revision: u64,
     help: bool,
+    dialog: bool,
     highlighter_dark: Option<bool>,
     help_scroll: ScrollHandle,
     motion: ui::MotionScope,
 }
 
+impl EventEmitter<Changed> for AsrEditor {}
 impl EventEmitter<Closed> for AsrEditor {}
 
 impl AsrEditor {
@@ -57,31 +75,66 @@ impl AsrEditor {
             })
             .collect::<Vec<_>>();
         let selected = p.selected.min(2);
-        let source = cx.new(|cx| {
-            EditorState::new(window, cx).language("json").folding(false).default_value(drafts[selected].clone())
+        crate::services::watch_config(&st, cx);
+        let sources = std::array::from_fn(|i| {
+            let source = cx.new(|cx| {
+                EditorState::new(window, cx)
+                    .language("json")
+                    .folding(false)
+                    .scroll_beyond_last_line(Some(0))
+                    .default_value(drafts[i].clone())
+            });
+            cx.subscribe_in(&source, window, move |this, _, event: &InputEvent, _, cx| {
+                if matches!(event, InputEvent::Change) && this.selected == i {
+                    this.changed(cx);
+                }
+            })
+            .detach();
+            source
         });
-        cx.subscribe_in(&source, window, |this, _, event: &InputEvent, _, cx| {
+        let source = sources[selected].clone();
+        let keys = std::array::from_fn(|selected| {
+            let profile = AsrProfiles { selected, ..p.clone() };
+            st.secrets.get(&profile.account()).unwrap_or_default()
+        });
+        let key = cx.new(|cx| InputState::new(window, cx).masked(true).default_value(keys[selected].clone()));
+        cx.subscribe_in(&key, window, |this, _, event: &InputEvent, _, cx| {
             if matches!(event, InputEvent::Change) {
                 this.changed(cx);
             }
         })
         .detach();
-        let focus = source.read(cx).focus_handle(cx);
-        focus.focus(window, cx);
         let error = check(&drafts[selected], st.cfg.get().general.lang()).err();
         Self {
             st,
             source,
+            sources,
+            key,
+            saved_keys: keys.clone(),
+            keys,
+            template_open: false,
+            help_focus: cx.focus_handle(),
+            test: ui::TestState::Idle,
+            tested_language: None,
             drafts,
             selected,
             error,
             pending: false,
             revision: 0,
             help: false,
+            dialog: false,
             highlighter_dark: None,
             help_scroll: ScrollHandle::new(),
             motion: ui::MotionScope::new(),
         }
+    }
+
+    /// The onboarding wizard keeps its advanced editor within its existing single overlay.
+    pub fn new_dialog(st: Arc<AppState>, window: &mut Window, cx: &mut Context<Self>) -> Self {
+        let mut editor = Self::new(st, window, cx);
+        editor.dialog = true;
+        editor.source.read(cx).focus_handle(cx).focus(window, cx);
+        editor
     }
 
     #[cfg(feature = "screenshots")]
@@ -90,16 +143,28 @@ impl AsrEditor {
             let mut value: Value = serde_json::from_str(&self.drafts[self.selected]).expect("the draft was valid");
             value["language_map"].as_object_mut().expect("the draft has a language map").remove("other");
             self.source.update(cx, |s, cx| {
-                s.set_value(serde_json::to_string_pretty(&value).expect("a JSON value serializes"), window, cx)
+                s.replace_all(serde_json::to_string_pretty(&value).expect("a JSON value serializes"), window, cx)
             });
             self.changed(cx);
         }
+        if preview == EditorPreview::End {
+            let value = self.source.read(cx).value().to_string();
+            let row = value.lines().count().saturating_sub(1) as u32;
+            let column = value.lines().last().map_or(0, |line| line.chars().count()) as u32;
+            self.source.update(cx, |source, cx| source.set_cursor_position(Position::new(row, column), window, cx));
+        }
         self.help = preview == EditorPreview::Help;
+        if self.help {
+            self.help_focus.focus(window, cx);
+        }
+        cx.emit(Changed);
         cx.notify();
     }
 
     fn changed(&mut self, cx: &mut Context<Self>) {
         self.drafts[self.selected] = self.source.read(cx).value().to_string();
+        self.keys[self.selected] = self.key.read(cx).value().to_string();
+        self.test = ui::TestState::Idle;
         self.pending = true;
         self.error = None;
         self.source.update(cx, |source, _| {
@@ -137,13 +202,20 @@ impl AsrEditor {
             cx.notify();
         });
         self.pending = false;
+        if self.error.is_none() {
+            self.persist(cx);
+        }
         cx.notify();
     }
 
     fn switch(&mut self, i: usize, window: &mut Window, cx: &mut Context<Self>) {
         self.drafts[self.selected] = self.source.read(cx).value().to_string();
+        self.keys[self.selected] = self.key.read(cx).value().to_string();
         self.selected = i;
-        self.source.update(cx, |s, cx| s.set_value(self.drafts[i].clone(), window, cx));
+        self.source = self.sources[i].clone();
+        self.key.update(cx, |s, cx| s.set_value(self.keys[i].clone(), window, cx));
+        self.template_open = false;
+        self.source.read(cx).focus_handle(cx).focus(window, cx);
         self.changed(cx);
     }
 
@@ -155,13 +227,13 @@ impl AsrEditor {
                 map.insert(k.into(), v.into());
             }
             self.source.update(cx, |s, cx| {
-                s.set_value(serde_json::to_string_pretty(&value).expect("a JSON value serializes"), window, cx)
+                s.replace_all(serde_json::to_string_pretty(&value).expect("a JSON value serializes"), window, cx)
             });
             self.changed(cx);
         }
     }
 
-    fn save(&mut self, cx: &mut Context<Self>) {
+    fn persist(&mut self, cx: &mut Context<Self>) {
         if self.pending {
             return;
         }
@@ -174,34 +246,126 @@ impl AsrEditor {
             }
         };
         let selected = self.selected;
-        if let Err(e) = self.st.cfg.update(|cfg| {
-            let profiles = cfg.asr.cloud_asr.get_or_insert_with(AsrProfiles::default);
-            while profiles.profiles.len() < 3 {
-                profiles.profiles.push(AsrProfiles::default().profiles[profiles.profiles.len()].clone());
+        let profile = AsrProfiles { selected, ..Default::default() };
+        let account = profile.account();
+        let key = self.keys[selected].clone();
+        let key_changed = key != self.saved_keys[selected];
+        if key_changed {
+            let result =
+                if key.is_empty() { self.st.secrets.delete(&account) } else { self.st.secrets.set(&account, &key) };
+            if let Err(e) = result {
+                self.error = Some(e.to_string());
+                return;
             }
-            profiles.profiles[selected] = value;
-            profiles.selected = selected;
-        }) {
+        }
+        let current = self.st.cfg.get().asr.cloud_asr.clone().unwrap_or_default();
+        if (current.selected != selected || current.profiles.get(selected) != Some(&value))
+            && let Err(e) = self.st.cfg.update(|cfg| {
+                let profiles = cfg.asr.cloud_asr.get_or_insert_with(AsrProfiles::default);
+                while profiles.profiles.len() < 3 {
+                    profiles.profiles.push(AsrProfiles::default().profiles[profiles.profiles.len()].clone());
+                }
+                profiles.profiles[selected] = value;
+                profiles.selected = selected;
+            })
+        {
+            if key_changed {
+                let previous = &self.saved_keys[selected];
+                let rollback = if previous.is_empty() {
+                    self.st.secrets.delete(&account)
+                } else {
+                    self.st.secrets.set(&account, previous)
+                };
+                if let Err(error) = rollback {
+                    tracing::warn!(%error, "could not restore the previous ASR key");
+                }
+            }
             self.error = Some(e.to_string());
-            cx.notify();
             return;
         }
-        cx.emit(Closed(true));
+        self.saved_keys[selected] = key;
     }
 
-    fn back_or_close(&mut self, cx: &mut Context<Self>) {
-        if self.help {
-            self.help = false;
-            cx.notify();
-        } else {
-            cx.emit(Closed(false));
+    fn run_test(&mut self, cx: &mut Context<Self>) {
+        if !self.can_test(cx) {
+            return;
         }
+        let profile = match check(self.source.read(cx).value().as_ref(), self.st.cfg.get().general.lang()) {
+            Ok(value) => value,
+            Err(_) => return,
+        };
+        let key = self.key.read(cx).value().to_string();
+        let revision = self.revision;
+        let language = self.st.cfg.get().general.preferred_language;
+        self.tested_language = Some(language);
+        self.test = ui::TestState::Running;
+        cx.notify();
+        let st = self.st.clone();
+        cx.spawn(async move |this, cx| {
+            let outcome = crate::services::test_asr_draft(st, profile, key, language).await;
+            let _ = this.update(cx, |this, cx| {
+                if this.revision == revision && this.st.cfg.get().general.preferred_language == language {
+                    this.test = outcome.into();
+                    cx.notify();
+                }
+            });
+        })
+        .detach();
+    }
+
+    fn can_test(&self, cx: &App) -> bool {
+        !self.pending
+            && self.error.is_none()
+            && self.test != ui::TestState::Running
+            && (!self.source.read(cx).value().contains("{{api_key}}") || !self.key.read(cx).value().trim().is_empty())
+    }
+
+    fn open_help(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.help = true;
+        self.help_focus.focus(window, cx);
+        window.on_next_frame(|window, _| window.refresh());
+        cx.emit(Changed);
+        cx.notify();
+    }
+
+    fn back_or_close(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.dialog && !self.help {
+            cx.emit(Closed(true));
+            return;
+        }
+        self.help = false;
+        self.source.read(cx).focus_handle(cx).focus(window, cx);
+        cx.emit(Changed);
+        cx.notify();
+    }
+
+    pub(in crate::settings) fn reset_motion(&mut self) {
+        self.motion.reset();
+        self.template_open = false;
+        self.help = false;
+    }
+
+    pub(in crate::settings) fn help_overlay(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Option<AnyElement> {
+        if !self.help {
+            return None;
+        }
+        Some(ui::with_motion_scope(self.motion.handle(), || self.modal(window, cx).into_any_element()))
     }
 }
 
 impl Render for AsrEditor {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let scope = self.motion.handle();
-        ui::with_motion_scope(scope, || self.modal(window, cx))
+        ui::with_motion_scope(scope, || {
+            if self.dialog {
+                self.modal(window, cx).into_any_element()
+            } else {
+                self.inline(window, cx).into_any_element()
+            }
+        })
     }
 }

@@ -8,7 +8,7 @@ use super::plate::{coverage, plate_state};
 use super::primitives::mix;
 use super::scope::{ScopeHandle, motion_scope};
 use super::tween::tweened_at;
-use super::typography::{text, text_width};
+use super::typography::{text_tracked, text_tracked_width};
 use crate::theme::Palette;
 
 const SEG_PAD: f32 = 3.;
@@ -44,8 +44,12 @@ impl SegLayout {
         let widths = options
             .iter()
             .map(|o| {
-                let w =
-                    text_width(o, style.label, FontWeight::MEDIUM).max(text_width(o, style.label, FontWeight::NORMAL));
+                let w = text_tracked_width(o, style.label, FontWeight::MEDIUM, 0.05).max(text_tracked_width(
+                    o,
+                    style.label,
+                    FontWeight::NORMAL,
+                    0.05,
+                ));
                 w.ceil() + 2. * style.cell_pad
             })
             .collect();
@@ -170,7 +174,7 @@ fn labels_layer(layout: &SegLayout, labels: &[SegLabel], paint: &LabelPaint, a: 
         let (size, muted, text_c, hover_label) = (paint.size, paint.muted, paint.text, paint.hover_label);
         let hover_level =
             tweened_at(paint.scope.clone(), hover_id, if label.hovered { 1. } else { 0. }, HOVER_MS, move |hv| {
-                text(content.clone(), size, weight, mix(mix(muted, hover_label, hv), text_c, cover))
+                text_tracked(&content, size, weight, mix(mix(muted, hover_label, hv), text_c, cover), 0.05)
             });
         layer = layer.child(
             div()

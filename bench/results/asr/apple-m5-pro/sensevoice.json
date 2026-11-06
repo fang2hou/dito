@@ -13,62 +13,62 @@
   "records": {
     "en_01": {
       "fingerprint": "e7b8e8f80b5c437a",
-      "recorded_at": "2026-11-05T15:22:23+00:00",
+      "recorded_at": "2026-11-06T08:38:11+00:00",
       "result": {
         "text": "Let's ship the new release tomorrow morning and sync the results with the QA team.",
         "language": "en",
         "audio_s": 4.532,
-        "elapsed_s": 0.04
+        "elapsed_s": 0.041
       }
     },
     "ja_01": {
       "fingerprint": "484bcd6446c9c3c0",
-      "recorded_at": "2026-11-05T15:22:23+00:00",
+      "recorded_at": "2026-11-06T08:38:11+00:00",
       "result": {
         "text": "明日の午後3時に 会議室 で 新機能 について話し合います。",
         "language": "ja",
         "audio_s": 4.958,
-        "elapsed_s": 0.045
+        "elapsed_s": 0.048
       }
     },
     "ja_en_mix_01": {
       "fingerprint": "0b58abcffbc5ef2d",
-      "recorded_at": "2026-11-05T15:22:23+00:00",
+      "recorded_at": "2026-11-06T08:38:11+00:00",
       "result": {
         "text": "この 異周 は 次 の スプリント で フィックス する 予定 な の で、まず クイック な レビュー を お 願い し ます。",
         "language": "ja",
         "audio_s": 6.799,
-        "elapsed_s": 0.06
+        "elapsed_s": 0.061
       }
     },
     "zh_01": {
       "fingerprint": "fd75b8f770d7a188",
-      "recorded_at": "2026-11-05T15:22:22+00:00",
+      "recorded_at": "2026-11-06T08:38:11+00:00",
       "result": {
         "text": "今天下午3点，我们在会议室讨论新版本的功能设计，然后把结果同步给测试团队。",
         "language": "zh",
         "audio_s": 8.283,
-        "elapsed_s": 0.072
+        "elapsed_s": 0.073
       }
     },
     "zh_en_mix_01": {
       "fingerprint": "8d9197918f0c3df1",
-      "recorded_at": "2026-11-05T15:22:23+00:00",
+      "recorded_at": "2026-11-06T08:38:11+00:00",
       "result": {
         "text": "这个需求先做一个quick prototype，然后我们再review一下design。",
         "language": "zh",
         "audio_s": 5.896,
-        "elapsed_s": 0.052
+        "elapsed_s": 0.054
       }
     },
     "zh_hotwords_01": {
       "fingerprint": "adc5176521009b2c",
-      "recorded_at": "2026-11-05T15:22:23+00:00",
+      "recorded_at": "2026-11-06T08:38:11+00:00",
       "result": {
         "text": "齐博山的梭罗要移栽到蕲春，顺便核对美卓勒和奇利强心胶囊的处方。",
         "language": "zh",
         "audio_s": 7.296,
-        "elapsed_s": 0.063
+        "elapsed_s": 0.068
       }
     }
   }

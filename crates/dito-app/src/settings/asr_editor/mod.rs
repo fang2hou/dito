@@ -2,6 +2,6 @@ mod editor;
 mod help;
 mod validation;
 
+pub use editor::{AsrEditor, Changed, Closed};
 #[cfg(feature = "screenshots")]
-pub use editor::EditorPreview;
-pub use editor::{AsrEditor, Closed};
+pub use editor::{EditorCommand, EditorPreview};
