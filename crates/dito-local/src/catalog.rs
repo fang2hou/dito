@@ -23,13 +23,61 @@ pub struct ModelSpec {
     pub files: Vec<FileSpec>,
     /// Typical resident memory while loaded.
     pub memory_mb: u32,
-    /// Inference runtime that understands the files.
-    pub runtime: Runtime,
+    /// Architecture and exact file roles, independent of directory enumeration order.
+    pub format: ModelFormat,
+    /// A display hint, never a restriction on input language.
+    pub language_focus: Option<dito_core::i18n::Lang>,
+}
+
+/// Supported inference layouts. Another checkpoint of an existing layout needs only a catalog entry.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ModelFormat {
+    SenseVoice {
+        model: &'static str,
+        tokens: &'static str,
+    },
+    NemoTdt {
+        encoder: &'static str,
+        decoder: &'static str,
+        joiner: &'static str,
+        tokens: &'static str,
+        feature_dim: i32,
+    },
+    QwenAsr {
+        model: &'static str,
+        projector: &'static str,
+    },
+    Chat {
+        model: &'static str,
+        disable_thinking: bool,
+    },
+}
+
+impl ModelFormat {
+    pub fn runtime(self) -> Runtime {
+        match self {
+            Self::SenseVoice { .. } | Self::NemoTdt { .. } => Runtime::SherpaOnnx,
+            Self::QwenAsr { .. } | Self::Chat { .. } => Runtime::LlamaCpp,
+        }
+    }
+
+    pub fn supports_hotwords(self) -> bool {
+        matches!(self, Self::QwenAsr { .. })
+    }
+
+    pub fn files(self) -> Vec<&'static str> {
+        match self {
+            Self::SenseVoice { model, tokens } => vec![model, tokens],
+            Self::NemoTdt { encoder, decoder, joiner, tokens, .. } => vec![encoder, decoder, joiner, tokens],
+            Self::QwenAsr { model, projector } => vec![model, projector],
+            Self::Chat { model, .. } => vec![model],
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Runtime {
-    /// sherpa-onnx (SenseVoice).
+    /// sherpa-onnx offline speech models.
     SherpaOnnx,
     /// llama.cpp GGUF files.
     LlamaCpp,
@@ -70,7 +118,11 @@ pub fn default_catalog() -> Vec<ModelSpec> {
                 ),
             ],
             memory_mb: 3100,
-            runtime: Runtime::LlamaCpp,
+            format: ModelFormat::QwenAsr {
+                model: "Qwen3-ASR-1.7B-Q8_0.gguf",
+                projector: "mmproj-Qwen3-ASR-1.7B-Q8_0.gguf",
+            },
+            language_focus: None,
         },
         // Measured on M4 Pro (bench, 2026-11): 0.15-0.24 s per dictation clip, ~90x realtime;
         // hotword (context) support. The long-audio defect (llama.cpp #21847, pre-2026-05) is fixed
@@ -94,7 +146,11 @@ pub fn default_catalog() -> Vec<ModelSpec> {
                 ),
             ],
             memory_mb: 1250,
-            runtime: Runtime::LlamaCpp,
+            format: ModelFormat::QwenAsr {
+                model: "Qwen3-ASR-0.6B-Q8_0.gguf",
+                projector: "mmproj-Qwen3-ASR-0.6B-Q8_0.gguf",
+            },
+            language_focus: None,
         },
         // Fastest and smallest, but no hotword support.
         ModelSpec {
@@ -120,7 +176,65 @@ pub fn default_catalog() -> Vec<ModelSpec> {
                 ),
             ],
             memory_mb: 1200,
-            runtime: Runtime::SherpaOnnx,
+            format: ModelFormat::SenseVoice { model: "model.int8.onnx", tokens: "tokens.txt" },
+            language_focus: None,
+        },
+        // Community Apache-2.0 conversion, measured in bench/HAAS_JA.md. Not selected by default.
+        ModelSpec {
+            id: "haas-ja".into(),
+            name: "Haas-ja v1.0".into(),
+            kind: ModelKind::Asr,
+            files: vec![
+                file(
+                    "encoder.quantized.onnx",
+                    &format!(
+                        "{hf}/oboroge0/Haas-ja-v1.0-onnx-quantized/resolve/7f5ab0a4b1bf39db78afd6691eeecbc4f9d42e39/encoder.quantized.onnx"
+                    ),
+                    42261252,
+                    Some("aba291d61d3d594bc6fb8c7f90acbd980e7bc7bf6b7caaf3965ddc25e6f42fac"),
+                ),
+                file(
+                    "encoder.data",
+                    &format!(
+                        "{hf}/oboroge0/Haas-ja-v1.0-onnx-quantized/resolve/7f5ab0a4b1bf39db78afd6691eeecbc4f9d42e39/encoder.data"
+                    ),
+                    410744064,
+                    Some("30befbf6aeb75383e6551f5e58de53efdb76972ddc7d0f76070c517899873586"),
+                ),
+                file(
+                    "decoder.onnx",
+                    &format!(
+                        "{hf}/oboroge0/Haas-ja-v1.0-onnx-quantized/resolve/7f5ab0a4b1bf39db78afd6691eeecbc4f9d42e39/decoder.onnx"
+                    ),
+                    15661602,
+                    Some("2947cb5512699cbba753fe45fe221428aadaa9856597debbb7aabe19cc253622"),
+                ),
+                file(
+                    "joiner.onnx",
+                    &format!(
+                        "{hf}/oboroge0/Haas-ja-v1.0-onnx-quantized/resolve/7f5ab0a4b1bf39db78afd6691eeecbc4f9d42e39/joiner.onnx"
+                    ),
+                    12158641,
+                    Some("8a68320e750890ff9e944a794b41ae1c42c6f439ac4c273503458a6b42adc12d"),
+                ),
+                file(
+                    "tokens.txt",
+                    &format!(
+                        "{hf}/oboroge0/Haas-ja-v1.0-onnx-quantized/resolve/7f5ab0a4b1bf39db78afd6691eeecbc4f9d42e39/tokens.txt"
+                    ),
+                    28704,
+                    Some("ec78b13c5d9f156cf0d5fdbd6b5aec5785680f319c92630c11d5d11b14b83a84"),
+                ),
+            ],
+            memory_mb: 1450,
+            format: ModelFormat::NemoTdt {
+                encoder: "encoder.quantized.onnx",
+                decoder: "decoder.onnx",
+                joiner: "joiner.onnx",
+                tokens: "tokens.txt",
+                feature_dim: 128,
+            },
+            language_focus: Some(dito_core::i18n::Lang::Ja),
         },
         ModelSpec {
             id: "qwen3.5-2b-instruct".into(),
@@ -133,7 +247,8 @@ pub fn default_catalog() -> Vec<ModelSpec> {
                 Some("aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223"),
             )],
             memory_mb: 1600,
-            runtime: Runtime::LlamaCpp,
+            format: ModelFormat::Chat { model: "Qwen3.5-2B-Q4_K_M.gguf", disable_thinking: true },
+            language_focus: None,
         },
         ModelSpec {
             id: "qwen3.5-4b-instruct".into(),
@@ -146,7 +261,8 @@ pub fn default_catalog() -> Vec<ModelSpec> {
                 Some("00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4"),
             )],
             memory_mb: 3400,
-            runtime: Runtime::LlamaCpp,
+            format: ModelFormat::Chat { model: "Qwen3.5-4B-Q4_K_M.gguf", disable_thinking: true },
+            language_focus: None,
         },
         // Measured on M4 Pro (bench, 2026-11): 9B is the only tier where ASR-hotword →
         // polish-dictionary injection stays stable (4B drops entries); 2B keeps English
@@ -162,7 +278,8 @@ pub fn default_catalog() -> Vec<ModelSpec> {
                 Some("03b74727a860a56338e042c4420bb3f04b2fec5734175f4cb9fa853daf52b7e8"),
             )],
             memory_mb: 7000,
-            runtime: Runtime::LlamaCpp,
+            format: ModelFormat::Chat { model: "Qwen3.5-9B-Q4_K_M.gguf", disable_thinking: true },
+            language_focus: None,
         },
     ]
 }
@@ -191,5 +308,21 @@ mod tests {
             .map(|f| f.name.clone())
             .collect();
         assert!(unverified.is_empty(), "{unverified:?}");
+    }
+    #[test]
+    fn catalog_layouts_reference_declared_files_and_match_the_task() {
+        for spec in default_catalog() {
+            for name in spec.format.files() {
+                assert!(spec.files.iter().any(|f| f.name == name), "{}: missing {name}", spec.id);
+            }
+            assert_eq!(spec.kind == ModelKind::Polish, matches!(spec.format, ModelFormat::Chat { .. }));
+        }
+        let haas = default_catalog().into_iter().find(|s| s.id == "haas-ja").unwrap();
+        assert!(haas.files.iter().any(|f| f.name == "encoder.data" && f.sha256.is_some()));
+        assert!(!haas.format.supports_hotwords());
+        assert_eq!(haas.format.runtime(), Runtime::SherpaOnnx);
+        assert_ne!(haas.id, dito_core::config::DEFAULT_ASR_LOCAL);
+        let qwen = default_catalog().into_iter().find(|s| s.id == "qwen3-asr-0.6b").unwrap();
+        assert!(qwen.format.supports_hotwords());
     }
 }

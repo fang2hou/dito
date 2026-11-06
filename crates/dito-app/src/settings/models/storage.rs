@@ -15,57 +15,59 @@ impl ModelsPage {
         let p = &c.p;
         let s = self.st.models.storage();
         let dir = s.dir.clone();
-        ui::card(p)
-            .px(px(26.))
-            .py(px(18.))
-            .gap(px(12.))
-            .child(
-                div()
-                    .w_full()
-                    .flex()
-                    .items_center()
-                    .justify_between()
-                    .gap(px(16.))
-                    .child(
-                        // Let the path column shrink (with an ellipsis) instead of pushing the
-                        // buttons out of the card on narrow windows.
-                        div()
-                            .flex_1()
-                            .min_w(px(0.))
-                            .flex()
-                            .flex_col()
-                            .gap(px(2.))
-                            .child(text(c.t(Tr::ModelsFolder), 14., FontWeight::BOLD, p.text))
-                            .child(ui::muted12(p, s.dir.display().to_string()).truncate()),
-                    )
-                    .child(
-                        div()
-                            .flex()
-                            .gap(px(10.))
-                            .child(ui::button(
-                                "reveal",
-                                p,
-                                &c.t(Tr::MenubarShowInFinder),
-                                BtnKind::Secondary,
-                                Some(Ic::External),
-                                Rc::new(move |_, _| {
-                                    let _ = std::fs::create_dir_all(&dir);
-                                    let _ = std::process::Command::new("open").arg(&dir).spawn();
-                                }),
-                            ))
-                            .child(ui::button(
-                                "change-dir",
-                                p,
-                                &c.t(Tr::ModelsChangeFolder),
-                                BtnKind::Secondary,
-                                None,
-                                cbk(cx, move |this: &mut Self, _, cx| {
-                                    this.choose_folder(cx);
-                                }),
-                            )),
-                    ),
-            )
-            .child(usage_meter(c, &s))
+        ui::card(p).px(px(26.)).py(px(18.)).gap(px(12.)).child(
+            div()
+                .w_full()
+                .flex()
+                .items_center()
+                .justify_between()
+                .gap(px(16.))
+                .child(
+                    // Let the path column shrink (with an ellipsis) instead of pushing the
+                    // buttons out of the card on narrow windows.
+                    div()
+                        .flex_1()
+                        .min_w(px(0.))
+                        .flex()
+                        .flex_col()
+                        .gap(px(2.))
+                        .child(
+                            div()
+                                .flex()
+                                .items_center()
+                                .gap(px(8.))
+                                .child(text(c.t(Tr::ModelsFolder), 14., FontWeight::BOLD, p.text))
+                                .child(usage_meter(c, &s)),
+                        )
+                        .child(ui::muted12(p, s.dir.display().to_string()).truncate()),
+                )
+                .child(
+                    div()
+                        .flex()
+                        .gap(px(10.))
+                        .child(ui::button(
+                            "reveal",
+                            p,
+                            &c.t(Tr::MenubarShowInFinder),
+                            BtnKind::Secondary,
+                            Some(Ic::External),
+                            Rc::new(move |_, _| {
+                                let _ = std::fs::create_dir_all(&dir);
+                                let _ = std::process::Command::new("open").arg(&dir).spawn();
+                            }),
+                        ))
+                        .child(ui::button(
+                            "change-dir",
+                            p,
+                            &c.t(Tr::ModelsChangeFolder),
+                            BtnKind::Secondary,
+                            None,
+                            cbk(cx, move |this: &mut Self, _, cx| {
+                                this.choose_folder(cx);
+                            }),
+                        )),
+                ),
+        )
     }
 
     fn choose_folder(&mut self, cx: &mut Context<Self>) {
@@ -87,24 +89,10 @@ impl ModelsPage {
 
 fn usage_meter(c: &Ctx, storage: &Storage) -> Div {
     let p = &c.p;
-    let total = (storage.used_bytes + storage.free_bytes).max(1);
-    div()
-        .w_full()
-        .flex()
-        .flex_col()
-        .gap(px(8.))
-        .child(
-            div()
-                .w_full()
-                .flex()
-                .justify_between()
-                .child(text(
-                    format!("{} {}", c.t(Tr::ModelsInUse), ui::fmt_bytes(storage.used_bytes)),
-                    12.,
-                    FontWeight::MEDIUM,
-                    p.text,
-                ))
-                .child(ui::muted12(p, format!("{} {}", c.t(Tr::MenubarFree), ui::fmt_bytes(storage.free_bytes)))),
-        )
-        .child(ui::progress_bar(p, storage.used_bytes as f32 / total as f32))
+    text(
+        format!("{} {}", c.t(Tr::ModelsStorageUsed), ui::fmt_bytes(storage.used_bytes)),
+        14.,
+        FontWeight::NORMAL,
+        p.model_meta,
+    )
 }

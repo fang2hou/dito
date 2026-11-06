@@ -43,7 +43,7 @@ impl Onboarding {
 
     pub(in crate::onboarding) fn open_connection_settings(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.apply_provider(cx);
-        let editor = cx.new(|cx| crate::settings::asr_editor::AsrEditor::new(self.st.clone(), window, cx));
+        let editor = cx.new(|cx| crate::settings::asr_editor::AsrEditor::new_dialog(self.st.clone(), window, cx));
         cx.subscribe_in(&editor, window, |this, _, event: &crate::settings::asr_editor::Closed, window, cx| {
             if event.0 {
                 let p = this.st.cfg.get().asr.cloud_asr.clone().unwrap_or_default();

@@ -31,8 +31,10 @@ pub fn error_line(lang: dito_core::i18n::Lang, line: &str) -> String {
 
 pub fn style_label(lang: dito_core::i18n::Lang, style: dito_core::prompts::Style) -> SharedString {
     match style {
-        dito_core::prompts::Style::General => SharedString::from(lang.tr(dito_core::i18n::Tr::NavGeneral)),
-        other => SharedString::from(other.label()),
+        dito_core::prompts::Style::General | dito_core::prompts::Style::Application(_) => {
+            SharedString::from(lang.tr(dito_core::i18n::Tr::PromptsOther))
+        }
+        other => SharedString::from(other.label().to_owned()),
     }
 }
 

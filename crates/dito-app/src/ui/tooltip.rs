@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
@@ -7,7 +5,7 @@ use super::hover::is_hovered;
 use super::primitives::white;
 use super::scope::{self, motion_scope};
 use super::tip_bubble::{TIP_BUBBLE_H, tip_bubble};
-use super::tween::{tween_to_at, tweened_at};
+use super::tween::tweened_at;
 use crate::theme::Palette;
 
 /// Gap between a tooltip and its anchor, how far it still has to rise when it starts appearing,
@@ -19,7 +17,7 @@ const TIP_FROM: f32 = 0.8;
 
 /// The tooltip for a trigger: put it next to the trigger's content and pass the trigger's
 /// height. While hovered, one bubble pops out of the trigger — growing from 0.8 to full size
-/// as it rises the last few pixels and fades in (150 ms, ease-out) — and vanishes the instant
+/// as it rises the last few pixels and fades in (150 ms, ease-out) — and reverses the motion when
 /// the hover leaves. The positioned box is a plain static element (an animated one re-lays out
 /// against the wrong ancestor); only its inner child tweens. Centring does not measure the
 /// text: the box is symmetric about the trigger's centre (non-zero insets — a zero `left` lays
@@ -48,7 +46,7 @@ pub fn tip_above(p: &Palette, id: &ElementId) -> AnyElement {
 /// *changes*, so while off the value is held at 0 (an element that first appears already at
 /// its target would render statically) and the 0→1 flip when it turns on is the pop-in —
 /// growing from [`TIP_FROM`] to full size while rising and fading in, ease-out. Turning off
-/// hides it at once; the value settles back to 0 unseen.
+/// reverses the same tween and retains the bubble until its opacity reaches zero.
 pub fn tip_pop(p: &Palette, tween_id: ElementId, label: SharedString, on: bool) -> AnyElement {
     let (bg, fg) = if p.dark { (p.side, white()) } else { (p.hud_bg, p.text) };
     tip_pop_with(p, tween_id, label, on, bg, fg)
@@ -58,18 +56,18 @@ pub fn tip_pop(p: &Palette, tween_id: ElementId, label: SharedString, on: bool) 
 /// colors, which differ from the settings surface in dark mode.
 pub fn tip_pop_with(p: &Palette, tween_id: ElementId, label: SharedString, on: bool, bg: Hsla, fg: Hsla) -> AnyElement {
     let scope = motion_scope();
-    if !on {
-        tween_to_at(&scope, &tween_id, 0., Duration::from_millis(TIP_MS));
-        return div().into_any_element();
-    }
     let p = *p;
-    tweened_at(scope, tween_id, 1., TIP_MS, move |v| {
+    let reduced = dito_platform::system::reduce_motion();
+    tweened_at(scope, tween_id, if on { 1. } else { 0. }, TIP_MS, move |v| {
         if v <= 0.01 {
             return div().into_any_element();
         }
         let v = 1. - (1. - v).powi(3);
-        let k = TIP_FROM + (1. - TIP_FROM) * v;
-        div().mt(px((1. - v) * TIP_RISE)).child(tip_bubble(&p, &label, k, v, bg, fg)).into_any_element()
+        let k = if reduced { 1. } else { TIP_FROM + (1. - TIP_FROM) * v };
+        div()
+            .mt(px(if reduced { 0. } else { (1. - v) * TIP_RISE }))
+            .child(tip_bubble(&p, &label, k, v, bg, fg))
+            .into_any_element()
     })
 }
 
@@ -78,5 +76,46 @@ pub fn tip_pop_with(p: &Palette, tween_id: ElementId, label: SharedString, on: b
 pub fn tip_label(id: ElementId, label: SharedString) {
     if let Some(reg) = scope::ambient_registry() {
         reg.borrow_mut().tips.insert(id, label);
+    }
+}
+
+/// Dismiss hover tips on scroll without retiring the page's other motion state.
+pub fn dismiss_tips(scope: &super::scope::ScopeHandle) {
+    if let Some(reg) = scope.registry() {
+        let mut reg = reg.borrow_mut();
+        let keys: Vec<_> = reg.tips.keys().cloned().collect();
+        for key in keys {
+            reg.hovered.remove(&key);
+            reg.tweens.remove(&ElementId::from((key, "tip")));
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{dismiss_tips, tip_label};
+    use crate::ui::{MotionScope, is_hovered_in, with_motion_scope};
+    use gpui_kit::ElementId;
+
+    #[test]
+    fn dismiss_uses_the_captured_scope_and_preserves_other_hover_state() {
+        let mut owner = MotionScope::new();
+        let scope = owner.handle();
+        let tip = ElementId::from("model-action");
+        let other = ElementId::from("unrelated-control");
+        with_motion_scope(scope.clone(), || tip_label(tip.clone(), "Download".into()));
+        {
+            let reg = scope.registry().unwrap();
+            let mut reg = reg.borrow_mut();
+            reg.hovered.insert(tip.clone(), true);
+            reg.hovered.insert(other.clone(), true);
+        }
+        // Scroll callbacks run outside the render's ambient scope.
+        dismiss_tips(&scope);
+        assert!(!is_hovered_in(&scope, &tip));
+        assert!(is_hovered_in(&scope, &other));
+        owner.reset();
+        dismiss_tips(&scope);
+        assert!(scope.expired());
     }
 }

@@ -39,9 +39,9 @@ pub struct NoRuntime;
 
 impl RuntimeLoader for NoRuntime {
     fn load_asr(&self, spec: &ModelSpec, _: &Path) -> Result<Arc<dyn AsrRuntime>, RuntimeError> {
-        Err(RuntimeError::NotBuiltIn(spec.runtime))
+        Err(RuntimeError::NotBuiltIn(spec.format.runtime()))
     }
     fn load_llm(&self, spec: &ModelSpec, _: &Path) -> Result<Arc<dyn LlmRuntime>, RuntimeError> {
-        Err(RuntimeError::NotBuiltIn(spec.runtime))
+        Err(RuntimeError::NotBuiltIn(spec.format.runtime()))
     }
 }

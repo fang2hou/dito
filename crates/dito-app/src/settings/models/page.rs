@@ -27,7 +27,7 @@ pub struct ModalChanged;
 
 pub struct ModelsPage {
     pub(super) st: Arc<AppState>,
-    pub(super) editor: Option<Entity<AsrEditor>>,
+    pub(in crate::settings) editor: Entity<AsrEditor>,
     pub(super) tab: Role,
     pub(super) menu: Option<String>,
     pub(super) select: Option<&'static str>,
@@ -37,6 +37,8 @@ pub struct ModelsPage {
     pub(super) test_configs: [Option<(EngineConfig, dito_core::config::PreferredLanguage)>; 2],
     pub(super) profiles: Vec<String>,
     pub(super) last_status: String,
+    #[cfg(feature = "screenshots")]
+    pub(super) preview_snapshot: Option<Snapshot>,
     /// The page's own motion scope: its controls' transient state, reset on navigation.
     pub(super) motion: ui::MotionScope,
 }
@@ -66,10 +68,11 @@ impl ModelsPage {
         if !profiles.contains(&bedrock_profile) && !bedrock_profile.is_empty() {
             profiles.push(bedrock_profile);
         }
+        let editor = Self::make_editor(st.clone(), window, cx);
         Self {
             motion: ui::MotionScope::new(),
             st,
-            editor: None,
+            editor,
             tab: Role::Asr,
             menu: None,
             select: None,
@@ -79,6 +82,8 @@ impl ModelsPage {
             test_configs: [None, None],
             profiles,
             last_status: String::new(),
+            #[cfg(feature = "screenshots")]
+            preview_snapshot: None,
         }
     }
 
@@ -119,40 +124,22 @@ impl ModelsPage {
         }
     }
 
-    pub(super) fn open_editor(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let editor = cx.new(|cx| asr_editor::AsrEditor::new(self.st.clone(), window, cx));
-        cx.subscribe_in(&editor, window, |this, _, event: &asr_editor::Closed, window, cx| {
-            if event.0 {
-                this.show_active_preset(window, cx);
-            }
-            this.editor = None;
+    pub(super) fn make_editor(st: Arc<AppState>, window: &mut Window, cx: &mut Context<Self>) -> Entity<AsrEditor> {
+        let editor = cx.new(|cx| AsrEditor::new(st, window, cx));
+        cx.subscribe(&editor, |_, _, _: &asr_editor::Changed, cx| {
             cx.emit(ModalChanged);
             cx.notify();
         })
         .detach();
-        self.editor = Some(editor);
-        cx.emit(ModalChanged);
-        cx.notify();
+        editor
     }
 
-    /// Show the selected cloud ASR preset in the dictation inputs and drop the previous test result.
-    pub(super) fn show_active_preset(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let profiles = self.st.cfg.get().asr.cloud_asr.clone().unwrap_or_default();
-        self.show_preset_connection(&profiles, window, cx);
-        let key = self.st.secrets.get(&profiles.account()).unwrap_or_default();
-        self.inputs[0][Field::KeyCompat].update(cx, |s, cx| s.set_value(key, window, cx));
-        self.tests[0] = TestState::Idle;
-    }
-
-    pub(super) fn show_preset_connection(&self, profiles: &AsrProfiles, window: &mut Window, cx: &mut Context<Self>) {
-        let connection = &profiles.active()["connection"];
-        for (field, key) in [(Field::CompatBase, "base_url"), (Field::CompatModel, "model")] {
-            self.inputs[0][field].update(cx, |s, cx| s.set_value(connection[key].as_str().unwrap_or(""), window, cx));
-        }
-    }
-
-    pub(in crate::settings) fn editor_view(&self) -> Option<Entity<asr_editor::AsrEditor>> {
-        self.editor.clone()
+    pub(in crate::settings) fn help_overlay(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Option<AnyElement> {
+        self.editor.update(cx, |editor, cx| editor.help_overlay(window, cx))
     }
 
     fn status_key(&self) -> String {
@@ -244,8 +231,9 @@ impl ModelsPage {
 
 impl ModelsPage {
     /// Reset the page's transient motion state; its controls mount statically on the next entry.
-    pub(in crate::settings) fn reset_motion(&mut self) {
+    pub(in crate::settings) fn reset_motion(&mut self, cx: &mut Context<Self>) {
         self.motion.reset();
+        self.editor.update(cx, |editor, _| editor.reset_motion());
     }
 }
 
@@ -270,6 +258,8 @@ impl ModelsPage {
         if is_local {
             card = self.local_models(&c, cx, role, card);
             sections.push(self.storage_card(&c, cx).into_any_element());
+        } else if role == Role::Asr {
+            card = card.child(self.editor.clone());
         } else {
             card = card
                 .child(self.provider_tiles(&c, cx, role, engine.provider.kind))
@@ -292,20 +282,28 @@ impl ModelsPage {
             .into_any_element()
         });
 
-        div().relative().size_full().child(page(
-            p,
-            "models",
-            c.t(Tr::NavModels),
-            actions,
-            div()
-                .w_full()
-                .flex()
-                .flex_col()
-                .gap(px(24.))
-                .child(div().flex().child(self.role_tabs(&c, cx)))
-                .child(card)
-                .children(sections),
-        ))
+        let tips = self.motion.handle();
+        div()
+            .relative()
+            .size_full()
+            .on_scroll(move |_, window, _| {
+                ui::dismiss_tips(&tips);
+                window.refresh();
+            })
+            .child(page(
+                p,
+                "models",
+                c.t(Tr::NavModels),
+                actions,
+                div()
+                    .w_full()
+                    .flex()
+                    .flex_col()
+                    .gap(px(24.))
+                    .child(div().flex().child(self.role_tabs(&c, cx)))
+                    .child(card)
+                    .children(sections),
+            ))
     }
 
     fn role_tabs(&self, c: &Ctx, cx: &mut Context<Self>) -> impl IntoElement {
@@ -315,6 +313,7 @@ impl ModelsPage {
             &[c.t(Tr::ModelsDictation), c.t(Tr::ModelsPolishShort)],
             role::index(self.tab),
             cbk_idx(cx, |this: &mut Self, i, _, cx| {
+                ui::dismiss_tips(&this.motion.handle());
                 this.tab = if i == 0 { Role::Asr } else { Role::Polish };
                 this.menu = None;
                 this.select = None;
@@ -358,7 +357,7 @@ impl ModelsPage {
                     .flex_col()
                     .gap(px(4.))
                     .child(text(title, 17., FontWeight::BOLD, p.text))
-                    .when(is_local || role == Role::Polish, |d| d.child(text(desc, 13., FontWeight::NORMAL, p.muted))),
+                    .child(text(desc, 13., FontWeight::NORMAL, p.muted)),
             )
             .child(source_seg)
     }
@@ -366,6 +365,8 @@ impl ModelsPage {
     fn local_models(&self, c: &Ctx, cx: &mut Context<Self>, role: Role, mut card: Div) -> Div {
         let kind = if role == Role::Asr { ModelKind::Asr } else { ModelKind::Polish };
         let snap = self.st.models.subscribe().borrow().clone();
+        #[cfg(feature = "screenshots")]
+        let snap = self.preview_snapshot.clone().unwrap_or(snap);
         if let Some(note) = self.background_downloads(c, kind, &snap) {
             card = card.child(note);
         }

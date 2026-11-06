@@ -31,7 +31,10 @@ mod typography;
 mod watch;
 
 pub use appearance_seg::appearance_seg;
-pub use button::{BtnKind, BtnSize, CONTROL_H, bare_icon_button, button, button_with, close_button, icon_button};
+pub use button::{
+    BtnKind, BtnSize, CONTROL_H, bare_icon_button, button, button_with, button_with_icon_size, close_button,
+    icon_button, icon_button_sized,
+};
 pub use callbacks::{Cb, cbk, cbk_idx, click_cb};
 pub use format::{error_line, error_summary, fmt_bytes, fmt_eta, style_label};
 pub use glass::{prepare as prepare_card_backdrop, wordmark as page_wordmark};
@@ -42,12 +45,12 @@ pub use hover::{
     HOVER_MS, choice_label, hover_fill, hover_fill_if, hover_pop, hover_pop_scaled, hover_tracker, is_hovered,
     is_hovered_in, reset_hover,
 };
-pub use inputs::{field, form_field, notify_on_focus, ring_overlay, text_input, with_ring};
-pub use layout::{card, drag_area, group, page_title, row, status_chip, status_tag, tag};
-pub use menu_button::menu_button;
+pub use inputs::{field, field_chrome, form_field, notify_on_focus, ring_overlay, text_input, with_ring};
+pub use layout::{StatusTone, card, drag_area, group, page_title, row, status_chip, status_tag, tag};
+pub use menu_button::{menu_button, menu_button_sized};
 pub use motion::Motion;
 pub use plate::{GLASS_MS, coverage, plate_state};
-pub use popup_menu::{MenuItem, MenuTone, popup_menu};
+pub use popup_menu::{MenuItem, MenuTone, popup_menu, popup_menu_grouped};
 pub use primitives::{hex_alpha, hud_icon, icon, mix, mix_rgb, transparent, white};
 pub use progress_bar::progress_bar;
 pub use radio::radio;
@@ -59,10 +62,12 @@ pub use select_badge::SelectBadge;
 pub use switch::switch;
 pub use test_state::TestState;
 pub use tip_bubble::TIP_BUBBLE_H;
-pub use tooltip::{tip_pop, tip_pop_with};
+pub use tooltip::{dismiss_tips, tip_above, tip_label, tip_pop, tip_pop_with};
 pub use tween::{spring, tweened, tweened_at};
 pub use typography::{
     cjk_family, init_text_system, is_cjk, muted12, set_ui_language, text, text_tracked, text_width, tracked,
     tracking_for,
 };
 pub use watch::{notify_on_change, observe};
+
+pub(crate) use menu_panel::{float as float_menu, menu_panel, menu_row};

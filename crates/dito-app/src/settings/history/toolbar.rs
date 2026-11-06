@@ -28,9 +28,10 @@ impl HistoryPage {
             }),
         );
         let style_opts: Vec<SharedString> = std::iter::once(c.t(Tr::HistoryAllStyles))
-            .chain(Style::ALL.iter().map(|s| ui::style_label(c.lang, *s)))
+            .chain(Style::ALL.iter().map(|s| ui::style_label(c.lang, s.clone())))
             .collect();
-        let style_sel = self.style.and_then(|s| Style::ALL.iter().position(|x| *x == s)).map(|i| i + 1).unwrap_or(0);
+        let style_sel =
+            self.style.as_ref().and_then(|s| Style::ALL.iter().position(|x| x == s)).map(|i| i + 1).unwrap_or(0);
         let style_select = ui::select(
             "style-filter",
             p,
@@ -43,7 +44,7 @@ impl HistoryPage {
                 cx.notify();
             }),
             cbk_idx(cx, |this: &mut Self, i, _, cx| {
-                this.style = if i == 0 { None } else { Some(Style::ALL[i - 1]) };
+                this.style = if i == 0 { None } else { Some(Style::ALL[i - 1].clone()) };
                 this.changed(cx);
                 cx.notify();
             }),

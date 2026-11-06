@@ -1,7 +1,7 @@
 //! The discrete HUD-height control. The labels stay qualitative; the state is an accessible slider.
 
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use dito_core::i18n::Tr;
 use gpui_kit::base::slider::{Slider, SliderIndicator, SliderState, SliderThumb, SliderTrack};
@@ -18,8 +18,7 @@ const MIN: i8 = -2;
 const MAX: i8 = 12;
 const TRACK: f32 = 220.;
 const KNOB: f32 = 24.;
-/// Thumb sizes: it grows a little under the pointer and more while pressed.
-const KNOB_HOVER: f32 = 26.;
+/// Only pressing expands the thumb; hover changes its color and shadow.
 const KNOB_PRESSED: f32 = 32.;
 const TRAVEL: f32 = TRACK - KNOB;
 
@@ -48,6 +47,9 @@ pub(super) struct HudHeightSlider {
     slider: Entity<SliderState>,
     focus: FocusHandle,
     hovered: bool,
+    hover_progress: f32,
+    hover_from: f32,
+    hover_at: Option<Instant>,
     pressed: bool,
     dragging: bool,
     changes_in_press: u32,
@@ -55,7 +57,7 @@ pub(super) struct HudHeightSlider {
     velocity: f32,
     size: f32,
     size_velocity: f32,
-    tick: Instant,
+    tick: Option<Instant>,
     config_level: i8,
 }
 
@@ -71,20 +73,14 @@ impl HudHeightSlider {
         let slider =
             cx.new(|_| SliderState::new().min(MIN as f32).max(MAX as f32).step(1.).default_value(level as f32));
         cx.observe(&slider, Self::slider_changed).detach();
-        cx.spawn(async move |this, cx| {
-            loop {
-                cx.background_executor().timer(Duration::from_millis(16)).await;
-                if this.update(cx, |this, cx| this.step(cx)).is_err() {
-                    break;
-                }
-            }
-        })
-        .detach();
         Self {
             st,
             slider,
             focus: cx.focus_handle(),
             hovered: false,
+            hover_progress: 0.,
+            hover_from: 0.,
+            hover_at: None,
             pressed: false,
             dragging: false,
             changes_in_press: 0,
@@ -92,7 +88,7 @@ impl HudHeightSlider {
             velocity: 0.,
             size: KNOB,
             size_velocity: 0.,
-            tick: Instant::now(),
+            tick: None,
             config_level: level,
         }
     }
@@ -109,21 +105,21 @@ impl HudHeightSlider {
         cx.notify();
     }
 
-    /// Advance the thumb's position and size springs by the time since the last frame.
-    fn step(&mut self, cx: &mut Context<Self>) {
+    /// Advance only when this view draws, paced by the display rather than a background timer.
+    fn step(&mut self, motion: Motion, cx: &App) -> bool {
         let now = Instant::now();
-        let dt = now.duration_since(self.tick).as_secs_f32();
-        self.tick = now;
-        let motion = Motion::system();
+        let dt = self.tick.map_or(0., |tick| now.duration_since(tick).as_secs_f32());
         let target = (self.slider.read(cx).value().end() - MIN as f32) / (MAX - MIN) as f32;
-        let size_target = match (motion, self.pressed, self.hovered) {
-            // Reduce Motion keeps the thumb's size; only color and shadow respond.
-            (Motion::Reduced, _, _) => KNOB,
-            (_, true, _) => KNOB_PRESSED,
-            (_, false, true) => KNOB_HOVER,
-            (_, false, false) => KNOB,
-        };
-        let old = (self.position, self.size);
+        if let Some(at) = self.hover_at {
+            let t = (now.duration_since(at).as_secs_f32() / 0.16).clamp(0., 1.);
+            let target = f32::from(self.hovered);
+            self.hover_progress = self.hover_from + (target - self.hover_from) * t * t * (3. - 2. * t);
+            if t >= 1. {
+                self.hover_at = None;
+            }
+        }
+        // Reduce Motion keeps the resting size even during a press.
+        let size_target = if self.pressed && !motion.is_reduced() { KNOB_PRESSED } else { KNOB };
         if self.dragging || motion.is_reduced() {
             self.position = target;
             self.velocity = 0.;
@@ -144,9 +140,13 @@ impl HudHeightSlider {
             self.size = size_target;
             self.size_velocity = 0.;
         }
-        if old != (self.position, self.size) {
-            cx.notify();
-        }
+        let active = self.position != target
+            || self.velocity != 0.
+            || self.size != size_target
+            || self.size_velocity != 0.
+            || self.hover_at.is_some();
+        self.tick = active.then_some(now);
+        active
     }
 
     /// Follow a level changed elsewhere, unless the user is dragging the thumb.
@@ -165,56 +165,66 @@ impl HudHeightSlider {
 
     /// The knob's shape: lifted off the track while pressed with a deeper, wider shadow that scales with the press
     /// expansion, so the enlarged edge stays readable against the fill. It stretches a little with its speed.
-    fn knob(&self, p: &Palette) -> Div {
-        let motion = Motion::system();
+    fn knob(&self, p: &Palette, motion: Motion) -> Div {
         let press = match motion {
             Motion::Reduced => f32::from(self.pressed),
-            Motion::Full => ((self.size - KNOB_HOVER) / (KNOB_PRESSED - KNOB_HOVER)).clamp(0., 1.),
+            Motion::Full => ((self.size - KNOB) / (KNOB_PRESSED - KNOB)).clamp(0., 1.),
         };
         let shadow = vec![BoxShadow {
-            color: crate::ui::mix(p.slider_thumb_shadow, p.slider_thumb_shadow_pressed, press),
+            color: crate::ui::mix(
+                p.slider_thumb_shadow.opacity(self.hover_progress),
+                p.slider_thumb_shadow_pressed,
+                press,
+            ),
             offset: point(px(0.), px(1. + 2. * press)),
             blur_radius: px(2. + 6. * press),
             spread_radius: px(0.),
             inset: false,
         }];
-        let size = self.size.clamp(KNOB, KNOB_PRESSED + 2.);
+        let diameter = self.size.clamp(KNOB, KNOB_PRESSED + 2.);
         let stretch = match motion {
             Motion::Reduced => 0.,
             Motion::Full => (self.velocity.abs() * TRAVEL * 0.003 + self.size_velocity.abs() * 0.004).min(2.),
         };
-        let (knob_w, knob_h) = (size + stretch, size - stretch * 0.4);
-        let knob_color = if self.hovered { p.slider_thumb_hover } else { p.knob_on };
-        div()
+        let (knob_w, knob_h) = (diameter + stretch, diameter - stretch * 0.4);
+        let knob_color =
+            crate::ui::mix(p.knob_on, p.slider_thumb_hover, if self.pressed { 0. } else { self.hover_progress });
+        // The hit box and layout stay fixed. Only paint geometry changes during the spring.
+        div().relative().size(px(KNOB)).child(
+            canvas(
+                |bounds, _, _| bounds,
+                move |region: Bounds<Pixels>, _, window, _| {
+                    let bounds = Bounds::new(
+                        point(region.center().x - px(knob_w / 2.), region.center().y - px(knob_h / 2.)),
+                        size(px(knob_w), px(knob_h)),
+                    );
+                    let radii = Corners::all(px(knob_w.min(knob_h) / 2.));
+                    window.paint_drop_shadows(bounds, radii, &shadow);
+                    window.paint_quad(quad(
+                        bounds,
+                        radii,
+                        knob_color,
+                        Edges::all(px(0.)),
+                        knob_color,
+                        BorderStyle::Solid,
+                    ));
+                },
+            )
             .absolute()
-            .left(px((KNOB - knob_w) / 2.))
-            .top(px((KNOB - knob_h) / 2.))
-            .w(px(knob_w))
-            .h(px(knob_h))
-            .rounded_full()
-            .bg(knob_color)
-            .shadow(shadow)
+            .top_0()
+            .left_0()
+            .size(px(KNOB)),
+        )
     }
 
-    /// Fill = a rounded left cap plus a square-edged body ending on the thumb's centre line; empty at the lowest
-    /// level. gpui's overflow clip is rectangular, so like the capsule's progress layer the rounding is drawn, not
-    /// clipped.
+    /// One continuous fill ending at the thumb's centre line, with only its left corners rounded.
+    /// Separate overlapping cap and body layers reveal their join when the page fades out.
     fn fill(&self, p: &Palette, track: SliderTrack) -> SliderTrack {
         let center = self.center();
         track.when(self.position > 0.001, |track| {
-            track
-                .child(
-                    div().absolute().left_0().top_0().w(px(center.min(KNOB))).h(px(KNOB)).rounded_full().bg(p.primary),
-                )
-                .child(
-                    div()
-                        .absolute()
-                        .left(px(KNOB / 2.))
-                        .top_0()
-                        .w(px((center - KNOB / 2.).max(0.)))
-                        .h(px(KNOB))
-                        .bg(p.primary),
-                )
+            track.child(
+                div().absolute().left_0().top_0().w(px(center)).h(px(KNOB)).rounded_l(px(KNOB / 2.)).bg(p.primary),
+            )
         })
     }
 
@@ -222,7 +232,7 @@ impl HudHeightSlider {
         KNOB / 2. + TRAVEL * self.position.clamp(0., 1.)
     }
 
-    fn thumb(&self, p: &Palette, cx: &mut Context<Self>) -> SliderThumb {
+    fn thumb(&self, p: &Palette, motion: Motion, cx: &mut Context<Self>) -> SliderThumb {
         SliderThumb::new(&self.slider)
             .absolute()
             .left(px(self.center() - KNOB / 2.))
@@ -230,14 +240,16 @@ impl HudHeightSlider {
             .size(px(KNOB))
             .on_hover(cx.listener(|this, over: &bool, _, cx| {
                 if this.hovered != *over {
+                    this.hover_from = this.hover_progress;
+                    this.hover_at = Some(Instant::now());
                     this.hovered = *over;
                     cx.notify();
                 }
             }))
-            .child(self.knob(p))
+            .child(self.knob(p, motion))
     }
 
-    fn track(&self, p: &Palette, cx: &mut Context<Self>) -> SliderTrack {
+    fn track(&self, p: &Palette, motion: Motion, cx: &mut Context<Self>) -> SliderTrack {
         let track = SliderTrack::new(&self.slider)
             .relative()
             .w(px(TRACK))
@@ -246,7 +258,7 @@ impl HudHeightSlider {
             .bg(p.toggle_off)
             .cursor_pointer()
             .child(SliderIndicator::new(&self.slider).absolute().left(px(KNOB / 2.)).top_0().w(px(TRAVEL)).h(px(KNOB)));
-        self.fill(p, track).child(self.thumb(p, cx))
+        self.fill(p, track).child(self.thumb(p, motion, cx))
     }
 
     /// The focusable hit area around the slider: tracks the press for the thumb's grow and handles the arrow keys.
@@ -296,6 +308,10 @@ impl HudHeightSlider {
 impl Render for HudHeightSlider {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.follow_config(window, cx);
+        let motion = Motion::system();
+        if self.step(motion, cx) {
+            window.request_animation_frame();
+        }
         let c = Ctx::new(&self.st, cx);
         let p = c.p;
         div()
@@ -311,7 +327,7 @@ impl Render for HudHeightSlider {
                         .h(px(36.))
                         .flex()
                         .items_center()
-                        .child(self.track(&p, cx)),
+                        .child(self.track(&p, motion, cx)),
                 ),
             )
             .child(text(c.t(Tr::GeneralHudHigher), 12., FontWeight::NORMAL, p.text))

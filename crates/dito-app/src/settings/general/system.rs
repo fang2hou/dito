@@ -24,10 +24,26 @@ impl GeneralPage {
             vec![
                 ui::row(&p, c.t(Tr::GeneralLaunchAtLogin), self.launch_at_login_switch(&p), false),
                 ui::row(&p, c.t(Tr::GeneralAppearance), self.appearance_seg(c), false),
-                ui::row(&p, c.t(Tr::GeneralHudAppearance), self.hud_appearance_control(c, cx), false),
-                ui::row(&p, c.t(Tr::GeneralHudPosition), self.hud_position_seg(c), false),
-                self.hud_height_row(c),
                 ui::row(&p, c.t(Tr::GeneralDisplayLanguage), self.display_language_select(c, cx), true),
+            ],
+        )
+    }
+
+    /// 20.01 General: HUD settings form their own category between recognition and System.
+    pub(super) fn hud_group(&self, c: &Ctx, cx: &mut Context<Self>) -> impl IntoElement {
+        let p = c.p;
+        ui::group(
+            &p,
+            c.t(Tr::GeneralHud),
+            vec![
+                ui::row(&p, c.t(Tr::GeneralHudAppearance), self.hud_appearance_control(c, cx), false),
+                ui::row(
+                    &p,
+                    c.t(Tr::GeneralHudPosition),
+                    self.hud_position_seg(c),
+                    self.st.cfg.get().general.hud_position == HudPosition::Pointer,
+                ),
+                self.hud_height_row(c),
             ],
         )
     }
@@ -154,8 +170,14 @@ impl GeneralPage {
         let target = if self.st.cfg.get().general.hud_position == HudPosition::Centered { 1. } else { 0. };
         let duration = if system::reduce_motion() { 1 } else { 180 };
         div().w_full().child(ui::tweened(ElementId::from("hud-height-row"), target, duration, move |v| {
-            let row = div().w_full().h(px(64. * v)).overflow_hidden().opacity(v);
-            if v > 0.001 { row.child(ui::row(&p, height_title.clone(), hud_height.clone(), false)) } else { row }
+            let row = div().relative().w_full().h(px(64. * v)).overflow_hidden();
+            if v > 0.001 {
+                // Fade the finished control against its surface, not each overlapping primitive.
+                row.child(ui::row(&p, height_title.clone(), hud_height.clone(), true))
+                    .child(div().absolute().inset_0().bg(p.card.opacity(1. - v)))
+            } else {
+                row
+            }
         }))
     }
 }

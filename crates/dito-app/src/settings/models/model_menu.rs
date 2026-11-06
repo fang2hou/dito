@@ -28,9 +28,16 @@ impl ModelsPage {
             this.menu = None;
             cx.notify();
         });
-        let mut items = self.engine_command_items(c, role, &spec.id, selected);
-        items.extend(self.file_command_items(c, &spec.id));
-        ui::popup_menu(SharedString::from(format!("menu-{}", spec.id)), &c.p, items, close)
+        let runtime = self.engine_command_items(c, role, &spec.id, selected);
+        let mut files = self.file_command_items(c, &spec.id);
+        let removal = files.split_off(2);
+        files.swap(0, 1);
+        ui::popup_menu_grouped(
+            SharedString::from(format!("menu-{}", spec.id)),
+            &c.p,
+            vec![runtime, files, removal],
+            close,
+        )
     }
 
     /// Engine commands follow the runtime: Stop + Restart while the engine runs, Start otherwise. Starting a
@@ -45,7 +52,10 @@ impl ModelsPage {
                     icon: Some(Ic::Stop),
                     label: c.t(Tr::ModelsStop),
                     tone: MenuTone::Default,
-                    on_click: Rc::new(move |_, _| stop_st.local.unload(&stop_id)),
+                    on_click: Rc::new(move |_, _| {
+                        let (local, id) = (stop_st.local.clone(), stop_id.clone());
+                        stop_st.rt.spawn_blocking(move || local.unload(&id));
+                    }),
                 },
                 MenuItem {
                     icon: Some(Ic::Refresh),
@@ -58,7 +68,7 @@ impl ModelsPage {
         vec![MenuItem {
             icon: Some(Ic::Play),
             label: c.t(Tr::ModelsStart),
-            tone: MenuTone::Success,
+            tone: MenuTone::Default,
             on_click: Rc::new(move |_, _| {
                 services::save_config(&st, |cfg| role::engine_mut(cfg, role).local_model = id.clone());
                 restart_engine(&st, &id);
@@ -93,10 +103,13 @@ impl ModelsPage {
             MenuItem {
                 icon: Some(Ic::Trash),
                 label: c.t(Tr::ModelsDelete),
-                tone: MenuTone::Danger,
+                tone: MenuTone::Default,
                 on_click: Rc::new(move |_, _| {
-                    st.local.unload(&delete_id);
-                    let _ = st.models.delete(&delete_id);
+                    let (local, models, id) = (st.local.clone(), st.models.clone(), delete_id.clone());
+                    st.rt.spawn_blocking(move || {
+                        local.unload(&id);
+                        let _ = models.delete(&id);
+                    });
                 }),
             },
         ]

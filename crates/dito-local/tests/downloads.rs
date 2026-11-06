@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use dito_core::config::ConfigStore;
-use dito_local::catalog::{FileSpec, ModelKind, ModelSpec, Runtime};
+use dito_local::catalog::{FileSpec, ModelFormat, ModelKind, ModelSpec};
 use dito_local::download::{DlError, Phase, Target, fetch};
 use dito_local::{ModelManager, ModelState};
 use dito_testkit::MockServer;
@@ -31,7 +31,8 @@ fn spec(id: &str, url: &str, data: &[u8], good_hash: bool) -> ModelSpec {
             sha256: Some(hash),
         }],
         memory_mb: 1,
-        runtime: Runtime::SherpaOnnx,
+        format: ModelFormat::SenseVoice { model: "f", tokens: "f" },
+        language_focus: None,
     }
 }
 
