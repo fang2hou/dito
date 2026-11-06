@@ -4,7 +4,7 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use dito_core::store::{HistoryEntry, HistoryFilter, Stats};
+use dito_core::store::{HistoryEntry, HistoryFilter, Stats, Store};
 
 use crate::state::AppState;
 
@@ -16,6 +16,7 @@ pub async fn history_list(st: Arc<AppState>, filter: HistoryFilter) -> Result<Ve
         .spawn_blocking(move || store.list_history(&filter))
         .await
         .map_err(|e| anyhow::anyhow!("history list task failed: {e}"))?
+        .map_err(Into::into)
 }
 
 /// Aggregate stats (`Stats`) for the stats page, run off the async executor.
@@ -25,6 +26,27 @@ pub async fn history_stats(st: Arc<AppState>, since_ts: Option<i64>) -> Result<S
         .spawn_blocking(move || store.stats(since_ts))
         .await
         .map_err(|e| anyhow::anyhow!("history stats task failed: {e}"))?
+        .map_err(Into::into)
+}
+
+/// The dictionary page's snapshot: the words matching a search and the size of the whole list.
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct DictionaryWords {
+    pub matching: Vec<String>,
+    pub total: usize,
+}
+
+/// Dictionary words matching `query`, plus the total count, run off the async executor.
+pub async fn dictionary_words(st: Arc<AppState>, query: String) -> Result<DictionaryWords> {
+    let store = st.store.clone();
+    st.rt
+        .spawn_blocking(move || dictionary_snapshot(&store, &query))
+        .await
+        .map_err(|e| anyhow::anyhow!("dictionary query task failed: {e}"))?
+}
+
+fn dictionary_snapshot(store: &Store, query: &str) -> Result<DictionaryWords> {
+    Ok(DictionaryWords { matching: store.words(Some(query))?, total: store.words(None)?.len() })
 }
 
 /// AWS profile names from `~/.aws/config` and `~/.aws/credentials`.
@@ -62,6 +84,17 @@ fn push_profile_names(text: &str, prefix: &str, out: &mut Vec<String>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn dictionary_snapshot_filters_matches_but_counts_every_word() {
+        let store = Store::open_in_memory().unwrap();
+        for word in ["alpha", "beta", "alphabet"] {
+            store.add_word(word, 1).unwrap();
+        }
+        let snapshot = dictionary_snapshot(&store, "alpha").unwrap();
+        assert_eq!(snapshot.total, 3);
+        assert_eq!(snapshot.matching.len(), 2);
+    }
 
     #[test]
     fn profiles_are_parsed_from_both_aws_files_without_duplicates() {

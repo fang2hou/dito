@@ -22,7 +22,7 @@ pub enum Status {
 
 #[link(name = "ApplicationServices", kind = "framework")]
 unsafe extern "C" {
-    fn AXIsProcessTrusted() -> bool;
+    safe fn AXIsProcessTrusted() -> bool;
     fn AXIsProcessTrustedWithOptions(options: core_foundation::dictionary::CFDictionaryRef) -> bool;
 }
 
@@ -39,14 +39,14 @@ fn prompt_accessibility() -> bool {
     unsafe { AXIsProcessTrustedWithOptions(options.as_concrete_TypeRef()) }
 }
 
-#[link(name = "CoreGraphics", kind = "framework")]
-unsafe extern "C" {}
-
 pub fn status(p: Permission) -> Status {
     match p {
         Permission::Accessibility => {
-            // SAFETY: plain C call with no arguments.
-            if unsafe { AXIsProcessTrusted() } { Status::Granted } else { Status::Denied }
+            if AXIsProcessTrusted() {
+                Status::Granted
+            } else {
+                Status::Denied
+            }
         }
         Permission::Microphone => {
             // SAFETY: AVMediaTypeAudio is a valid static NSString constant.
@@ -66,8 +66,8 @@ pub fn status(p: Permission) -> Status {
 ///
 /// - Microphone: the first request registers the app and shows the system prompt; once it has been answered the
 ///   only way left is the Settings pane.
-/// - Accessibility / Input Monitoring: the system calls register the app in the list (switched off) and show
-///   their prompt; the matching Settings pane is opened as well, so the switch is one click away.
+/// - Accessibility: the system call registers the app in the list (switched off) and shows its prompt; the
+///   Settings pane is opened as well, so the switch is one click away.
 ///
 /// The app is listed by its bundle (or, for an unbundled `cargo run` binary, by the terminal that launched it).
 pub fn request(p: Permission) {

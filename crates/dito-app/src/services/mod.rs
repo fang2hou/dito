@@ -1,13 +1,20 @@
-//! App-level operations that touch the network or disk, callable from any view.
+//! App-level operations on shared state, callable from any view.
 //!
-//! Split by what an operation does: `history` mutates saved entries, `connection` talks to
-//! configured engines, `queries` reads local data. The re-exports below are the whole public
-//! surface — views keep calling `services::<fn>` and never the submodules directly.
+//! Split by what an operation does: `history` mutates saved entries, `connection` talks to configured
+//! engines, `queries` reads local data, `save_config` and `store_secret` persist settings, and `watch_config`
+//! re-renders a view when they change. The re-exports below are the whole public surface: views keep calling
+//! `services::<fn>` and never the submodules directly.
 
 mod connection;
 mod history;
 mod queries;
+mod save_config;
+mod store_secret;
+mod watch_config;
 
 pub use connection::{test_connection, try_polish};
 pub use history::{delete_history_entry, history_entry, polish_again, recognize_again};
-pub use queries::{aws_profiles, history_list, history_stats};
+pub use queries::{DictionaryWords, aws_profiles, dictionary_words, history_list, history_stats};
+pub use save_config::save_config;
+pub use store_secret::store_secret;
+pub use watch_config::watch_config;

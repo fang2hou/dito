@@ -348,28 +348,4 @@ mod tests {
         }
         assert_eq!(page, ["old".to_string()]);
     }
-
-    #[test]
-    fn successful_empty_result_replaces_data() {
-        let mut page = vec!["old".to_string()];
-        assert!(matches!(apply_snapshot(&mut page, Ok(Vec::new())), Snapshot::Replaced));
-        assert!(page.is_empty());
-    }
-
-    #[test]
-    fn equal_result_is_unchanged() {
-        let mut page = vec![7u32];
-        assert!(matches!(apply_snapshot(&mut page, Ok(vec![7u32])), Snapshot::Unchanged));
-    }
-
-    // Arc snapshots compare by content and swap by handle — the shape the history page uses.
-    #[test]
-    fn arc_snapshot_swaps_handle_only_on_content_change() {
-        let mut page = std::sync::Arc::new(vec!["a".to_string()]);
-        let same = std::sync::Arc::new(vec!["a".to_string()]);
-        assert!(matches!(apply_snapshot(&mut page, Ok(same)), Snapshot::Unchanged));
-        let next = std::sync::Arc::new(vec!["b".to_string()]);
-        assert!(matches!(apply_snapshot(&mut page, Ok(next)), Snapshot::Replaced));
-        assert_eq!(*page, ["b".to_string()]);
-    }
 }

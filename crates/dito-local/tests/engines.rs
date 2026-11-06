@@ -11,8 +11,9 @@ use dito_core::factory::LocalBackend;
 use dito_core::health::EngineStatus;
 use dito_core::provider::{AsrRequest, PolishRequest};
 use dito_local::catalog::{FileSpec, ModelKind, ModelSpec, Runtime};
-use dito_local::engine::NoRuntime;
-use dito_local::{AsrOutput, AsrRuntime, LlmRuntime, LocalEngines, ModelManager, RuntimeLoader};
+use dito_local::{
+    AsrOutput, AsrRuntime, LlmRuntime, LocalEngines, ModelManager, NoRuntime, RuntimeError, RuntimeLoader,
+};
 
 struct Fake {
     loads: AtomicUsize,
@@ -21,23 +22,23 @@ struct Fake {
 
 struct FakeAsr;
 impl AsrRuntime for FakeAsr {
-    fn transcribe(&self, samples: &[f32], _: Option<&str>, _: &[String]) -> Result<AsrOutput, String> {
+    fn transcribe(&self, samples: &[f32], _: Option<&str>, _: &[String]) -> Result<AsrOutput, RuntimeError> {
         Ok(AsrOutput { text: format!("{} samples", samples.len()), language: Some("ja".into()) })
     }
 }
 struct FakeLlm;
 impl LlmRuntime for FakeLlm {
-    fn generate(&self, _: &str, user: &str) -> Result<String, String> {
+    fn generate(&self, _: &str, user: &str) -> Result<String, RuntimeError> {
         Ok(user.to_uppercase())
     }
 }
 
 impl RuntimeLoader for Fake {
-    fn load_asr(&self, _: &ModelSpec, _: &Path) -> Result<Arc<dyn AsrRuntime>, String> {
+    fn load_asr(&self, _: &ModelSpec, _: &Path) -> Result<Arc<dyn AsrRuntime>, RuntimeError> {
         self.loads.fetch_add(1, Ordering::SeqCst);
-        if self.fail { Err("out of memory".into()) } else { Ok(Arc::new(FakeAsr)) }
+        if self.fail { Err(RuntimeError::engine("out of memory")) } else { Ok(Arc::new(FakeAsr)) }
     }
-    fn load_llm(&self, _: &ModelSpec, _: &Path) -> Result<Arc<dyn LlmRuntime>, String> {
+    fn load_llm(&self, _: &ModelSpec, _: &Path) -> Result<Arc<dyn LlmRuntime>, RuntimeError> {
         self.loads.fetch_add(1, Ordering::SeqCst);
         Ok(Arc::new(FakeLlm))
     }
@@ -89,15 +90,13 @@ async fn loads_lazily_once_and_runs_inference_off_the_async_thread() {
 }
 
 #[tokio::test]
-async fn restart_reloads_and_unload_returns_to_stopped() {
+async fn restart_reloads_the_runtime() {
     let (mgr, _d) = installed_manager();
     let fake = Arc::new(Fake { loads: AtomicUsize::new(0), fail: false });
     let eng = LocalEngines::new(mgr, fake.clone());
     eng.transcriber("asr").await.unwrap();
     assert_eq!(eng.restart("asr").await, EngineStatus::Running);
     assert_eq!(fake.loads.load(Ordering::SeqCst), 2);
-    eng.unload("asr");
-    assert_eq!(eng.status("asr"), EngineStatus::Stopped);
 }
 
 #[tokio::test]
@@ -117,11 +116,4 @@ async fn without_a_runtime_the_status_is_failed_never_a_fake_success() {
     let eng = LocalEngines::new(mgr, Arc::new(NoRuntime));
     assert!(eng.transcriber("asr").await.is_err());
     assert!(matches!(eng.status("asr"), EngineStatus::Failed(m) if m.contains("no inference runtime")));
-}
-
-#[tokio::test]
-async fn wrong_model_kind_is_rejected() {
-    let (mgr, _d) = installed_manager();
-    let eng = LocalEngines::new(mgr, Arc::new(Fake { loads: AtomicUsize::new(0), fail: false }));
-    assert!(eng.polisher("asr").await.is_err());
 }

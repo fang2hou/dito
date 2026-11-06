@@ -8,8 +8,8 @@ Dito is a macOS dictation app. A global shortcut starts a recording; the audio i
 
 ## Codebase Map
 
-- `dito-core`: config, i18n, prompts, the dictation controller and pipeline, cloud providers, the SQLite store (history, dictionary, stats), the secrets trait, the text insertion policy.
-- `dito-audio`: microphone capture, resampling to 16 kHz mono, WAV, device transport detection.
+- `dito-core`: config, i18n, prompts, the dictation controller and pipeline, the audio clip and its WAV encoding, cloud providers, the SQLite store (history, dictionary, stats), the secrets trait, the text insertion policy.
+- `dito-audio`: microphone capture, resampling to 16 kHz mono, device transport detection.
 - `dito-local`: local model catalog, downloads, model state and the local engines; runtimes plug in through `RuntimeLoader`.
 - `dito-runtimes`: llama.cpp (Metal) and sherpa-onnx bindings behind `dito-local`'s traits.
 - `dito-platform`: macOS integration: event tap and shortcut machine, permissions, text insertion, Keychain, music mute, window helpers, login item.

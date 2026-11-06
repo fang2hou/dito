@@ -43,4 +43,4 @@ Several wanted vendors need streaming or multi-step flows.
 
 ## Code
 
-`crates/dito-core/src/provider/configured_asr.rs`, `design/asr-templates/`.
+`crates/dito-core/src/provider/configured_asr/`, `design/asr-templates/`.

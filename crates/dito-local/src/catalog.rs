@@ -184,15 +184,12 @@ mod tests {
 
     #[test]
     fn every_large_file_has_a_checksum() {
-        for m in default_catalog() {
-            for f in &m.files {
-                assert!(
-                    f.size < 1_000_000 || f.sha256.as_deref().is_some_and(|h| h.len() == 64),
-                    "{} / {}",
-                    m.id,
-                    f.name
-                );
-            }
-        }
+        let unverified: Vec<_> = default_catalog()
+            .iter()
+            .flat_map(|m| m.files.iter())
+            .filter(|f| f.size >= 1_000_000 && f.sha256.as_deref().is_none_or(|h| h.len() != 64))
+            .map(|f| f.name.clone())
+            .collect();
+        assert!(unverified.is_empty(), "{unverified:?}");
     }
 }

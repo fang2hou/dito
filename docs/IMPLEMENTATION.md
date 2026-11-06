@@ -18,22 +18,25 @@ If only the Command Line Tools are selected, export `DEVELOPER_DIR=/Applications
 
 ```bash
 mise install                                  # tools at the pinned versions
-mise run dev:mock                             # whole app with mocks; never types into other apps
+mise run dev:mock                             # whole app with mocks (builds with the mock feature); never types into other apps
 mise run dev                                  # real mode (real microphone, models and providers)
 mise run release                              # optimized release bundle at target/bundle/Dito.app, launched
 mise run release:install                      # release bundle installed to ~/Applications/Dito.app
 mise run check                                # ./scripts/check.sh fast: fmt, unit tests, mock-server tests, i18n coverage
+mise run lint:rust                            # clippy for the workspace, again with the mock and screenshots features
 mise run check:full                           # fast, plus compile checks of every build flavor
-mise run lint                                 # clippy for the workspace, ruff and ty for bench, actionlint for workflows
+mise run lint                                 # lint:rust, ruff and ty for bench, actionlint for workflows
 mise run hooks:install                        # once per clone: install the prek commit hooks (see CONTRIBUTING.md, Checks)
 mise run hooks                                # run every hook against all files
 mise run setup:macos                          # install the Xcode Metal Toolchain if it is missing
 mise run format                               # cargo fmt and ruff format
 cargo test -p <crate>                         # tests for one crate
-cargo test -p dito-app --test i18n_coverage   # after editing messages.toml
+cargo test -p dito-app --no-default-features --test i18n_coverage  # after editing messages.toml
 ```
 
 Extra arguments reach the app: `mise run dev:mock -- --data-dir <empty dir>`.
+
+Cargo features of `dito-app`: `runtimes` (on-device inference, the only default; needs cmake and the Metal toolchain), `mock` (the in-process mock cloud behind `--mock`, so release bundles do not link the test server) and `screenshots` (`--screenshots`). A flag whose feature is not compiled in fails with a usage error.
 
 `mise run release` builds with `scripts/bundle.sh` (release profile with thin LTO and one codegen unit). `mise run release:install` runs `scripts/certs.sh` first (idempotent; the first run shows one macOS authorization prompt), refuses to install an ad-hoc signed build, quits any running Dito, replaces `~/Applications/Dito.app`, verifies the signature and opens the app.
 
@@ -44,7 +47,7 @@ The Python benchmark harness has its own tasks: `mise run bench:sync`, `bench:te
 1. Pick the matching workflow in [workflow](workflow/README.md): [adjust the UI](workflow/ui-adjustment.md) or [fix code](workflow/code-fix.md).
 2. Read the ADRs that touch the change.
 3. Make the smallest complete change.
-4. Run `./scripts/check.sh fast` and clippy.
+4. Run `./scripts/check.sh fast` and `mise run lint:rust`; the commit hooks run both.
 5. Commit following [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Layout
@@ -70,13 +73,14 @@ The Python benchmark harness has its own tasks: `mise run bench:sync`, `bench:te
 - Tests live next to the code (unit) and in each crate's `tests/` (integration).
 - Write a test when logic is easy to break and hard to notice in the app: parsing, config migration, state machines, insertion flow, i18n, protocols.
 - Don't write defensive tests for layout, every error branch or hypothetical misuse. Look and motion are checked by a person in the running app.
-- Not run by `check.sh`, because they need a GUI session, the real Keychain, Accessibility or model files: `dito-app --test demo_run`, `dito-platform --test keychain`, `dito-platform --test loopback`, `dito-testkit --test configured_asr`, and the ignored runtime regression tests (`DITO_ASR_MODEL_DIR`, `DITO_POLISH_MODEL_DIR`).
+- Not run by `check.sh`, because they need a GUI session, the real Keychain, Accessibility or model files: `cargo test -p dito-app --features mock --test demo_run`, `dito-platform --test keychain` and `--test loopback` (both `#[ignore]`, run with `-- --ignored`), and the ignored runtime regression tests (`DITO_ASR_MODEL_DIR`, `DITO_POLISH_MODEL_DIR`). `dito-runtimes` has no tests `check.sh` can run: its unit tests sit in the `llama` and `sherpa` modules, which need their features and the native builds.
+- `check.sh` runs `dito-testkit --test bedrock` on a single thread, because those tests set AWS environment variables.
 
 ## Debugging
 
 | Flag | Effect |
 | --- | --- |
-| `--mock` | Mock cloud server, memory secrets, synthetic microphone, data in `$TMPDIR/dito-mock` |
+| `--mock` | Mock cloud server, memory secrets, synthetic microphone, data in `$TMPDIR/dito-mock` (build with `--features mock`) |
 | `--log-sink` | Log results instead of typing them |
 | `--real-mic` | Use the real microphone in mock mode |
 | `--wav <file>` | Use a WAV file as the recording |
@@ -90,7 +94,7 @@ The Python benchmark harness has its own tasks: `mise run bench:sync`, `bench:te
 - Data lives in `~/Library/Application Support/com.fang2hou.Dito`: `config.toml`, `dito.db`, `audio/` and `models/`. Keys are in the Keychain under `com.fang2hou.dito`. The login item is `~/Library/LaunchAgents/com.fang2hou.dito.plist`.
 - `--data-dir` doesn't move the models folder; set `models_dir` for that.
 - Use `--mock --log-sink` for any automated or agent run.
-- Examples for manual checks: `cargo run -p dito-audio --example record`, `cargo run -p dito-platform --example probe`, `cargo run -p dito-runtimes --example local_e2e`.
+- Examples for manual checks: `cargo run -p dito-audio --example record`, `cargo run -p dito-platform --example probe`, `cargo run -p dito-platform --example press_shortcut -- 2` (presses right Command, to drive a running Dito), `cargo run -p dito-platform --example request -- accessibility` or `-- mic` (asks for a permission and watches its status), `cargo run -p dito-runtimes --example local_e2e`.
 
 ## Engineering Traps
 
@@ -111,9 +115,9 @@ Things that look removable or simplifiable but exist for a reason. Product-level
 - Cancelling local inference stops waiting, not the computation.
 - The login item is a LaunchAgent and starts the app without `--background`.
 - Bedrock and the legacy cloud ASR paths are covered only by the mock server, not by a real account.
-- There is no CI; `./scripts/check.sh` is the gate.
+- GitHub Actions enforces only the pull request rules and the release tag; tests and clippy run in the local commit hooks, which `--no-verify` skips.
 - The display language defaults to the system language; the design calls for Japanese by default.
 
 ## Validation
 
-`./scripts/check.sh fast` before every commit, `./scripts/check.sh full` before a release build, clippy always. A green run proves the commands passed, not that the behavior is right; check UI changes in the running app.
+The commit hooks run `./scripts/check.sh fast` and `mise run lint:rust`; run `./scripts/check.sh full` before a release build. A green run proves the commands passed, not that the behavior is right; check UI changes in the running app.

@@ -37,4 +37,4 @@ A quick setting is requested often enough to justify a second home.
 
 ## Code
 
-`crates/dito-core/src/config.rs` (`ConfigStore`), `crates/dito-app/src/menubar.rs`.
+`crates/dito-core/src/config/store.rs` (`ConfigStore`), `crates/dito-app/src/menubar.rs`.

@@ -31,7 +31,10 @@ impl Opts {
         let mut it = args.into_iter();
         while let Some(a) = it.next() {
             match a.as_str() {
-                "--mock" => o.mock = true,
+                "--mock" => {
+                    require_feature("--mock", "mock", cfg!(feature = "mock"))?;
+                    o.mock = true;
+                }
                 "--real-mic" => o.real_mic = true,
                 "--log-sink" => o.log_sink = true,
                 "--background" => o.background = true,
@@ -47,6 +50,7 @@ impl Opts {
                     );
                 }
                 "--screenshots" => {
+                    require_feature("--screenshots", "screenshots", cfg!(feature = "screenshots"))?;
                     o.screenshots =
                         Some(it.next().ok_or_else(|| anyhow::anyhow!("--screenshots needs a directory"))?.into())
                 }
@@ -61,9 +65,17 @@ impl Opts {
     }
 }
 
+fn require_feature(flag: &str, feature: &str, compiled_in: bool) -> Result<()> {
+    anyhow::ensure!(
+        compiled_in,
+        "{flag} needs a build with the `{feature}` feature (cargo run -p dito-app --features {feature})"
+    );
+    Ok(())
+}
+
 const HELP: &str = "dito — voice dictation
 
-  --mock              mock cloud endpoints + synthetic microphone (no keys, no network)
+  --mock              mock cloud endpoints + synthetic microphone (build with --features mock)
   --real-mic          with --mock: record from the microphone instead of a synthetic tone
   --log-sink          do not type into other apps; log the text instead
   --background        do not open the settings window at launch
@@ -72,3 +84,27 @@ const HELP: &str = "dito — voice dictation
   --data-dir <dir>    config, history and models live here (default: ~/Library/Application Support/com.fang2hou.Dito)
   --lang <ja|en|zh>   act as if the system language were this (default: ask macOS)
   --screenshots <dir> render all windows to PNG and exit (build with --features screenshots)";
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parse(args: &[&str]) -> Result<Opts> {
+        Opts::parse(args.iter().map(|a| a.to_string()))
+    }
+
+    #[test]
+    fn unknown_arguments_fail_with_usage() {
+        let err = parse(&["--nope"]).unwrap_err().to_string();
+        assert!(err.contains("unknown argument: --nope"), "{err}");
+    }
+
+    #[test]
+    fn feature_flags_fail_when_the_feature_is_not_compiled_in() {
+        assert_eq!(parse(&["--mock"]).is_ok(), cfg!(feature = "mock"));
+        assert_eq!(parse(&["--screenshots", "out"]).is_ok(), cfg!(feature = "screenshots"));
+        if !cfg!(feature = "mock") {
+            assert!(parse(&["--mock"]).unwrap_err().to_string().contains("`mock` feature"));
+        }
+    }
+}

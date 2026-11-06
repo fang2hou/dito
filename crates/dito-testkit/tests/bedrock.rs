@@ -1,5 +1,7 @@
 //! Bedrock Converse engine against the mock: polish, audio ASR, error classes.
 
+use std::sync::Once;
+
 use dito_core::audio::AudioClip;
 use dito_core::error::ErrorKind;
 use dito_core::provider::bedrock::{BedrockEngine, BedrockParams};
@@ -7,12 +9,17 @@ use dito_core::provider::{AsrRequest, PolishRequest, Polisher, Transcriber};
 use dito_testkit::MockServer;
 
 fn creds() {
-    // Own test binary => no other thread reads the environment concurrently at this point.
-    unsafe {
-        std::env::set_var("AWS_ACCESS_KEY_ID", "AKIDEXAMPLE");
-        std::env::set_var("AWS_SECRET_ACCESS_KEY", "secret");
-        std::env::set_var("AWS_EC2_METADATA_DISABLED", "true");
-    }
+    static ONCE: Once = Once::new();
+    ONCE.call_once(|| {
+        // SAFETY: `Once` runs this before the first `BedrockEngine::connect` in any test, and the only code
+        // in this binary that reads the environment is the AWS credential chain inside `connect`, so no
+        // thread reads the environment while it is written.
+        unsafe {
+            std::env::set_var("AWS_ACCESS_KEY_ID", "AKIDEXAMPLE");
+            std::env::set_var("AWS_SECRET_ACCESS_KEY", "secret");
+            std::env::set_var("AWS_EC2_METADATA_DISABLED", "true");
+        }
+    });
 }
 
 async fn engine(url: &str, model: &str) -> BedrockEngine {

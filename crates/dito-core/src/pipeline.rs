@@ -23,7 +23,7 @@ pub struct Output {
     pub raw: String,
     /// `None` when polishing is off or failed (the raw text is then what gets delivered).
     pub polished: Option<String>,
-    pub polish_error: Option<(ErrorKind, String)>,
+    pub polish_error: Option<ProviderError>,
     pub lang: Lang,
     pub asr_ms: u64,
     pub polish_ms: u64,
@@ -63,17 +63,27 @@ pub async fn run(
     on_phase: &(dyn Fn(Phase) + Send + Sync),
     cancel: &CancellationToken,
 ) -> Result<Output, PipelineError> {
-    if job.clip.is_effectively_silent() {
-        tracing::debug!(
-            "clip rejected as silent: {}ms rms {:.4} peak {:.4}",
-            job.clip.duration_ms(),
-            job.clip.rms(),
-            job.clip.peak()
-        );
-        return Err(PipelineError::Failed(ProviderError::new(ErrorKind::NoSpeech, "silent or too short")));
-    }
-
+    reject_silent(job.clip)?;
     on_phase(Phase::Recognizing);
+    let mut out = recognize(engines, cfg, job, cancel).await?;
+    polish(engines, cfg, job, on_phase, cancel, &mut out).await?;
+    Ok(out)
+}
+
+fn reject_silent(clip: &AudioClip) -> Result<(), PipelineError> {
+    if !clip.is_effectively_silent() {
+        return Ok(());
+    }
+    tracing::debug!("clip rejected as silent: {}ms rms {:.4} peak {:.4}", clip.duration_ms(), clip.rms(), clip.peak());
+    Err(PipelineError::Failed(ProviderError::new(ErrorKind::NoSpeech, "silent or too short")))
+}
+
+async fn recognize(
+    engines: &dyn Engines,
+    cfg: &Config,
+    job: &Job<'_>,
+    cancel: &CancellationToken,
+) -> Result<Output, PipelineError> {
     let asr = engines.transcriber(cfg).await.map_err(PipelineError::Failed)?;
     let started = Instant::now();
     let transcript = or_cancel(
@@ -91,17 +101,26 @@ pub async fn run(
         return Err(PipelineError::Failed(ProviderError::new(ErrorKind::NoSpeech, "nothing was recognized")));
     }
     let lang = transcript.language.as_deref().and_then(lang_from_code).unwrap_or_else(|| detect_lang(&transcript.text));
+    Ok(Output { raw: transcript.text, polished: None, polish_error: None, lang, asr_ms, polish_ms: 0 })
+}
 
-    let mut out = Output { raw: transcript.text, polished: None, polish_error: None, lang, asr_ms, polish_ms: 0 };
-
+/// Fills `out.polished` or `out.polish_error`; leaves `out` untouched when polishing is off.
+async fn polish(
+    engines: &dyn Engines,
+    cfg: &Config,
+    job: &Job<'_>,
+    on_phase: &(dyn Fn(Phase) + Send + Sync),
+    cancel: &CancellationToken,
+    out: &mut Output,
+) -> Result<(), PipelineError> {
     let polisher = match engines.polisher(cfg).await {
-        Ok(p) => p,
+        Ok(Some(polisher)) => polisher,
+        Ok(None) => return Ok(()),
         Err(e) => {
-            out.polish_error = Some((e.kind, e.message));
-            return Ok(out);
+            out.polish_error = Some(e);
+            return Ok(());
         }
     };
-    let Some(polisher) = polisher else { return Ok(out) };
 
     on_phase(Phase::Polishing);
     let words: &[String] = if cfg.dictionary_for_polish { job.dictionary } else { &[] };
@@ -114,10 +133,10 @@ pub async fn run(
     let started = Instant::now();
     match or_cancel(cancel, polisher.polish(&PolishRequest { system: &system, text: &out.raw })).await? {
         Ok(text) => out.polished = Some(text),
-        Err(e) => out.polish_error = Some((e.kind, e.message)),
+        Err(e) => out.polish_error = Some(e),
     }
     out.polish_ms = started.elapsed().as_millis() as u64;
-    Ok(out)
+    Ok(())
 }
 
 fn lang_from_code(code: &str) -> Option<Lang> {
@@ -185,7 +204,7 @@ mod tests {
         let e = engines(MockTranscriber::new("hello"), MockPolisher::default().script([Err(ErrorKind::RateLimit)]));
         let out = go(&e, &Config::default(), &tone()).await.unwrap();
         assert_eq!(out.text(), "hello");
-        assert_eq!(out.polish_error.as_ref().unwrap().0, ErrorKind::RateLimit);
+        assert_eq!(out.polish_error.as_ref().unwrap().kind, ErrorKind::RateLimit);
     }
 
     #[tokio::test]

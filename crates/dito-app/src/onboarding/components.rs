@@ -162,7 +162,7 @@ pub(super) fn stepper(step: Step, p: &Palette, lang: Lang) -> Div {
 }
 
 /// Right-hand art, exported from the design's per-step `deco-panel` frames (`assets/onboarding`).
-/// The artwork keeps its design size and is centre-cropped when the window is shorter than the 718 px panel.
+/// The artwork keeps its design size and is centre-cropped when the window is shorter than the panel.
 pub(super) fn art(step: Step, p: &Palette) -> Div {
     let name = match step {
         Step::Welcome => return div(),

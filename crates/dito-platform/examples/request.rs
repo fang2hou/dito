@@ -1,5 +1,6 @@
 //! Ask for a permission the way the app's "許可する" button does, then watch its status for a few seconds.
-//!   cargo run -p dito-platform --example request -- accessibility|input|mic [seconds]
+//!   cargo run -p dito-platform --example request -- accessibility [seconds]
+//!   cargo run -p dito-platform --example request -- mic [seconds]
 
 use std::time::Duration;
 
@@ -11,7 +12,7 @@ fn main() {
         Some("accessibility") => Permission::Accessibility,
         Some("mic") => Permission::Microphone,
         _ => {
-            eprintln!("usage: request accessibility|input|mic [seconds]");
+            eprintln!("usage: request accessibility [seconds], or request mic [seconds]");
             std::process::exit(2);
         }
     };

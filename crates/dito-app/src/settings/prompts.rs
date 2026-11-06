@@ -6,10 +6,11 @@ use gpui_kit::component::input::{InputEvent, InputState, Textarea, TextareaState
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
-use super::{Ctx, watch_config};
+use super::Ctx;
 use crate::assets::Ic;
 use crate::services;
 use crate::state::AppState;
+use crate::theme::Palette;
 use crate::ui::{self, BtnKind, cbk, cbk_idx, text};
 
 enum Try {
@@ -40,7 +41,7 @@ fn textarea(window: &mut Window, cx: &mut Context<PromptsPage>, value: &str) -> 
 
 impl PromptsPage {
     pub fn new(st: Arc<AppState>, window: &mut Window, cx: &mut Context<Self>) -> Self {
-        watch_config(&st, cx);
+        services::watch_config(&st, cx);
         let cfg = st.cfg.get();
         let (lang, style) = (cfg.general.lang(), Style::General);
         let set = cfg.prompts.set(lang);
@@ -111,9 +112,7 @@ impl PromptsPage {
 
     fn save(&mut self, cx: &mut Context<Self>) {
         let edited = self.edited(cx);
-        if let Err(e) = self.st.cfg.update(|c| c.prompts = edited) {
-            tracing::warn!("could not save prompts: {e}");
-        }
+        services::save_config(&self.st, |c| c.prompts = edited);
         self.dirty = false;
         cx.notify();
     }
@@ -193,7 +192,25 @@ impl PromptsPage {
     fn view(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let c = Ctx::new(&self.st, cx);
         let p = c.p;
+        super::page(
+            p,
+            "prompts",
+            c.t(Tr::NavPrompts),
+            None,
+            div().w_full().flex().flex_col().gap(px(20.)).child(self.header(&c, cx)).child(
+                div()
+                    .w_full()
+                    .flex()
+                    .items_start()
+                    .gap(px(20.))
+                    .child(self.editors_column(&c, window, cx))
+                    .child(self.try_card(&c, window, cx)),
+            ),
+        )
+    }
 
+    fn header(&self, c: &Ctx, cx: &mut Context<Self>) -> Div {
+        let p = c.p;
         let ui_langs = [Lang::Ja, Lang::En, Lang::Zh];
         let lang_seg = ui::seg(
             "prompt-lang",
@@ -217,7 +234,7 @@ impl PromptsPage {
                 Some(Ic::Reset),
                 cbk(cx, |this: &mut Self, window, cx| {
                     let lang = this.lang;
-                    let _ = this.st.cfg.update(|c| c.prompts.reset(lang));
+                    services::save_config(&this.st, |c| c.prompts.reset(lang));
                     this.load(window, cx);
                 }),
             ))
@@ -233,34 +250,32 @@ impl PromptsPage {
                 .opacity(if self.dirty { 1.0 } else { 0.55 }),
             );
 
-        let focus_of = |ent: &Entity<TextareaState>, window: &Window, cx: &App| {
-            ent.read(cx).focus_handle(cx).contains_focused(window, cx)
-        };
-        let (base_focused, instr_focused, try_focused) = (
-            focus_of(&self.base, window, cx),
-            focus_of(&self.instruction, window, cx),
-            focus_of(&self.try_in, window, cx),
-        );
-        let editor = |ent: &Entity<TextareaState>, focused: bool| {
-            let base = div().w_full().h(px(176.)).rounded(px(14.)).bg(p.input_bg).child(
-                // Half the earlier 12/10: with the component's internal leading this lands near
-                // the single-line input's inset, and thin padding keeps the writing area open
-                // next to the tight line spacing. 13 px text as everywhere else.
-                Textarea::new(ent)
-                    .appearance(false)
-                    .bordered(false)
-                    .h_full()
-                    .text_size(px(13.))
-                    .pl(px(6.))
-                    .pr(px(6.))
-                    .pt(px(5.))
-                    .pb(px(5.)),
-            );
-            let id = ("textarea", ent.entity_id().as_u64() as usize);
-            ui::with_ring(base, id, focused, 14., p.border_strong, p.accent)
-        };
+        div().w_full().flex().items_center().justify_between().child(lang_seg).child(actions)
+    }
 
-        let base_card = ui::card(&p)
+    fn editors_column(&self, c: &Ctx, window: &Window, cx: &mut Context<Self>) -> Div {
+        let p = c.p;
+        div()
+            .flex_1()
+            .min_w(px(0.))
+            .flex()
+            .flex_col()
+            .gap(px(10.))
+            .child(self.base_card(c, window, cx))
+            .child(div().w_full().flex().justify_center().child(
+                div().size(px(26.)).rounded_full().bg(p.seg).flex().items_center().justify_center().child(ui::icon(
+                    Ic::Plus,
+                    14.,
+                    p.muted,
+                )),
+            ))
+            .child(self.style_card(c, window, cx))
+    }
+
+    fn base_card(&self, c: &Ctx, window: &Window, cx: &App) -> Div {
+        let p = c.p;
+        let base_focused = self.base.read(cx).focus_handle(cx).contains_focused(window, cx);
+        ui::card(&p)
             .px(px(22.))
             .py(px(18.))
             .gap(px(10.))
@@ -273,8 +288,12 @@ impl PromptsPage {
                     .child(text(c.t(Tr::PromptsBase), 15., FontWeight::BOLD, p.text))
                     .child(ui::muted12(&p, c.t(Tr::PromptsAppliedFirst))),
             )
-            .child(editor(&self.base, base_focused));
+            .child(prompt_editor(&p, &self.base, base_focused))
+    }
 
+    fn style_card(&self, c: &Ctx, window: &Window, cx: &mut Context<Self>) -> Div {
+        let p = c.p;
+        let instr_focused = self.instruction.read(cx).focus_handle(cx).contains_focused(window, cx);
         let styles = Style::ALL;
         let style_seg = ui::seg(
             "prompt-style",
@@ -291,7 +310,7 @@ impl PromptsPage {
             .py(px(18.))
             .gap(px(12.))
             .child(div().flex().child(style_seg))
-            .child(editor(&self.instruction, instr_focused));
+            .child(prompt_editor(&p, &self.instruction, instr_focused));
         style_card = style_card.child(
             div()
                 .w_full()
@@ -330,30 +349,19 @@ impl PromptsPage {
                 ),
             );
         }
+        style_card
+    }
 
-        let left = div()
-            .flex_1()
-            .min_w(px(0.))
-            .flex()
-            .flex_col()
-            .gap(px(10.))
-            .child(base_card)
-            .child(div().w_full().flex().justify_center().child(
-                div().size(px(26.)).rounded_full().bg(p.seg).flex().items_center().justify_center().child(ui::icon(
-                    Ic::Plus,
-                    14.,
-                    p.muted,
-                )),
-            ))
-            .child(style_card);
-
+    fn try_card(&self, c: &Ctx, window: &Window, cx: &mut Context<Self>) -> Div {
+        let p = c.p;
+        let try_focused = self.try_in.read(cx).focus_handle(cx).contains_focused(window, cx);
         let (out_text, out_ms, out_err) = match &self.try_state {
             Try::Done(t, ms) => (t.clone(), Some(*ms), None),
             Try::Failed(e) => (String::new(), None, Some(ui::error_line(c.lang, e))),
             _ => (String::new(), None, None),
         };
         let running = matches!(self.try_state, Try::Running);
-        let try_card = ui::card(&p)
+        ui::card(&p)
             .w(px(340.))
             .flex_none()
             .p(px(22.))
@@ -365,7 +373,7 @@ impl PromptsPage {
                     .flex_col()
                     .gap(px(8.))
                     .child(text(c.t(Tr::MenubarWhatYouSaid), 12., FontWeight::MEDIUM, p.muted))
-                    .child(editor(&self.try_in, try_focused).h(px(150.))),
+                    .child(prompt_editor(&p, &self.try_in, try_focused).h(px(150.))),
             )
             .child(div().w_full().flex().justify_center().child(ui::button(
                 "try-run",
@@ -400,20 +408,24 @@ impl PromptsPage {
                             },
                         ),
                     ),
-            );
-
-        super::page(
-            p,
-            "prompts",
-            c.t(Tr::NavPrompts),
-            None,
-            div()
-                .w_full()
-                .flex()
-                .flex_col()
-                .gap(px(20.))
-                .child(div().w_full().flex().items_center().justify_between().child(lang_seg).child(actions))
-                .child(div().w_full().flex().items_start().gap(px(20.)).child(left).child(try_card)),
-        )
+            )
     }
+}
+
+fn prompt_editor(p: &Palette, ent: &Entity<TextareaState>, focused: bool) -> Div {
+    let base = div().w_full().h(px(176.)).rounded(px(14.)).bg(p.input_bg).child(
+        // With the component's internal leading, thin padding lands near the single-line input's inset and
+        // keeps the writing area open next to the tight line spacing.
+        Textarea::new(ent)
+            .appearance(false)
+            .bordered(false)
+            .h_full()
+            .text_size(px(13.))
+            .pl(px(6.))
+            .pr(px(6.))
+            .pt(px(5.))
+            .pb(px(5.)),
+    );
+    let id = ("textarea", ent.entity_id().as_u64() as usize);
+    ui::with_ring(base, id, focused, 14., p.border_strong, p.accent)
 }

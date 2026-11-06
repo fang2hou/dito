@@ -8,8 +8,9 @@ use dito_core::health::Health;
 use dito_core::i18n::Tr;
 use gpui_kit::*;
 use tray_icon::menu::{Menu, MenuEvent, MenuItem, PredefinedMenuItem};
-use tray_icon::{Icon, TrayIcon, TrayIconBuilder};
+use tray_icon::{TrayIcon, TrayIconBuilder};
 
+use crate::assets::tray_glyph;
 use crate::settings::{self, Page};
 use crate::state::AppState;
 use crate::timefmt::{day_start, local_day, now};
@@ -19,36 +20,6 @@ const ID_DICTIONARY: &str = "dictionary";
 const ID_STATUS: &str = "status";
 const ID_SETTINGS: &str = "settings";
 const ID_QUIT: &str = "quit";
-
-/// Five rounded waveform bars, drawn as a template (black + alpha) image.
-fn glyph() -> Icon {
-    let (w, h) = (44usize, 44usize);
-    let mut rgba = vec![0u8; w * h * 4];
-    let bars = [(8usize, 10usize), (14, 22), (20, 30), (26, 20), (32, 12)];
-    for (i, (cx, bar_h)) in bars.into_iter().enumerate() {
-        let _ = i;
-        let (x0, x1) = (cx - 2, cx + 2);
-        let (y0, y1) = ((h - bar_h) / 2, (h + bar_h) / 2);
-        for y in y0..y1 {
-            for x in x0..x1 {
-                // round the ends
-                let dy = if y < y0 + 2 {
-                    y0 + 2 - y
-                } else if y + 2 >= y1 {
-                    y + 3 - y1
-                } else {
-                    0
-                };
-                if dy > 1 && (x == x0 || x == x1 - 1) {
-                    continue;
-                }
-                let o = (y * w + x) * 4;
-                rgba[o..o + 4].copy_from_slice(&[0, 0, 0, 255]);
-            }
-        }
-    }
-    Icon::from_rgba(rgba, w as u32, h as u32).expect("tray icon")
-}
 
 struct Items {
     status: MenuItem,
@@ -96,7 +67,7 @@ fn build() -> (Tray, Menu) {
     .expect("menu");
     let icon = TrayIconBuilder::new()
         .with_menu(Box::new(menu.clone()))
-        .with_icon_templated(glyph())
+        .with_icon_templated(tray_glyph())
         .with_tooltip("Dito")
         .build()
         .expect("tray icon");

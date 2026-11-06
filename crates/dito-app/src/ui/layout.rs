@@ -1,8 +1,8 @@
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
-use super::controls::CONTROL_H;
-use super::primitives::hex_white;
+use super::button::CONTROL_H;
+use super::primitives::white;
 use super::typography::text;
 use crate::theme::{Palette, Tint};
 
@@ -24,8 +24,8 @@ pub fn row(p: &Palette, title: impl Into<SharedString>, control: impl IntoElemen
     let mut r = div()
         .w_full()
         .px(px(24.))
-        // Fixed height (tallest control + the former 2×14 padding) so every row in a card
-        // lines up regardless of its control; contents are vertically centered.
+        // Fixed height so every row in a card lines up regardless of its control; contents are vertically
+        // centered.
         .h(px(CONTROL_H + 28.))
         .flex()
         .items_center()
@@ -41,12 +41,7 @@ pub fn row(p: &Palette, title: impl Into<SharedString>, control: impl IntoElemen
 
 /// Group heading + card with rows.
 pub fn group(p: &Palette, title: impl Into<SharedString>, rows: Vec<Div>) -> Div {
-    let mut c = card(p);
-    let n = rows.len();
-    for (i, r) in rows.into_iter().enumerate() {
-        let _ = (i, n);
-        c = c.child(r);
-    }
+    let c = card(p).children(rows);
     div().w_full().flex().flex_col().gap(px(10.)).child(text(title, 13., FontWeight::BOLD, p.muted)).child(c)
 }
 
@@ -71,7 +66,7 @@ pub fn solid_tag(label: impl Into<SharedString>, bg: Hsla, fg: Hsla, dot: bool) 
 }
 
 pub fn status_tag(p: &Palette, ok: bool, label: impl Into<SharedString>) -> Div {
-    let (bg, fg) = if ok { (p.success, hex_white()) } else { (p.danger, hex_white()) };
+    let (bg, fg) = if ok { (p.success, white()) } else { (p.danger, white()) };
     solid_tag(label, bg, fg, true)
 }
 
@@ -90,4 +85,11 @@ pub fn status_chip(label: impl Into<SharedString>, tone: Hsla) -> Div {
 
 pub fn page_title(p: &Palette, s: impl Into<SharedString>) -> Div {
     text(s, 28., FontWeight::BOLD, p.text)
+}
+
+/// Empty background that drags the window when pressed: for custom-titlebar zones outside AppKit's
+/// native titlebar strip. Only attach to regions that contain no children — a bubble-phase mouse
+/// listener on a container would also fire for clicks on everything inside it.
+pub fn drag_area(id: impl Into<ElementId>) -> Stateful<Div> {
+    div().id(id).on_mouse_down(MouseButton::Left, |_, window, _| window.start_window_move())
 }

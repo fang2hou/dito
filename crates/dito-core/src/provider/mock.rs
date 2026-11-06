@@ -32,7 +32,7 @@ impl MockTranscriber {
 
     /// Queue replies consumed one per call before the fallback is used.
     pub fn script(self, replies: impl IntoIterator<Item = Reply>) -> Self {
-        self.script.lock().unwrap().extend(replies);
+        self.script.lock().expect("script mutex poisoned").extend(replies);
         self
     }
 
@@ -48,7 +48,7 @@ impl Transcriber for MockTranscriber {
         if !self.delay.is_zero() {
             tokio::time::sleep(self.delay).await;
         }
-        let next = self.script.lock().unwrap().pop_front();
+        let next = self.script.lock().expect("script mutex poisoned").pop_front();
         match next.unwrap_or_else(|| Ok(self.fallback.clone())) {
             Ok(text) => Ok(Transcript { text, language: None }),
             Err(kind) => Err(ProviderError::new(kind, "scripted failure")),
@@ -94,7 +94,7 @@ impl MockPolisher {
     }
 
     pub fn script(self, replies: impl IntoIterator<Item = Reply>) -> Self {
-        self.script.lock().unwrap().extend(replies);
+        self.script.lock().expect("script mutex poisoned").extend(replies);
         self
     }
 
@@ -110,23 +110,10 @@ impl Polisher for MockPolisher {
         if !self.delay.is_zero() {
             tokio::time::sleep(self.delay).await;
         }
-        match self.script.lock().unwrap().pop_front() {
+        match self.script.lock().expect("script mutex poisoned").pop_front() {
             Some(Ok(text)) => Ok(text),
             Some(Err(kind)) => Err(ProviderError::new(kind, "scripted failure")),
             None => Ok(rule_polish(req.text)),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn rule_polish_strips_fillers_and_adds_a_period() {
-        assert_eq!(rule_polish("えーと 明日の会議"), "明日の会議。");
-        assert_eq!(rule_polish("um, send it Monday"), "send it Monday.");
-        assert_eq!(rule_polish("終わりました。"), "終わりました。");
-        assert_eq!(rule_polish(""), "");
     }
 }

@@ -12,11 +12,10 @@ name = "dito"
 path = "src/main.rs"
 
 [dev-dependencies]
-toml.workspace = true
 tempfile = "3"
 
 [features]
-default = ["mock", "runtimes"]
+default = ["runtimes"]
 # On-device inference (sherpa-onnx SenseVoice + llama.cpp Qwen3). Heavy native build.
 runtimes = ["dep:dito-runtimes"]
 # In-process mock cloud endpoints (`dito --mock`).
@@ -39,7 +38,6 @@ anyhow.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
-async-channel = "2"
 rust-embed = "8"
 tray-icon = "0.26"
 image = { version = "0.25", default-features = false, features = ["png"] }

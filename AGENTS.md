@@ -12,13 +12,13 @@ mise run dev:mock                            # run with mock cloud, mic and data
 mise run dev                                 # run with the real microphone, models and providers
 mise run release                             # optimized release bundle, launched from target/bundle
 mise run release:install                     # install the release bundle to ~/Applications, creating the signing identity if needed
-mise run hooks:install                       # once per clone: commit hooks (prek) run the checks before every commit
+mise run hooks:install                       # once per clone: commit hooks (prek) run the checks and clippy before every commit
 mise run bench:lint                          # ruff and ty for the Python bench project; mise run bench:test runs its tests
 cargo test -p <crate>                        # tests for the crate you changed
-cargo test -p dito-app --test i18n_coverage  # after editing crates/dito-core/src/i18n/messages.toml
+cargo test -p dito-app --no-default-features --test i18n_coverage  # after editing crates/dito-core/src/i18n/messages.toml
 cargo fmt --all -- --check                   # format check
-cargo clippy --workspace --all-targets -- -D warnings  # lint
-./scripts/check.sh fast                      # fmt and fast tests, run before every commit
+mise run lint:rust                           # clippy, also with the mock and screenshots features (the one lint command)
+./scripts/check.sh fast                      # fmt and fast tests (`mise run check`); the commit hooks run it
 ./scripts/check.sh full                      # adds compile checks of every build flavor
 figcraft-cli render design/dito.figcraft -o out.png --page "<page>"  # render a design page headlessly
 ```
@@ -54,7 +54,7 @@ Always:
 - Treat `design/dito.figcraft` as the source of truth: the design leads and the code follows it. Change the design first for any UI change, through the `figcraft-live` MCP, and save it with `file.save` after every change without asking.
 - Before editing the design, decide whether the change is a shared component or belongs to one screen. Shared components live on `11 Type, Space & Components` and `12 Motion`; screen-specific parts live in that screen's section on pages `20`–`22`.
 - Change code only after the user has reviewed the design section in FigCraft and approved it, then make the code match it and name the section in your reply.
-- Run `./scripts/check.sh fast` and clippy before handing work back.
+- Run `./scripts/check.sh fast` and `mise run lint:rust` before handing work back; the commit hooks run both.
 - Follow Git Flow (`docs/CONTRIBUTING.md`): branch from `develop` as `<type>/<kebab-name>` (for example `feat/menu-bar-icon`), open pull requests into `develop` with a Conventional Commit title, and never target `main` except from `release/*` or `hotfix/*`. CI rejects other branch names and titles.
 - Keep screen copy identical to the `ja` values in `messages.toml`.
 

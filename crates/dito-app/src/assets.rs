@@ -5,6 +5,7 @@ use std::borrow::Cow;
 use gpui_kit::assets::Assets as KitAssets;
 use gpui_kit::{AssetSource, Result, SharedString};
 use rust_embed::RustEmbed;
+use tray_icon::Icon;
 
 #[derive(RustEmbed)]
 #[folder = "assets"]
@@ -138,5 +139,43 @@ impl HudIc {
             Self::Copy => "icons/hud/copy.svg",
             Self::Stop => "icons/hud/stop.svg",
         }
+    }
+}
+
+const TRAY_GLYPH_SIZE: usize = 44;
+/// Center column and height of each waveform bar.
+const TRAY_GLYPH_BARS: [(usize, usize); 5] = [(8, 10), (14, 22), (20, 30), (26, 20), (32, 12)];
+const TRAY_GLYPH_BAR_HALF_WIDTH: usize = 2;
+const TRAY_GLYPH_ROUNDING: usize = 2;
+
+/// Five rounded waveform bars, drawn as a template (black + alpha) image.
+pub fn tray_glyph() -> Icon {
+    let size = TRAY_GLYPH_SIZE;
+    let mut rgba = vec![0u8; size * size * 4];
+    for (center, bar_h) in TRAY_GLYPH_BARS {
+        let (x0, x1) = (center - TRAY_GLYPH_BAR_HALF_WIDTH, center + TRAY_GLYPH_BAR_HALF_WIDTH);
+        let (y0, y1) = ((size - bar_h) / 2, (size + bar_h) / 2);
+        for y in y0..y1 {
+            let inset = bar_end_inset(y, y0, y1);
+            for x in x0..x1 {
+                if inset > 1 && (x == x0 || x == x1 - 1) {
+                    continue;
+                }
+                let offset = (y * size + x) * 4;
+                rgba[offset..offset + 4].copy_from_slice(&[0, 0, 0, 255]);
+            }
+        }
+    }
+    Icon::from_rgba(rgba, size as u32, size as u32).expect("tray icon")
+}
+
+/// How far into the rounded cap row `y` lies: zero in the straight part of the bar.
+fn bar_end_inset(y: usize, top: usize, bottom: usize) -> usize {
+    if y < top + TRAY_GLYPH_ROUNDING {
+        top + TRAY_GLYPH_ROUNDING - y
+    } else if y + TRAY_GLYPH_ROUNDING >= bottom {
+        y + TRAY_GLYPH_ROUNDING + 1 - bottom
+    } else {
+        0
     }
 }

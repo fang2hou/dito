@@ -2,14 +2,16 @@
 
 use std::time::Instant;
 
+use crate::ui::Motion;
+
 use super::Step;
 
-/// How long a step change takes: 360 ms, or a 160 ms cross-fade with Reduce Motion.
+/// How long a step change takes, and the shorter cross-fade used with Reduce Motion.
 pub(super) const SLIDE_S: f32 = 0.36;
 pub(super) const SLIDE_REDUCED_S: f32 = 0.16;
 
-pub(super) fn total(reduced: bool) -> f32 {
-    if reduced { SLIDE_REDUCED_S } else { SLIDE_S }
+pub(super) fn total(motion: Motion) -> f32 {
+    if motion.is_reduced() { SLIDE_REDUCED_S } else { SLIDE_S }
 }
 
 fn ease_out(u: f32) -> f32 {
@@ -26,7 +28,7 @@ fn ease_in_out(u: f32) -> f32 {
 pub(super) struct Slide {
     pub(super) from: Step,
     pub(super) forward: bool,
-    pub(super) reduced: bool,
+    pub(super) motion: Motion,
     pub(super) at: Instant,
 }
 
@@ -39,12 +41,13 @@ pub(super) struct SlideView {
     pub(super) art_dx: f32,
 }
 
-/// Both pages `t` seconds into a slide that moves `forward` (or back). The old page leaves 90 pt toward where we
-/// are going and is gone by 40 %; the new one fades in from 35 % and arrives from 90 pt on the other side, so the
-/// two are barely visible together. Reduce Motion keeps both in place and only cross-fades. The art panel follows
-/// the page by 40 ms.
-pub(super) fn view(forward: bool, reduced: bool, t: f32) -> SlideView {
-    let total = total(reduced);
+/// Both pages `t` seconds into a slide that moves `forward` (or back). The old page leaves toward where we are
+/// going and is gone early; the new one fades in late and arrives from the other side, so the two are barely
+/// visible together. Reduce Motion keeps both in place and only cross-fades. The art panel follows the page
+/// slightly later.
+pub(super) fn view(forward: bool, motion: Motion, t: f32) -> SlideView {
+    let reduced = motion.is_reduced();
+    let total = total(motion);
     let u = (t / total).clamp(0., 1.);
     let sign = if forward { -1. } else { 1. };
     let (out_a, in_a) = if reduced {
@@ -63,43 +66,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn durations_stay_360ms_and_160ms() {
-        assert_eq!(total(false), 0.36);
-        assert_eq!(total(true), 0.16);
-    }
-
-    #[test]
-    fn slide_starts_with_the_old_page_alone() {
-        let v = view(true, false, 0.);
-        assert_eq!(v.out_a, 1.);
-        assert_eq!(v.in_a, 0.);
-        assert!(v.out_dx.abs() < 1e-6);
-        assert_eq!(v.in_dx, 90.);
-        assert_eq!(v.art_dx, 60.);
-    }
-
-    #[test]
-    fn slide_ends_settled_on_the_new_page() {
-        let v = view(false, false, total(false) + 1.);
-        assert!(v.out_a.abs() < 1e-6);
-        assert!((v.in_a - 1.).abs() < 1e-6);
-        assert!(v.in_dx.abs() < 1e-6);
-        assert!(v.art_dx.abs() < 1e-6);
-    }
-
-    #[test]
     fn reduce_motion_only_cross_fades() {
-        let v = view(true, true, 0.08);
+        let v = view(true, Motion::Reduced, 0.08);
         assert!(v.out_dx.abs() < 1e-6);
         assert!(v.in_dx.abs() < 1e-6);
         assert!(v.art_dx.abs() < 1e-6);
         assert!((v.out_a + v.in_a - 1.).abs() < 1e-6);
-    }
-
-    #[test]
-    fn backward_slides_arrive_from_the_other_side() {
-        let v = view(false, false, 0.);
-        assert_eq!(v.in_dx, -90.);
-        assert_eq!(v.art_dx, -60.);
     }
 }

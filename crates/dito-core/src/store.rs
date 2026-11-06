@@ -1,41 +1,36 @@
 //! SQLite-backed history and dictionary, plus the aggregate queries behind the stats page.
 
 use std::path::Path;
-use std::sync::Mutex;
+use std::sync::{Mutex, MutexGuard};
 
-use anyhow::Result;
 use rusqlite::{Connection, OptionalExtension, params};
+use serde::de::value::Error as ValueError;
+use serde::de::{DeserializeOwned, IntoDeserializer};
 use serde::{Deserialize, Serialize};
 
 use crate::prompts::Style;
 
+#[derive(Debug, thiserror::Error)]
+pub enum StoreError {
+    #[error(transparent)]
+    Database(#[from] rusqlite::Error),
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
+}
+
+type Result<T> = std::result::Result<T, StoreError>;
+
 /// Typing speed used to estimate "time saved" (characters per minute).
 pub const TYPING_CPM: f64 = 60.0;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum HistoryKind {
+    #[default]
     Dictation,
     /// The user cancelled mid-recording; the audio is kept so it can be recognized again.
     Cancelled,
     Failed,
-}
-
-impl HistoryKind {
-    fn as_str(self) -> &'static str {
-        match self {
-            Self::Dictation => "dictation",
-            Self::Cancelled => "cancelled",
-            Self::Failed => "failed",
-        }
-    }
-    fn parse(s: &str) -> Self {
-        match s {
-            "cancelled" => Self::Cancelled,
-            "failed" => Self::Failed,
-            _ => Self::Dictation,
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -103,20 +98,22 @@ pub struct Store {
     tz_offset_secs: i32,
 }
 
-fn style_str(s: Style) -> &'static str {
-    match s {
-        Style::General => "general",
-        Style::Slack => "slack",
-        Style::Teams => "teams",
-    }
+/// The text stored in a column for an enum that serializes as a unit variant name.
+fn encode<T: Serialize>(value: T) -> String {
+    serde_json::to_value(value)
+        .ok()
+        .and_then(|v| v.as_str().map(str::to_owned))
+        .expect("column enums are unit variants")
 }
 
-fn style_parse(s: &str) -> Style {
-    match s {
-        "slack" => Style::Slack,
-        "teams" => Style::Teams,
-        _ => Style::General,
-    }
+/// Reads stay tolerant: a value this version does not know (a row written by a newer build) reads
+/// as the default instead of failing the whole listing.
+fn decode<T: DeserializeOwned + Default>(column: &str, stored: &str) -> T {
+    let parsed: std::result::Result<T, ValueError> = T::deserialize(stored.to_owned().into_deserializer());
+    parsed.unwrap_or_else(|_| {
+        tracing::warn!(column, stored, "unknown stored value, reading it as the default");
+        T::default()
+    })
 }
 
 impl Store {
@@ -157,24 +154,26 @@ impl Store {
         Ok(Self { conn: Mutex::new(conn), tz_offset_secs })
     }
 
+    fn conn(&self) -> MutexGuard<'_, Connection> {
+        self.conn.lock().expect("store connection mutex poisoned")
+    }
+
     fn day_of(&self, ts: i64) -> String {
         let local = time::OffsetDateTime::from_unix_timestamp(ts + self.tz_offset_secs as i64)
             .unwrap_or(time::OffsetDateTime::UNIX_EPOCH);
         format!("{:04}-{:02}-{:02}", local.year(), u8::from(local.month()), local.day())
     }
 
-    // ---- history ----
-
     pub fn add_history(&self, h: &NewHistory) -> Result<i64> {
-        let c = self.conn.lock().unwrap();
+        let c = self.conn();
         c.execute(
             "INSERT INTO history (ts, day, kind, style, app, lang, duration_ms, raw, polished, error, audio_path)
              VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)",
             params![
                 h.ts,
                 self.day_of(h.ts),
-                h.kind.as_str(),
-                style_str(h.style),
+                encode(h.kind),
+                encode(h.style),
                 h.app,
                 h.lang,
                 h.duration_ms as i64,
@@ -189,7 +188,7 @@ impl Store {
 
     /// Turn a cancelled/failed entry into a normal dictation after a successful retry.
     pub fn complete_history(&self, id: i64, raw: &str, polished: Option<&str>, lang: &str) -> Result<()> {
-        self.conn.lock().unwrap().execute(
+        self.conn().execute(
             "UPDATE history SET kind='dictation', raw=?2, polished=?3, lang=?4, error=NULL WHERE id=?1",
             params![id, raw, polished, lang],
         )?;
@@ -197,12 +196,12 @@ impl Store {
     }
 
     pub fn set_polished(&self, id: i64, polished: &str) -> Result<()> {
-        self.conn.lock().unwrap().execute("UPDATE history SET polished=?2 WHERE id=?1", params![id, polished])?;
+        self.conn().execute("UPDATE history SET polished=?2 WHERE id=?1", params![id, polished])?;
         Ok(())
     }
 
     pub fn get_history(&self, id: i64) -> Result<Option<HistoryEntry>> {
-        let c = self.conn.lock().unwrap();
+        let c = self.conn();
         Ok(c.query_row(&format!("{SELECT_HISTORY} WHERE id = ?1"), [id], row_to_entry).optional()?)
     }
 
@@ -220,24 +219,22 @@ impl Store {
         }
         if let Some(style) = f.style {
             sql.push_str(&format!(" AND style = ?{}", args.len() + 1));
-            args.push(style_str(style).to_string().into());
+            args.push(encode(style).into());
         }
         sql.push_str(" ORDER BY ts DESC, id DESC");
         if let Some(l) = f.limit {
             sql.push_str(&format!(" LIMIT {l}"));
         }
-        let c = self.conn.lock().unwrap();
+        let c = self.conn();
         let mut stmt = c.prepare(&sql)?;
         let rows = stmt.query_map(rusqlite::params_from_iter(args), row_to_entry)?;
         Ok(rows.collect::<std::result::Result<Vec<_>, _>>()?)
     }
 
     pub fn delete_history(&self, id: i64) -> Result<()> {
-        self.conn.lock().unwrap().execute("DELETE FROM history WHERE id=?1", [id])?;
+        self.conn().execute("DELETE FROM history WHERE id=?1", [id])?;
         Ok(())
     }
-
-    // ---- dictionary ----
 
     /// Returns false when the term already exists (or is blank).
     pub fn add_word(&self, term: &str, now: i64) -> Result<bool> {
@@ -246,20 +243,18 @@ impl Store {
             return Ok(false);
         }
         let n = self
-            .conn
-            .lock()
-            .unwrap()
+            .conn()
             .execute("INSERT OR IGNORE INTO dictionary (term, created) VALUES (?1, ?2)", params![term, now])?;
         Ok(n > 0)
     }
 
     pub fn remove_word(&self, term: &str) -> Result<()> {
-        self.conn.lock().unwrap().execute("DELETE FROM dictionary WHERE term=?1", [term])?;
+        self.conn().execute("DELETE FROM dictionary WHERE term=?1", [term])?;
         Ok(())
     }
 
     pub fn words(&self, query: Option<&str>) -> Result<Vec<String>> {
-        let c = self.conn.lock().unwrap();
+        let c = self.conn();
         let like = format!("%{}%", query.unwrap_or("").trim());
         let mut stmt = c.prepare("SELECT term FROM dictionary WHERE term LIKE ?1 ORDER BY created DESC, term")?;
         Ok(stmt.query_map([like], |r| r.get(0))?.collect::<std::result::Result<_, _>>()?)
@@ -282,10 +277,8 @@ impl Store {
         Ok(words.join("\n"))
     }
 
-    // ---- stats ----
-
     pub fn stats(&self, since_ts: Option<i64>) -> Result<Stats> {
-        let c = self.conn.lock().unwrap();
+        let c = self.conn();
         let since = since_ts.unwrap_or(0);
         let (chars, recordings, speech_ms): (i64, i64, i64) = c.query_row(
             "SELECT COALESCE(SUM(LENGTH(COALESCE(polished, raw))),0), COUNT(*), COALESCE(SUM(duration_ms),0)
@@ -333,8 +326,8 @@ fn row_to_entry(r: &rusqlite::Row<'_>) -> rusqlite::Result<HistoryEntry> {
     Ok(HistoryEntry {
         id: r.get(0)?,
         ts: r.get(1)?,
-        kind: HistoryKind::parse(&r.get::<_, String>(2)?),
-        style: style_parse(&r.get::<_, String>(3)?),
+        kind: decode("kind", &r.get::<_, String>(2)?),
+        style: decode("style", &r.get::<_, String>(3)?),
         app: r.get(4)?,
         lang: r.get(5)?,
         duration_ms: r.get::<_, i64>(6)? as u64,
@@ -403,6 +396,15 @@ mod tests {
         assert_eq!(e.kind, HistoryKind::Dictation);
         assert_eq!(e.final_text(), "こんにちは。");
         assert_eq!(e.audio_path.as_deref(), Some("/tmp/a.wav"), "audio is kept for playback");
+    }
+
+    #[test]
+    fn unknown_stored_kinds_and_styles_read_as_defaults() {
+        let s = Store::open_in_memory().unwrap();
+        let id = s.add_history(&entry(5, "A", "ja", "x", None)).unwrap();
+        s.conn().execute("UPDATE history SET kind='from-the-future', style='mystery' WHERE id=?1", [id]).unwrap();
+        let e = s.get_history(id).unwrap().unwrap();
+        assert_eq!((e.kind, e.style), (HistoryKind::Dictation, Style::General));
     }
 
     #[test]

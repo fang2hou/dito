@@ -45,4 +45,4 @@ A new class of target app fails, or macOS offers a supported text insertion API.
 
 ## Code
 
-`crates/dito-core/src/insert.rs` (`Flow`), `crates/dito-platform/src/insert.rs` (`deliver_text`).
+`crates/dito-core/src/insert.rs` (`Flow`), `crates/dito-platform/src/insert/deliver.rs` (`deliver_text`).

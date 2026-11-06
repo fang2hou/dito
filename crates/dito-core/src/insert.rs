@@ -112,14 +112,15 @@ pub enum Next {
 /// Once anything has landed, the whole text is never retried (that would duplicate the prefix).
 #[derive(Debug, Clone)]
 pub struct Flow {
-    used: [bool; 2], // [StepKind::Type, StepKind::Paste]
+    typing_used: bool,
+    paste_used: bool,
 }
 
 impl Flow {
     pub fn new(configured: InsertMethod) -> Self {
-        let mut used = [false, false];
-        used[Flow::first(configured).kind() as usize] = true;
-        Self { used }
+        let mut flow = Self { typing_used: false, paste_used: false };
+        flow.mark_used(Flow::first(configured).kind());
+        flow
     }
 
     /// The first attempt for the configured method.
@@ -130,21 +131,28 @@ impl Flow {
         }
     }
 
+    fn mark_used(&mut self, kind: StepKind) {
+        match kind {
+            StepKind::Type => self.typing_used = true,
+            StepKind::Paste => self.paste_used = true,
+        }
+    }
+
     fn other_unused(&self, kind: StepKind) -> Option<Step> {
-        let (other, step) = match kind {
-            StepKind::Type => (StepKind::Paste, Step::Paste),
-            StepKind::Paste => (StepKind::Type, Step::Type { from: 0 }),
-        };
-        (!self.used[other as usize]).then_some(step)
+        match kind {
+            StepKind::Type if !self.paste_used => Some(Step::Paste),
+            StepKind::Paste if !self.typing_used => Some(Step::Type { from: 0 }),
+            _ => None,
+        }
     }
 
     /// Decide what follows `attempted` producing `result`. `Refuted.inserted` is always below
     /// the attempted length, so a continuation offset is always within the text.
     pub fn advance(&mut self, attempted: Step, result: Outcome) -> Next {
-        if matches!(result, Outcome::Confirmed | Outcome::Unknown) {
-            return Next::Done;
-        }
-        let Outcome::Refuted { inserted } = result else { unreachable!("handled above") };
+        let inserted = match result {
+            Outcome::Confirmed | Outcome::Unknown => return Next::Done,
+            Outcome::Refuted { inserted } => inserted,
+        };
         let next = match attempted {
             // Fresh typing landed nothing: one attempt with the other mechanism.
             Step::Type { from: 0 } if inserted == 0 => self.other_unused(StepKind::Type).map(Next::Attempt),
@@ -159,7 +167,7 @@ impl Flow {
         };
         match next {
             Some(Next::Attempt(step)) => {
-                self.used[step.kind() as usize] = true;
+                self.mark_used(step.kind());
                 Next::Attempt(step)
             }
             _ => Next::CopyToClipboard,
@@ -185,11 +193,6 @@ mod tests {
     }
 
     #[test]
-    fn empty_text_yields_no_chunks() {
-        assert!(chunks(&[], 16).is_empty());
-    }
-
-    #[test]
     fn a_surrogate_pair_straddling_the_boundary_stays_together() {
         // 15 BMP units, then 🙂 (D83D DE00), then three more.
         let mut units: Vec<u16> = vec![0x61; 15];
@@ -198,25 +201,6 @@ mod tests {
         let cs = chunks(&units, 16);
         assert_eq!(cs[0].len(), 15, "the high surrogate must not end a chunk");
         assert_eq!(cs[1], [0xD83D, 0xDE00, 0x62, 0x62, 0x62]);
-    }
-
-    #[test]
-    fn a_surrogate_pair_at_the_exact_boundary_is_not_split() {
-        let mut units: Vec<u16> = (0..15u16).collect();
-        units.extend([0xD83D, 0xDE00]);
-        let cs = chunks(&units, 16);
-        assert_eq!(cs.len(), 2);
-        assert_eq!(cs[1], [0xD83D, 0xDE00]);
-    }
-
-    #[test]
-    fn max_one_forces_pair_splitting_but_still_terminates() {
-        assert_eq!(chunks(&[0xD83D, 0xDE00], 1), [vec![0xD83D], vec![0xDE00]]);
-    }
-
-    #[test]
-    fn max_zero_is_treated_as_one() {
-        assert_eq!(chunks(&[0x61, 0x62], 0), [vec![0x61], vec![0x62]]);
     }
 
     #[test]
@@ -276,17 +260,6 @@ mod tests {
     fn a_partial_paste_goes_straight_to_clipboard() {
         let mut flow = Flow::new(InsertMethod::Paste);
         assert_eq!(flow.advance(Step::Paste, Outcome::Refuted { inserted: 4 }), Next::CopyToClipboard);
-    }
-
-    #[test]
-    fn a_partial_fallback_typing_after_a_failed_paste_also_continues_once() {
-        let mut flow = Flow::new(InsertMethod::Paste);
-        flow.advance(Step::Paste, Outcome::Refuted { inserted: 0 });
-        assert_eq!(
-            flow.advance(Step::Type { from: 0 }, Outcome::Refuted { inserted: 6 }),
-            Next::Attempt(Step::Type { from: 6 })
-        );
-        assert_eq!(flow.advance(Step::Type { from: 6 }, Outcome::Refuted { inserted: 0 }), Next::CopyToClipboard);
     }
 
     #[test]

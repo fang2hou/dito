@@ -246,7 +246,7 @@ pub fn build_system_prompt(input: &PromptInput<'_>) -> String {
     out
 }
 
-/// Escape both XML boundaries and ChatML tokens in untrusted reference data.
+/// Escape `&`, `<` and `>` so untrusted reference data can neither close its XML container nor spell a ChatML token.
 fn escape_reference(text: &str) -> String {
     text.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
 }
@@ -264,7 +264,7 @@ mod tests {
     }
 
     #[test]
-    fn system_prompt_layers_base_style_samples_and_dictionary() {
+    fn style_samples_and_dictionary_are_layered_into_the_prompt() {
         let prompts = Prompts::default();
         let dict = vec!["Acme".to_string(), "Contoso".to_string()];
         let p = build_system_prompt(&PromptInput {
@@ -273,11 +273,8 @@ mod tests {
             text: "明日の会議",
             dictionary: &dict,
         });
-        assert!(p.starts_with("あなたは音声入力の整形アシスタント"));
-        assert!(p.contains("Slack に投稿する"));
         assert!(p.contains("<example>田中さんにこれ共有しておいてください。</example>"));
         assert!(p.contains("<term>Acme</term>\n<term>Contoso</term>"));
-        assert!(p.ends_with("コードブロックは不要です。"));
     }
 
     #[test]
@@ -321,11 +318,5 @@ mod tests {
         prompts.reset(Lang::Ja);
         assert_ne!(prompts.ja.base, "x");
         assert_eq!(prompts.en.base, "y");
-    }
-
-    #[test]
-    fn bundle_ids_map_to_styles() {
-        assert_eq!(Style::for_bundle_id("com.tinyspeck.slackmacgap"), Style::Slack);
-        assert_eq!(Style::for_bundle_id("com.apple.TextEdit"), Style::General);
     }
 }

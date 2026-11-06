@@ -1,0 +1,196 @@
+use std::time::Duration;
+
+use gpui_kit::prelude::*;
+use gpui_kit::*;
+
+use super::button::CONTROL_H;
+use super::callbacks::{Cb, IndexCb};
+use super::hover::{HOVER_MS, hover_fill, hover_tracker, is_hovered};
+use super::inputs::field_chrome;
+use super::menu_button::{press_mark, press_toggle};
+use super::menu_panel::{float, menu_panel, menu_row};
+use super::primitives::icon;
+use super::scope::{ScopeHandle, motion_scope};
+use super::select_badge::{SelectBadge, select_badge};
+use super::tween::{RING_MS, count_flips, tweened};
+use super::typography::text;
+use crate::assets::Ic;
+use crate::theme::Palette;
+
+pub struct SelectItem {
+    pub label: SharedString,
+    pub badge: Option<SelectBadge>,
+}
+
+/// The select's arrow: points down when closed and turns to point up while the menu is open, on the same
+/// clock as the menu's appearance.
+fn chevron(id: ElementId, color: Hsla, open: bool) -> AnyElement {
+    let flips = count_flips(&id, open, Duration::from_millis(RING_MS));
+    let at = move |f: f32| {
+        icon(Ic::ChevronDown, 14., color).with_transformation(Transformation::rotate(radians(std::f32::consts::PI * f)))
+    };
+    let settled = if open { 1. } else { 0. };
+    if flips == 0 {
+        return at(settled).into_any_element();
+    }
+    at(settled)
+        .with_animation(
+            (id, SharedString::from(format!("turn-{flips}"))),
+            Animation::new(Duration::from_millis(RING_MS)),
+            move |_, t| {
+                let q = t * t * (3. - 2. * t);
+                at(if open { q } else { 1. - q })
+            },
+        )
+        .into_any_element()
+}
+
+/// The select's hover outline: a hairline in `color` that fades in over the resting
+/// border while hovered, and stays out of the way while the menu is open (the accent ring takes over).
+fn hover_border(id: &ElementId, color: Hsla, open: bool) -> AnyElement {
+    let target = if !open && is_hovered(id) { 1. } else { 0. };
+    tweened(ElementId::from((id.clone(), "hover-border")), target, HOVER_MS, move |v| {
+        div().absolute().inset(px(-1.)).rounded(px(12.)).border_1().border_color(Hsla { a: color.a * v, ..color })
+    })
+}
+
+/// An inert select: same chrome, muted content, no menu. For the "nothing to pick" case (e.g. no
+/// AWS profiles configured) — the control must not look operable.
+pub fn select_disabled(p: &Palette, label: SharedString) -> Div {
+    field_chrome((ElementId::from("select-disabled"), "ring"), p, false)
+        .w_full()
+        .px(px(14.))
+        .gap(px(10.))
+        .justify_between()
+        .opacity(0.6)
+        .child(text(label, 14., FontWeight::NORMAL, p.muted).line_height(px(20.)))
+        .child(icon(Ic::ChevronDown, 14., p.muted))
+}
+
+/// Drop-down: a bordered button that opens a list below it. The menu is never narrower than the
+/// button; longer options (device names) may widen it beyond.
+#[allow(clippy::too_many_arguments)]
+pub fn select(
+    id: &'static str,
+    p: &Palette,
+    options: &[SharedString],
+    selected: usize,
+    open: bool,
+    width: Option<f32>,
+    on_toggle: Cb,
+    on_pick: IndexCb,
+) -> Div {
+    let items: Vec<SelectItem> = options.iter().map(|o| SelectItem { label: o.clone(), badge: None }).collect();
+    select_items(id, p, &items, selected, open, width, on_toggle, on_pick)
+}
+
+fn select_button(
+    id: &'static str,
+    p: &Palette,
+    label: SharedString,
+    open: bool,
+    width: Option<f32>,
+    scope: &ScopeHandle,
+    on_toggle: Cb,
+) -> Stateful<Div> {
+    let button = field_chrome((ElementId::from(id), "ring"), p, open)
+        .id(id)
+        .px(px(14.))
+        .cursor_pointer()
+        .justify_between()
+        // The open menu closes itself on any press outside it, including this button's; so a click that began
+        // while the menu was open must not toggle it back open.
+        .on_hover(hover_tracker(ElementId::from(id)))
+        .child(hover_fill(&ElementId::from(id), Some(12.), p.select_hover))
+        .child(hover_border(&ElementId::from(id), p.select_hover_border, open))
+        .on_mouse_down(MouseButton::Left, press_mark(scope.clone(), ElementId::from(id), open))
+        .on_click(press_toggle(scope.clone(), ElementId::from(id), on_toggle))
+        .gap(px(10.))
+        // `truncate` clips both axes. A font-size-high line box cuts off Outfit descenders
+        // (notably the g in English); reserve a full 20 pt line and center it in the control.
+        .child(text(label, 14., FontWeight::NORMAL, p.text).line_height(px(20.)).min_w(px(0.)).truncate())
+        .child(chevron(ElementId::from((ElementId::from(id), "chevron")), p.muted, open));
+    match width {
+        Some(w) => button.w(px(w)),
+        None => button.w_full(),
+    }
+}
+
+/// Fill-width buttons resolve their width at layout time; record it every paint so the menu
+/// panel (built one frame ahead) can match it. The paint closure captures the build scope's
+/// handle: the ambient scope no longer applies while painting.
+fn width_probe(id: &'static str, scope: ScopeHandle) -> impl IntoElement {
+    canvas(
+        move |bounds, _, _| {
+            if let Some(reg) = scope.registry() {
+                reg.borrow_mut().select_w.insert(id, f32::from(bounds.size.width));
+            }
+        },
+        |_, _, _, _| (),
+    )
+    .absolute()
+    .size_full()
+}
+
+fn select_row(
+    id: &'static str,
+    p: &Palette,
+    i: usize,
+    item: &SelectItem,
+    on: bool,
+    on_pick: &IndexCb,
+    on_toggle: &Cb,
+) -> Stateful<Div> {
+    let (pick, toggle) = (on_pick.clone(), on_toggle.clone());
+    menu_row(ElementId::from((id, i)), p)
+        .justify_between()
+        .on_click(move |_, w, cx| {
+            pick(i, w, cx);
+            toggle(w, cx);
+        })
+        // The label takes the leftover width and truncates; badge and check keep their own
+        // fixed slots, so a long name can never run under them.
+        .child(
+            text(item.label.clone(), 13., FontWeight::NORMAL, p.text)
+                .line_height(px(20.))
+                .flex_1()
+                .min_w(px(0.))
+                .truncate(),
+        )
+        .children(item.badge.as_ref().map(|b| select_badge((id, i), p, b)))
+        .child(div().size(px(14.)).flex_none().when(on, |d| d.child(icon(Ic::Check, 14., p.accent_text))))
+}
+
+/// [`select`] with per-row badges.
+#[allow(clippy::too_many_arguments)]
+pub fn select_items(
+    id: &'static str,
+    p: &Palette,
+    options: &[SelectItem],
+    selected: usize,
+    open: bool,
+    width: Option<f32>,
+    on_toggle: Cb,
+    on_pick: IndexCb,
+) -> Div {
+    let label = options.get(selected).map(|o| o.label.clone()).unwrap_or_default();
+    let scope = motion_scope();
+    let button = select_button(id, p, label, open, width, &scope, on_toggle.clone());
+    let mut root = div().relative().when(width.is_none(), |d| d.w_full()).child(button);
+    if width.is_none() {
+        root = root.child(width_probe(id, scope.clone()));
+    }
+    if !open {
+        return root;
+    }
+    let floor = width
+        .unwrap_or_else(|| scope.registry().and_then(|reg| reg.borrow().select_w.get(id).copied()).unwrap_or(200.));
+    let mut panel = menu_panel(ElementId::from((ElementId::from(id), "menu")), p, on_toggle.clone())
+        .min_w(px(floor.max(180.)))
+        .max_w(px(400.));
+    // The panel only exists while open, so this runs each time it appears.
+    for (i, item) in options.iter().enumerate() {
+        panel = panel.child(select_row(id, p, i, item, i == selected, &on_pick, &on_toggle));
+    }
+    root.child(float(ElementId::from((ElementId::from(id), "menu")), CONTROL_H + 6., panel))
+}

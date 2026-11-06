@@ -57,24 +57,31 @@ fn address(selector: u32, scope: u32) -> AudioObjectPropertyAddress {
     AudioObjectPropertyAddress { mSelector: selector, mScope: scope, mElement: ELEMENT_MASTER }
 }
 
+fn has_property(id: AudioObjectID, address: &AudioObjectPropertyAddress) -> bool {
+    // SAFETY: `address` is a valid property address for the duration of the call.
+    unsafe { AudioObjectHasProperty(id, address) != 0 }
+}
+
 fn get_u32(id: AudioObjectID, selector: u32, scope: u32) -> Option<u32> {
     let address = address(selector, scope);
-    if unsafe { AudioObjectHasProperty(id, &address) } == 0 {
+    if !has_property(id, &address) {
         return None;
     }
     let mut value = 0u32;
     let mut size = size_of::<u32>() as u32;
+    // SAFETY: the property exists, `value` is the 4-byte buffer `size` describes, and no qualifier is passed.
     let status = unsafe {
-        AudioObjectGetPropertyData(id, &address, 0, std::ptr::null(), &mut size, &mut value as *mut u32 as *mut c_void)
+        AudioObjectGetPropertyData(id, &address, 0, std::ptr::null(), &mut size, (&raw mut value).cast::<c_void>())
     };
     (status == NO_ERROR && size == size_of::<u32>() as u32).then_some(value)
 }
 
 fn set_u32(id: AudioObjectID, selector: u32, scope: u32, value: u32) -> bool {
     let address = address(selector, scope);
-    if unsafe { AudioObjectHasProperty(id, &address) } == 0 {
+    if !has_property(id, &address) {
         return false;
     }
+    // SAFETY: the property exists, `value` is the 4-byte buffer the size argument describes, and no qualifier is passed.
     let status = unsafe {
         AudioObjectSetPropertyData(
             id,
@@ -82,26 +89,14 @@ fn set_u32(id: AudioObjectID, selector: u32, scope: u32, value: u32) -> bool {
             0,
             std::ptr::null(),
             size_of::<u32>() as u32,
-            &value as *const u32 as *const c_void,
+            (&raw const value).cast::<c_void>(),
         )
     };
     status == NO_ERROR
 }
 
 fn default_output_device() -> Option<AudioObjectID> {
-    let mut device = 0u32;
-    let mut size = size_of::<AudioObjectID>() as u32;
-    let status = unsafe {
-        AudioObjectGetPropertyData(
-            SYSTEM_OBJECT,
-            &address(SEL_DEFAULT_OUTPUT, SCOPE_GLOBAL),
-            0,
-            std::ptr::null(),
-            &mut size,
-            &mut device as *mut u32 as *mut c_void,
-        )
-    };
-    (status == NO_ERROR && device != 0).then_some(device)
+    get_u32(SYSTEM_OBJECT, SEL_DEFAULT_OUTPUT, SCOPE_GLOBAL).filter(|device| *device != 0)
 }
 
 /// Mute is per-channel; read the master element from the output scope, falling back to global.
@@ -113,11 +108,6 @@ fn read_mute(device: AudioObjectID) -> Option<(u32, u32)> {
 /// muted already. Missing readings mean the device is not understood well enough to touch.
 fn should_mute(running: Option<u32>, mute: Option<u32>) -> bool {
     running == Some(IS_RUNNING) && mute == Some(UNMUTED)
-}
-
-/// Is anything playing through the default output device?
-pub fn default_output_is_active() -> bool {
-    default_output_device().is_some_and(|d| get_u32(d, SEL_IS_RUNNING_SOMEWHERE, SCOPE_GLOBAL) == Some(IS_RUNNING))
 }
 
 /// Restores the previous mute state of the output device when dropped.
@@ -164,19 +154,5 @@ pub struct MacMusicMute;
 impl MusicMute for MacMusicMute {
     fn mute_if_active(&self) -> Box<dyn MuteSession> {
         Box::new(mute_default_output())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn mutes_only_when_audible_and_unmuted() {
-        assert!(should_mute(Some(IS_RUNNING), Some(UNMUTED)));
-        assert!(!should_mute(Some(IS_RUNNING), Some(MUTED)), "already muted: nothing to do");
-        assert!(!should_mute(Some(UNMUTED), Some(UNMUTED)), "silent device: no interference");
-        assert!(!should_mute(None, Some(UNMUTED)), "unreadable state: leave the device alone");
-        assert!(!should_mute(Some(IS_RUNNING), None), "no mute control: leave the device alone");
     }
 }

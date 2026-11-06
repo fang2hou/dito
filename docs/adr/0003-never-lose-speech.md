@@ -43,4 +43,4 @@ Storage use becomes a problem for users; a retention setting is designed.
 
 ## Code
 
-`crates/dito-core/src/pipeline.rs` (`run`), `crates/dito-core/src/controller.rs` (`MAX_RECORDING_DURATION`, `done`), `crates/dito-core/src/store.rs`.
+`crates/dito-core/src/pipeline.rs` (`run`), `crates/dito-core/src/controller/` (`MAX_RECORDING_DURATION` and the actor in `actor.rs`), `crates/dito-core/src/store.rs`.

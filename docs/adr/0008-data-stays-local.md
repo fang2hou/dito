@@ -46,4 +46,4 @@ Multi-device sync or crash reporting is proposed.
 
 ## Code
 
-`crates/dito-core/src/secrets.rs`, `crates/dito-platform/src/system.rs` (`KeychainSecrets`).
+`crates/dito-core/src/secrets.rs`, `crates/dito-platform/src/system/keychain.rs` (`KeychainSecrets`).

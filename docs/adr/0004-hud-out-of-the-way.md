@@ -50,4 +50,4 @@ GPUI gains a native non-activating panel or window levels; macOS changes panel f
 
 ## Code
 
-`crates/dito-app/src/hud/window.rs`, `crates/dito-platform/src/system.rs` (`configure_nonactivating_panel`, `hud_pointer`, `hud_set_click_through`).
+`crates/dito-app/src/hud/window.rs`, `crates/dito-platform/src/system/hud_window.rs` (`HudNativeWindow::keep_panel_inactive`, `pointer`, `set_click_through`).

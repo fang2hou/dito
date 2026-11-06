@@ -1,0 +1,111 @@
+use std::rc::Rc;
+
+use dito_core::factory::LocalBackend;
+use dito_core::health::EngineStatus;
+use dito_core::i18n::Tr;
+use dito_core::secrets::Role;
+use dito_local::catalog::ModelSpec;
+use gpui_kit::prelude::*;
+use gpui_kit::*;
+
+use super::page::ModelsPage;
+use crate::assets::Ic;
+use crate::services;
+use crate::settings::{Ctx, role};
+use crate::state::AppState;
+use crate::ui::{self, MenuItem, MenuTone, cbk};
+
+impl ModelsPage {
+    pub(super) fn model_menu(
+        &self,
+        c: &Ctx,
+        cx: &mut Context<Self>,
+        role: Role,
+        spec: &ModelSpec,
+        selected: bool,
+    ) -> Div {
+        let close = cbk(cx, |this: &mut Self, _, cx| {
+            this.menu = None;
+            cx.notify();
+        });
+        let mut items = self.engine_command_items(c, role, &spec.id, selected);
+        items.extend(self.file_command_items(c, &spec.id));
+        ui::popup_menu(SharedString::from(format!("menu-{}", spec.id)), &c.p, items, close)
+    }
+
+    /// Engine commands follow the runtime: Stop + Restart while the engine runs, Start otherwise. Starting a
+    /// non-selected model also switches the engine to it.
+    fn engine_command_items(&self, c: &Ctx, role: Role, id: &str, selected: bool) -> Vec<MenuItem> {
+        let running = matches!(self.st.local.status(id), EngineStatus::Running | EngineStatus::Loading);
+        let (st, id) = (self.st.clone(), id.to_string());
+        if running && selected {
+            let (stop_st, stop_id) = (st.clone(), id.clone());
+            return vec![
+                MenuItem {
+                    icon: Some(Ic::Stop),
+                    label: c.t(Tr::ModelsStop),
+                    tone: MenuTone::Default,
+                    on_click: Rc::new(move |_, _| stop_st.local.unload(&stop_id)),
+                },
+                MenuItem {
+                    icon: Some(Ic::Refresh),
+                    label: c.t(Tr::ModelsRestart),
+                    tone: MenuTone::Default,
+                    on_click: Rc::new(move |_, _| restart_engine(&st, &id)),
+                },
+            ];
+        }
+        vec![MenuItem {
+            icon: Some(Ic::Play),
+            label: c.t(Tr::ModelsStart),
+            tone: MenuTone::Success,
+            on_click: Rc::new(move |_, _| {
+                services::save_config(&st, |cfg| role::engine_mut(cfg, role).local_model = id.clone());
+                restart_engine(&st, &id);
+            }),
+        }]
+    }
+
+    /// Download again, show in Finder and delete.
+    fn file_command_items(&self, c: &Ctx, id: &str) -> Vec<MenuItem> {
+        let (st, again_id, delete_id) = (self.st.clone(), id.to_string(), id.to_string());
+        let dir = self.st.models.model_dir(id);
+        let again_st = st.clone();
+        vec![
+            MenuItem {
+                icon: Some(Ic::Download),
+                label: c.t(Tr::ModelsDownloadAgain),
+                tone: MenuTone::Default,
+                on_click: Rc::new(move |_, _| {
+                    if again_st.models.delete(&again_id).is_ok() {
+                        let _ = again_st.models.start_download(&again_id);
+                    }
+                }),
+            },
+            MenuItem {
+                icon: Some(Ic::External),
+                label: c.t(Tr::MenubarShowInFinder),
+                tone: MenuTone::Default,
+                on_click: Rc::new(move |_, _| {
+                    let _ = std::process::Command::new("open").arg(&dir).spawn();
+                }),
+            },
+            MenuItem {
+                icon: Some(Ic::Trash),
+                label: c.t(Tr::ModelsDelete),
+                tone: MenuTone::Danger,
+                on_click: Rc::new(move |_, _| {
+                    st.local.unload(&delete_id);
+                    let _ = st.models.delete(&delete_id);
+                }),
+            },
+        ]
+    }
+}
+
+fn restart_engine(st: &AppState, id: &str) {
+    let (local, id) = (st.local.clone(), id.to_string());
+    st.rt.spawn(async move {
+        local.restart(&id).await;
+    });
+}
