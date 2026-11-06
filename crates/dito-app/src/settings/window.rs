@@ -55,14 +55,17 @@ pub fn page_motion(page: Page, cx: &App) -> Option<ui::ScopeHandle> {
 
 /// Open (or focus) the settings window on `page`.
 pub fn open(st: Arc<AppState>, page: Page, cx: &mut App) {
-    if !show_in_existing_window(page, cx) {
-        open_new_window(st, page, cx);
+    let foreground = !st.opts.is_headless();
+    if !show_in_existing_window(page, foreground, cx) {
+        open_new_window(st.clone(), page, cx);
     }
-    cx.activate(true);
+    if foreground {
+        cx.activate(true);
+    }
 }
 
 /// Bring the open settings window to `page`; `false` when there is none.
-fn show_in_existing_window(page: Page, cx: &mut App) -> bool {
+fn show_in_existing_window(page: Page, foreground: bool, cx: &mut App) -> bool {
     let Some(h) = cx.try_global::<SettingsHandle>() else { return false };
     let (window, view) = (h.window, h.view.clone());
     // Navigating from inside the settings window (a button click): that window is mid-update
@@ -76,7 +79,9 @@ fn show_in_existing_window(page: Page, cx: &mut App) -> bool {
     window
         .update(cx, |_, window, cx| {
             view.update(cx, |s, cx| s.set_page(page, cx));
-            window.activate_window();
+            if foreground {
+                window.activate_window();
+            }
         })
         .is_ok()
 }
@@ -91,6 +96,8 @@ fn open_new_window(st: Arc<AppState>, page: Page, cx: &mut App) {
             traffic_light_position: Some(traffic_light_position(false)),
         }),
         window_min_size: Some(size(px(900.), px(640.))),
+        focus: !st.opts.is_headless(),
+        show: !st.opts.is_headless(),
         ..Default::default()
     };
     let mut view_slot = None;

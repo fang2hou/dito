@@ -10,8 +10,8 @@ use gpui_kit::*;
 use image::RgbaImage;
 
 use super::capture::{
-    BACKDROP_DARK, BACKDROP_LIGHT, BACKDROP_WHITE, close_window, open_hud_window, over_backdrop, render, render_fresh,
-    save, theme_tag, wait_for_frame,
+    BACKDROP_DARK, BACKDROP_LIGHT, BACKDROP_WHITE, close_window, open_hud_window, over_backdrop, render, save,
+    theme_tag, wait_for_frame,
 };
 use crate::hud::{HUD_SCALE, HudView, PreviewHover, WIN_PAD};
 use crate::services;
@@ -110,7 +110,7 @@ pub async fn hud_outcome_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp
             let mut timestamps = String::new();
             for frame in 0..if copy { 66 } else { 54 } {
                 wait_for_frame(cx, start, frame).await;
-                let img = render_fresh(cx, window).expect("outcome frame");
+                let img = render(cx, window).expect("outcome frame");
                 timestamps.push_str(&format!("{frame}\t{}\n", start.elapsed().as_secs_f64()));
                 save(dir, &format!("outcome-{tag}-{name}-{frame:03}.png"), over_backdrop(&img, backdrop));
             }
@@ -134,7 +134,7 @@ pub async fn hud_wave_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
             let mut timestamps = String::new();
             for frame in 0..120 {
                 wait_for_frame(cx, start, frame).await;
-                let img = render_fresh(cx, window).expect("native waveform frame");
+                let img = render(cx, window).expect("native waveform frame");
                 let canvas = over_backdrop(&img, backdrop);
                 let (w, h) = canvas.dimensions();
                 frames.insert(image::imageops::crop_imm(&canvas, w / 2 - 20, h - 65, 40, 40).to_image().into_raw());
@@ -168,7 +168,7 @@ pub async fn hud_motion_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp)
         let mut crisp_brush = false;
         for frame in 0..120 {
             wait_for_frame(cx, start, frame).await;
-            let Some(img) = render_fresh(cx, window) else { continue };
+            let Some(img) = render(cx, window) else { continue };
             let canvas = over_backdrop(&img, backdrop);
             if start.elapsed().as_secs_f32() >= 1.6 {
                 held_labels.insert(held_label_sample(&canvas));

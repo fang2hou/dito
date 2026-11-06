@@ -51,6 +51,8 @@ fn open_demo_window(cx: &mut AsyncApp, view: DemoShot) -> Option<WindowHandle<De
         let options = WindowOptions {
             window_bounds: Some(WindowBounds::Windowed(Bounds::centered(None, size(px(624.), px(234.)), cx))),
             titlebar: None,
+            focus: false,
+            show: false,
             ..Default::default()
         };
         cx.open_window(options, |_, cx| cx.new(|_| view)).ok()

@@ -26,6 +26,11 @@ pub struct Opts {
 }
 
 impl Opts {
+    /// Automated runs (smoke test, screenshots) must not take the foreground from the person using the Mac.
+    pub fn is_headless(&self) -> bool {
+        self.demo_run || self.screenshots.is_some()
+    }
+
     pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Self> {
         let mut o = Opts::default();
         let mut it = args.into_iter();

@@ -5,6 +5,7 @@ use dito_core::config::{Appearance, HudPosition};
 use gpui_kit::*;
 use image::{Rgba, RgbaImage};
 
+use super::capture;
 use super::input::{click, drag_to, hover, on_settings_window, press, press_key, redraw, release};
 use crate::services;
 use crate::settings;
@@ -72,7 +73,7 @@ async fn hud_height_fill(st: &Arc<AppState>, cx: &mut AsyncApp) {
         let level = st.cfg.get().general.hud_height_level();
         let img = cx.update(|cx| {
             let (window, _view) = settings::handle(cx).expect("HUD height settings window");
-            window.update(cx, |_, w, _cx| w.render_to_image().map_err(|e| e.to_string())).ok()
+            Some(capture::paint_to_image(window.into(), cx))
         });
         let Some(Ok(img)) = img else { continue };
         // The slider reports its indicator's bounds: inset by half the knob on each side, so

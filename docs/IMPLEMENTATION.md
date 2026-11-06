@@ -73,7 +73,8 @@ The Python benchmark harness has its own tasks: `mise run bench:sync`, `bench:te
 - Tests live next to the code (unit) and in each crate's `tests/` (integration).
 - Write a test when logic is easy to break and hard to notice in the app: parsing, config migration, state machines, insertion flow, i18n, protocols.
 - Don't write defensive tests for layout, every error branch or hypothetical misuse. Look and motion are checked by a person in the running app.
-- Not run by `check.sh`, because they need a GUI session, the real Keychain, Accessibility or model files: `cargo test -p dito-app --features mock --test demo_run`, `dito-platform --test keychain` and `--test loopback` (both `#[ignore]`, run with `-- --ignored`), and the ignored runtime regression tests (`DITO_ASR_MODEL_DIR`, `DITO_POLISH_MODEL_DIR`). `dito-runtimes` has no tests `check.sh` can run: its unit tests sit in the `llama` and `sherpa` modules, which need their features and the native builds.
+- `check.sh` also runs `dito-app --test demo_run`: it needs a logged-in session but starts the app headless, so nothing appears on screen and focus stays where it is.
+- Not run by `check.sh`, because they need the real Keychain, Accessibility or model files: `dito-platform --test keychain` and `--test loopback` (both `#[ignore]`, run with `-- --ignored`), and the ignored runtime regression tests (`DITO_ASR_MODEL_DIR`, `DITO_POLISH_MODEL_DIR`). `dito-runtimes` has no tests `check.sh` can run: its unit tests sit in the `llama` and `sherpa` modules, which need their features and the native builds.
 - `check.sh` runs `dito-testkit --test bedrock` on a single thread, because those tests set AWS environment variables.
 
 ## Debugging
@@ -87,8 +88,8 @@ The Python benchmark harness has its own tasks: `mise run bench:sync`, `bench:te
 | `--data-dir <dir>` | Config and history location; an empty directory shows onboarding |
 | `--lang <code>` | Pretend the system language is `ja`, `en` or `zh` |
 | `--background` | Start without the settings window |
-| `--demo-run` | Run one dictation headlessly and print it |
-| `--screenshots <dir>` | Render screenshots (build with `--features screenshots`; narrow with `DITO_SHOTS_ONLY`) |
+| `--demo-run` | Run one dictation headlessly and print it; no Dock icon, menu bar or window, never frontmost |
+| `--screenshots <dir>` | Render screenshots (build with `--features screenshots`; narrow with `DITO_SHOTS_ONLY`); windows are never shown and never take focus |
 
 - Logs go to stdout through `tracing`; the dev runner tails the app's output into the terminal. Override with `RUST_LOG`.
 - Data lives in `~/Library/Application Support/com.fang2hou.Dito`: `config.toml`, `dito.db`, `audio/` and `models/`. Keys are in the Keychain under `com.fang2hou.dito`. The login item is `~/Library/LaunchAgents/com.fang2hou.dito.plist`.

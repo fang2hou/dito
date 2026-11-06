@@ -10,7 +10,7 @@ use dito_core::store::HistoryFilter;
 use gpui_kit::*;
 
 use super::capture::{
-    page_shot, refresh_settings_window, render_fresh, render_settings_window, resize_settings_window, save, theme_tag,
+    page_shot, refresh_settings_window, render, render_settings_window, resize_settings_window, save, theme_tag,
     wait_for_frame,
 };
 use super::input::{click, on_settings_window};
@@ -438,7 +438,7 @@ async fn capture_inline_preview(
     let mut frame = 0;
     while start.elapsed().as_secs_f32() < 5.1 {
         wait_for_frame(cx, start, frame).await;
-        let img = render_fresh(cx, window).expect("inline preview frame");
+        let img = render(cx, window).expect("inline preview frame");
         timestamps.push_str(&format!("{frame}\t{}\n", start.elapsed().as_secs_f64()));
         if frame == 0 {
             save(dir, &format!("inline-settings-{tag}.png"), img.clone());

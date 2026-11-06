@@ -26,6 +26,8 @@ pub fn open_with_view(
             appears_transparent: true,
             traffic_light_position: Some(point(px(20.), px(20.))),
         }),
+        focus: false,
+        show: false,
         ..Default::default()
     };
     let mut slot = None;
@@ -60,8 +62,11 @@ pub fn open(st: Arc<AppState>, cx: &mut App) {
             traffic_light_position: Some(point(px(20.), px(20.))),
         }),
         is_resizable: false,
+        focus: !st.opts.is_headless(),
+        show: !st.opts.is_headless(),
         ..Default::default()
     };
+    let foreground = !st.opts.is_headless();
     match cx.open_window(opts, |window, cx| {
         let view = cx.new(|cx| Onboarding::new(st, window, cx));
         cx.new(|cx| gpui_kit::component::Root::new(view, window, cx))
@@ -69,5 +74,7 @@ pub fn open(st: Arc<AppState>, cx: &mut App) {
         Ok(h) => cx.set_global(WizardWindow(h)),
         Err(e) => tracing::error!("could not open onboarding: {e}"),
     }
-    cx.activate(true);
+    if foreground {
+        cx.activate(true);
+    }
 }

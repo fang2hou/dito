@@ -1,8 +1,10 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::Duration;
 
 use gpui_kit::*;
 
+use super::input::redraw;
 use super::{demo, hud, onboarding, pages};
 use crate::settings::{self, Page};
 use crate::state::{AppGlobal, AppState};
@@ -33,6 +35,7 @@ pub fn run(dir: PathBuf, cx: &mut App) {
     let st = cx.global::<AppGlobal>().0.clone();
     settings::open(st.clone(), Page::General, cx);
     let groups = Groups::from_env();
+    pump_frames(cx);
     cx.spawn(async move |cx| {
         render_app_shots(&st, &dir, &groups, cx).await;
         render_preview_shots(&st, &dir, &groups, cx).await;
@@ -40,6 +43,22 @@ pub fn run(dir: PathBuf, cx: &mut App) {
             pages::min_size_shots(&st, &dir, cx).await;
         }
         cx.update(|cx| cx.quit());
+    })
+    .detach();
+}
+
+/// Shot windows are never shown, so no display link drives their frames and animations would stay at their first
+/// frame. Redraw every window at the display rate instead, as a visible window would be.
+fn pump_frames(cx: &mut App) {
+    cx.spawn(async move |cx| {
+        loop {
+            cx.background_executor().timer(Duration::from_millis(16)).await;
+            cx.update(|cx| {
+                for window in cx.windows() {
+                    let _ = cx.update_window(window, |_, w, cx| redraw(w, cx));
+                }
+            });
+        }
     })
     .detach();
 }
