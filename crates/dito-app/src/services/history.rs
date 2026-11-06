@@ -19,6 +19,7 @@ pub async fn history_entry(st: Arc<AppState>, id: i64) -> Result<Option<HistoryE
         .spawn_blocking(move || store.get_history(id))
         .await
         .map_err(|e| anyhow::anyhow!("history lookup task failed: {e}"))?
+        .map_err(Into::into)
 }
 
 /// Delete a history row and any audio file it kept, preserving the lookup → file removal →
@@ -34,6 +35,7 @@ pub async fn delete_history_entry(st: Arc<AppState>, id: i64) -> Result<()> {
         })
         .await
         .map_err(|e| anyhow::anyhow!("history delete task failed: {e}"))?
+        .map_err(Into::into)
 }
 
 /// Run recognition + polish again on a saved recording and update the history entry.

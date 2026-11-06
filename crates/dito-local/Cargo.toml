@@ -9,7 +9,6 @@ workspace = true
 
 [dependencies]
 dito-core = { path = "../dito-core" }
-anyhow.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tokio-util = "0.7"

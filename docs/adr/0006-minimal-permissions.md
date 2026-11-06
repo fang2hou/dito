@@ -42,4 +42,4 @@ A feature is proposed that can't work within these two permissions.
 
 ## Code
 
-`crates/dito-platform/src/permissions.rs`, `crates/dito-platform/src/tap.rs`, `crates/dito-platform/src/hotkey.rs`.
+`crates/dito-platform/src/permissions.rs`, `crates/dito-platform/src/hotkey/`.

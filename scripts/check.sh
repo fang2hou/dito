@@ -1,34 +1,23 @@
 #!/usr/bin/env bash
-# Local, noninteractive check entry for Dito. Mirrors the central acceptance split so a
-# green run here means the same commands passed: fmt + lib/unit/mock-server tests (fast),
-# plus compile-only checks of the minimal, screenshots+mock, and default app builds (full).
+# Local, noninteractive check entry for Dito.
 #
-# Usage: ./scripts/check.sh {fast|full}   (repository root is resolved from this script's
-#        location, so the check always runs against this checkout regardless of the caller's
-#        working directory)
+# Usage: ./scripts/check.sh {fast|full}   (always runs against the checkout that holds this script)
 #
-#   fast  cargo fmt --check; core/audio/platform lib tests; local fake-engine/download
-#         tests against the in-process mock server; testkit mock-server tests; app bin
-#         unit tests and i18n coverage built with --no-default-features --features mock.
-#   full  fast plus compile checks only (--all-targets): app with no features (minimal
-#         build), app with screenshots+mock features, and the default app build (pulls
-#         dito-runtimes: needs cmake + Xcode Metal toolchain, slow from scratch).
+#   fast  cargo fmt --check, then one cargo test run over the crates that need no GUI, models or
+#         system services (lib tests, the mock-server integration tests, app unit tests and i18n
+#         coverage), then the Bedrock test on a single thread.
+#   full  fast, plus compile checks (--all-targets) of the app with no features, with
+#         mock+screenshots, and with the default features (pulls dito-runtimes: needs cmake and
+#         the Xcode Metal toolchain).
 #
-# Intentionally NOT run here — see docs/IMPLEMENTATION.md (Testing) for the full map:
-#   - dito-app --test demo_run: launches the real app binary (needs a macOS GUI session)
-#   - dito-platform --test keychain: real macOS Keychain
-#   - dito-platform --test loopback: posts real system key events (F20) into the live event
-#     tap; needs Accessibility
-#   - dito-runtimes examples and real model downloads / inference
-#   - screenshot *execution* (full only compiles the screenshots build)
-#   - cargo clippy and release builds: central acceptance / manual per practices.md
+# Not run here, see docs/IMPLEMENTATION.md (Testing): dito-app --test demo_run (GUI session),
+# dito-platform --test keychain and --test loopback (ignored; Keychain, Accessibility), dito-runtimes tests
+# and examples (real models), screenshot rendering, clippy (mise run lint:rust) and release builds.
 #
 # Notes:
-#   - Steps run strictly sequentially; one cargo process at a time.
-#   - Set CARGO_TARGET_DIR to share artifacts across worktrees and with the main checkout.
-#   - CARGO_TARGET_*_APPLE_DARWIN_RUNNER=/usr/bin/env keeps cargo from launching test
-#     binaries through the signing path (avoids the dito-dev signing prompt during tests).
-#     Test binaries here are pure automated tests; no signing files are involved.
+#   - Steps run sequentially and all run even after a failure; the exit code is 1 if any failed.
+#   - Set CARGO_TARGET_DIR to share artifacts across worktrees.
+#   - The Apple runner override keeps cargo from launching test binaries through the signing path.
 set -uo pipefail
 
 usage() {
@@ -56,7 +45,7 @@ export CARGO_TARGET_X86_64_APPLE_DARWIN_RUNNER=${CARGO_TARGET_X86_64_APPLE_DARWI
 
 failures=()
 step() {
-  label=$1
+  local label=$1
   shift
   echo
   echo "==> $label"
@@ -70,14 +59,22 @@ step() {
 
 echo "project root: $root"
 echo "rustc $(rustc --version 2>&1 | cut -d' ' -f2) | cargo $(cargo --version 2>&1 | cut -d' ' -f2) | mode: $mode"
-[[ -n ${CARGO_TARGET_DIR:-} ]] && echo "CARGO_TARGET_DIR: $CARGO_TARGET_DIR"
+if [[ -n ${CARGO_TARGET_DIR:-} ]]; then
+  echo "CARGO_TARGET_DIR: $CARGO_TARGET_DIR"
+fi
+
+# One invocation: cargo builds dito-core once per feature set, so splitting this up multiplies compile time.
+test_args=(
+  --locked
+  -p dito-core -p dito-audio -p dito-platform -p dito-local -p dito-testkit -p dito-app
+  --no-default-features --features dito-app/mock
+)
 
 step "fmt (cargo fmt --all -- --check)" cargo fmt --all -- --check
-step "core/audio/platform lib tests" cargo test --locked -p dito-core -p dito-audio -p dito-platform --lib
-step "local fake-engine/download tests" cargo test --locked -p dito-local --lib --test engines --test downloads
-step "testkit mock-server tests" cargo test --locked -p dito-testkit --lib --test providers --test bedrock -- --test-threads=1
-step "app bin unit tests (mock build)" cargo test --locked -p dito-app --no-default-features --features mock --bin dito
-step "app i18n coverage (mock build)" cargo test --locked -p dito-app --no-default-features --features mock --test i18n_coverage
+step "tests" cargo test "${test_args[@]}" --lib --bin dito \
+  --test engines --test downloads --test providers --test configured_asr --test i18n_coverage
+# bedrock.rs sets AWS_* environment variables from every test, which is only sound on one thread.
+step "bedrock tests (single thread)" cargo test "${test_args[@]}" --test bedrock -- --test-threads=1
 
 if [[ $mode == full ]]; then
   step "app minimal compile check (no features)" cargo check --locked -p dito-app --no-default-features --all-targets

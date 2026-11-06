@@ -1,0 +1,151 @@
+//! The progress fill inside the capsule: a polygon cut to the capsule's rounded ends, with a crisp front and halo.
+
+use gpui_kit::prelude::*;
+use gpui_kit::*;
+
+use crate::theme::{self, Palette};
+use crate::ui::hex_alpha;
+
+use super::Scale;
+use super::capsule::{CAPSULE_H, HAIRLINE};
+
+/// Outline of the capsule's inside (the part within its hairline border): height, and width for a capsule of width `w`.
+pub(super) const INNER_H: f32 = CAPSULE_H - 2. * HAIRLINE;
+
+fn inner_w(w: f32) -> f32 {
+    w - 2. * HAIRLINE
+}
+
+/// Polygon of the capsule (width `w`, height `h`) cut to the vertical band `x0..x1`: both cut edges are straight
+/// vertical lines; the top and bottom follow the capsule's rounded ends. GPUI clips to rectangles only, so the
+/// progress fill is drawn as this shape rather than as a clipped box.
+fn capsule_slice(w: f32, h: f32, x0: f32, x1: f32) -> Vec<(f32, f32)> {
+    let r = h / 2.;
+    let half = |x| capsule_half_height(w, h, x);
+    let (x0, x1) = (x0.clamp(0., w), x1.clamp(0., w));
+    let mut xs = vec![x0];
+    let mut x = (x0 / 0.5).floor() * 0.5 + 0.5;
+    while x < x1 {
+        xs.push(x);
+        x += 0.5;
+    }
+    xs.push(x1);
+    let mut pts: Vec<(f32, f32)> = xs.iter().map(|&x| (x, r - half(x))).collect();
+    pts.extend(xs.iter().rev().map(|&x| (x, r + half(x))));
+    pts
+}
+
+fn capsule_half_height(w: f32, h: f32, x: f32) -> f32 {
+    let r = h / 2.;
+    let x = x.clamp(0., w);
+    let d = if x < r {
+        r - x
+    } else if x > w - r {
+        x - (w - r)
+    } else {
+        0.
+    };
+    (r * r - d * d).max(0.).sqrt()
+}
+
+/// The slice `x0..x1` of a capsule of width `w` (design points), painted in `fill`.
+fn slice_canvas(w: f32, x0: f32, x1: f32, fill: impl Into<Background> + 'static, scale: Scale) -> impl IntoElement {
+    canvas(
+        |_, _, _| (),
+        move |bounds, _, window, _| {
+            let pts = capsule_slice(inner_w(w), INNER_H, x0, x1);
+            let mut b = PathBuilder::fill();
+            for (i, (x, y)) in pts.iter().enumerate() {
+                let p =
+                    point(bounds.origin.x + gpui_kit::px(*x * scale.0), bounds.origin.y + gpui_kit::px(*y * scale.0));
+                if i == 0 { b.move_to(p) } else { b.line_to(p) }
+            }
+            b.close();
+            if let Ok(path) = b.build() {
+                window.paint_path(path, fill);
+            }
+        },
+    )
+    .absolute()
+    .inset_0()
+}
+
+/// A flat fill, a crisp 1 pt front and a narrow symmetric halo (4 pt each side).
+pub(super) fn progress_layer(x: f32, w: f32, scale: Scale, p: &Palette) -> impl IntoElement {
+    let edge = theme::hud_color(p, "#AA8C40", "#E0C47D");
+    let halo = hex_alpha(edge, if p.dark { 0.20 } else { 0.14 });
+    let half_height =
+        capsule_half_height(inner_w(w), INNER_H, x - 0.5).min(capsule_half_height(inner_w(w), INNER_H, x + 0.5));
+    div()
+        .absolute()
+        .inset_0()
+        .child(slice_canvas(w, 0., x, theme::hud_color(p, "#F6DA97", "#827554"), scale))
+        .child(slice_canvas(
+            w,
+            x - 4.,
+            x,
+            linear_gradient(90., linear_color_stop(hex_alpha(halo, 0.), 0.), linear_color_stop(halo, 1.)),
+            scale,
+        ))
+        .child(slice_canvas(
+            w,
+            x,
+            x + 4.,
+            linear_gradient(90., linear_color_stop(halo, 0.), linear_color_stop(hex_alpha(halo, 0.), 1.)),
+            scale,
+        ))
+        // Paint the crisp front as a quad: path antialiasing spreads subpixel-width paths
+        // into a faint blur, which swallowed the front inside its own halo.
+        .child(
+            div()
+                .absolute()
+                .left(gpui_kit::px((x - 0.5) * scale.0))
+                .top(gpui_kit::px((INNER_H / 2. - half_height) * scale.0))
+                .w(gpui_kit::px(1. * scale.0))
+                .h(gpui_kit::px(2. * half_height * scale.0))
+                .bg(edge),
+        )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{INNER_H, capsule_slice, inner_w};
+    use crate::hud::capsule::{CAPSULE_W, NARROW_W};
+
+    #[test]
+    fn the_progress_edge_is_a_vertical_line_even_inside_the_rounded_ends() {
+        let inner = inner_w(CAPSULE_W);
+        for x in [2., 6., 13., 41., 70., 78., inner - 0.5] {
+            let pts = capsule_slice(inner, INNER_H, 0., x);
+            let right: Vec<_> = pts.iter().filter(|p| (p.0 - x).abs() < 1e-4).collect();
+            assert_eq!(right.len(), 2, "exactly the top and bottom point on the edge at x={x}");
+            let (top, bottom) = (right[0].1.min(right[1].1), right[0].1.max(right[1].1));
+            assert!(top >= 0. && bottom <= INNER_H, "inside the capsule at x={x}");
+        }
+        // Past the end cap the cut is shorter than the full height: the capsule's curve, not a box.
+        let pts = capsule_slice(inner, INNER_H, 0., inner - 1.);
+        let h = pts
+            .iter()
+            .filter(|p| (p.0 - (inner - 1.)).abs() < 1e-4)
+            .map(|p| p.1)
+            .fold((f32::MAX, 0f32), |a, y| (a.0.min(y), a.1.max(y)));
+        assert!(h.1 - h.0 < INNER_H * 0.8);
+    }
+
+    #[test]
+    fn the_narrow_capsule_cuts_its_rounded_ends_at_its_own_width() {
+        // Hold mode's 72 pt capsule: the cut near its right end is the shorter curve of *that* capsule, not of a 105 pt one.
+        let narrow = inner_w(NARROW_W);
+        let near_end = narrow - 1.;
+        let height_at = |w: f32, x: f32| {
+            let pts = capsule_slice(w, INNER_H, 0., x);
+            let ys: Vec<f32> = pts.iter().filter(|p| (p.0 - x).abs() < 1e-4).map(|p| p.1).collect();
+            ys.iter().cloned().fold(f32::MIN, f32::max) - ys.iter().cloned().fold(f32::MAX, f32::min)
+        };
+        assert!(height_at(narrow, near_end) < INNER_H * 0.8, "short near the narrow capsule's end");
+        assert!(
+            (height_at(inner_w(CAPSULE_W), near_end) - INNER_H).abs() < 1e-3,
+            "full height mid-way along the wide one"
+        );
+    }
+}

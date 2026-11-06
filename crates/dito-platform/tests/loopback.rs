@@ -1,7 +1,8 @@
 //! Posts synthetic events into the real event stream and expects the tap to report them.
 //! Uses F20 — no physical keyboard has that key — so the injected events cannot collide with
 //! real user shortcuts (right-modifier dictation tools and the like).
-//! Needs Accessibility for the test runner; skipped (not failed) without it.
+//! Needs Accessibility for the test runner, so it is ignored by default.
+//!   cargo test -p dito-platform --test loopback -- --ignored
 
 use std::time::Duration;
 
@@ -23,11 +24,13 @@ fn post_key(down: bool) {
 }
 
 #[test]
+#[ignore = "posts real key events; needs Accessibility granted to the test runner"]
 fn f20_press_and_release_reach_the_tap() {
-    if permissions::status(Permission::Accessibility) != Status::Granted {
-        eprintln!("skipped: Accessibility not granted to this process");
-        return;
-    }
+    assert_eq!(
+        permissions::status(Permission::Accessibility),
+        Status::Granted,
+        "grant Accessibility to the process that runs the tests"
+    );
     let (_svc, rx) = HotkeyService::start(Shortcut::parse("F20").unwrap()).expect("tap");
     std::thread::sleep(Duration::from_millis(300));
     post_key(true);

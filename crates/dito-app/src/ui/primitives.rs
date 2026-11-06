@@ -16,11 +16,14 @@ pub fn mix(a: Hsla, b: Hsla, t: f32) -> Hsla {
     Hsla { h: l(a.h, b.h), s: l(a.s, b.s), l: l(a.l, b.l), a: l(a.a, b.a) }
 }
 
-pub fn white() -> Hsla {
-    hex_white()
+/// Channel-wise RGB blend, for colors too far apart in hue for the HSL blend of [`mix`].
+pub fn mix_rgb(a: Hsla, b: Hsla, t: f32) -> Hsla {
+    let (a, b): (Rgba, Rgba) = (a.into(), b.into());
+    Rgba { r: a.r + (b.r - a.r) * t, g: a.g + (b.g - a.g) * t, b: a.b + (b.b - a.b) * t, a: a.a + (b.a - a.a) * t }
+        .into()
 }
 
-pub(super) fn hex_white() -> Hsla {
+pub fn white() -> Hsla {
     Hsla { h: 0., s: 0., l: 1., a: 1. }
 }
 

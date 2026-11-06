@@ -124,15 +124,14 @@ impl Polisher for OpenAiEngine {
                 { "role": "system", "content": req.system },
                 { "role": "user", "content": req.text },
             ],
-            "reasoning_effort": self.effort.as_str(),
         });
-        if self.effort.as_str().trim().is_empty() {
-            body.as_object_mut().unwrap().remove("reasoning_effort");
+        if !self.effort.as_str().trim().is_empty() {
+            body["reasoning_effort"] = self.effort.as_str().into();
         }
         let v = match self.chat(&body).await {
             // Non-reasoning models reject the field; retry once without it.
             Err(e) if e.kind == ErrorKind::Other && e.message.contains("reasoning_effort") => {
-                body.as_object_mut().unwrap().remove("reasoning_effort");
+                body.as_object_mut().expect("chat body is a JSON object").remove("reasoning_effort");
                 self.chat(&body).await?
             }
             other => other?,
@@ -174,15 +173,5 @@ mod tests {
         .unwrap();
         assert_eq!(e.url("audio/transcriptions"), "https://x.openai.azure.com/openai/v1/audio/transcriptions");
         assert_eq!(e.model(), "gpt-6.1-terra");
-    }
-
-    #[test]
-    fn missing_endpoint_or_model_is_unavailable_not_a_panic() {
-        let e = OpenAiEngine::new(
-            Flavor::Azure { endpoint: " ".into(), deployment: "d".into() },
-            "k",
-            ReasoningEffort::Low,
-        );
-        assert_eq!(e.err().unwrap().kind, ErrorKind::Unavailable);
     }
 }

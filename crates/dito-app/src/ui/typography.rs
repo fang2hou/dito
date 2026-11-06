@@ -101,3 +101,22 @@ pub fn tracked(s: &str, size: f32, weight: FontWeight, color: Hsla, tracking: f3
 pub fn muted12(p: &Palette, s: impl Into<SharedString>) -> Div {
     text(s, 12., FontWeight::NORMAL, p.muted)
 }
+
+#[cfg(test)]
+mod tests {
+    use dito_core::i18n::Lang;
+
+    use super::{set_ui_language, tracking_for};
+
+    #[test]
+    fn english_text_keeps_natural_letter_spacing() {
+        set_ui_language(Lang::En);
+        assert_eq!(tracking_for("Recognizing", 0.08), 0.);
+        assert_eq!(tracking_for("認識中", 0.08), 0.);
+        set_ui_language(Lang::Ja);
+        assert_eq!(tracking_for("認識中", 0.08), 0.08);
+        assert_eq!(tracking_for("Slack", 0.08), 0., "no CJK glyphs, no tracking");
+        set_ui_language(Lang::Zh);
+        assert_eq!(tracking_for("認識中", 0.08), 0.08);
+    }
+}

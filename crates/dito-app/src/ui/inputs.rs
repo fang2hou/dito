@@ -4,9 +4,10 @@ use gpui_kit::component::input::{Input, InputState};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
-use super::controls::CONTROL_H;
-use super::motion::{RING_MS, ScopeHandle, count_flips, motion_scope, with_motion_scope};
+use super::button::CONTROL_H;
 use super::primitives::{icon, mix, transparent};
+use super::scope::{ScopeHandle, motion_scope, with_motion_scope};
+use super::tween::{RING_MS, count_flips};
 use super::typography::text;
 use crate::assets::Ic;
 use crate::theme::Palette;
@@ -64,7 +65,7 @@ pub fn field_chrome(id: impl Into<ElementId>, p: &Palette, focused: bool) -> Div
     with_ring(base, id, focused, 12., p.border_strong, p.accent)
 }
 
-/// The taller connection-form field (design 20.05): 40 high, radius 8, on the form field surface.
+/// The taller connection-form field, on the form field surface.
 fn form_chrome(id: impl Into<ElementId>, p: &Palette, focused: bool) -> Div {
     let base = div().h(px(40.)).px(px(14.)).flex().items_center().gap(px(8.)).rounded(px(8.)).bg(p.field_bg);
     with_ring(base, id, focused, 8., p.field_border, p.accent)
@@ -132,7 +133,7 @@ pub fn field(p: &Palette, label: impl Into<SharedString>, control: impl IntoElem
     div().flex().flex_col().gap(px(8.)).child(text(label, 13., FontWeight::MEDIUM, p.text)).child(control)
 }
 
-/// A connection-form field (design 20.05): a quieter caption above a [`TextInput::form`] control.
+/// A connection-form field: a quieter caption above a [`TextInput::form`] control.
 pub fn form_field(p: &Palette, label: impl Into<SharedString>, control: impl IntoElement) -> Div {
     div().flex().flex_col().gap(px(8.)).child(text(label, 13., FontWeight::NORMAL, p.muted)).child(control)
 }

@@ -103,8 +103,7 @@ pub(crate) fn speech_sample(t: f32, gain: f32) -> f32 {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
+    use super::{Waveform, speech_sample};
     fn phrase(gain: f32, hz: f32) -> Vec<[f32; 8]> {
         let mut model = Waveform::default();
         (0..(4. * hz) as usize)
@@ -115,7 +114,7 @@ mod tests {
             .collect()
     }
 
-    #[::core::prelude::v1::test]
+    #[test]
     fn whispers_and_loud_speech_both_move_without_flattening() {
         for gain in [0.0006, 0.006, 0.06, 0.6] {
             let frames = phrase(gain, 60.);
@@ -127,7 +126,7 @@ mod tests {
         }
     }
 
-    #[::core::prelude::v1::test]
+    #[test]
     fn silence_is_still_and_release_is_smooth() {
         let mut model = Waveform::default();
         for _ in 0..600 {
@@ -146,7 +145,7 @@ mod tests {
         assert!(model.heights().iter().all(|&h| h < 3.01), "tail settles in silence");
     }
 
-    #[::core::prelude::v1::test]
+    #[test]
     fn response_is_consistent_across_refresh_rates_and_invalid_input() {
         let slow = phrase(0.006, 30.);
         let fast = phrase(0.006, 120.);

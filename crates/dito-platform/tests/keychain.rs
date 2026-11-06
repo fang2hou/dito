@@ -1,9 +1,12 @@
 //! Round-trips a secret through the real login keychain under a throwaway service name.
+//! Ignored by default because it touches the user's keychain:
+//!   cargo test -p dito-platform --test keychain -- --ignored
 
 use dito_core::secrets::SecretStore;
 use dito_platform::KeychainSecrets;
 
 #[test]
+#[ignore = "touches the real login keychain"]
 fn set_get_overwrite_delete() {
     let s = KeychainSecrets::with_service(&format!("com.fang2hou.dito.test.{}", std::process::id()));
     assert_eq!(s.get("asr.azure"), None);

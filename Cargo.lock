@@ -2182,7 +2182,6 @@ name = "dito-app"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "async-channel",
  "dito-audio",
  "dito-core",
  "dito-local",
@@ -2197,7 +2196,6 @@ dependencies = [
  "tempfile",
  "time",
  "tokio",
- "toml 0.9.12+spec-1.1.0",
  "tracing",
  "tracing-subscriber",
  "tray-icon",
@@ -2212,7 +2210,6 @@ dependencies = [
  "dito-core",
  "objc2-core-audio",
  "objc2-core-foundation",
- "thiserror 2.0.21",
  "tracing",
 ]
 
@@ -2220,13 +2217,11 @@ dependencies = [
 name = "dito-core"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "async-trait",
  "aws-config",
  "aws-sdk-bedrockruntime",
  "aws-smithy-types",
  "base64 0.22.1",
- "bytes",
  "directories",
  "reqwest",
  "rusqlite",
@@ -2245,7 +2240,6 @@ dependencies = [
 name = "dito-local"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "async-trait",
  "dito-core",
  "dito-testkit",
@@ -2276,7 +2270,6 @@ dependencies = [
  "objc2-av-foundation",
  "objc2-foundation 0.3.2",
  "security-framework",
- "tempfile",
  "thiserror 2.0.21",
  "tracing",
 ]
@@ -2304,10 +2297,7 @@ dependencies = [
  "dito-core",
  "futures-core",
  "serde_json",
- "tempfile",
  "tokio",
- "tracing",
- "tracing-subscriber",
 ]
 
 [[package]]

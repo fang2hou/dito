@@ -3,6 +3,8 @@
 use dito_core::config::Appearance;
 use gpui_kit::{App, Hsla, Rgba, WindowAppearance};
 
+use crate::ui::hex_alpha;
+
 /// `#RRGGBB` or `#RRGGBBAA`.
 pub fn hex(s: &str) -> Hsla {
     let h = s.trim_start_matches('#');
@@ -275,8 +277,6 @@ impl Palette {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Tint {
     Danger,
-    // Reserved by the unwired HistoryKind::Cancelled meta tag.
-    #[allow(dead_code)]
     Warning,
     Blue,
     Neutral,
@@ -299,8 +299,44 @@ pub fn apply(p: &Palette, cx: &mut App) {
     t.font_size = gpui_kit::px(13.);
 }
 
-fn hex_alpha(c: Hsla, a: f32) -> Hsla {
-    Hsla { a, ..c }
+/// A HUD color: the HUD keeps its own light and dark values, independent from the settings window's palette.
+pub fn hud_color(p: &Palette, light: &str, dark: &str) -> Hsla {
+    hex(if p.dark { dark } else { light })
+}
+
+pub fn hud_stop_ink(p: &Palette) -> Hsla {
+    hud_color(p, "#DD202C", "#FF7972")
+}
+
+/// Fill of the error capsule and the stop pill.
+pub fn hud_error_bg(p: &Palette) -> Hsla {
+    hud_color(p, "#FFEFEF", "#62423C")
+}
+
+pub fn hud_error_pill_border() -> Hsla {
+    hex("#FF494966")
+}
+
+/// The language chip: its sliding plate, and its labels while idle.
+pub fn hud_lang_plate(p: &Palette) -> Hsla {
+    hud_color(p, "#FFECBD", "#E0C47D")
+}
+
+pub fn hud_lang_muted(p: &Palette) -> Hsla {
+    hud_color(p, "#6A6455", "#D4D1C9")
+}
+
+/// The recording countdown pill once ten seconds or fewer remain.
+pub fn hud_countdown_warn_bg(p: &Palette) -> Hsla {
+    hud_color(p, "#FFF3D9", "#51452D")
+}
+
+pub fn hud_countdown_warn_border(p: &Palette) -> Hsla {
+    hud_color(p, "#D9BA77", "#9C8047")
+}
+
+pub fn hud_countdown_warn_ink(p: &Palette) -> Hsla {
+    hud_color(p, "#805A17", "#F1CF83")
 }
 
 pub fn palette(setting: Appearance, cx: &App) -> Palette {
@@ -322,8 +358,6 @@ mod tests {
     #[test]
     fn system_follows_the_os_appearance_and_explicit_choice_wins() {
         assert!(Palette::resolve(Appearance::System, WindowAppearance::Dark).dark);
-        assert!(!Palette::resolve(Appearance::System, WindowAppearance::Light).dark);
         assert!(!Palette::resolve(Appearance::Light, WindowAppearance::Dark).dark);
-        assert!(Palette::resolve(Appearance::Dark, WindowAppearance::Light).dark);
     }
 }

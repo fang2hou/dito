@@ -44,7 +44,7 @@ impl ErrorKind {
     }
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[error("{kind:?}: {message}")]
 pub struct ProviderError {
     pub kind: ErrorKind,

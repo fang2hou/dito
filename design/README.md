@@ -146,7 +146,7 @@ Icon instances, HUD buttons, the close button and the `11.03` controls are bound
 
 - The app's first impression is Japanese: it is built for Japanese customers and users.
 - Users can switch to English or 简体中文 (or follow the system) in General → 表示言語. Switching is instant across settings, HUD and menu bar.
-- **Code gap:** `DisplayLanguage` currently defaults to `System` (`crates/dito-core/src/config.rs`), so a Mac set to English starts in English. The design calls for Japanese as the default.
+- **Code gap:** `DisplayLanguage` currently defaults to `System` (`crates/dito-core/src/config/general.rs`), so a Mac set to English starts in English. The design calls for Japanese as the default.
 
 Type: Japanese and mixed text use M PLUS 1p; Latin-only text uses Outfit; 简体中文 uses IBM Plex Sans SC; macOS fallback is Hiragino Kaku Gothic Pro.
 

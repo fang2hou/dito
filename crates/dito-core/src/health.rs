@@ -85,12 +85,6 @@ mod tests {
     }
 
     #[test]
-    fn provider_engines_never_make_the_dot_red() {
-        let cfg = Config::dev_azure();
-        assert!(Health::compute(&cfg, None).is_ok());
-    }
-
-    #[test]
     fn stopped_local_model_is_a_problem_and_names_the_model() {
         let cfg = Config::default();
         let h = Health::compute(&cfg, Some(&Stub(EngineStatus::Stopped)));

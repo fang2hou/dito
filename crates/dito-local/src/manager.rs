@@ -5,13 +5,14 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
-use anyhow::{Context, Result, bail};
 use dito_core::config::{ConfigStore, default_data_dir};
 use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
 
 use crate::catalog::{ModelSpec, default_catalog};
+use crate::disk::{copy_dir, free_space};
 use crate::download::{self, DlError};
+use crate::manager_error::ManagerError;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ModelState {
@@ -69,8 +70,8 @@ struct Job {
     paused: Arc<AtomicBool>,
 }
 
-/// Removes the job entry when the download task finishes — including on panic, where the
-/// old future-tail cleanup never ran and left a dead job that ignored pause/cancel forever.
+/// Removes the job entry when the download task finishes, including on panic: a leftover entry would make
+/// pause and cancel hit a dead job forever.
 struct JobGuard {
     inner: Arc<Inner>,
     spec: ModelSpec,
@@ -78,9 +79,8 @@ struct JobGuard {
 
 impl Drop for JobGuard {
     fn drop(&mut self) {
-        self.inner.jobs.lock().unwrap().remove(&self.spec.id);
-        // Panic-safety: if the task died mid-flight the state is still active. Downgrade it
-        // to Paused (bytes are on disk) so the UI shows a resumable row instead of a dead one.
+        self.inner.jobs.lock().expect("manager mutex poisoned").remove(&self.spec.id);
+        // A task that died mid-flight leaves an active state; rescanning shows a resumable row instead of a dead one.
         let mgr = ModelManager { inner: self.inner.clone() };
         if mgr.state(&self.spec.id).is_active() {
             mgr.set(&self.spec.id, mgr.scan(&self.spec));
@@ -103,21 +103,6 @@ struct Inner {
 #[derive(Clone)]
 pub struct ModelManager {
     inner: Arc<Inner>,
-}
-
-/// Free bytes on the volume containing `path` (or its nearest existing ancestor).
-pub fn free_space(path: &Path) -> u64 {
-    let mut p = path;
-    while !p.exists() {
-        match p.parent() {
-            Some(parent) => p = parent,
-            None => return 0,
-        }
-    }
-    let Ok(c) = std::ffi::CString::new(p.as_os_str().as_encoded_bytes()) else { return 0 };
-    let mut st: libc::statvfs = unsafe { std::mem::zeroed() };
-    // SAFETY: `c` is a valid NUL-terminated path and `st` is a properly sized, writable statvfs.
-    if unsafe { libc::statvfs(c.as_ptr(), &mut st) } == 0 { st.f_bavail as u64 * st.f_frsize as u64 } else { 0 }
 }
 
 /// Keep this much free after a download completes.
@@ -235,9 +220,9 @@ impl ModelManager {
     }
 
     /// Start (or resume) a download. Returns immediately; observe progress with [`subscribe`](Self::subscribe).
-    pub fn start_download(&self, id: &str) -> Result<()> {
-        let spec = self.spec(id).with_context(|| format!("unknown model {id}"))?.clone();
-        let mut jobs = self.inner.jobs.lock().unwrap();
+    pub fn start_download(&self, id: &str) -> Result<(), ManagerError> {
+        let spec = self.spec(id).ok_or_else(|| ManagerError::UnknownModel(id.into()))?.clone();
+        let mut jobs = self.inner.jobs.lock().expect("manager mutex poisoned");
         if jobs.contains_key(id) || self.is_installed(id) {
             return Ok(());
         }
@@ -288,7 +273,7 @@ impl ModelManager {
         };
         let need = total.saturating_sub(already);
         if free_space(&dir) < need + FREE_MARGIN {
-            return Err(DlError::Io("not enough free disk space".into()));
+            return Err(DlError::InsufficientSpace);
         }
 
         let mut completed: u64 = 0;
@@ -332,7 +317,7 @@ impl ModelManager {
 
     /// Stop a running download but keep the partial file so it can resume.
     pub fn pause(&self, id: &str) {
-        if let Some(j) = self.inner.jobs.lock().unwrap().get(id) {
+        if let Some(j) = self.inner.jobs.lock().expect("manager mutex poisoned").get(id) {
             j.paused.store(true, Ordering::SeqCst);
             j.cancel.cancel();
         }
@@ -340,7 +325,7 @@ impl ModelManager {
 
     /// Abort a download and discard what was fetched.
     pub fn cancel(&self, id: &str) {
-        if let Some(j) = self.inner.jobs.lock().unwrap().get(id) {
+        if let Some(j) = self.inner.jobs.lock().expect("manager mutex poisoned").get(id) {
             // Clear any pause request first: with `paused` still set the task's exit path
             // would keep the partial file, turning this cancel into a hidden pause.
             j.paused.store(false, Ordering::SeqCst);
@@ -351,9 +336,9 @@ impl ModelManager {
         }
     }
 
-    pub fn delete(&self, id: &str) -> Result<()> {
-        if self.inner.jobs.lock().unwrap().contains_key(id) {
-            bail!("download in progress");
+    pub fn delete(&self, id: &str) -> Result<(), ManagerError> {
+        if self.inner.jobs.lock().expect("manager mutex poisoned").contains_key(id) {
+            return Err(ManagerError::DownloadInProgress);
         }
         let dir = self.model_dir(id);
         if dir.exists() {
@@ -364,9 +349,9 @@ impl ModelManager {
     }
 
     /// Move every installed (and partial) model to `new_dir` and make it the models folder.
-    pub fn change_dir(&self, new_dir: &Path) -> Result<()> {
-        if !self.inner.jobs.lock().unwrap().is_empty() {
-            bail!("downloads are running");
+    pub fn change_dir(&self, new_dir: &Path) -> Result<(), ManagerError> {
+        if !self.inner.jobs.lock().expect("manager mutex poisoned").is_empty() {
+            return Err(ManagerError::DownloadsRunning);
         }
         let old = self.dir();
         if old == new_dir {
@@ -385,22 +370,24 @@ impl ModelManager {
             }
         }
         let new_dir = new_dir.to_path_buf();
-        self.inner.config.update(|c| c.models_dir = Some(new_dir))?;
+        self.inner
+            .config
+            .update(|c| c.models_dir = Some(new_dir))
+            .map_err(|e| ManagerError::Config(format!("{e:#}")))?;
         self.refresh();
         Ok(())
     }
 }
 
-fn copy_dir(from: &Path, to: &Path) -> std::io::Result<()> {
-    std::fs::create_dir_all(to)?;
-    for e in std::fs::read_dir(from)? {
-        let e = e?;
-        let target = to.join(e.file_name());
-        if e.file_type()?.is_dir() {
-            copy_dir(&e.path(), &target)?;
-        } else {
-            std::fs::copy(e.path(), target)?;
-        }
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn eta_rounds_up_and_needs_a_measurable_speed() {
+        let downloading = |bytes_per_sec| ModelState::Downloading { done: 100, total: 1_100, bytes_per_sec };
+        assert_eq!(downloading(300.0).eta_secs(), Some(4));
+        assert_eq!(downloading(0.5).eta_secs(), None);
+        assert_eq!(ModelState::Installed.eta_secs(), None);
     }
-    Ok(())
 }

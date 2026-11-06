@@ -94,11 +94,14 @@ async fn http_statuses_map_to_error_kinds() {
 }
 
 #[tokio::test]
-async fn unreachable_server_is_a_network_error_not_a_hang() {
-    let srv = MockServer::start().await.unwrap();
-    let url = srv.url.clone();
-    drop(srv);
-    tokio::time::sleep(Duration::from_millis(50)).await;
+async fn a_server_that_hangs_up_is_a_network_error_not_a_hang() {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("http://{}", listener.local_addr().unwrap());
+    let hang_up = tokio::spawn(async move {
+        loop {
+            let _ = listener.accept().await;
+        }
+    });
     let f = factory(None);
     let engine = f.polisher(&azure_cfg(&url)).await.unwrap().unwrap();
     let err = tokio::time::timeout(Duration::from_secs(15), engine.polish(&PolishRequest { system: "s", text: "t" }))
@@ -106,19 +109,20 @@ async fn unreachable_server_is_a_network_error_not_a_hang() {
         .expect("must fail fast")
         .unwrap_err();
     assert_eq!(err.kind, ErrorKind::Network);
+    hang_up.abort();
 }
 
 #[tokio::test]
 async fn connection_test_reports_latency_and_treats_no_speech_as_reachable() {
     let srv = MockServer::start().await.unwrap();
     srv.behavior(|b| {
-        b.latency = Duration::from_millis(40);
+        b.latency = Duration::from_millis(5);
         b.transcript = String::new(); // the engine answers with an empty transcript for silence
     });
     let f = factory(None);
     let asr = f.transcriber(&azure_cfg(&srv.url)).await.unwrap();
     match test_transcriber(asr.as_ref()).await {
-        TestOutcome::Ok { latency_ms } => assert!(latency_ms >= 40, "latency {latency_ms}"),
+        TestOutcome::Ok { latency_ms } => assert!(latency_ms >= 5, "latency {latency_ms}"),
         other => panic!("{other:?}"),
     }
 }

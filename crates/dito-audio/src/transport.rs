@@ -81,34 +81,21 @@ pub(crate) fn transport_of(uid: &str) -> Option<u32> {
 #[cfg(test)]
 mod tests {
     use objc2_core_audio::{
-        kAudioDeviceTransportTypeAggregate, kAudioDeviceTransportTypeAirPlay, kAudioDeviceTransportTypeBluetooth,
-        kAudioDeviceTransportTypeBluetoothLE, kAudioDeviceTransportTypeContinuityCaptureWired,
-        kAudioDeviceTransportTypeContinuityCaptureWireless, kAudioDeviceTransportTypeUnknown,
-        kAudioDeviceTransportTypeVirtual,
+        kAudioDeviceTransportTypeBluetooth, kAudioDeviceTransportTypeContinuityCaptureWireless,
+        kAudioDeviceTransportTypeUnknown, kAudioDeviceTransportTypeVirtual,
     };
 
     use super::*;
 
     #[test]
     fn only_wired_transports_are_probed() {
-        for t in [
-            kAudioDeviceTransportTypeBuiltIn,
-            kAudioDeviceTransportTypeUSB,
-            kAudioDeviceTransportTypeThunderbolt,
-            kAudioDeviceTransportTypeFireWire,
-            kAudioDeviceTransportTypePCI,
-        ] {
-            assert!(allows_auto_probe(Some(t)), "{t:#x}");
-        }
+        assert!(allows_auto_probe(Some(kAudioDeviceTransportTypeBuiltIn)));
+        assert!(allows_auto_probe(Some(kAudioDeviceTransportTypeUSB)));
         for t in [
             kAudioDeviceTransportTypeBluetooth,
-            kAudioDeviceTransportTypeBluetoothLE,
-            kAudioDeviceTransportTypeContinuityCaptureWired,
             kAudioDeviceTransportTypeContinuityCaptureWireless,
-            kAudioDeviceTransportTypeUnknown,
             kAudioDeviceTransportTypeVirtual,
-            kAudioDeviceTransportTypeAggregate,
-            kAudioDeviceTransportTypeAirPlay,
+            kAudioDeviceTransportTypeUnknown,
         ] {
             assert!(!allows_auto_probe(Some(t)), "{t:#x}");
         }

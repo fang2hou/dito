@@ -108,7 +108,7 @@ mod tests {
 
     #[test]
     fn single_syllable_clips_are_not_flagged() {
-        // A 200ms word: too short for the old 250ms floor, real speech.
+        // A 200ms word is real speech.
         assert!(!AudioClip::new(vec![0.3; 3_200]).is_effectively_silent());
         // A short word wrapped in lead-in silence: low whole-clip RMS, healthy peak.
         let mut samples = vec![0.0f32; 2_400];

@@ -48,13 +48,13 @@ Checks run on your machine at commit time through [prek](https://prek.j178.dev) 
 | Hook | Runs when | Command |
 | --- | --- | --- |
 | Secret scan, merge-conflict, TOML, JSON, YAML and large-file checks | every commit | gitleaks and prek built-ins |
-| Rust format and tests | Rust, Cargo or mise files change | `mise run check` |
+| Rust format and tests | Rust, Cargo or mise files change | `mise run check` (`scripts/check.sh fast`) |
 | Rust clippy | Rust, Cargo or mise files change | `mise run lint:rust` |
 | Bench lint, types and tests | `bench/` or mise files change | `mise run bench:check` |
 | Workflow lint | `.github/workflows/` changes | `mise run lint:actions` |
 | Commit message is a Conventional Commit | every commit | `mise run hooks:commit-msg` |
 
-`mise run hooks` runs every hook against all files. Hooks only see what is staged, and `git commit --no-verify` skips them, so nothing server-side backs them up: do not skip them.
+`mise run lint:rust` is the one clippy command: it lints the workspace, then again with the `mock` and `screenshots` features so the code behind them is covered. Docs and scripts refer to it instead of spelling out the cargo command. `mise run hooks` runs every hook against all files. Hooks only see what is staged, and `git commit --no-verify` skips them, so nothing server-side backs them up: do not skip them.
 
 GitHub Actions only enforces what cannot be checked locally. Workflows live in `.github/workflows` and call `mise run` tasks.
 

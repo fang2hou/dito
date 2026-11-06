@@ -1,46 +1,68 @@
-//! Small UI kit matching the FigCraft design: 36px controls, pill buttons, grouped cards.
+//! Small UI kit matching the FigCraft design: controls, pill buttons, grouped cards.
 
+mod appearance_seg;
+mod button;
 mod callbacks;
-mod controls;
 mod format;
 mod glass;
+mod history_tip;
+mod hover;
 mod inputs;
 mod layout;
-mod menus;
+mod menu_button;
+mod menu_panel;
 mod motion;
+mod plate;
+mod popup_menu;
 mod primitives;
+mod progress_bar;
+mod radio;
+mod requests;
+mod scope;
+mod segmented;
+mod select;
+mod select_badge;
+mod switch;
+mod test_state;
+mod tip_bubble;
 mod tooltip;
+mod tween;
 mod typography;
+mod watch;
 
-// Kit-internal helpers are not re-exported; sibling modules reach them via `super::<module>`: the
-// callback aliases `IndexCb`/`ToggleCb`, the `TextInput` element behind `text_input`, the shared
-// field shell `field_chrome`, `solid_tag` (used by `status_tag`), the motion internals `Registry`
-// and `PlateState` (pages go through `MotionScope`/`plate_state`), the tooltip wiring
-// `tip_above`/`tip_label` (used by the controls), and the typography internals `family_for` and
-// `ui_language`.
-
+pub use appearance_seg::appearance_seg;
+pub use button::{BtnKind, BtnSize, CONTROL_H, bare_icon_button, button, button_with, close_button, icon_button};
 pub use callbacks::{Cb, cbk, cbk_idx, click_cb};
-pub use controls::{
-    BtnKind, BtnSize, CONTROL_H, SegStyle, TestState, appearance_seg, bare_icon_button, button, button_with,
-    choice_label, close_button, drag_area, hover_fill, hover_fill_if, icon_button, progress_bar, radio, seg, seg_with,
-    switch,
-};
 pub use format::{error_line, error_summary, fmt_bytes, fmt_eta, style_label};
 pub use glass::{prepare as prepare_card_backdrop, wordmark as page_wordmark};
-pub use inputs::{field, form_field, notify_on_focus, ring_overlay, text_input, with_ring};
-pub use layout::{card, group, page_title, row, status_chip, status_tag, tag};
-pub use menus::{
-    MenuItem, MenuTone, SelectBadge, SelectItem, menu_button, popup_menu, select, select_disabled, select_items,
-};
+pub use history_tip::history_tip;
 #[cfg(feature = "screenshots")]
-pub use motion::force_hover;
-pub use motion::{
-    GLASS_MS, HOVER_MS, MotionScope, ScopeHandle, coverage, hover_pop, hover_pop_scaled, hover_tracker, is_hovered,
-    is_hovered_in, motion_scope, plate_state, reset_hover, spring, tweened, tweened_at, with_motion_scope,
+pub use hover::force_hover;
+pub use hover::{
+    HOVER_MS, choice_label, hover_fill, hover_fill_if, hover_pop, hover_pop_scaled, hover_tracker, is_hovered,
+    is_hovered_in, reset_hover,
 };
-pub use primitives::{hex_alpha, hud_icon, icon, mix, transparent, white};
-pub use tooltip::{TIP_BUBBLE_H, history_tip, tip_pop, tip_pop_with};
+pub use inputs::{field, form_field, notify_on_focus, ring_overlay, text_input, with_ring};
+pub use layout::{card, drag_area, group, page_title, row, status_chip, status_tag, tag};
+pub use menu_button::menu_button;
+pub use motion::Motion;
+pub use plate::{GLASS_MS, coverage, plate_state};
+pub use popup_menu::{MenuItem, MenuTone, popup_menu};
+pub use primitives::{hex_alpha, hud_icon, icon, mix, mix_rgb, transparent, white};
+pub use progress_bar::progress_bar;
+pub use radio::radio;
+pub use requests::Requests;
+pub use scope::{MotionScope, ScopeHandle, motion_scope, with_motion_scope};
+pub use segmented::{SegStyle, seg, seg_with};
+pub use select::{SelectItem, select, select_disabled, select_items};
+pub use select_badge::SelectBadge;
+pub use switch::switch;
+pub use test_state::TestState;
+pub use tip_bubble::TIP_BUBBLE_H;
+pub use tooltip::{tip_pop, tip_pop_with};
+pub use tween::{spring, tweened, tweened_at};
 pub use typography::{
     cjk_family, init_text_system, is_cjk, muted12, set_ui_language, text, text_tracked, text_width, tracked,
     tracking_for,
 };
+pub use watch::{notify_on_change, observe};

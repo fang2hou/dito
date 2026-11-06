@@ -20,6 +20,8 @@ pub enum DlError {
     ChecksumMismatch,
     #[error("size mismatch: expected {expected}, got {got}")]
     SizeMismatch { expected: u64, got: u64 },
+    #[error("not enough free disk space")]
+    InsufficientSpace,
     #[error("disk: {0}")]
     Io(String),
 }
@@ -74,6 +76,8 @@ pub struct Target<'a> {
     pub sha256: Option<&'a str>,
 }
 
+const PROGRESS_INTERVAL: Duration = Duration::from_millis(100);
+
 /// Download `t.url` into `t.part` (resuming if it already has bytes), verify, and rename to `t.dest`.
 ///
 /// The checksum pass runs for several seconds on multi-GB model files; it is cancel-aware
@@ -85,95 +89,122 @@ pub async fn fetch(
     cancel: &CancellationToken,
     on_progress: &mut (dyn FnMut(Phase) + Send),
 ) -> Result<(), DlError> {
-    let Target { url, part, dest, size: expected_size, sha256 } = *t;
-    if let Some(dir) = part.parent() {
+    let have = resumable_len(t).await?;
+    if have < t.size {
+        let (response, file, start) = begin_transfer(client, t, have, cancel).await?;
+        stream_body(response, file, start, cancel, on_progress).await?;
+    }
+    verify_and_install(t, cancel, on_progress).await
+}
+
+/// Bytes already in `.part`; a file larger than expected cannot be resumed and is discarded.
+async fn resumable_len(t: &Target<'_>) -> Result<u64, DlError> {
+    if let Some(dir) = t.part.parent() {
         tokio::fs::create_dir_all(dir).await?;
     }
-    let mut have = tokio::fs::metadata(part).await.map(|m| m.len()).unwrap_or(0);
-    if have > expected_size {
-        tokio::fs::remove_file(part).await?;
-        have = 0;
+    let have = tokio::fs::metadata(t.part).await.map(|m| m.len()).unwrap_or(0);
+    if have > t.size {
+        tokio::fs::remove_file(t.part).await?;
+        return Ok(0);
     }
+    Ok(have)
+}
 
-    if have < expected_size {
-        let mut req = client.get(url);
-        if have > 0 {
-            req = req.header("Range", format!("bytes={have}-"));
-        }
-        let resp = tokio::select! {
+/// Sends the request and opens `.part`, returning the response, the file and the offset the body starts at.
+async fn begin_transfer(
+    client: &reqwest::Client,
+    t: &Target<'_>,
+    have: u64,
+    cancel: &CancellationToken,
+) -> Result<(reqwest::Response, tokio::fs::File, u64), DlError> {
+    let mut request = client.get(t.url);
+    if have > 0 {
+        request = request.header("Range", format!("bytes={have}-"));
+    }
+    let response = tokio::select! {
+        biased;
+        _ = cancel.cancelled() => return Err(DlError::Cancelled),
+        r = request.send() => r.map_err(|e| DlError::Network(e.to_string()))?,
+    };
+    let status = response.status().as_u16();
+    if !matches!(status, 200 | 206) {
+        return Err(DlError::Http(status));
+    }
+    // A server that ignores Range answers 200 with the whole file: start over.
+    if have > 0 && status == 206 {
+        let file = tokio::fs::OpenOptions::new().append(true).open(t.part).await?;
+        return Ok((response, file, have));
+    }
+    Ok((response, tokio::fs::File::create(t.part).await?, 0))
+}
+
+async fn stream_body(
+    response: reqwest::Response,
+    mut file: tokio::fs::File,
+    start: u64,
+    cancel: &CancellationToken,
+    on_progress: &mut (dyn FnMut(Phase) + Send),
+) -> Result<(), DlError> {
+    let mut stream = response.bytes_stream();
+    let started = Instant::now();
+    let mut have = start;
+    let mut last_report = started;
+    loop {
+        let next = tokio::select! {
             biased;
-            _ = cancel.cancelled() => return Err(DlError::Cancelled),
-            r = req.send() => r.map_err(|e| DlError::Network(e.to_string()))?,
-        };
-        let status = resp.status().as_u16();
-        if !(status == 200 || status == 206) {
-            return Err(DlError::Http(status));
-        }
-        // A server that ignores Range answers 200 with the whole file: start over.
-        let append = have > 0 && status == 206;
-        let mut file = if append {
-            tokio::fs::OpenOptions::new().append(true).open(part).await?
-        } else {
-            have = 0;
-            tokio::fs::File::create(part).await?
-        };
-
-        let mut stream = resp.bytes_stream();
-        let started = Instant::now();
-        let started_at = have;
-        let mut last_report = Instant::now();
-        loop {
-            let next = tokio::select! {
-                biased;
-                _ = cancel.cancelled() => {
-                    file.flush().await?;
-                    return Err(DlError::Cancelled);
-                }
-                n = stream.next() => n,
-            };
-            match next {
-                Some(Ok(chunk)) => {
-                    file.write_all(&chunk).await?;
-                    have += chunk.len() as u64;
-                    if last_report.elapsed() >= Duration::from_millis(100) {
-                        last_report = Instant::now();
-                        let secs = started.elapsed().as_secs_f64().max(0.001);
-                        on_progress(Phase::Fetching(FileProgress {
-                            done: have,
-                            bytes_per_sec: (have - started_at) as f64 / secs,
-                        }));
-                    }
-                }
-                Some(Err(e)) => {
-                    file.flush().await?;
-                    return Err(DlError::Network(e.to_string()));
-                }
-                None => break,
+            _ = cancel.cancelled() => {
+                file.flush().await?;
+                return Err(DlError::Cancelled);
             }
+            n = stream.next() => n,
+        };
+        let Some(chunk) = next else { break };
+        let chunk = match chunk {
+            Ok(chunk) => chunk,
+            Err(e) => {
+                file.flush().await?;
+                return Err(DlError::Network(e.to_string()));
+            }
+        };
+        file.write_all(&chunk).await?;
+        have += chunk.len() as u64;
+        if last_report.elapsed() >= PROGRESS_INTERVAL {
+            last_report = Instant::now();
+            on_progress(fetching(have, start, started));
         }
-        file.flush().await?;
-        drop(file);
-        let secs = started.elapsed().as_secs_f64().max(0.001);
-        on_progress(Phase::Fetching(FileProgress { done: have, bytes_per_sec: (have - started_at) as f64 / secs }));
     }
+    file.flush().await?;
+    on_progress(fetching(have, start, started));
+    Ok(())
+}
 
-    let got = tokio::fs::metadata(part).await?.len();
-    if got != expected_size {
+fn fetching(have: u64, start: u64, started: Instant) -> Phase {
+    let secs = started.elapsed().as_secs_f64().max(0.001);
+    Phase::Fetching(FileProgress { done: have, bytes_per_sec: (have - start) as f64 / secs })
+}
+
+async fn verify_and_install(
+    t: &Target<'_>,
+    cancel: &CancellationToken,
+    on_progress: &mut (dyn FnMut(Phase) + Send),
+) -> Result<(), DlError> {
+    let got = tokio::fs::metadata(t.part).await?.len();
+    if got != t.size {
         // Truncated by the server or connection: keep the bytes so the next attempt resumes.
-        return Err(DlError::SizeMismatch { expected: expected_size, got });
+        return Err(DlError::SizeMismatch { expected: t.size, got });
     }
-    if let Some(want) = sha256 {
+    if let Some(want) = t.sha256 {
         on_progress(Phase::Verifying);
         let actual = tokio::select! {
             biased;
             _ = cancel.cancelled() => return Err(DlError::Cancelled),
-            h = sha256_file(part) => h?,
+            h = sha256_file(t.part) => h?,
         };
         if !actual.eq_ignore_ascii_case(want) {
-            let _ = tokio::fs::remove_file(part).await;
+            let _ = tokio::fs::remove_file(t.part).await;
             return Err(DlError::ChecksumMismatch);
         }
     }
-    tokio::fs::rename(part, dest).await?;
+    tokio::fs::rename(t.part, t.dest).await?;
     Ok(())
 }

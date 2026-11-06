@@ -19,4 +19,4 @@ Use this for bugs and wrong behavior. The aim is to fix the cause and leave the 
 - Fix the cause, then look for the same pattern elsewhere and fix it there too, within reason.
 - If the fix changes an architectural decision, update or supersede the ADR in the same change.
 - Add a test only when the logic is easy to break and hard to notice in the app (parsing, state machines, config, protocols). Behavior a person sees or feels is checked in the running app.
-- Run `./scripts/check.sh fast` and `cargo clippy --workspace --all-targets -- -D warnings`.
+- Run `./scripts/check.sh fast` and `mise run lint:rust`.

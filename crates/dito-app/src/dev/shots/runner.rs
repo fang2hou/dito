@@ -1,0 +1,102 @@
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+
+use gpui_kit::*;
+
+use super::{demo, hud, onboarding, pages};
+use crate::settings::{self, Page};
+use crate::state::{AppGlobal, AppState};
+
+/// Which shot groups `DITO_SHOTS_ONLY=hud,demo` selects. Without it every default group runs and the opt-in ones
+/// stay off.
+struct Groups(Option<String>);
+
+impl Groups {
+    fn from_env() -> Self {
+        Self(std::env::var("DITO_SHOTS_ONLY").ok())
+    }
+
+    fn selects(&self, group: &str) -> bool {
+        self.0.as_ref().is_some_and(|only| only.split(',').any(|g| g == group))
+    }
+
+    /// A default group: runs unless the filter leaves it out.
+    fn runs_by_default(&self, group: &str) -> bool {
+        self.0.is_none() || self.selects(group)
+    }
+}
+
+/// Render the groups (pages, extra, onboarding, hud, demo, min by default; the rest only when named) to `dir`, then
+/// quit.
+pub fn run(dir: PathBuf, cx: &mut App) {
+    std::fs::create_dir_all(&dir).expect("screenshot dir");
+    let st = cx.global::<AppGlobal>().0.clone();
+    settings::open(st.clone(), Page::General, cx);
+    let groups = Groups::from_env();
+    cx.spawn(async move |cx| {
+        render_app_shots(&st, &dir, &groups, cx).await;
+        render_preview_shots(&st, &dir, &groups, cx).await;
+        if groups.runs_by_default("min") {
+            pages::min_size_shots(&st, &dir, cx).await;
+        }
+        cx.update(|cx| cx.quit());
+    })
+    .detach();
+}
+
+async fn render_app_shots(st: &Arc<AppState>, dir: &Path, groups: &Groups, cx: &mut AsyncApp) {
+    if groups.runs_by_default("pages") {
+        pages::page_shots(st, dir, cx).await;
+    }
+    if groups.selects("navrepro") {
+        pages::nav_repro(cx).await;
+    }
+    if groups.selects("models") {
+        pages::model_shots(st, dir, cx).await;
+    }
+    if groups.runs_by_default("extra") {
+        pages::extra_shots(st, dir, cx).await;
+    }
+    if groups.runs_by_default("onboarding") {
+        onboarding::onboarding_shots(st, dir, cx).await;
+    }
+    if groups.runs_by_default("hud") {
+        hud::hud_shots(st, dir, cx).await;
+    }
+    if groups.runs_by_default("demo") {
+        demo::demo_shots(dir, cx).await;
+    }
+}
+
+async fn render_preview_shots(st: &Arc<AppState>, dir: &Path, groups: &Groups, cx: &mut AsyncApp) {
+    if groups.selects("hudstylepreview") {
+        pages::hud_style_preview_shots(st, dir, cx).await;
+    }
+    if groups.selects("hudoutcome") {
+        hud::hud_outcome_shots(st, dir, cx).await;
+    }
+    if groups.selects("hudwave") {
+        hud::hud_wave_shots(st, dir, cx).await;
+    }
+    if groups.selects("hudmotion") {
+        hud::hud_motion_shots(st, dir, cx).await;
+    }
+    if groups.selects("settingshud") {
+        pages::hud_settings_shots(st, dir, cx).await;
+    }
+    if groups.selects("hudheight") {
+        pages::hud_height_shots(st, dir, cx).await;
+    }
+    if groups.selects("hudlive") {
+        hud::hud_live_shots(st, dir, cx).await;
+    }
+    if groups.selects("demolive") {
+        demo::demo_live_shots(dir, cx).await;
+    }
+    if groups.selects("appearance") {
+        pages::appearance_hover_shots(st, dir, cx).await;
+    }
+    if groups.selects("health") {
+        pages::health_shots(st, dir, cx).await;
+    }
+}
