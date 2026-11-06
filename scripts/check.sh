@@ -3,15 +3,15 @@
 #
 # Usage: ./scripts/check.sh {fast|full}   (always runs against the checkout that holds this script)
 #
-#   fast  cargo fmt --check, then one cargo test run over the crates that need no GUI, models or
-#         system services (lib tests, the mock-server integration tests, app unit tests and i18n
-#         coverage), then the Bedrock test on a single thread.
+#   fast  cargo fmt --check, then one cargo test run over the crates that need no models or system
+#         services (lib tests, the mock-server integration tests, app unit tests, i18n coverage and
+#         the headless demo_run smoke test), then the Bedrock test on a single thread. Nothing here
+#         shows a window, takes focus or touches the menu bar.
 #   full  fast, plus compile checks (--all-targets) of the app with no features, with
 #         mock+screenshots, and with the default features (pulls dito-runtimes: needs cmake and
 #         the Xcode Metal toolchain).
 #
-# Not run here, see docs/IMPLEMENTATION.md (Testing): dito-app --test demo_run (GUI session),
-# dito-platform --test keychain and --test loopback (ignored; Keychain, Accessibility), dito-runtimes tests
+# Not run here, see docs/IMPLEMENTATION.md (Testing): dito-platform --test keychain and --test loopback (ignored; Keychain, Accessibility), dito-runtimes tests
 # and examples (real models), screenshot rendering, clippy (mise run lint:rust) and release builds.
 #
 # Notes:
@@ -72,7 +72,7 @@ test_args=(
 
 step "fmt (cargo fmt --all -- --check)" cargo fmt --all -- --check
 step "tests" cargo test "${test_args[@]}" --lib --bin dito \
-  --test engines --test downloads --test providers --test configured_asr --test i18n_coverage
+  --test engines --test downloads --test providers --test configured_asr --test i18n_coverage --test demo_run
 # bedrock.rs sets AWS_* environment variables from every test, which is only sound on one thread.
 step "bedrock tests (single thread)" cargo test "${test_args[@]}" --test bedrock -- --test-threads=1
 

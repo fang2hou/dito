@@ -15,6 +15,7 @@ mod timefmt;
 mod ui;
 
 use anyhow::Result;
+use gpui_kit::WindowingRequest;
 
 use crate::assets::AppAssets;
 use crate::opts::Opts;
@@ -34,6 +35,11 @@ fn main() -> Result<()> {
     let rt = tokio::runtime::Builder::new_multi_thread().enable_all().thread_name("dito-rt").build()?;
     let st = AppState::build(opts, &rt)?;
 
-    gpui_kit::application().with_assets(AppAssets).run(move |cx| startup::run(st, cx));
+    let mut app = gpui_kit::application().with_assets(AppAssets);
+    if st.opts.is_headless() {
+        // Accessory activation policy: no Dock icon, no menu bar, never the frontmost app.
+        app = app.with_windowing(WindowingRequest::Headless);
+    }
+    app.run(move |cx| startup::run(st, cx));
     Ok(())
 }

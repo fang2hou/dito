@@ -1,5 +1,6 @@
 //! End-to-end smoke: the real binary, real HTTP provider code, in-process mock cloud.
-//! Needs a macOS GUI session (GPUI starts NSApplication) and a build with the `mock` feature.
+//! Needs a logged-in macOS session (GPUI starts NSApplication) and a build with the `mock` feature. The app starts
+//! headless (no Dock icon, no menu bar, no windows), so it never takes focus from the person using the Mac.
 
 #![cfg(feature = "mock")]
 

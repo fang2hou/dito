@@ -5,6 +5,7 @@ use dito_core::config::Appearance;
 use gpui_kit::*;
 use image::{Rgba, RgbaImage};
 
+use super::input::redraw;
 use crate::hud::{HUD_SCALE, HudView, WIN_H, WIN_PAD, WIN_W};
 use crate::settings;
 
@@ -27,10 +28,23 @@ pub fn theme_tag(appearance: Appearance) -> &'static str {
     if appearance == Appearance::Dark { "dark" } else { "light" }
 }
 
+/// Redraw from the current state, then read the image. Shots run in windows that are never shown, and a window
+/// that is not on screen does not commit frames by itself.
+///
+/// Goes through `update_window` on an untyped handle: a typed `WindowHandle::update` leases the window's root view,
+/// and drawing needs it.
+pub fn paint_to_image(window: AnyWindowHandle, cx: &mut App) -> Result<RgbaImage, String> {
+    cx.update_window(window, |_, w, cx| {
+        redraw(w, cx);
+        w.render_to_image().map_err(|e| e.to_string())
+    })
+    .map_err(|e| e.to_string())?
+}
+
 pub fn render_settings_window(cx: &mut AsyncApp) -> Option<Result<RgbaImage, String>> {
     cx.update(|cx| {
         let (window, _) = settings::handle(cx)?;
-        window.update(cx, |_, w, _| w.render_to_image().map_err(|e| e.to_string())).ok()
+        Some(paint_to_image(window.into(), cx))
     })
 }
 
@@ -43,22 +57,7 @@ pub async fn page_shot(cx: &mut AsyncApp, dir: &Path, name: &str) {
 
 pub fn render(cx: &mut AsyncApp, window: impl Into<AnyWindowHandle>) -> Option<RgbaImage> {
     let window = window.into();
-    cx.update(|cx| window.update(cx, |_, w, _| w.render_to_image().ok()).ok().flatten())
-}
-
-/// Redraw from the current state before reading the image: occluded native windows may not commit frames.
-pub fn render_fresh(cx: &mut AsyncApp, window: impl Into<AnyWindowHandle>) -> Option<RgbaImage> {
-    let window = window.into();
-    cx.update(|cx| {
-        window
-            .update(cx, |_, w, cx| {
-                w.refresh();
-                w.draw(cx).clear(cx);
-                w.render_to_image().ok()
-            })
-            .ok()
-            .flatten()
-    })
+    cx.update(|cx| paint_to_image(window, cx).ok())
 }
 
 pub fn close_window(cx: &mut AsyncApp, window: impl Into<AnyWindowHandle>) {
@@ -89,6 +88,8 @@ pub fn open_hud_window(
             window_bounds: Some(WindowBounds::Windowed(Bounds::centered(None, window_size, cx))),
             titlebar: None,
             window_background: WindowBackgroundAppearance::Transparent,
+            focus: false,
+            show: false,
             ..Default::default()
         };
         cx.open_window(options, |_, cx| cx.new(build)).ok()
