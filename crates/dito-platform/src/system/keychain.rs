@@ -11,7 +11,7 @@ pub struct KeychainSecrets {
 
 impl KeychainSecrets {
     pub fn new() -> Self {
-        Self::with_service("com.fang2hou.dito")
+        Self::with_service(dito_core::identity::BUNDLE_ID)
     }
 
     pub fn with_service(service: &str) -> Self {

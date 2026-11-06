@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-const AGENT_LABEL: &str = "com.fang2hou.dito";
+const AGENT_LABEL: &str = dito_core::identity::BUNDLE_ID;
 
 fn agent_path() -> Option<PathBuf> {
     std::env::var_os("HOME").map(|h| PathBuf::from(h).join("Library/LaunchAgents").join(format!("{AGENT_LABEL}.plist")))

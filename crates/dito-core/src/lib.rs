@@ -7,6 +7,7 @@ pub mod error;
 pub mod factory;
 pub mod health;
 pub mod i18n;
+pub mod identity;
 pub mod insert;
 pub mod pipeline;
 pub mod prompts;
