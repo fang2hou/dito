@@ -207,6 +207,8 @@ impl Actor {
         let mute = (self.deps.config.get().general.music_mute == MusicMuteMode::Auto)
             .then(|| self.deps.env.music_mute.mute_if_active());
         let app = self.deps.env.frontmost.frontmost();
+        // The app's name is recorded with every entry; the history resolves the label against the current prompts
+        // list at display time, so removing an app reads Other and adding it back restores its name.
         let meta = Meta { style: self.deps.config.get().prompts.for_application(&app.bundle_id), app, ts: now() };
         let started = Instant::now();
         self.state = State::Listening { meta, mute };

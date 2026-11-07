@@ -47,9 +47,55 @@ impl PromptsPage {
             cx.notify();
             return;
         }
-        self.style = self.drafts.for_application(&app.bundle_id);
+        // The app list is structure, not draft text: write it at once so the next dictation is polished with this
+        // app's rules and the history classifies its recordings. The copied rules are part of creating the app; other
+        // prompt text still waits for Save.
+        let style = self.drafts.for_application(&app.bundle_id);
+        let copies: Vec<(Lang, dito_core::prompts::StylePrompt)> =
+            Lang::ALL.iter().map(|lang| (*lang, self.drafts.set(*lang).style(&style).clone())).collect();
+        let (bundle, name) = (app.bundle_id.clone(), app.name.clone());
+        services::save_config(&self.st, |c| {
+            for (lang, copy) in copies {
+                c.prompts.set_mut(lang).applications.insert(bundle.clone(), copy);
+            }
+            c.prompts.applications.insert(bundle, name);
+        });
+        self.style = style;
         self.apps = app_choices(&self.drafts);
-        self.dirty = true;
+        self.dialog = None;
+        self.load(window, cx);
+    }
+
+    /// The destructive control beside the app picker: only a user-configured app can be removed.
+    pub(super) fn remove_app_control(&self, c: &Ctx, cx: &mut Context<Self>) -> Option<Stateful<Div>> {
+        let Style::Application(id) = &self.style else { return None };
+        if !self.drafts.applications.contains_key(id) {
+            return None;
+        }
+        let p = c.p;
+        let id = ElementId::from("remove-prompt-app");
+        ui::tip_label(id.clone(), c.t(Tr::PromptsRemoveApplication));
+        Some(
+            ui::danger_icon_button(
+                id.clone(),
+                &p,
+                Ic::Trash,
+                cbk(cx, |this: &mut Self, w, cx| this.open_dialog(Dialog::RemoveApp, w, cx)),
+            )
+            .child(ui::tip_above(&p, &id)),
+        )
+    }
+
+    fn remove_application(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Style::Application(id) = self.style.clone() else { return };
+        self.drafts.remove_application(&id);
+        // The list is structure: persist the removal now, so the next dictation falls back to Other and the history
+        // reclassifies this app's recordings immediately.
+        services::save_config(&self.st, |c| {
+            c.prompts.remove_application(&id);
+        });
+        self.apps = app_choices(&self.drafts);
+        self.style = Style::General;
         self.dialog = None;
         self.load(window, cx);
     }
@@ -157,6 +203,17 @@ impl PromptsPage {
             w.blur(cx);
             cx.notify();
         });
+        let title = match dialog {
+            Dialog::Reset => Tr::PromptsResetTitle,
+            Dialog::RemoveApp => Tr::PromptsRemoveTitle,
+            Dialog::Add => Tr::PromptsAddTitle,
+        };
+        let remove_name = self
+            .apps
+            .iter()
+            .find(|a| a.style == self.style)
+            .map(|a| self.choice_label(&c, a).to_string())
+            .unwrap_or_default();
         let mut body = div()
             .w(px(620.))
             .max_w(window.viewport_size().width - px(48.))
@@ -168,16 +225,23 @@ impl PromptsPage {
             .flex()
             .flex_col()
             .gap(px(16.))
-            .child(text(
-                c.t(if dialog == Dialog::Reset { Tr::PromptsResetTitle } else { Tr::PromptsAddTitle }),
-                20.,
-                FontWeight::BOLD,
-                p.text,
-            ));
+            .child(text(c.t(title), 20., FontWeight::BOLD, p.text));
         if dialog == Dialog::Reset {
             body = body
                 .child(text(c.t(Tr::PromptsResetScope), 13., FontWeight::NORMAL, p.text).line_height(px(20.)))
                 .child(text(c.t(Tr::PromptsResetApps), 13., FontWeight::NORMAL, p.muted).line_height(px(20.)));
+        } else if dialog == Dialog::RemoveApp {
+            body = body
+                .child(
+                    text(
+                        dito_core::i18n::fmt::remove_application_scope(c.lang, &remove_name),
+                        13.,
+                        FontWeight::NORMAL,
+                        p.text,
+                    )
+                    .line_height(px(20.)),
+                )
+                .child(text(c.t(Tr::PromptsRemoveHistory), 13., FontWeight::NORMAL, p.muted).line_height(px(20.)));
         } else {
             let mut target = div()
                 .w_full()
@@ -217,8 +281,8 @@ impl PromptsPage {
                 body = body.child(text(error.clone(), 13., FontWeight::NORMAL, p.danger));
             }
         }
-        let confirm = if dialog == Dialog::Reset {
-            cbk(cx, |this: &mut Self, w, cx| {
+        let confirm = match dialog {
+            Dialog::Reset => cbk(cx, |this: &mut Self, w, cx| {
                 this.drafts.reset_all();
                 services::save_config(&this.st, |c| c.prompts = this.drafts.clone());
                 this.apps = app_choices(&this.drafts);
@@ -226,9 +290,14 @@ impl PromptsPage {
                 this.dialog = None;
                 this.dirty = false;
                 this.load(w, cx);
-            })
-        } else {
-            cbk(cx, |this: &mut Self, w, cx| this.add_application(w, cx))
+            }),
+            Dialog::RemoveApp => cbk(cx, |this: &mut Self, w, cx| this.remove_application(w, cx)),
+            Dialog::Add => cbk(cx, |this: &mut Self, w, cx| this.add_application(w, cx)),
+        };
+        let confirm_label = match dialog {
+            Dialog::Reset => Tr::PromptsRestoreDefaults,
+            Dialog::RemoveApp => Tr::PromptsRemoveConfirm,
+            Dialog::Add => Tr::PromptsAddConfirm,
         };
         body = body.child(
             div()
@@ -245,15 +314,8 @@ impl PromptsPage {
                     close,
                 ))
                 .child(
-                    ui::button(
-                        "prompt-dialog-confirm",
-                        &p,
-                        &c.t(if dialog == Dialog::Reset { Tr::PromptsRestoreDefaults } else { Tr::PromptsAddConfirm }),
-                        BtnKind::Primary,
-                        None,
-                        confirm,
-                    )
-                    .opacity(if dialog == Dialog::Add && self.target.is_none() { 0.5 } else { 1. }),
+                    ui::button("prompt-dialog-confirm", &p, &c.t(confirm_label), BtnKind::Primary, None, confirm)
+                        .opacity(if dialog == Dialog::Add && self.target.is_none() { 0.5 } else { 1. }),
                 ),
         );
         Some(

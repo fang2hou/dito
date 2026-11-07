@@ -33,17 +33,17 @@ mod watch;
 pub use appearance_seg::appearance_seg;
 pub use button::{
     BtnKind, BtnSize, CONTROL_H, bare_icon_button, button, button_with, button_with_icon_size, close_button,
-    icon_button, icon_button_sized,
+    danger_icon_button, icon_button, icon_button_sized,
 };
 pub use callbacks::{Cb, cbk, cbk_idx, click_cb};
-pub use format::{error_line, error_summary, fmt_bytes, fmt_eta, style_label};
+pub use format::{error_line, error_summary, fmt_bytes, fmt_eta, history_style_label};
 pub use glass::{prepare as prepare_card_backdrop, wordmark as page_wordmark};
 pub use history_tip::history_tip;
 #[cfg(feature = "screenshots")]
 pub use hover::force_hover;
 pub use hover::{
     HOVER_MS, choice_label, hover_fill, hover_fill_if, hover_pop, hover_pop_scaled, hover_tracker, is_hovered,
-    is_hovered_in, reset_hover,
+    is_hovered_in, reset_hover, reset_hover_in,
 };
 pub use inputs::{field, field_chrome, form_field, notify_on_focus, ring_overlay, text_input, with_ring};
 pub use layout::{StatusTone, card, drag_area, group, page_title, row, status_chip, status_tag, tag};

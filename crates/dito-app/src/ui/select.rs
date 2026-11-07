@@ -8,7 +8,7 @@ use super::callbacks::{Cb, IndexCb};
 use super::hover::{HOVER_MS, hover_fill, hover_tracker, is_hovered};
 use super::inputs::field_chrome;
 use super::menu_button::{press_mark, press_toggle};
-use super::menu_panel::{float, menu_panel, menu_row};
+use super::menu_panel::{float, menu_panel, menu_row, menu_row_staying};
 use super::primitives::icon;
 use super::scope::{ScopeHandle, motion_scope};
 use super::select_badge::{SelectBadge, select_badge};
@@ -132,18 +132,24 @@ fn width_probe(id: &'static str, scope: ScopeHandle) -> impl IntoElement {
     .size_full()
 }
 
+#[allow(clippy::too_many_arguments)]
 fn select_row(
     id: &'static str,
     p: &Palette,
     i: usize,
     item: &SelectItem,
     on: bool,
+    close_on_pick: bool,
     on_pick: &IndexCb,
     on_toggle: Option<&Cb>,
 ) -> Stateful<Div> {
     let (pick, toggle) = (on_pick.clone(), on_toggle.cloned());
-    menu_row(ElementId::from((id, i)), p)
-        .justify_between()
+    let row = if close_on_pick {
+        menu_row(ElementId::from((id, i)), p)
+    } else {
+        menu_row_staying(ElementId::from((id, i)), p)
+    };
+    row.justify_between()
         .on_click(move |_, w, cx| {
             pick(i, w, cx);
             if let Some(toggle) = &toggle {
@@ -225,7 +231,16 @@ fn select_control(
         .max_w(px(400.));
     // The panel only exists while open, so this runs each time it appears.
     for (i, item) in options.iter().enumerate() {
-        panel = panel.child(select_row(id, p, i, item, selected(i), &on_pick, close_on_pick.then_some(&on_toggle)));
+        panel = panel.child(select_row(
+            id,
+            p,
+            i,
+            item,
+            selected(i),
+            close_on_pick,
+            &on_pick,
+            close_on_pick.then_some(&on_toggle),
+        ));
     }
     root.child(float(ElementId::from((ElementId::from(id), "menu")), CONTROL_H + 6., panel))
 }

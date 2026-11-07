@@ -88,7 +88,8 @@ impl HistoryPage {
                     return;
                 }
             };
-            let csv = history_csv(&rows, dito_platform::local_utc_offset_secs());
+            let cfg = st.cfg.get();
+            let csv = history_csv(&rows, &cfg.prompts, cfg.general.lang(), dito_platform::local_utc_offset_secs());
             match st.rt.clone().spawn_blocking(move || std::fs::write(&path, csv)).await {
                 Ok(Ok(())) => {}
                 Ok(Err(e)) => tracing::warn!("export: {e}"),

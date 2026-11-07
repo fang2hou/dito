@@ -173,6 +173,28 @@ pub fn icon_button_sized(
         .child(icon(ic, glyph_size, p.text))
 }
 
+/// Circular destructive action (remove this app's settings): red glyph and border on the surface.
+pub fn danger_icon_button(id: impl Into<ElementId>, p: &Palette, ic: Ic, on_click: Cb) -> Stateful<Div> {
+    let id: ElementId = id.into();
+    div()
+        .id(id.clone())
+        .size(px(CONTROL_H))
+        .flex_none()
+        .flex()
+        .items_center()
+        .justify_center()
+        .relative()
+        .rounded_full()
+        .bg(p.button_danger_bg)
+        .border_1()
+        .border_color(p.button_danger_border)
+        .cursor_pointer()
+        .on_click(click_cb(on_click))
+        .on_hover(hover_tracker(id.clone()))
+        .child(hover_fill(&id, None, p.button_danger_hover))
+        .child(icon(ic, 16., p.button_danger_text))
+}
+
 /// The dialog close button: a cross that gets a surface on hover.
 pub fn close_button(id: impl Into<ElementId>, p: &Palette, on_click: Cb) -> Stateful<Div> {
     let id: ElementId = id.into();

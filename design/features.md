@@ -38,8 +38,8 @@ What the app is for and what it does, from the user's side. How it looks and mov
 | 一般 (General) | Shortcut, record mode, insert method, music mute, microphone (automatic or fixed), speech language, display language, appearance, HUD appearance and position, launch at login, restart onboarding |
 | モデル (Models) | Local models (download, pause, resume, verify, delete, switch with 使用する, move the folder); cloud speech templates (FunASR, Qwen ASR, OpenRouter) loaded directly into the full inline JSON configuration editor in Cloud settings, with valid-draft autosave, native undo and redo, and a single documentation help dialog with four scrollable reference cards; cloud polishing (Azure OpenAI, Amazon Bedrock, OpenAI-compatible); connection tests |
 | 辞書 (Dictionary) | Words passed to recognition as hotwords, optionally also to polishing; import and export |
-| プロンプト (Prompts) | Shared rules and app writing profiles per language, installed-app icons, copy settings to another app, optional style examples, a safe preview and a complete reset |
-| 履歴 (History) | Search and filter; each entry shows the polished text and the original; re-recognize, re-polish, copy, play audio, delete |
+| プロンプト (Prompts) | Shared rules and app writing profiles per language, installed-app icons, add or remove an app profile, copy settings to another app, optional style examples, a safe preview and a complete reset |
+| 履歴 (History) | Search and filter by period, text or app; entries from configured apps carry the app name and the rest read as Other; each entry shows the polished text and the original; re-recognize, re-polish, copy, play audio, delete |
 | 統計 (Stats) | Characters, speaking speed, time saved, recordings, top apps and languages |
 | ステータス (Status) | Engine state, connection tests, macOS permissions (Microphone and Accessibility) |
 
