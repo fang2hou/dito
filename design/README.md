@@ -31,7 +31,7 @@ Item     NN.MM.K Name     one row group inside the board, e.g. 22.02.1 Microphon
 | 20–29 | `- Screens` | `20 Settings`, `21 HUD & Menu Bar`, `22 Onboarding` |
 | 30–39 | `- Brand` | `30 App Icon` |
 
-New pages and sections take the next free number; existing numbers are not compacted.
+Section numbers follow visible order; remove retired sections and close their gaps.
 
 ### Section map
 
@@ -40,7 +40,7 @@ New pages and sections take the next free number; existing numbers are not compa
 | 11 Type, Space & Components | 11.01 Type, Space & Components, 11.02 Icons, 11.03 Controls |
 | 12 Motion | 12.00 Overview, 12.01 Motion Tokens, 12.02 Controls, 12.03 Slider, 12.04 Dropdown |
 | 14 Localization | 14.01 Languages, 14.02 Localized Screens |
-| 20 Settings | 20.00 Overview, 20.01 General, 20.02 Dictionary, 20.03 Prompts, 20.04 Local Models, 20.05 Cloud Models, 20.07 History, 20.08 Stats, 20.09 Status, 20.10 Sidebar |
+| 20 Settings | 20.00 Overview, 20.01 General, 20.02 Dictionary, 20.03 Prompts, 20.04 Local Models, 20.05 Cloud Models, 20.06 History, 20.07 Stats, 20.08 Status, 20.09 Sidebar |
 | 21 HUD & Menu Bar | 21.00 Overview, 21.01 States, 21.02 Recording, 21.03 Errors, 21.04 Menu Bar, 21.05 HUD Motion Tokens, 21.06 HUD Processing, 21.07 Width & Pop-ups, 21.08 Follow Pointer, 21.09 HUD Buttons |
 | 22 Onboarding | 22.00 Overview, 22.01 Welcome, 22.02 Permissions, 22.03 How to Use, 22.04 Shortcut, 22.05 Engine, 22.06 Cloud, 22.07 Try It, 22.08 Page Slide, 22.09 Usage Demo |
 
@@ -66,7 +66,7 @@ Control labels keep the actual design face: Medium (500) for buttons and selecte
 | `Context Help` | State (Rest, Hover) | 24 pt hit area, 16 pt inverse information disc in `text` and `card`. Opacity 60% at rest, 100% on hover or keyboard focus, `motion/hover` 160 ms ease-out. Tooltip uses `motion/tip` 150 ms and the established shadow and radius; its first entrance rises and fades, while rapid changes reuse the window's bubble. Allow 120 ms between targets, then fade out in 150 ms. Position and width transfer in 180 ms and retarget from the current position and velocity. Keep labels centered on one line, cross-fade them, and apply a 6 pt alpha fade to overflowing left and right edges. Reduce Motion updates position and width immediately. The storyboard and interactive preview are on 12.05 Tooltip Travel |
 | `Application Select` | Label, Icon, Leading icon | Standard 36 pt select, radius 12, `input_bg`, `border_strong` and `text`; 20 pt native app icon. Omit the icon for `その他`. Its menu keeps Add application above the scrolling installed-app list |
 | `Local Source`, `Cloud Source` | Label | 24 pt outlined capsule, 14 pt CPU or globe icon and 12 pt Medium label. Neutral `card`, `border_strong` and `muted` colors. Place immediately after the model name with a 10 pt gap; no button interaction |
-| `Status Detail` | Label, Value | Two equal columns in model slots on `20.09`. Values wrap; each row grows to the taller tile. Default height 64 pt, 16 pt horizontal and 10 pt vertical internal padding, 12 pt gutter. Both detail tiles and model cards use `radius/card` (16 pt). Align tile edges with the slot heading and model-name text, 22 pt from the model card edge. Status permission rows use 18 pt vertical padding |
+| `Status Detail` | Label, Value | Two equal columns in model slots on `20.08`. Values wrap; each row grows to the taller tile. Default height 64 pt, 16 pt horizontal and 10 pt vertical internal padding, 12 pt gutter. Both detail tiles and model cards use `radius/card` (16 pt). Align tile edges with the slot heading and model-name text, 22 pt from the model card edge. Status permission rows use 18 pt vertical padding |
 | `Switch` | Value (On, Off) | 42 × 24, 18 knob |
 | `Radio` | Value (On, Off) | 18, ring style when on |
 | `Select` | State (Rest, Hover, Open), Label | Width is set per instance |
@@ -75,7 +75,7 @@ Control labels keep the actual design face: Medium (500) for buttons and selecte
 | `Slider` | State (Rest, Hover, Pressed), Start label, End label | 220 × 24 track, 24 thumb at rest and on hover, 32 pressed. Rest has no shadow; hover changes the thumb fill and reveals its soft shadow over 160 ms, without growth. Release returns the thumb to 24 pt. Set the thumb position and selected width per instance. Advance springs on display animation frames while unsettled, with no idle timer. Paint thumb growth and shadow inside a fixed 24 pt layout and hit area; Reduce Motion keeps the resting size. Draw the selected fill as one shape with rounded left corners and a straight end at the thumb center; overlapping cap and rectangle layers expose a seam during page fades. Fade a hiding row with one card-colored overlay over the opaque control, preserving its normal internal compositing |
 | `Menu`, `Menu Item`, `Menu Separator` | Menu Item: Tone (Default, Danger), State (Rest, Hover), Label, Leading icon, Icon, Check; Menu: the `Items` slot | One menu style for selects and action menus |
 
-Model-slot headings on `20.09` use an 18 pt microphone or sparkles icon in `text`, followed by an 8 pt gap and the 16 pt Bold title. Keep icons vertically centered in the 24 pt heading line. The model-name row has a 2 pt optical inset relative to the heading icon and detail-card edge; keep its source badge 10 pt after the name.
+Model-slot headings on `20.08` use an 18 pt microphone or sparkles icon in `text`, followed by an 8 pt gap and the 16 pt Bold title. Keep icons vertically centered in the 24 pt heading line. The model-name row has a 2 pt optical inset relative to the heading icon and detail-card edge; keep its source badge 10 pt after the name.
 
 Model-status popovers keep unfilled 12 pt text followed by a 6 pt status dot, with a 6 pt gap. Align the dots to the right edge across rows. Labels use `muted`; dots use `success` for running, `warning_text` for loading or stopping, `muted` for configured, stopped or not installed, and `danger` for errors. Configured means saved settings, not a verified connection. Bind the appearance mode explicitly in standalone examples. Runtime status stays distinct from the filled role labels in the same row.
 
@@ -85,7 +85,7 @@ Every control's motion is a table in `12.02` (buttons, selects, segmented, switc
 - Cloud speech configuration (`20.05`) uses the complete inline JSON editor. The template dropdown loads reference configuration directly into it. Keep API keys in their separate secure field, language-code shortcuts and circular Undo, Redo and Copy above the editor. Undo and Redo use curved 20 pt glyphs; Copy uses an 18 pt glyph on the standard circular button surface. Help uses a 12 pt glyph. The editor and validation box share a soft `border` hairline, radius 12 and `sub` surface. Validation has no separate heading. Below it, show connection status and latency on the left, Test connection and Help on the right.
 - Valid drafts autosave after a 200 ms debounce. There is no Save action. Invalid drafts retain the last valid saved configuration and disable testing. Keep separate drafts and native undo history per template; language-code shortcuts must also be undoable. Connection tests use the current validated draft and ignore stale results after draft or language changes.
 - Help opens the sole documentation dialog. Remove the retired four-step strip and present the four reference cards directly. Keep the title, close control and bottom Copy instructions for AI action fixed. Only the four-card region scrolls in a short window; clip both fades to that region. Preserve light and dark top, middle and bottom examples in `20.05.4`.
-- `20.05` also contains validation, compact-window and editor scroll-end examples, merged from retired `20.06`. The settings page scrolls vertically; the 360 pt JSON editor has its own viewport and edge fades. Do not scroll beyond the document: set `scroll_beyond_last_line(Some(0))`, leave only normal content padding, and hide the lower fade at the end.
+- `20.05` also contains validation, compact-window and editor scroll-end examples, merged from the former Cloud Configuration Details section. The settings page scrolls vertically; the 360 pt JSON editor has its own viewport and edge fades. Do not scroll beyond the document: set `scroll_beyond_last_line(Some(0))`, leave only normal content padding, and hide the lower fade at the end.
 - A disabled control is the same instance at 45% opacity.
 - After swapping an icon through a property, check its size and stroke: a swap brings the icon in at its own size and keeps the old stroke weight. A scaled icon's stroke is 2 × size ÷ 24.
 - Match icons by visible contour, stroke weight and optical centre, not only SVG viewBox or container dimensions. Compare neighbouring buttons at actual size in both themes; adjust glyph scale, position and stroke where needed so no icon looks smaller, heavier or off-centre. Keep the button hit area unchanged. Shared corrections belong in `11.02 Icons`; context-specific corrections belong to the screen's icon instances and must be carried into the implementation.
@@ -149,7 +149,7 @@ Annotation categories: **Interaction**, **Motion**, **Content**, **Measure**. An
 ## 6. Motion
 
 - `12 Motion` covers shared components: tokens (12.01), controls (12.02), slider (12.03), dropdown (12.04). Values match the code.
-- Motion that belongs to one screen stays with it: HUD tokens and storyboards on 21.05–21.08 (Copied sits beside the check on 21.06), History hint on 20.07.3, onboarding on 22.08–22.09.
+- Motion that belongs to one screen stays with it: HUD tokens and storyboards on 21.05–21.08 (Copied sits beside the check on 21.06), History hint on 20.06.3 and loading skeleton on 20.06.4, onboarding on 22.08–22.09.
 - Screens cite a token name instead of restating shared timings.
 - Every motion spec states: trigger, change, token (or duration + easing / spring), what happens if interrupted, and the Reduce Motion fallback (no stretch, overshoot, scale or travel; a short fade instead).
 
