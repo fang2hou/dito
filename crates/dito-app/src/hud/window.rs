@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use dito_core::config::HudPosition;
 use dito_core::controller::HudState;
-use dito_platform::system::{ErrorBubble, HudFollowState, HudNativeWindow, HudWindowMove, NapGuard, PointerContact};
+use dito_platform::system::{HudFollowState, HudNativeWindow, HudWindowMove, NapGuard, PointerContact};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 use raw_window_handle::{HasWindowHandle, RawWindowHandle};
@@ -112,9 +112,7 @@ impl Placement {
         let Some(native) = native_window(window) else { return (None, fallback) };
         let mut movement = None;
         let cfg = settings.cfg.get();
-        // A lower error bubble needs its shadow and spring overshoot above the Dock.
-        let lower_room = view.needs_lower_room();
-        let clearance = if lower_room { cfg.general.hud_clearance().max(12) } else { cfg.general.hud_clearance() };
+        let clearance = cfg.general.hud_clearance();
         let current = (cfg.general.hud_position, clearance);
         if self.applied != Some(current) {
             self.applied = Some(current);
@@ -134,8 +132,7 @@ impl Placement {
         if current.0 == HudPosition::Pointer {
             let contact =
                 if interactive || pointer.button_down { PointerContact::OnControls } else { PointerContact::Away };
-            let bubble = if lower_room { ErrorBubble::Lowered } else { ErrorBubble::Hidden };
-            movement = native.follow_pointer(&mut self.follow, contact, bubble);
+            movement = native.follow_pointer(&mut self.follow, contact);
         }
         (movement, interval)
     }

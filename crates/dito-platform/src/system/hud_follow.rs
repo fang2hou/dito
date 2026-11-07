@@ -18,8 +18,6 @@ const CAPSULE_HALF_HEIGHT: f64 = 16.5;
 const CURSOR_GAP: f64 = 5.;
 /// Window origin below the cursor when the HUD no longer fits above it.
 const FLIPPED_DROP: f64 = 132.;
-/// Extra room under the countdown for the error reason, its shadow and the spring overshoot.
-const ERROR_BUBBLE_ROOM: f64 = 12.;
 
 const FREEZE_ENTER_DISTANCE: f64 = 64.;
 const FREEZE_EXIT_DISTANCE: f64 = 80.;
@@ -34,13 +32,6 @@ pub enum PointerContact {
     OnControls,
 }
 
-/// Whether the error bubble sits below the capsule and needs extra room above the Dock.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ErrorBubble {
-    Hidden,
-    Lowered,
-}
-
 /// A screen's usable rectangle in AppKit's global coordinates.
 #[derive(Debug, Clone, Copy)]
 pub(super) struct Area {
@@ -48,12 +39,6 @@ pub(super) struct Area {
     pub y: f64,
     pub width: f64,
     pub height: f64,
-}
-
-impl Area {
-    pub(super) fn with_error_bubble_room(self) -> Self {
-        Self { y: self.y + ERROR_BUBBLE_ROOM, height: (self.height - ERROR_BUBBLE_ROOM).max(0.), ..self }
-    }
 }
 
 /// Limits for the window origin.

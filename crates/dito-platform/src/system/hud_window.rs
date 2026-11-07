@@ -8,9 +8,7 @@ use objc2_app_kit::{NSPanel, NSScreen, NSStatusWindowLevel, NSView, NSWindow, NS
 use objc2_foundation::{NSPoint, NSRect};
 
 use super::accessibility::reduce_motion;
-use super::hud_follow::{
-    Area, ErrorBubble, FOOTPRINT_BOTTOM, FollowFrame, HudFollowState, PointerContact, pointer_target,
-};
+use super::hud_follow::{Area, FOOTPRINT_BOTTOM, FollowFrame, HudFollowState, PointerContact, pointer_target};
 
 /// Moves smaller than this are not worth a window server round trip.
 const MIN_MOVE: f64 = 0.001;
@@ -117,28 +115,15 @@ impl<'a> HudNativeWindow<'a> {
     }
 
     /// Move the HUD with a continuous spring while allowing the pointer to approach and operate it.
-    pub fn follow_pointer(
-        &self,
-        state: &mut HudFollowState,
-        contact: PointerContact,
-        bubble: ErrorBubble,
-    ) -> Option<HudWindowMove> {
+    pub fn follow_pointer(&self, state: &mut HudFollowState, contact: PointerContact) -> Option<HudWindowMove> {
         let window = self.window()?;
         let cursor = mouse_location();
         let frame = window.frame();
         let screen = screen_under(cursor, self.mtm).or_else(|| window.screen())?;
-        let mut area = area_of(screen.visibleFrame());
-        if bubble == ErrorBubble::Lowered {
-            area = area.with_error_bubble_room();
-        }
+        let area = area_of(screen.visibleFrame());
         let cursor = (cursor.x, cursor.y);
         let (target, bounds) = pointer_target(cursor, frame.size.width, area);
-        let mut current = state.position.unwrap_or((frame.origin.x, frame.origin.y));
-        let corrected = bubble == ErrorBubble::Lowered && current.1 < bounds.y_min;
-        if corrected {
-            current.1 = bounds.y_min;
-            state.position = Some(current);
-        }
+        let current = state.position.unwrap_or((frame.origin.x, frame.origin.y));
         let follow = FollowFrame {
             cursor,
             window_width: frame.size.width,
@@ -147,7 +132,7 @@ impl<'a> HudNativeWindow<'a> {
             contact,
             reduced_motion: reduce_motion(),
         };
-        let next = state.step(current, &follow, Instant::now()).or(corrected.then_some(current))?;
+        let next = state.step(current, &follow, Instant::now())?;
         ((frame.origin.x - next.0).abs() > MIN_MOVE || (frame.origin.y - next.1).abs() > MIN_MOVE)
             .then(|| HudWindowMove(window, NSPoint::new(next.0, next.1)))
     }
