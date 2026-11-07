@@ -123,6 +123,7 @@ impl Ic {
 /// Canonical HUD glyphs exported from the final FigCraft layers, including their native icon boxes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum HudIc {
+    Auto,
     X,
     Finish,
     Check,
@@ -135,6 +136,7 @@ pub enum HudIc {
 impl HudIc {
     pub fn path(self) -> &'static str {
         match self {
+            Self::Auto => "icons/hud/auto.svg",
             Self::X => "icons/hud/x.svg",
             Self::Finish => "icons/hud/finish.svg",
             Self::Check => "icons/hud/check.svg",

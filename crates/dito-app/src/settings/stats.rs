@@ -83,14 +83,11 @@ impl StatsPage {
     }
 }
 
-fn lang_name(code: &str) -> String {
-    match code {
-        "ja" => "日本語".into(),
-        "en" => "English".into(),
-        "zh" => "中文".into(),
-        "" => "—".into(),
-        other => other.to_string(),
+fn lang_name(code: &str, lang: dito_core::i18n::Lang) -> String {
+    if code.is_empty() {
+        return "—".into();
     }
+    dito_core::i18n::Lang::from_tag(code).map_or(code, |language| language.name(lang)).into()
 }
 
 impl StatsPage {
@@ -379,7 +376,7 @@ fn languages_card(c: &Ctx, stats: &Stats) -> Div {
                         .items_center()
                         .gap(px(10.))
                         .child(div().size(px(12.)).rounded_full().bg(col))
-                        .child(text(lang_name(code), 13., FontWeight::MEDIUM, p.text)),
+                        .child(text(lang_name(code, c.lang), 13., FontWeight::MEDIUM, p.text)),
                 )
                 .child(ui::muted12(&p, format!("{:.0}%", pct * 100.))),
         );

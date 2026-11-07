@@ -57,7 +57,9 @@ impl HudView {
     /// The real renderer and animation clock, held in a processing stage for motion capture.
     pub fn motion_preview(st: Arc<AppState>, cx: &mut Context<Self>) -> Self {
         let mut view = Self::new(st, cx);
+        view.start_hidden_preview_clock(cx);
         view.state = HudState::Recognizing;
+        view.start_processing(super::Fill::default());
         view.width_from = CAPSULE_W;
         view.opened -= Duration::from_millis(POP_MS);
         view
@@ -65,9 +67,10 @@ impl HudView {
 
     pub fn outcome_preview(st: Arc<AppState>, copy: bool, cx: &mut Context<Self>) -> Self {
         let mut view = Self::new(st, cx);
+        view.start_hidden_preview_clock(cx);
         view.state = if copy { HudState::Copied } else { HudState::Inserted };
-        view.previous = Some(HudState::Recognizing);
-        view.carry = Some(0.485);
+        let previous = crate::hud::processing_motion::ProcessingMotion::recognizing(1., false);
+        view.start_processing(previous.at(10.));
         view.width_from = CAPSULE_W;
         view.opened -= Duration::from_millis(POP_MS);
         view
@@ -76,11 +79,32 @@ impl HudView {
     /// Same live filter/renderer with a repeatable input level for visual verification.
     pub fn waveform_preview(st: Arc<AppState>, gain: f32, cx: &mut Context<Self>) -> Self {
         let mut view = Self::new(st, cx);
+        view.start_hidden_preview_clock(cx);
         view.state = HudState::Listening { mode: RecordMode::Toggle };
         view.width_from = CAPSULE_W;
         view.hover_zone = true;
         view.wave_preview_gain = Some(gain);
         view.opened -= Duration::from_millis(POP_MS);
         view
+    }
+    /// Hidden capture windows have no native display-link signal.
+    fn start_hidden_preview_clock(&mut self, cx: &mut Context<Self>) {
+        self.frame_clock_started = true;
+        cx.spawn(async move |view, cx| {
+            loop {
+                cx.background_executor().timer(Duration::from_millis(16)).await;
+                if view
+                    .update(cx, |view, cx| {
+                        if view.advance_clock() {
+                            cx.notify();
+                        }
+                    })
+                    .is_err()
+                {
+                    break;
+                }
+            }
+        })
+        .detach();
     }
 }

@@ -23,6 +23,15 @@ pub struct HudPointer {
     pub button_down: bool,
 }
 
+/// AppKit can call GPUI's move handler synchronously. Apply this after releasing the app borrow.
+pub struct HudWindowMove(Retained<NSWindow>, NSPoint);
+
+impl HudWindowMove {
+    pub fn apply(self) {
+        self.0.setFrameOrigin(self.1);
+    }
+}
+
 /// The HUD's native window, reached through the view gpui renders into. Every method works on the
 /// view's current window and does nothing once the view has none.
 pub struct HudNativeWindow<'a> {
@@ -71,6 +80,7 @@ impl<'a> HudNativeWindow<'a> {
     pub fn keep_panel_inactive(&self) {
         if let Some(panel) = self.window().and_then(|window| window.downcast::<NSPanel>().ok()) {
             panel.setBecomesKeyOnlyIfNeeded(true);
+            panel.setHidesOnDeactivate(false);
         }
     }
 
@@ -93,24 +103,30 @@ impl<'a> HudNativeWindow<'a> {
         }
     }
 
-    pub fn center_above_dock(&self, clearance: i32) {
-        let Some(window) = self.window() else { return };
-        let Some(screen) = window.screen() else { return };
+    pub fn center_above_dock(&self, clearance: i32) -> Option<HudWindowMove> {
+        let window = self.window()?;
+        let screen = window.screen()?;
         let screen_frame = screen.frame();
         let visible = screen.visibleFrame();
         let frame = window.frame();
         let x = screen_frame.origin.x + (screen_frame.size.width - frame.size.width) / 2.;
         let y = (visible.origin.y + f64::from(clearance) - FOOTPRINT_BOTTOM)
             .min(visible.origin.y + (visible.size.height - frame.size.height).max(0.));
-        window.setFrameOrigin(NSPoint::new(x, y));
+        ((frame.origin.x - x).abs() > MIN_MOVE || (frame.origin.y - y).abs() > MIN_MOVE)
+            .then(|| HudWindowMove(window, NSPoint::new(x, y)))
     }
 
     /// Move the HUD with a continuous spring while allowing the pointer to approach and operate it.
-    pub fn follow_pointer(&self, state: &mut HudFollowState, contact: PointerContact, bubble: ErrorBubble) {
-        let Some(window) = self.window() else { return };
+    pub fn follow_pointer(
+        &self,
+        state: &mut HudFollowState,
+        contact: PointerContact,
+        bubble: ErrorBubble,
+    ) -> Option<HudWindowMove> {
+        let window = self.window()?;
         let cursor = mouse_location();
         let frame = window.frame();
-        let Some(screen) = screen_under(cursor, self.mtm).or_else(|| window.screen()) else { return };
+        let screen = screen_under(cursor, self.mtm).or_else(|| window.screen())?;
         let mut area = area_of(screen.visibleFrame());
         if bubble == ErrorBubble::Lowered {
             area = area.with_error_bubble_room();
@@ -118,10 +134,10 @@ impl<'a> HudNativeWindow<'a> {
         let cursor = (cursor.x, cursor.y);
         let (target, bounds) = pointer_target(cursor, frame.size.width, area);
         let mut current = state.position.unwrap_or((frame.origin.x, frame.origin.y));
-        if bubble == ErrorBubble::Lowered && current.1 < bounds.y_min {
+        let corrected = bubble == ErrorBubble::Lowered && current.1 < bounds.y_min;
+        if corrected {
             current.1 = bounds.y_min;
             state.position = Some(current);
-            window.setFrameOrigin(NSPoint::new(current.0, current.1));
         }
         let follow = FollowFrame {
             cursor,
@@ -131,10 +147,9 @@ impl<'a> HudNativeWindow<'a> {
             contact,
             reduced_motion: reduce_motion(),
         };
-        let Some(next) = state.step(current, &follow, Instant::now()) else { return };
-        if (frame.origin.x - next.0).abs() > MIN_MOVE || (frame.origin.y - next.1).abs() > MIN_MOVE {
-            window.setFrameOrigin(NSPoint::new(next.0, next.1));
-        }
+        let next = state.step(current, &follow, Instant::now()).or(corrected.then_some(current))?;
+        ((frame.origin.x - next.0).abs() > MIN_MOVE || (frame.origin.y - next.1).abs() > MIN_MOVE)
+            .then(|| HudWindowMove(window, NSPoint::new(next.0, next.1)))
     }
 }
 

@@ -35,13 +35,16 @@ pub fn run(st: Arc<AppState>, cx: &mut App) {
         demo_run::run(st, cx);
         return;
     }
-    start_hotkeys(&st);
+    if permissions::status(Permission::Accessibility) == Status::Granted {
+        start_hotkeys(&st);
+    } else {
+        st.hotkeys.set_service(None);
+    }
     retry_hotkeys_when_allowed(st.clone(), cx);
     autostart_local_models(&st);
     hud::run(st.clone(), cx);
     menubar::run(st.clone(), cx);
     open_first_window(&st, cx);
-    request_microphone_access();
 }
 
 /// Release local models before the process exits (see `LocalEngines::unload_all`).
@@ -85,13 +88,6 @@ fn open_first_window(st: &Arc<AppState>, cx: &mut App) {
         onboarding::open(st.clone(), cx);
     } else if !st.opts.background {
         settings::open(st.clone(), settings::Page::General, cx);
-    }
-}
-
-/// Ask while the settings window is up and the app active; NotDetermined only ever prompts once.
-fn request_microphone_access() {
-    if permissions::status(Permission::Microphone) == Status::NotDetermined {
-        permissions::request(Permission::Microphone);
     }
 }
 

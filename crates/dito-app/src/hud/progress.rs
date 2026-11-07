@@ -71,9 +71,10 @@ fn slice_canvas(w: f32, x0: f32, x1: f32, fill: impl Into<Background> + 'static,
 }
 
 /// A flat fill, a crisp 1 pt front and a narrow symmetric halo (4 pt each side).
-pub(super) fn progress_layer(x: f32, w: f32, scale: Scale, p: &Palette) -> impl IntoElement {
+pub(super) fn progress_layer(frac: f32, w: f32, scale: Scale, p: &Palette, halo_strength: f32) -> impl IntoElement {
+    let x = inner_w(w) * frac.clamp(0., 1.);
     let edge = theme::hud_color(p, "#AA8C40", "#E0C47D");
-    let halo = hex_alpha(edge, if p.dark { 0.20 } else { 0.14 });
+    let halo = hex_alpha(edge, halo_strength * if p.dark { 0.20 } else { 0.14 });
     let half_height =
         capsule_half_height(inner_w(w), INNER_H, x - 0.5).min(capsule_half_height(inner_w(w), INNER_H, x + 0.5));
     div()

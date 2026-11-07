@@ -7,7 +7,7 @@ use gpui_kit::*;
 use crate::hud::Scale;
 use crate::hud::buttons;
 use crate::hud::capsule::{Capsule, Wave};
-use crate::hud::timing::{COPY_FADE_S, COPY_HOLD_END, OUTCOME_FADE_S, OUTCOME_HOLD_END, OUTCOME_ICON_DELAY, SETTLE_S};
+use crate::hud::timing::{COPY_FADE_S, COPY_HOLD_END, OUTCOME_FADE_S, OUTCOME_HOLD_END, OUTCOME_ICON_DELAY};
 use crate::theme::Palette;
 use crate::ui::Motion;
 
@@ -38,7 +38,7 @@ impl HudView {
             } else {
                 (OUTCOME_HOLD_END, OUTCOME_FADE_S)
             };
-            cap = cap.opacity((1. - (elapsed - hold_end) / fade).clamp(0., 1.));
+            cap = cap.opacity((1. - (self.outcome_elapsed(elapsed) - hold_end) / fade).clamp(0., 1.));
         }
         cap.id("hud-capsule")
     }
@@ -57,14 +57,18 @@ impl HudView {
         }
         let processing_before =
             self.previous.as_ref().filter(|s| matches!(s, HudState::Recognizing | HudState::Polishing));
-        let changing_phase = self.state == HudState::Polishing && self.carry.is_some();
+        let changing_phase = self.state == HudState::Polishing && self.processing.is_some();
+        let catch_up = self.catch_up();
         let transition = if terminal { SUCCESS_FADE_S } else { LABEL_FADE_S };
         if let Some(previous) = processing_before
             && (terminal || changing_phase)
-            && elapsed < SETTLE_S + transition
+            && elapsed < catch_up + transition
         {
-            let blend = ((elapsed - SETTLE_S) / transition).clamp(0., 1.);
+            let blend = ((elapsed - catch_up) / transition).clamp(0., 1.);
             let old = self.interactive_layer(p, clock, previous.clone(), self.progress(), cx);
+            if blend == 0. {
+                return old;
+            }
             let next =
                 self.interactive_layer(p, clock, self.state.clone(), if terminal { None } else { self.progress() }, cx);
             return crossfade(old, next, blend);
@@ -82,15 +86,12 @@ impl HudView {
             motion,
             w: self.width(),
             t: clock.scene,
-            wave: if motion.is_reduced() || self.freeze.is_some() {
-                Wave::Rest
-            } else {
-                Wave::Bars(self.waveform.heights())
-            },
+            wave: if self.freeze.is_some() { Wave::Rest } else { Wave::Ocean(self.waveform.frame()) },
             fill,
-            outcome_t: self
-                .freeze
-                .map_or_else(|| Some((clock.elapsed - OUTCOME_ICON_DELAY).max(0.)), |t| (t > 0.).then_some(t)),
+            outcome_t: self.freeze.map_or_else(
+                || Some((self.outcome_elapsed(clock.elapsed) - OUTCOME_ICON_DELAY).max(0.)),
+                |t| (t > 0.).then_some(t),
+            ),
         }
     }
 

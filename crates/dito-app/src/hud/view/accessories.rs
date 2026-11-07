@@ -92,9 +92,12 @@ impl HudView {
         let listening = matches!(self.state, HudState::Listening { mode: RecordMode::Toggle });
         let processing = matches!(self.state, HudState::Recognizing | HudState::Polishing);
         let mut zone = div().id("hud-zone").flex().flex_col().items_center().gap(px(ZONE_GAP));
-        let chip_on = listening && self.hover_btn.is_none() && self.hover_zone;
+        let chip_on = listening
+            && self.hover_btn.is_none()
+            && self.hover_zone
+            && self.st.cfg.get().general.hud_languages().next().is_some();
         let pill_on = processing && self.hover_zone;
-        let chip = self.language_chip(p, cx);
+        let chip = self.language_chip(p, lang, cx);
         if let Some(chip) = ui::hover_pop_scaled(ElementId::from("hud-lang-chip"), chip_on, 0.8, chip) {
             zone = zone.child(chip);
         }
@@ -187,19 +190,8 @@ impl HudView {
             .right(px((full - center_x - r - 0.5).max(0.5)))
             .flex()
             .justify_center()
-            .child(if matches!(self.state, HudState::Error { .. }) {
-                let label = s.to_string();
-                let palette = *p;
-                if self.freeze.is_some() {
-                    Self::bubble(&label, &palette).opacity(if on { 1. } else { 0. }).into_any_element()
-                } else {
-                    ui::tweened(
-                        ElementId::from((ElementId::from(id), "tip")),
-                        if on { 1. } else { 0. },
-                        if on { 120 } else { 100 },
-                        move |v| Self::bubble(&label, &palette).opacity(v),
-                    )
-                }
+            .child(if self.freeze.is_some() && matches!(self.state, HudState::Error { .. }) {
+                Self::bubble(s, p).opacity(if on { 1. } else { 0. }).into_any_element()
             } else {
                 ui::tip_pop_with(
                     p,

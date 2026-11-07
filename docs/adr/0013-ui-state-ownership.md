@@ -11,6 +11,10 @@ Global animation maps replayed old animations and leaked; synchronous queries in
 
 Each window, page and onboarding step owns its motion state (`MotionScope`, reached through weak handles and reset when the view leaves). Data for pages loads in the background into snapshots with request tickets; stale results are dropped and failures keep the last data. Nothing slow runs in render.
 
+Each window owns one shared hover-tooltip layer. Trigger leases belong to their element trees and retain weak handles to their view scopes. Rapid handoffs reuse the visible bubble, retargeting position and width from their current values and velocities. Text stays single-line, centered, and softly clipped at both horizontal edges. Scope resets, scroll, Escape, and removing a trigger dismiss stale tips. Transition frames request redraws only while moving or waiting to dismiss.
+
+The dictation controller owns a rolling in-memory timing estimate. The HUD owns the displayed progress curve and retargets it from its current position and velocity when results arrive. Text delivery happens immediately, while the HUD waits for its final fill before showing the outcome.
+
 ## Alternatives Considered
 
 ### Global registries and inline queries

@@ -1,73 +1,282 @@
+mod motion;
+
+use std::cell::RefCell;
+use std::rc::{Rc, Weak};
+use std::time::Instant;
+
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
-use super::hover::is_hovered;
+use super::hover::is_hovered_in;
 use super::primitives::white;
-use super::scope::{self, motion_scope};
-use super::tip_bubble::{TIP_BUBBLE_H, tip_bubble};
+use super::scope::{self, ScopeHandle, motion_scope};
+use super::tip_bubble::{TIP_BUBBLE_H, TipColors, paint_shared, tip_bubble};
 use super::tween::tweened_at;
 use crate::theme::Palette;
 
-/// Gap between a tooltip and its anchor, how far it still has to rise when it starts appearing,
-/// how long that takes, and the size it pops out of the trigger at.
+use motion::{Geometry, TooltipMotion};
+
 const TIP_GAP: f32 = 6.;
 const TIP_RISE: f32 = 6.;
 const TIP_MS: u64 = 150;
 const TIP_FROM: f32 = 0.8;
 
-/// The tooltip for a trigger: put it next to the trigger's content and pass the trigger's
-/// height. While hovered, one bubble pops out of the trigger — growing from 0.8 to full size
-/// as it rises the last few pixels and fades in (150 ms, ease-out) — and reverses the motion when
-/// the hover leaves. The positioned box is a plain static element (an animated one re-lays out
-/// against the wrong ancestor); only its inner child tweens. Centring does not measure the
-/// text: the box is symmetric about the trigger's centre (non-zero insets — a zero `left` lays
-/// out as if unset), so a longer translation cannot drift it off-centre.
-pub fn tip_above(p: &Palette, id: &ElementId) -> AnyElement {
-    let on = is_hovered(id);
-    let label = scope::ambient_registry().and_then(|reg| reg.borrow().tips.get(id).cloned()).unwrap_or_default();
-    // Priority 2: above the dropdown panels' floating layer (priority 1), so a tip anchored
-    // inside an open menu is never painted underneath the menu itself.
+struct Anchor {
+    scope: ScopeHandle,
+    id: ElementId,
+    epoch: u64,
+    explicit: Option<bool>,
+    frame: u64,
+    label: SharedString,
+    bounds: Bounds<Pixels>,
+    above: bool,
+    colors: TipColors,
+}
+
+impl Anchor {
+    fn requested(&self) -> bool {
+        self.scope.registry().is_some_and(|registry| {
+            registry.borrow().tip_epoch == self.epoch
+                && self.explicit.unwrap_or_else(|| is_hovered_in(&self.scope, &self.id))
+        })
+    }
+}
+
+#[derive(Default)]
+struct WindowTips {
+    anchors: Vec<Weak<RefCell<Anchor>>>,
+    selected: Option<Weak<RefCell<Anchor>>>,
+    motion: Option<TooltipMotion>,
+    frame: u64,
+    key_listener: Option<Subscription>,
+}
+
+/// Window-owned state, independent of the current view's element-id namespace.
+fn window_tips(window: &mut Window) -> Rc<RefCell<WindowTips>> {
+    window.with_element_state(&GlobalElementId::default(), |state: Option<Rc<RefCell<WindowTips>>>, _| {
+        let state = state.unwrap_or_default();
+        (state.clone(), state)
+    })
+}
+
+/// A non-interactive anchor. Its lease expires when the trigger leaves the element tree.
+fn anchor_marker(anchor: Anchor) -> impl IntoElement {
+    let id = anchor.id.clone();
+    canvas(
+        move |bounds, window, _| {
+            let tips = window_tips(window);
+            let mut anchor = anchor;
+            anchor.bounds = bounds;
+            anchor.frame = tips.borrow().frame;
+            window.with_global_id(ElementId::from((id, "tooltip-anchor")), |id, window| {
+                window.with_element_state(id, |existing: Option<Rc<RefCell<Anchor>>>, _| {
+                    let lease = if let Some(lease) = existing {
+                        *lease.borrow_mut() = anchor;
+                        lease
+                    } else {
+                        let lease = Rc::new(RefCell::new(anchor));
+                        tips.borrow_mut().anchors.push(Rc::downgrade(&lease));
+                        lease
+                    };
+                    ((), lease)
+                });
+            });
+        },
+        |_, _, _, _| {},
+    )
+    .absolute()
+    .inset_0()
+}
+
+/// Place one layer at the window root. Anchors only register bounds during prepaint, so all
+/// hovered targets are known before this deferred layer chooses and paints a single bubble.
+fn tooltip_layer(slot: Rc<RefCell<Weak<RefCell<WindowTips>>>>) -> impl IntoElement {
     deferred(
-        div()
-            .absolute()
-            .top(px(-(TIP_BUBBLE_H + TIP_GAP)))
-            .left(px(0.5))
-            .right(px(0.5))
-            .flex()
-            .justify_center()
-            .child(tip_pop(p, ElementId::from((id.clone(), "tip")), label, on)),
+        canvas(
+            move |_, window, cx| {
+                let tips = window_tips(window);
+                if tips.borrow().key_listener.is_none() {
+                    let weak = Rc::downgrade(&tips);
+                    let owner = window.window_handle();
+                    let listener = cx.intercept_keystrokes(move |event, window, _| {
+                        if window.window_handle() == owner && event.keystroke.key == "escape" {
+                            dismiss_window_tips(&weak, window);
+                        }
+                    });
+                    tips.borrow_mut().key_listener = Some(listener);
+                }
+                *slot.borrow_mut() = Rc::downgrade(&tips);
+                tips
+            },
+            |_, tips, window, cx| tips.borrow_mut().paint(window, cx),
+        )
+        .absolute()
+        .inset_0(),
     )
     .with_priority(2)
+}
+
+/// Attach dismissal to the owning root without consuming the event's normal action.
+pub fn tooltip_root(root: Div) -> Div {
+    let slot = Rc::new(RefCell::new(Weak::new()));
+    let scroll_slot = slot.clone();
+    root.capture_any_mouse_down(|_, window, _| window.refresh())
+        .on_scroll(move |_, window, _| dismiss_window_tips(&scroll_slot.borrow(), window))
+        .child(tooltip_layer(slot))
+}
+
+fn dismiss_window_tips(tips: &Weak<RefCell<WindowTips>>, window: &mut Window) {
+    let Some(tips) = tips.upgrade() else { return };
+    let mut tips = tips.borrow_mut();
+    for anchor in tips.anchors.iter().filter_map(Weak::upgrade) {
+        let anchor = anchor.borrow();
+        if let Some(registry) = anchor.scope.registry() {
+            let mut registry = registry.borrow_mut();
+            registry.hovered.remove(&anchor.id);
+            registry.tip_epoch += 1;
+        }
+    }
+    tips.motion = None;
+    tips.selected = None;
+    window.refresh();
+}
+
+impl WindowTips {
+    fn paint(&mut self, window: &mut Window, cx: &mut App) {
+        let frame = self.frame;
+        self.frame = self.frame.wrapping_add(1);
+        self.anchors.retain(|anchor| anchor.strong_count() > 0);
+        if self.selected.as_ref().is_some_and(|anchor| {
+            anchor.upgrade().is_none_or(|anchor| {
+                let anchor = anchor.borrow();
+                anchor.scope.registry().is_none_or(|registry| registry.borrow().tip_epoch != anchor.epoch)
+            })
+        }) {
+            self.motion = None;
+            self.selected = None;
+        }
+        let target = self.anchors.iter().rev().filter_map(Weak::upgrade).find(|anchor| anchor.borrow().requested());
+        let now = Instant::now();
+        let reduced = dito_platform::system::reduce_motion();
+        if let Some(target) = &target {
+            let anchor = target.borrow();
+            let width = (super::text_width(&anchor.label, 12., FontWeight::MEDIUM) + 21.)
+                .min(f32::from(window.viewport_size().width) - 16.)
+                .max(22.);
+            let center = (f32::from(anchor.bounds.origin.x + anchor.bounds.size.width * 0.5)).clamp(
+                8. + width * 0.5,
+                (f32::from(window.viewport_size().width) - 8. - width * 0.5).max(8. + width * 0.5),
+            );
+            let mut bottom = f32::from(anchor.bounds.bottom_left().y);
+            if anchor.above {
+                bottom = f32::from(anchor.bounds.origin.y) - TIP_GAP;
+                if bottom < TIP_BUBBLE_H + 8. {
+                    bottom = f32::from(anchor.bounds.bottom_left().y) + TIP_GAP + TIP_BUBBLE_H;
+                }
+            }
+            bottom =
+                bottom.clamp(TIP_BUBBLE_H + 8., f32::from(window.viewport_size().height).max(TIP_BUBBLE_H + 16.) - 8.);
+            let geometry = Geometry { center, bottom, width };
+            if self.motion.as_ref().is_none_or(|motion| {
+                motion.alpha(now) < 0.001 && now.duration_since(motion.last_seen) > motion::HANDOFF
+            }) {
+                self.motion = Some(TooltipMotion::new(geometry, anchor.label.clone(), now));
+            }
+            self.motion.as_mut().unwrap().target(geometry, anchor.label.clone(), now, reduced);
+            self.selected = Some(Rc::downgrade(target));
+        } else if let Some(motion) = &mut self.motion {
+            motion.leave(now);
+        }
+        let Some(motion) = &self.motion else { return };
+        let Some(anchor) = self.selected.as_ref().and_then(Weak::upgrade) else { return };
+        let anchor = anchor.borrow();
+        let alpha = motion.alpha(now);
+        if alpha > 0.001 {
+            let mut geometry = motion.geometry(now);
+            geometry.width = geometry.width.min((f32::from(window.viewport_size().width) - 16.).max(22.));
+            geometry.center = geometry.center.clamp(
+                8. + geometry.width * 0.5,
+                (f32::from(window.viewport_size().width) - 8. - geometry.width * 0.5).max(8. + geometry.width * 0.5),
+            );
+            let scale = if reduced { 1. } else { TIP_FROM + (1. - TIP_FROM) * alpha };
+            let bounds = Bounds::new(
+                point(
+                    px(geometry.center - geometry.width * 0.5),
+                    px(geometry.bottom - TIP_BUBBLE_H + if reduced { 0. } else { (1. - alpha) * TIP_RISE }),
+                ),
+                size(px(geometry.width), px(TIP_BUBBLE_H)),
+            );
+            paint_shared(anchor.colors, motion.labels(now), bounds, scale, alpha, window, cx);
+        }
+        // Refresh the whole window during handoffs, including cached sibling views' anchors.
+        if motion.moving(now)
+            || (target.is_none() && alpha > 0.001)
+            || target.as_ref().is_some_and(|anchor| anchor.borrow().frame != frame)
+        {
+            window.on_next_frame(|window, _| window.refresh());
+        }
+    }
+}
+
+/// The global hover behavior, centered above a trigger and independent of its text layout.
+pub fn tip_above(p: &Palette, id: &ElementId) -> AnyElement {
+    let scope = motion_scope();
+    let (label, epoch) = scope
+        .registry()
+        .map(|registry| {
+            let registry = registry.borrow();
+            (registry.tips.get(id).cloned().unwrap_or_default(), registry.tip_epoch)
+        })
+        .unwrap_or_default();
+    let (bg, fg) = if p.dark { (p.side, white()) } else { (p.hud_bg, p.text) };
+    anchor_marker(Anchor {
+        scope,
+        id: id.clone(),
+        epoch,
+        explicit: None,
+        frame: 0,
+        label,
+        bounds: Bounds::default(),
+        above: true,
+        colors: TipColors::new(p, bg, fg),
+    })
     .into_any_element()
 }
 
-/// The tweened inner of a tooltip, shared by the hover tips ([`tip_above`]) and the
-/// shortcut-recording hint. `on` decides whether it shows: a tween only plays when its target
-/// *changes*, so while off the value is held at 0 (an element that first appears already at
-/// its target would render statically) and the 0→1 flip when it turns on is the pop-in —
-/// growing from [`TIP_FROM`] to full size while rising and fading in, ease-out. Turning off
-/// reverses the same tween and retains the bubble until its opacity reaches zero.
-pub fn tip_pop(p: &Palette, tween_id: ElementId, label: SharedString, on: bool) -> AnyElement {
-    let (bg, fg) = if p.dark { (p.side, white()) } else { (p.hud_bg, p.text) };
-    tip_pop_with(p, tween_id, label, on, bg, fg)
+/// Explicitly driven HUD tips share the same window-owned bubble as hover-driven tips.
+pub fn tip_pop_with(p: &Palette, id: ElementId, label: SharedString, on: bool, bg: Hsla, fg: Hsla) -> AnyElement {
+    let scope = motion_scope();
+    let epoch = scope.registry().map_or(0, |registry| registry.borrow().tip_epoch);
+    let width = super::text_width(&label, 12., FontWeight::MEDIUM) + 21.;
+    div()
+        .relative()
+        .flex_none()
+        .w(px(width))
+        .h(px(TIP_BUBBLE_H))
+        .child(anchor_marker(Anchor {
+            scope,
+            id,
+            epoch,
+            explicit: Some(on),
+            frame: 0,
+            label,
+            bounds: Bounds::default(),
+            above: false,
+            colors: TipColors::new(p, bg, fg),
+        }))
+        .into_any_element()
 }
 
-/// [`tip_pop`] with the bubble chrome stated by the caller — the HUD passes its own surface
-/// colors, which differ from the settings surface in dark mode.
-pub fn tip_pop_with(p: &Palette, tween_id: ElementId, label: SharedString, on: bool, bg: Hsla, fg: Hsla) -> AnyElement {
+/// The shortcut-recording instruction is explicitly shown by a capture session.
+pub fn tip_pop(p: &Palette, id: ElementId, label: SharedString, on: bool) -> AnyElement {
     let scope = motion_scope();
     let p = *p;
     let reduced = dito_platform::system::reduce_motion();
-    tweened_at(scope, tween_id, if on { 1. } else { 0. }, TIP_MS, move |v| {
-        if v <= 0.01 {
-            return div().into_any_element();
-        }
+    let (bg, fg) = if p.dark { (p.side, white()) } else { (p.hud_bg, p.text) };
+    tweened_at(scope, id, if on { 1. } else { 0. }, TIP_MS, move |v| {
         let v = 1. - (1. - v).powi(3);
         let k = if reduced { 1. } else { TIP_FROM + (1. - TIP_FROM) * v };
-        div()
-            .mt(px(if reduced { 0. } else { (1. - v) * TIP_RISE }))
-            .child(tip_bubble(&p, &label, k, v, bg, fg))
-            .into_any_element()
+        div().mt(px(if reduced { 0. } else { (1. - v) * TIP_RISE })).child(tip_bubble(&p, &label, k, v, bg, fg))
     })
 }
 
@@ -83,6 +292,7 @@ pub fn tip_label(id: ElementId, label: SharedString) {
 pub fn dismiss_tips(scope: &super::scope::ScopeHandle) {
     if let Some(reg) = scope.registry() {
         let mut reg = reg.borrow_mut();
+        reg.tip_epoch += 1;
         let keys: Vec<_> = reg.tips.keys().cloned().collect();
         for key in keys {
             reg.hovered.remove(&key);

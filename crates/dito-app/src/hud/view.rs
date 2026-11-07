@@ -15,6 +15,7 @@ use crate::ui::{self, Motion};
 
 use super::buttons::{self, Btn, Circle};
 use super::capsule;
+use super::processing_motion::{Fill, ProcessingMotion};
 use super::waveform::Waveform;
 use super::{Scale, WIN_PAD, px};
 
@@ -73,9 +74,9 @@ pub struct HudView {
     hover_btn: Option<&'static str>,
     /// When the window opened; drives the pop-in (state changes do not replay it).
     opened: Instant,
-    /// Fill the previous state was showing when the state changed: the next phase eases from it,
-    /// so a model that finishes early lands the remaining fill fast instead of jumping.
-    carry: Option<f32>,
+    processing: Option<ProcessingMotion>,
+    processing_pending: bool,
+    displayed_fill: Fill,
     /// Previous processing stage, retained while the brush settles and labels cross-fade.
     previous: Option<HudState>,
     /// Preview mode: fixed animation time, no live updates.
@@ -85,6 +86,7 @@ pub struct HudView {
     motion: ui::MotionScope,
     waveform: Waveform,
     wave_tick: Instant,
+    frame_clock_started: bool,
     error_reason: super::motion::Spring,
     error_tick: Instant,
     recording_started: Option<Instant>,
@@ -101,25 +103,9 @@ impl HudView {
         let initial = rx.borrow_and_update().clone();
         let recording_started = st.dictation.recording_started();
         ui::observe(rx, cx, Self::enter_state);
-        // Animation clock while something is moving. Ticks at display rate; the plain dirty
-        // renders it causes are not subject to the platform's inactive-window frame cap (only
-        // forced/callback frames are), and the NapGuard held while the HUD is open keeps macOS
-        // from throttling this background app's frame commits at all.
-        cx.spawn(async move |this, cx| {
-            loop {
-                cx.background_executor().timer(Duration::from_millis(16)).await;
-                let alive = this.update(cx, |t, cx| {
-                    if t.advance_clock() {
-                        cx.notify();
-                    }
-                });
-                if alive.is_err() {
-                    break;
-                }
-            }
-        })
-        .detach();
-        Self { recording_started, ..Self::idle(st, initial) }
+        let mut view = Self { recording_started, ..Self::idle(st, initial) };
+        view.start_processing(Fill::default());
+        view
     }
 
     /// A view resting in `state`, with no listeners attached.
@@ -134,12 +120,15 @@ impl HudView {
             leave: ui::Requests::default(),
             hover_btn: None,
             opened: Instant::now(),
-            carry: None,
+            processing: None,
+            processing_pending: false,
+            displayed_fill: Fill::default(),
             previous: None,
             freeze: None,
             motion: ui::MotionScope::new(),
             waveform: Waveform::default(),
             wave_tick: Instant::now(),
+            frame_clock_started: false,
             error_reason: super::motion::Spring::default(),
             error_tick: Instant::now(),
             recording_started: None,
@@ -151,14 +140,23 @@ impl HudView {
     }
 
     fn enter_state(&mut self, state: HudState, cx: &mut Context<Self>) {
-        let carried = self.progress();
+        if self.state == state {
+            return;
+        }
+        let elapsed = self.elapsed();
+        let displayed = self.displayed_fill;
         self.width_from = self.width();
         let was_listening = matches!(self.state, HudState::Listening { .. });
         let now_listening = matches!(state, HudState::Listening { .. });
         if was_listening && !now_listening {
             self.countdown_exit = self.remaining();
         }
-        self.previous = Some(self.state.clone());
+        // A result can arrive during the midpoint chase, while the user still sees Transcribing.
+        self.previous = Some(if self.state == HudState::Polishing && elapsed < self.catch_up() + LABEL_FADE_S / 2. {
+            HudState::Recognizing
+        } else {
+            self.state.clone()
+        });
         if now_listening && !was_listening {
             self.waveform = Waveform::default();
             self.wave_tick = Instant::now();
@@ -172,7 +170,7 @@ impl HudView {
         self.error_tick = Instant::now();
         self.state = state;
         self.since = Instant::now();
-        self.carry = carried;
+        self.start_processing(displayed);
         cx.notify();
     }
 
@@ -216,7 +214,9 @@ impl HudView {
     /// Window-relative hit testing is independent of GPUI hover events: transparent areas must
     /// continue tracking the pointer while the native window lets mouse events pass through.
     pub(super) fn pointer_update(&mut self, x: f32, y: f32, cx: &mut Context<Self>) -> bool {
-        let in_zone = hit::pointer_hit(&self.state, self.width(), self.hover_zone, x, y).in_zone;
+        let width = self.width();
+        let chip_width = language_chip::chip_width(self.st.cfg.get().general.hud_languages());
+        let in_zone = hit::pointer_hit(&self.state, width, chip_width, self.hover_zone, x, y).in_zone;
         if in_zone != self.pointer_in_zone {
             self.pointer_in_zone = in_zone;
             if matches!(self.state, HudState::Error { .. }) {
@@ -224,7 +224,7 @@ impl HudView {
             }
             self.zone_hover(in_zone, cx);
         }
-        let pointer = hit::pointer_hit(&self.state, self.width(), self.hover_zone, x, y);
+        let pointer = hit::pointer_hit(&self.state, width, chip_width, self.hover_zone, x, y);
         if self.hover_btn != pointer.button {
             self.hover_btn = pointer.button;
             cx.notify();
@@ -279,16 +279,41 @@ impl HudView {
 }
 
 impl Render for HudView {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        if self.freeze.is_none() && !self.frame_clock_started {
+            self.frame_clock_started = true;
+            Self::next_frame(window, cx.entity().downgrade());
+        }
         // The HUD window owns its transient motion state; without this its hover tweens would run
         // in whatever ambient scope happened to be left over.
         let scope = self.motion.handle();
-        ui::with_motion_scope(scope, || self.render_scoped(cx))
+        ui::with_motion_scope(scope, || ui::tooltip_root(self.render_scoped(cx)))
     }
 }
 
 impl HudView {
+    /// Follow this window's display link. A quiet ocean still skips redundant paints.
+    fn next_frame(window: &Window, view: WeakEntity<Self>) {
+        window.on_next_frame(move |window, app| {
+            let alive = view.update(app, |view, cx| {
+                if view.advance_clock() {
+                    cx.notify();
+                }
+            });
+            if alive.is_ok() {
+                Self::next_frame(window, view);
+            }
+        });
+    }
+
     fn render_scoped(&mut self, cx: &mut Context<Self>) -> Div {
+        let first_processing_frame = std::mem::take(&mut self.processing_pending);
+        if first_processing_frame {
+            // Start on the first rendered frame, even if backend notifications arrived before it.
+            self.since = Instant::now();
+        }
+        let elapsed = if first_processing_frame { 0. } else { self.elapsed() };
+        self.displayed_fill = self.processing.map(|motion| motion.at(elapsed)).unwrap_or_default();
         let cfg = self.st.cfg.get();
         let lang = cfg.general.lang();
         let p = theme::palette(cfg.general.hud_appearance, cx);

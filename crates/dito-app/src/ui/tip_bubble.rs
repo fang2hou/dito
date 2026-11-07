@@ -11,6 +11,7 @@ pub const TIP_BUBBLE_H: f32 = 30.;
 
 const MIN_SCALE: f32 = 0.2;
 
+#[derive(Clone)]
 struct BubblePaint {
     label: SharedString,
     scale: f32,
@@ -69,6 +70,80 @@ impl BubblePaint {
         let line = window.text_system().shape_line(self.label.clone(), font_size, &[run], None);
         let text_top = origin_y_center(h, font_size, bottom);
         line.paint(point(center_x - line.width() * 0.5, text_top), font_size, TextAlign::Left, None, window, cx).ok();
+    }
+}
+
+#[derive(Clone, Copy)]
+pub(super) struct TipColors {
+    bg: Hsla,
+    fg: Hsla,
+    shadow: Hsla,
+    border: Hsla,
+}
+
+impl TipColors {
+    pub(super) fn new(p: &Palette, bg: Hsla, fg: Hsla) -> Self {
+        Self { bg, fg, shadow: p.shadow, border: p.hud_border }
+    }
+}
+
+/// Shared tooltips shape each label as one line. Only overflowing text needs edge strips;
+/// settled text uses one paint. The glyph atlas and line-layout cache are reused by the strips.
+pub(super) fn paint_shared<'a>(
+    colors: TipColors,
+    labels: impl Iterator<Item = (&'a SharedString, f32)>,
+    region: Bounds<Pixels>,
+    scale: f32,
+    alpha: f32,
+    window: &mut Window,
+    cx: &mut App,
+) {
+    let TipColors { bg, fg, shadow, border } = colors;
+    let k = scale.clamp(MIN_SCALE, 1.);
+    let center = region.center().x;
+    let bottom = region.bottom_left().y;
+    let bounds = Bounds::new(
+        point(center - region.size.width * k * 0.5, bottom - region.size.height * k),
+        size(region.size.width * k, region.size.height * k),
+    );
+    BubblePaint { label: SharedString::default(), scale: k, alpha, bg, fg, shadow, border }
+        .paint_chrome(bounds, k, window);
+    let inset = px(10.5 * k);
+    let viewport = Bounds::new(
+        point(bounds.origin.x + inset, bounds.origin.y),
+        size((bounds.size.width - inset * 2.).max(px(1.)), bounds.size.height),
+    );
+    for (label, weight) in labels.filter(|(_, weight)| *weight > 0.005) {
+        let paint = BubblePaint { label: label.clone(), scale: k, alpha: alpha * weight, bg, fg, shadow, border };
+        let line_width = super::text_width(label, 12. * k, FontWeight::MEDIUM);
+        let overflow = (line_width - f32::from(viewport.size.width)).max(0.);
+        if overflow <= 0.1 {
+            window.with_content_mask(Some(ContentMask { bounds: viewport }), |window| {
+                paint.paint_label(center, bounds.size.height, bottom, k, window, cx);
+            });
+            continue;
+        }
+        let fade = px((6. * k).min(f32::from(viewport.size.width) * 0.5));
+        let strength = (overflow / (12. * k)).min(1.);
+        // Non-overlapping half-point strips implement a text-only alpha mask without offscreen textures.
+        for step in 0..12 {
+            let part = fade / 12.;
+            let opacity = 1. - strength * (1. - (step as f32 + 0.5) / 12.);
+            for x in [viewport.origin.x + part * step as f32, viewport.right() - part * (step + 1) as f32] {
+                let clip = Bounds::new(point(x, viewport.origin.y), size(part, viewport.size.height));
+                let strip = BubblePaint { alpha: paint.alpha * opacity, ..paint.clone() };
+                window.with_content_mask(Some(ContentMask { bounds: clip }), |window| {
+                    strip.paint_label(center, bounds.size.height, bottom, k, window, cx);
+                });
+            }
+        }
+        let center_clip = Bounds::new(
+            point(viewport.origin.x + fade, viewport.origin.y),
+            size((viewport.size.width - fade * 2.).max(px(0.)), viewport.size.height),
+        );
+        window.with_content_mask(Some(ContentMask { bounds: center_clip }), |window| {
+            paint.paint_label(center, bounds.size.height, bottom, k, window, cx);
+        });
     }
 }
 

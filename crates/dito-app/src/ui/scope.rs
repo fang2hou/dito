@@ -32,6 +32,7 @@ pub(super) struct Registry {
     pub(super) flips: HashMap<ElementId, (bool, usize, Instant)>,
     /// Label per element id, captured at build time for the tooltip.
     pub(super) tips: HashMap<ElementId, SharedString>,
+    pub(super) tip_epoch: u64,
     /// Width of the last painted fill-width select button, read by its menu panel. The panel is built before the
     /// button paints, so it sees the previous frame's measurement, which stays correct because the button repaints
     /// every frame.
@@ -49,6 +50,7 @@ impl Registry {
             plates: HashMap::new(),
             flips: HashMap::new(),
             tips: HashMap::new(),
+            tip_epoch: 0,
             select_w: HashMap::new(),
             pressed_open: HashSet::new(),
             id: MotionScopeId::next(),

@@ -5,11 +5,12 @@ use super::button::CONTROL_H;
 use super::callbacks::IndexCb;
 use super::hover::{HOVER_MS, hover_fill_if, hover_tracker, is_hovered};
 use super::plate::{coverage, plate_state};
-use super::primitives::mix;
+use super::primitives::{hud_icon, mix};
 use super::scope::{ScopeHandle, motion_scope};
+use super::tooltip::{tip_above, tip_label};
 use super::tween::tweened_at;
 use super::typography::{text_tracked, text_tracked_width};
-use crate::theme::Palette;
+use crate::{assets::HudIc, theme::Palette};
 
 const SEG_PAD: f32 = 3.;
 const SEG_GAP: f32 = 2.;
@@ -40,17 +41,17 @@ struct SegLayout {
 }
 
 impl SegLayout {
-    fn new(options: &[SharedString], style: &SegStyle) -> Self {
+    fn new(options: &[SegOption], style: &SegStyle) -> Self {
         let widths = options
             .iter()
             .map(|o| {
-                let w = text_tracked_width(o, style.label, FontWeight::MEDIUM, 0.05).max(text_tracked_width(
-                    o,
-                    style.label,
-                    FontWeight::NORMAL,
-                    0.05,
-                ));
-                w.ceil() + 2. * style.cell_pad
+                o.width.unwrap_or_else(|| match &o.content {
+                    SegContent::Text(label) => {
+                        let width = |weight| text_tracked_width(label, style.label, weight, 0.05);
+                        width(FontWeight::MEDIUM).max(width(FontWeight::NORMAL)).ceil() + 2. * style.cell_pad
+                    }
+                    SegContent::Icon(_) => style.label + 2. * style.cell_pad,
+                })
             })
             .collect();
         Self { widths, h: style.h, inset: style.inset, gap: style.gap }
@@ -82,8 +83,20 @@ impl SegLayout {
     }
 }
 
+#[derive(Clone)]
+pub enum SegContent {
+    Text(SharedString),
+    Icon(HudIc),
+}
+
+pub struct SegOption {
+    pub content: SegContent,
+    pub width: Option<f32>,
+    pub tip: Option<SharedString>,
+}
+
 struct SegLabel {
-    text: SharedString,
+    content: SegContent,
     hovered: bool,
 }
 
@@ -106,10 +119,15 @@ pub fn seg(
     selected: usize,
     on_select: IndexCb,
 ) -> Stateful<Div> {
+    let options: Vec<_> = options
+        .iter()
+        .cloned()
+        .map(|text| SegOption { content: SegContent::Text(text), width: None, tip: None })
+        .collect();
     seg_with(
         id,
         p,
-        options,
+        &options,
         selected,
         on_select,
         SegStyle { h: CONTROL_H, label: 13., cell_pad: SEG_CELL_PAD, inset: SEG_PAD, gap: SEG_GAP, hover: None },
@@ -120,7 +138,7 @@ pub fn seg(
 pub fn seg_with(
     id: impl Into<ElementId>,
     p: &Palette,
-    options: &[SharedString],
+    options: &[SegOption],
     selected: usize,
     on_select: IndexCb,
     style: SegStyle,
@@ -144,17 +162,24 @@ pub fn seg_with(
     for (i, option) in options.iter().enumerate() {
         let cell_id = ElementId::from((id.clone(), SharedString::from(format!("i{i}"))));
         let on_select = on_select.clone();
-        el = el.child(
-            layout
-                .slot(i)
-                .id(cell_id.clone())
-                .rounded_full()
-                .cursor_pointer()
-                .on_click(move |_, w, cx| on_select(i, w, cx))
-                .on_hover(hover_tracker(cell_id.clone()))
-                .child(hover_fill_if(&cell_id, None, hover_fill, i != selected)),
-        );
-        labels.push(SegLabel { text: option.clone(), hovered: is_hovered(&cell_id) && i != selected });
+        let mut cell = layout
+            .slot(i)
+            .id(cell_id.clone())
+            .rounded_full()
+            .cursor_pointer()
+            .on_click(move |_, w, cx| on_select(i, w, cx))
+            .on_hover(hover_tracker(cell_id.clone()))
+            .child(hover_fill_if(&cell_id, None, hover_fill, i != selected));
+        if let Some(tip) = &option.tip {
+            tip_label(cell_id.clone(), tip.clone());
+            cell = cell
+                .role(Role::RadioButton)
+                .aria_label(tip.clone())
+                .aria_selected(i == selected)
+                .child(tip_above(p, &cell_id));
+        }
+        el = el.child(cell);
+        labels.push(SegLabel { content: option.content.clone(), hovered: is_hovered(&cell_id) && i != selected });
     }
 
     // Labels sit above the cells. Their brightness is how much of the label the plate covers (so they light up
@@ -169,12 +194,16 @@ fn labels_layer(layout: &SegLayout, labels: &[SegLabel], paint: &LabelPaint, a: 
         let (x, w) = (layout.left(i), layout.widths[i]);
         let cover = coverage(a, b, x, x + w);
         let weight = if cover >= 0.5 { FontWeight::MEDIUM } else { FontWeight::NORMAL };
-        let content = label.text.clone();
+        let content = label.content.clone();
         let hover_id = ElementId::from((paint.id.clone(), SharedString::from(format!("hover-{i}"))));
         let (size, muted, text_c, hover_label) = (paint.size, paint.muted, paint.text, paint.hover_label);
         let hover_level =
             tweened_at(paint.scope.clone(), hover_id, if label.hovered { 1. } else { 0. }, HOVER_MS, move |hv| {
-                text_tracked(&content, size, weight, mix(mix(muted, hover_label, hv), text_c, cover), 0.05)
+                let ink = mix(mix(muted, hover_label, hv), text_c, cover);
+                match &content {
+                    SegContent::Text(label) => text_tracked(label, size, weight, ink, 0.05).into_any_element(),
+                    SegContent::Icon(icon) => hud_icon(*icon, size, ink).into_any_element(),
+                }
             });
         layer = layer.child(
             div()

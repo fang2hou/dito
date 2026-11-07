@@ -10,15 +10,6 @@
 use std::path::PathBuf;
 
 const EXEMPT: &[(&str, &str)] = &[
-    // Language self-names are always shown in their own language (pickers, stats legend).
-    ("hud/view/language_chip.rs", "日本語"),
-    ("hud/view/language_chip.rs", "中文"),
-    ("settings/general/audio.rs", "日本語"),
-    ("settings/general/audio.rs", "中文"),
-    ("settings/stats.rs", "日本語"),
-    ("settings/stats.rs", "中文"),
-    ("settings/prompts/view.rs", "日本語"),
-    ("settings/prompts/view.rs", "中文"),
     // Demo/seed history entries in full (user content, not UI copy).
     ("dev/seed.rs", "*"),
     // List separator chosen per language in code (、 only for Japanese).

@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use dito_core::insert::{Outcome, outcome};
 
-use super::focus::{read_cursor, read_field_value};
+use super::focus::{FocusTarget, read_focus};
 
 const VERIFY_TRIES: usize = 8;
 const VERIFY_POLL: Duration = Duration::from_millis(40);
@@ -14,14 +14,23 @@ const VERIFY_POLL: Duration = Duration::from_millis(40);
 /// quotes, `...` to `…`, markdown spacing), so the cursor can move by fewer units than posted
 /// even though everything landed. When the cursor verdict is a refute, the field's content gets
 /// a second look before declaring failure.
-pub(super) fn verify(expected: usize, before: Option<usize>, text: &str) -> (Outcome, Option<usize>) {
+pub(super) fn verify(
+    target: &FocusTarget,
+    expected: usize,
+    before: Option<usize>,
+    text: &str,
+) -> (Outcome, Option<usize>) {
     // Without a baseline the delta can never be observed, so the verdict is Unknown whatever
     // happens (key-window targets, secure fields); the poll loop would only add latency.
     let Some(base) = before else { return (Outcome::Unknown, None) };
     let mut last = None;
     for _ in 0..VERIFY_TRIES {
         std::thread::sleep(VERIFY_POLL);
-        let cur = read_cursor();
+        let cur = match read_focus() {
+            Some(focused) if target.same_identity(&focused) => focused.cursor,
+            Some(_) => return (Outcome::Unknown, last),
+            None => continue,
+        };
         if cur.is_some() {
             last = cur;
         }
@@ -33,11 +42,32 @@ pub(super) fn verify(expected: usize, before: Option<usize>, text: &str) -> (Out
         }
     }
     let verdict = outcome(expected, Some(base), last);
-    if matches!(verdict, Outcome::Refuted { .. }) && landed_by_content(read_field_value().as_deref(), text) {
-        tracing::info!("insert: cursor disagrees but the text is in the field; counting it as confirmed");
-        return (Outcome::Confirmed, last);
+    if matches!(verdict, Outcome::Refuted { .. })
+        && let Some(caret) = last.filter(|&caret| caret > base)
+    {
+        let length = expected.saturating_mul(2).saturating_add(8).min(caret);
+        let nearby = target.element.text_for_range(caret - length, length);
+        let value = nearby.is_none().then(|| target.element.string("AXValue")).flatten();
+        let before_caret =
+            nearby.as_deref().or_else(|| value.as_deref().and_then(|value| prefix_at_utf16(value, caret)));
+        if landed_by_content(before_caret, text) {
+            tracing::info!("insert: cursor disagrees but the text is before the caret; counting it as confirmed");
+            return (Outcome::Confirmed, last);
+        }
     }
     (verdict, last)
+}
+
+/// Find the UTF-8 slice boundary for an accessibility API's UTF-16 caret offset.
+fn prefix_at_utf16(value: &str, caret: usize) -> Option<&str> {
+    let mut offset = 0;
+    for (index, ch) in value.char_indices() {
+        if offset >= caret {
+            return (offset == caret).then(|| &value[..index]);
+        }
+        offset += ch.len_utf16();
+    }
+    (offset == caret).then_some(value)
 }
 
 /// Comparison fold for content verification: editors rewrite punctuation and whitespace as text
@@ -57,7 +87,14 @@ fn landed_by_content(value: Option<&str>, text: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::landed_by_content;
+    use super::{landed_by_content, prefix_at_utf16};
+
+    #[test]
+    fn verification_uses_the_caret_in_the_middle_of_the_field() {
+        let value = "🙂你好 世界 untouched suffix";
+        assert!(landed_by_content(prefix_at_utf16(value, 7), "你好世界"));
+        assert!(prefix_at_utf16(value, 1).is_none());
+    }
 
     #[test]
     fn content_check_accepts_rewritten_punctuation() {

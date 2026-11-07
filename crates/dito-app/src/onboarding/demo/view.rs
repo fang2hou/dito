@@ -12,7 +12,7 @@ use crate::theme::Palette;
 use crate::ui::{self, Motion, text};
 
 use super::clock::{Clock, Layer, Tick, frozen};
-use super::timeline::{HudAt, KEY_SCALE, Scene};
+use super::timeline::{HudAt, INSERT_FADE_S, KEY_SCALE, Scene};
 
 /// `s` glyph by glyph, `gap` px apart. Every glyph box is exactly as wide as its advance: gpui rounds the width of a
 /// run of text up to whole pixels (an 11 px glyph measures 11.000001 and takes 12), which `ui::text_tracked` lets
@@ -53,21 +53,28 @@ fn line_box(content: Div, h: f32) -> Div {
 }
 
 fn key_column(p: &Palette, lang: Lang, key: &str, mode: RecordMode, scene: &Scene, still: bool) -> Div {
+    const KEY_MIN_W: f32 = 84.;
+    const KEY_PAD_X: f32 = 18.;
+    const KEY_BORDER: f32 = 2.;
+
     let down = scene.key.clamp(0., 1.);
     // The press shrinks the key; a still has no motion, so a held key there only changes color.
     let k = if still { 1. } else { 1. - (1. - KEY_SCALE) * scene.key };
-    let w = (spaced_width(key, 18., FontWeight::BOLD, 0.) + 28.).max(84.);
+    // Reserve the resting width so pressing the key doesn't shift the HUD beside it.
+    let slot_w = (ui::text_width(key, 18., FontWeight::BOLD).ceil() + 2. * (KEY_PAD_X + KEY_BORDER)).max(KEY_MIN_W);
     let face = div()
-        .w(px(w * k))
+        .min_w(px(KEY_MIN_W * k))
         .h(px(52. * k))
+        .px(px(KEY_PAD_X * k))
         .flex_none()
         .rounded(px(14. * k))
         .bg(ui::mix_rgb(p.card, p.text, down))
-        .border(px(2.))
+        .border(px(KEY_BORDER))
         .border_color(ui::mix_rgb(p.border_strong, p.text, down))
         .flex()
         .items_center()
         .justify_center()
+        .whitespace_nowrap()
         .child(
             text(key.to_string(), 18. * k, FontWeight::BOLD, ui::mix_rgb(p.text, p.bg, down)).line_height(relative(1.)),
         );
@@ -86,7 +93,7 @@ fn key_column(p: &Palette, lang: Lang, key: &str, mode: RecordMode, scene: &Scen
         .items_center()
         .gap(px(10.))
         .child(line_box(spaced(lang.tr(Tr::DemoKey), 11., FontWeight::MEDIUM, p.muted, 0.08), 16.))
-        .child(div().w(px(w)).h(px(52.)).flex_none().flex().items_center().justify_center().child(face))
+        .child(div().w(px(slot_w)).h(px(52.)).flex_none().flex().items_center().justify_center().child(face))
         .child(line_box(spaced(state, 11., FontWeight::NORMAL, color, 0.05), 16.))
 }
 
@@ -97,9 +104,13 @@ fn hud_slot(p: &Palette, lang: Lang, hud: Option<&HudAt>, still: bool) -> Div {
     let slot =
         div().relative().w(px(SLOT_W)).h(px(52.)).flex_none().flex().flex_col().justify_end().items_center().pb(px(5.));
     let Some(at) = hud else { return slot };
-    let build = |state: HudState, w: f32, since: f32| {
+    let build = |state: HudState, w: f32, since: f32, outcome_t: Option<f32>| {
         let fill = hud::fill_at(&state, since, None);
-        let wave = if still { Wave::Rest } else { Wave::Bars(crate::hud::waveform::Waveform::demo(since)) };
+        let wave = if !still && matches!(state, HudState::Listening { .. }) {
+            Wave::Ocean(crate::hud::waveform::Waveform::demo(since))
+        } else {
+            Wave::Rest
+        };
         Capsule {
             state,
             lang,
@@ -110,21 +121,28 @@ fn hud_slot(p: &Palette, lang: Lang, hud: Option<&HudAt>, still: bool) -> Div {
             t: since,
             wave,
             fill,
-            outcome_t: None,
+            outcome_t,
         }
         .element(&mut |b| hud::static_button(b, Scale::DESIGN, p).into_any_element())
     };
-    let mut capsule = build(at.state.clone(), at.w, at.since);
+    let inserted = at.inserted_elapsed.map(|elapsed| {
+        let blend = (elapsed / INSERT_FADE_S).clamp(0., 1.);
+        let outcome_t = (elapsed - hud::OUTCOME_ICON_DELAY).max(0.);
+        (build(HudState::Inserted, hud::CAPSULE_W, elapsed, Some(outcome_t)), blend)
+    });
+    let inserted = match inserted {
+        Some((capsule, blend)) if blend >= 1. => return slot.child(capsule).opacity(at.shown),
+        cross_fade => cross_fade,
+    };
+    let mut capsule = build(at.state.clone(), at.w, at.since, None);
     if let Some(u) = at.pop {
         capsule = hud::pop_shape(capsule, Scale::DESIGN, at.w, u, Motion::Full);
     }
     let mut slot = slot.child(capsule);
-    if at.inserted > 0. {
+    if let Some((capsule, blend)) = inserted {
         // On top of the recognizing capsule, at the spot where it sits: the cross-fade to green.
         let left = (SLOT_W - hud::CAPSULE_W) / 2.;
-        slot = slot.child(
-            build(HudState::Inserted, hud::CAPSULE_W, 0.).absolute().left(px(left)).bottom(px(5.)).opacity(at.inserted),
-        );
+        slot = slot.child(capsule.absolute().left(px(left)).bottom(px(5.)).opacity(blend));
     }
     slot.opacity(at.shown)
 }

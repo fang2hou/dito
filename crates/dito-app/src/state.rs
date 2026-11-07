@@ -5,15 +5,16 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use dito_audio::{AutoOverrides, Capture};
+use dito_core::audio::AudioClip;
 use dito_core::config::{ConfigStore, default_data_dir};
-use dito_core::controller::{self, Deps, DictationHandle, Env, Recorder, Sink};
+use dito_core::controller::{self, Deps, DictationHandle, Env, Recorder, RecorderError, Sink};
 use dito_core::factory::{EngineFactory, Engines};
 use dito_core::secrets::{MemorySecrets, SecretStore};
 use dito_core::store::Store;
 #[cfg(not(feature = "runtimes"))]
 use dito_local::NoRuntime;
 use dito_local::{LocalEngines, ModelManager, RuntimeLoader};
-use dito_platform::{KeychainSecrets, MacFrontmost, MacMusicMute, MacSink, Player};
+use dito_platform::{KeychainSecrets, MacFrontmost, MacMusicMute, MacSink, Permission, Player, Status, permissions};
 use gpui_kit::Global;
 
 use crate::dev::log_sink::LogSink;
@@ -177,7 +178,27 @@ fn open_capture(opts: &Opts, cfg: &ConfigStore) -> Option<Arc<Capture>> {
 fn pick_recorder(opts: &Opts, capture: Option<&Arc<Capture>>) -> Result<Arc<dyn Recorder>> {
     Ok(match (&opts.wav, capture) {
         (Some(path), _) => Arc::new(WavRecorder::open(path)?),
-        (None, Some(capture)) => capture.clone(),
+        (None, Some(capture)) => Arc::new(AuthorizedCapture(capture.clone())),
         (None, None) => Arc::new(SyntheticRecorder::default()),
     })
+}
+
+struct AuthorizedCapture(Arc<Capture>);
+
+impl Recorder for AuthorizedCapture {
+    fn start(&self) -> Result<(), RecorderError> {
+        // Opening an input stream can prompt before the user reaches the permission controls.
+        if permissions::status(Permission::Microphone) != Status::Granted {
+            return Err(RecorderError::Device("microphone permission has not been granted".into()));
+        }
+        self.0.start()
+    }
+
+    fn stop(&self) -> AudioClip {
+        self.0.stop()
+    }
+
+    fn level(&self) -> f32 {
+        self.0.level()
+    }
 }

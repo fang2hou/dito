@@ -25,14 +25,13 @@ pub(super) fn static_primary(p: &Palette, label: &str, lead: Option<Ic>, trail: 
     b
 }
 
-/// The green "おすすめ" pill: solid green with white text in both themes.
-pub(super) fn recommend_tag(p: &Palette, label: SharedString) -> Div {
+pub(super) fn recommend_tag(label: SharedString, background: Hsla, ink: Hsla) -> Div {
     div()
         .px(px(11.))
         .py(px(3.))
         .rounded_full()
-        .bg(p.success)
-        .child(text(label, 12., FontWeight::MEDIUM, ui::white()).line_height(relative(1.5)))
+        .bg(background)
+        .child(text(label, 12., FontWeight::MEDIUM, ink).line_height(relative(1.5)))
 }
 
 const STEP_LABELS: [Tr; 6] = [
