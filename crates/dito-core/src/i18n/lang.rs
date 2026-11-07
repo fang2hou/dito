@@ -16,11 +16,16 @@ impl Lang {
 
     /// Name shown in the language picker, always in its own language.
     pub fn native_name(self) -> &'static str {
-        match self {
-            Self::Ja => "日本語",
-            Self::En => "English",
-            Self::Zh => "简体中文",
-        }
+        self.name(self)
+    }
+
+    /// Name translated into the current UI language.
+    pub fn name(self, ui: Lang) -> &'static str {
+        ui.tr(match self {
+            Self::Ja => Tr::GeneralJapanese,
+            Self::En => Tr::GeneralEnglish,
+            Self::Zh => Tr::GeneralSimplifiedChinese,
+        })
     }
 
     pub fn code(self) -> &'static str {

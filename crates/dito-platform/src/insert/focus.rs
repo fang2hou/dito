@@ -14,7 +14,8 @@ const AX_TREE_BUDGET: Duration = Duration::from_millis(1500);
 const EDITABLE_ROLES: &[&str] = &["AXTextField", "AXTextArea", "AXComboBox", "AXSearchField"];
 const MANUAL_ACCESSIBILITY: &str = "AXManualAccessibility";
 /// How many elements the search below the focused window may visit, and how deep it goes.
-const DESCENDANT_BUDGET: usize = 60;
+const DESCENDANT_BUDGET: usize = 32;
+const DESCENDANT_TIME: Duration = Duration::from_millis(80);
 const DESCENDANT_DEPTH: usize = 4;
 
 /// One look at whatever currently has keyboard focus.
@@ -28,13 +29,14 @@ pub(super) struct FocusTarget {
     pub key_window: bool,
     /// UTF-16 location of the selection inside the focused field, if it exposes one.
     pub cursor: Option<usize>,
+    pub element: AxElement,
 }
 
 impl FocusTarget {
     /// Identity for the stability check: the same field in the same app. Value and selection are
     /// excluded on purpose, because they change as text arrives.
-    fn same_identity(&self, other: &Self) -> bool {
-        self.pid == other.pid && self.role == other.role && self.title == other.title
+    pub(super) fn same_identity(&self, other: &Self) -> bool {
+        self.pid == other.pid && self.element == other.element
     }
 
     /// GPU-rendered apps (gpui: Zed, Herdr, ...) publish no text nodes, so the focused element is
@@ -63,78 +65,91 @@ fn frontmost_foreign_pid() -> Option<i32> {
     (pid != own_pid()).then_some(pid)
 }
 
-fn focused_element() -> Option<AxElement> {
-    AxElement::system_wide()?.element("AXFocusedUIElement")
+fn describe(element: AxElement) -> FocusTarget {
+    let role = element.string("AXRole").unwrap_or_default();
+    let title = element.string("AXTitle").unwrap_or_default();
+    let cursor = element.selection().and_then(|selection| selection.location());
+    let editable = EDITABLE_ROLES.contains(&role.as_str()) || cursor.is_some();
+    let key_window = role == "AXWindow" && element.flag("AXFocused");
+    FocusTarget { pid: element.pid(), role, title, editable, key_window, cursor, element }
+}
+
+fn describe_focused(element: AxElement) -> FocusTarget {
+    let target = describe(element);
+    if !target.editable
+        && let Some(ancestor) = target.element.element("AXEditableAncestor")
+        && ancestor.pid() == target.pid
+    {
+        // WebKit can focus a descendant of a contenteditable node. Its editor may expose text
+        // markers instead of integer offsets. Treat that as editable but keep verification unknown.
+        let mut editor = describe(ancestor);
+        editor.editable |= editor.element.attribute("AXSelectedTextMarkerRange").is_some();
+        if editor.editable {
+            return editor;
+        }
+    }
+    target
 }
 
 pub(super) fn read_focus() -> Option<FocusTarget> {
     if !is_trusted() {
         return None;
     }
-    focused_element()
-        .map(|focused| describe(&focused))
-        // Chromium builds that reject every enable switch (Feishu/Lark) never resolve the
-        // system-wide focused element, yet still answer window-level queries. Resolve through
-        // the frontmost app's focused window instead, digging for a real editable descendant
-        // first (Typora-style lazy web trees expose one a level or two down).
-        .or_else(window_focus_target)
-}
-
-fn describe(element: &AxElement) -> FocusTarget {
-    let role = element.string("AXRole").unwrap_or_default();
-    let title = element.string("AXTitle").unwrap_or_default();
-    let selection = element.selection();
-    let cursor = selection.as_ref().and_then(|s| s.location());
-    // Web and custom editors expose a selection range even when the role is generic.
-    let editable = EDITABLE_ROLES.contains(&role.as_str()) || selection.is_some();
-    let key_window = role == "AXWindow" && element.flag("AXFocused");
-    FocusTarget { pid: element.pid(), role, title, editable, key_window, cursor }
-}
-
-/// The frontmost app's focused window as a fallback focus target, or an editable element
-/// found inside it. `None` when the frontmost app is dito itself or nothing is readable.
-fn window_focus_target() -> Option<FocusTarget> {
-    let app = AxElement::application(frontmost_foreign_pid()?)?;
-    let window = app.element("AXFocusedWindow")?;
-    let mut budget = DESCENDANT_BUDGET;
-    if let Some(found) = editable_descendant(&window, DESCENDANT_DEPTH, &mut budget) {
-        return Some(found);
+    let system = AxElement::system_wide()?;
+    let global = system.element("AXFocusedUIElement").map(describe_focused);
+    if global.as_ref().is_some_and(|target| target.editable || target.pid == own_pid()) {
+        return global;
     }
-    let mut target = describe(&window);
-    // A focused window of a foreign app is where HID keys go even without deeper knowledge.
-    if target.role == "AXWindow" {
-        target.key_window = true;
+    let app = system.element("AXFocusedApplication").or_else(|| AxElement::application(frontmost_foreign_pid()?));
+    let app_focus = app.as_ref().and_then(|app| app.element("AXFocusedUIElement")).map(describe_focused);
+    if app_focus.as_ref().is_some_and(|target| target.editable) {
+        return app_focus;
     }
-    Some(target)
+    let window = app.and_then(|app| app.element("AXFocusedWindow"));
+    if let Some(window) = window {
+        let mut budget = DESCENDANT_BUDGET;
+        if let Some(found) =
+            editable_descendant(&window, DESCENDANT_DEPTH, &mut budget, Instant::now() + DESCENDANT_TIME)
+        {
+            return Some(found);
+        }
+        // A foreign focused window can receive HID input even when it has no accessibility tree.
+        return global.or_else(|| {
+            let mut target = describe(window);
+            target.key_window = target.role == "AXWindow";
+            Some(target)
+        });
+    }
+    app_focus.or(global)
 }
 
-/// Bounded search for an element that takes text (editable role or selection range).
-fn editable_descendant(element: &AxElement, depth: usize, budget: &mut usize) -> Option<FocusTarget> {
-    if depth == 0 || *budget == 0 {
+/// Only inspect descendants the app explicitly marks focused. Another editable field in the
+/// same window is not evidence of where synthetic keys would go.
+fn editable_descendant(
+    element: &AxElement,
+    depth: usize,
+    budget: &mut usize,
+    deadline: Instant,
+) -> Option<FocusTarget> {
+    if depth == 0 || *budget == 0 || Instant::now() >= deadline {
         return None;
     }
     for child in element.children() {
-        if *budget == 0 {
+        if *budget == 0 || Instant::now() >= deadline {
             return None;
         }
         *budget -= 1;
-        let role = child.string("AXRole").unwrap_or_default();
-        if EDITABLE_ROLES.contains(&role.as_str()) || child.selection().is_some() {
-            return Some(describe(&child));
+        if child.flag("AXFocused") {
+            let target = describe_focused(child.clone());
+            if target.editable {
+                return Some(target);
+            }
         }
-        if let Some(found) = editable_descendant(&child, depth - 1, budget) {
+        if let Some(found) = editable_descendant(&child, depth - 1, budget, deadline) {
             return Some(found);
         }
     }
     None
-}
-
-pub(super) fn read_cursor() -> Option<usize> {
-    focused_element()?.selection()?.location()
-}
-
-pub(super) fn read_field_value() -> Option<String> {
-    focused_element()?.string("AXValue")
 }
 
 /// Chromium/Electron apps (VS Code forks and friends) keep their accessibility tree unbuilt
@@ -156,7 +171,7 @@ fn enable_chromium_accessibility() -> Option<i32> {
 /// latency and often lose the race.
 pub fn warm_focus() {
     std::thread::spawn(|| {
-        if !is_trusted() || read_focus().is_some() {
+        if !is_trusted() || read_focus().is_some_and(|target| target.editable) {
             return;
         }
         if let Some(pid) = enable_chromium_accessibility() {
@@ -178,8 +193,8 @@ pub fn has_text_target() -> bool {
 /// key window that takes HID keys. Focus settles asynchronously after HUD interactions, app
 /// switches and field clicks, and Chromium-family editors (Typora's fork, Electron) report a
 /// generic container first while the real editable node materializes a moment later, so a
-/// stable-but-generic read is not final and polling continues. On timeout, deliver to whatever
-/// is focused then.
+/// stable-but-generic read is not final and polling continues. On timeout, report focus only
+/// if the same element was observed twice.
 pub(super) fn wait_for_stable_focus() -> Option<FocusTarget> {
     if !is_trusted() {
         return None;
@@ -187,7 +202,7 @@ pub(super) fn wait_for_stable_focus() -> Option<FocusTarget> {
     let started = Instant::now();
     let mut deadline = started + FOCUS_BUDGET;
     let mut prev = read_focus();
-    if prev.is_none()
+    if !prev.as_ref().is_some_and(|target| target.editable)
         && let Some(pid) = enable_chromium_accessibility()
     {
         tracing::info!(
@@ -202,18 +217,22 @@ pub(super) fn wait_for_stable_focus() -> Option<FocusTarget> {
     if prev.as_ref().is_some_and(|t| !t.deliverable()) {
         deadline = Instant::now() + AX_TREE_BUDGET;
     }
-    while Instant::now() < deadline {
+    loop {
         std::thread::sleep(FOCUS_POLL);
         let cur = read_focus();
         let stable = matches!((&prev, &cur), (Some(a), Some(b)) if a.same_identity(b));
-        let ready = cur.as_ref().is_some_and(FocusTarget::deliverable);
+        let ready = cur.as_ref().is_some_and(|target| {
+            target.editable || (target.foreign_key_window() && Instant::now() >= started + FOCUS_BUDGET)
+        });
         prev = cur;
         if stable && ready {
             return prev;
         }
+        if Instant::now() >= deadline {
+            if !stable {
+                tracing::warn!("insert: focus could not be established after {:?}", started.elapsed());
+            }
+            return if stable { prev } else { None };
+        }
     }
-    if prev.is_some() {
-        tracing::warn!("insert: focus still moving after {:?}; delivering anyway", started.elapsed());
-    }
-    prev
 }

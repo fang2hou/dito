@@ -6,6 +6,7 @@ mod capsule;
 mod elevation;
 mod motion;
 mod outcome_icon;
+mod processing_motion;
 mod progress;
 mod scale;
 mod shimmer;
@@ -27,6 +28,8 @@ pub(crate) use timing::{OUTCOME_END, OUTCOME_FADE_S, OUTCOME_ICON_DELAY, fill_at
 pub(crate) use view::POP_MS;
 #[cfg(feature = "screenshots")]
 pub use view::{HudView, PreviewHover};
+#[cfg(feature = "screenshots")]
+pub(crate) use window::live_window;
 #[cfg(feature = "screenshots")]
 pub use window::{WIN_H, WIN_W};
 pub use window::{WIN_PAD, run};

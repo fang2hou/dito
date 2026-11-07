@@ -54,7 +54,11 @@ fn pump_frames(cx: &mut App) {
         loop {
             cx.background_executor().timer(Duration::from_millis(16)).await;
             cx.update(|cx| {
+                let live_hud = crate::hud::live_window(cx).map(|window| window.window_id());
                 for window in cx.windows() {
+                    if live_hud == Some(window.window_id()) {
+                        continue;
+                    }
                     let _ = cx.update_window(window, |_, w, cx| redraw(w, cx));
                 }
             });
@@ -118,6 +122,9 @@ async fn render_preview_shots(st: &Arc<AppState>, dir: &Path, groups: &Groups, c
     }
     if groups.selects("hudheight") {
         pages::hud_height_shots(st, dir, cx).await;
+    }
+    if groups.selects("hudtooltip") {
+        hud::hud_tooltip_shots(st, dir, cx).await;
     }
     if groups.selects("hudlive") {
         hud::hud_live_shots(st, dir, cx).await;

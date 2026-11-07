@@ -85,6 +85,12 @@ general.off = { ja = "オフ", en = "Off", zh = "关闭" }
 general.speech_recognition = { ja = "音声認識", en = "Speech recognition", zh = "语音识别" }
 general.microphone = { ja = "マイク", en = "Microphone", zh = "麦克风" }
 general.preferred_language = { ja = "優先言語", en = "Preferred language", zh = "优先语言" }
+general.simplified_chinese = { ja = "簡体字中国語", en = "Simplified Chinese", zh = "简体中文" }
+general.japanese = { ja = "日本語", en = "Japanese", zh = "日语" }
+general.english = { ja = "英語", en = "English", zh = "英语" }
+general.hud_language_shortcuts = { ja = "HUD の言語切替", en = "HUD language shortcuts", zh = "HUD 语言快捷切换" }
+general.hud_language_all = { ja = "すべての言語", en = "All languages", zh = "所有语言" }
+general.hud_language_hidden = { ja = "表示しない", en = "Hidden", zh = "不显示" }
 general.auto = { ja = "自動", en = "Auto", zh = "自动" }
 general.system = { ja = "システム", en = "System", zh = "系统" }
 general.launch_at_login = { ja = "ログイン時に起動", en = "Launch at login", zh = "登录时启动" }
@@ -264,6 +270,8 @@ status.open_system_settings = { ja = "システム設定を開く", en = "Open S
 status.need_accessibility = { ja = "アクセシビリティが許可されていません。ショートカットを検知できません。", en = "Accessibility permission is required to detect shortcuts.", zh = "未允许辅助功能，无法检测快捷键。" }
 
 # --- HUD ----------------------------------------------------------------------
+hud.language_ja_short = { ja = "日", en = "日", zh = "日" }
+hud.language_zh_short = { ja = "简", en = "简", zh = "简" }
 hud.transcribing = { ja = "認識中", en = "Transcribing", zh = "识别中" }
 hud.polishing = { ja = "整形中", en = "Polishing", zh = "润色中" }
 hud.error = { ja = "エラー", en = "Error", zh = "出错" }

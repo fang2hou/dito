@@ -31,6 +31,7 @@ pub(super) struct Circle {
     /// Resting hairline: `(color, opacity)`, painted inside the button and fading out on hover.
     pub(super) ring: Option<(Hsla, f32)>,
     dark: bool,
+    frosted: bool,
 }
 
 /// The round buttons a capsule can carry.
@@ -83,7 +84,8 @@ impl Btn {
                 ("hud-settings", bg, hbg, HudIc::Sliders, BTN_ICON, c, hc, ring)
             }
         };
-        Circle { id, bg, hover_bg, glyph, size, color, hover_color, ring, dark: p.dark }
+        let frosted = matches!(self, Self::Cancel | Self::Finish);
+        Circle { id, bg, hover_bg, glyph, size, color, hover_color, ring, dark: p.dark, frosted }
     }
 }
 
@@ -110,7 +112,15 @@ pub(super) fn circle_shell(c: &Circle, scale: Scale, bg: AnyElement, glyph: AnyE
 /// The background layer at cross-fade position `t` (0 resting, 1 hovered): the fill blends and a
 /// resting hairline, if any, fades out with it.
 pub(super) fn hover_layer(c: &Circle, scale: Scale, t: f32) -> AnyElement {
-    let mut layer = div().absolute().inset_0().rounded_full().bg(ui::mix_rgb(c.bg, c.hover_bg, t));
+    let mut tint = ui::mix_rgb(c.bg, c.hover_bg, t);
+    if c.frosted {
+        tint.a = 0.61 + (0.82 - 0.61) * t;
+    }
+    let mut layer = div().absolute().inset_0().rounded_full().bg(tint);
+    if c.frosted {
+        let edge = if c.dark { hex("#F7F5F0") } else { hex("#665633") };
+        layer = layer.border(scale.px(0.75)).border_color(hex_alpha(edge, if c.dark { 0.24 } else { 0.20 }));
+    }
     if let Some((color, alpha)) = c.ring {
         layer = layer.border(scale.px(0.75)).border_color(hex_alpha(color, alpha * (1. - t)));
     }
@@ -135,15 +145,10 @@ pub(super) fn hover_glyph(c: &Circle, scale: Scale, t: f32) -> AnyElement {
 /// A button drawn as the HUD draws it, without the behaviour: for capsules that are only shown.
 pub(crate) fn static_button(b: Btn, scale: Scale, p: &Palette) -> Div {
     let look = b.look(p);
-    let Circle { id: _, bg, hover_bg: _, glyph: _, size: _, color: _, hover_color: _, ring, dark: _ } = &look;
-    let mut layer = div().absolute().inset_0().rounded_full().bg(*bg);
-    if let Some((color, alpha)) = ring {
-        layer = layer.border(scale.px(0.75)).border_color(hex_alpha(*color, *alpha));
-    }
     circle_shell(
         &look,
         scale,
-        layer.into_any_element(),
+        hover_layer(&look, scale, 0.),
         hud_icon(look.glyph, scale.tx(look.size), look.color).into_any_element(),
     )
 }

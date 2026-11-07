@@ -33,7 +33,7 @@ The HUD is a non-activating panel that can't become key on click, sits above app
 
 ## Consequences
 
-Every new HUD control must work through the polled hover and click-through. New HUD features must not require focus (no text fields in the HUD).
+Every new HUD control must work through the polled hover and click-through. Apply AppKit window moves after releasing the GPUI app borrow because the move callback runs synchronously. The HUD advances on its display link and opts out of inactive-window throttling. Quiet frames can skip drawing. New HUD features must not require focus (no text fields in the HUD).
 
 ## Pitfalls
 

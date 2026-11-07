@@ -7,14 +7,13 @@ use crate::hud::buttons::BTN;
 use crate::hud::capsule::{CAPSULE_H, CAPSULE_PAD, CAPSULE_W};
 use crate::hud::window::{WIN_PAD, WIN_W};
 
+use super::language_chip::CHIP_H;
 use super::layout::{CAPSULE_TOP, ERROR_BUBBLE_H, ZONE_GAP};
 
 const UPPER_HALF_W: f32 = 90.;
 const UPPER_H: f32 = 38.;
 const ERROR_NOTE_HALF_W: f32 = 135.;
 const ERROR_NOTE_BELOW_SLACK: f32 = 4.;
-const CHIP_HALF_W: f32 = 85.;
-const CHIP_TOP: f32 = 32.;
 const STOP_HALF_W: f32 = 31.;
 const STOP_TOP: f32 = 35.;
 
@@ -28,7 +27,7 @@ pub(super) struct Hit {
     pub(super) interactive: bool,
 }
 
-pub(super) fn pointer_hit(state: &HudState, width: f32, hover_zone: bool, x: f32, y: f32) -> Hit {
+pub(super) fn pointer_hit(state: &HudState, width: f32, chip_width: f32, hover_zone: bool, x: f32, y: f32) -> Hit {
     let center = (WIN_W + 2. * WIN_PAD) / 2.;
     let top = CAPSULE_TOP;
     let left = center - width / 2.;
@@ -50,9 +49,9 @@ pub(super) fn pointer_hit(state: &HudState, width: f32, hover_zone: bool, x: f32
     let chip = toggle
         && hover_zone
         && button.is_none()
-        && x >= center - CHIP_HALF_W
-        && x <= center + CHIP_HALF_W
-        && y >= top - CHIP_TOP
+        && chip_width > 0.
+        && (x - center).abs() <= chip_width / 2.
+        && y >= top - ZONE_GAP - CHIP_H
         && y <= top - ZONE_GAP;
     let stop = processing
         && hover_zone
@@ -89,11 +88,21 @@ mod tests {
             action: ErrorAction::OpenSettings,
         };
         let center = (WIN_W + 2. * WIN_PAD) / 2.;
-        let hit = pointer_hit(&error, CAPSULE_W, true, center, CAPSULE_TOP + 55.);
+        let hit = pointer_hit(&error, CAPSULE_W, 143.5, true, center, CAPSULE_TOP + 55.);
         assert!(hit.in_zone);
         assert!(hit.button.is_none());
         assert!(!hit.interactive);
-        assert!(!pointer_hit(&error, CAPSULE_W, true, center, CAPSULE_TOP + 80.).in_zone);
+        assert!(!pointer_hit(&error, CAPSULE_W, 143.5, true, center, CAPSULE_TOP + 80.).in_zone);
+    }
+
+    #[test]
+    fn the_language_hit_area_follows_the_configured_width() {
+        let toggle = HudState::Listening { mode: RecordMode::Toggle };
+        let center = (WIN_W + 2. * WIN_PAD) / 2.;
+        let y = CAPSULE_TOP - 20.;
+        assert!(!pointer_hit(&toggle, CAPSULE_W, 0., true, center, y).interactive);
+        assert!(pointer_hit(&toggle, CAPSULE_W, 75.5, true, center, y).interactive);
+        assert!(!pointer_hit(&toggle, CAPSULE_W, 75.5, true, center + 50., y).interactive);
     }
 
     #[test]
@@ -103,7 +112,8 @@ mod tests {
         let center = (WIN_W + 2. * WIN_PAD) / 2.;
         let top = CAPSULE_TOP;
         let button_x = center - CAPSULE_W / 2. + CAPSULE_PAD + BTN / 2.;
-        let interactive = |state: &HudState, width, zone, x, y| pointer_hit(state, width, zone, x, y).interactive;
+        let interactive =
+            |state: &HudState, width, zone, x, y| pointer_hit(state, width, 143.5, zone, x, y).interactive;
         assert!(interactive(&toggle, CAPSULE_W, false, button_x, top + 16.5));
         assert!(!interactive(&toggle, CAPSULE_W, false, center, top + 16.5));
         assert!(!interactive(&hold, 72., false, button_x, top + 16.5));

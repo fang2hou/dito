@@ -11,7 +11,7 @@ use super::{Onboarding, Step};
 impl Render for Onboarding {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let scope = self.motion.handle();
-        ui::with_motion_scope(scope, || self.render_scoped(window, cx).children(self.editor.clone()))
+        ui::with_motion_scope(scope, || ui::tooltip_root(self.render_scoped(window, cx).children(self.editor.clone())))
     }
 }
 

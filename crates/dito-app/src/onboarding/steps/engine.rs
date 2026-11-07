@@ -80,7 +80,7 @@ fn option(
                 .gap(px(12.))
                 .child(ui::radio(p, on))
                 .child(text(title, 16., FontWeight::BOLD, p.text))
-                .children(recommended.then(|| recommend_tag(p, c.t(Tr::OnboardingRecommended)))),
+                .children(recommended.then(|| recommend_tag(c.t(Tr::OnboardingRecommended), p.success, ui::white()))),
         );
     for (ic, s) in points {
         card =

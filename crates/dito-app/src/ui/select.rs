@@ -139,14 +139,16 @@ fn select_row(
     item: &SelectItem,
     on: bool,
     on_pick: &IndexCb,
-    on_toggle: &Cb,
+    on_toggle: Option<&Cb>,
 ) -> Stateful<Div> {
-    let (pick, toggle) = (on_pick.clone(), on_toggle.clone());
+    let (pick, toggle) = (on_pick.clone(), on_toggle.cloned());
     menu_row(ElementId::from((id, i)), p)
         .justify_between()
         .on_click(move |_, w, cx| {
             pick(i, w, cx);
-            toggle(w, cx);
+            if let Some(toggle) = &toggle {
+                toggle(w, cx);
+            }
         })
         // The label takes the leftover width and truncates; badge and check keep their own
         // fixed slots, so a long name can never run under them.
@@ -174,6 +176,39 @@ pub fn select_items(
     on_pick: IndexCb,
 ) -> Div {
     let label = options.get(selected).map(|o| o.label.clone()).unwrap_or_default();
+    select_control(id, p, options, |i| i == selected, label, open, width, on_toggle, on_pick, true)
+}
+
+/// Multi-select with the same menu and checkmarks. Picking an option keeps the menu open.
+#[allow(clippy::too_many_arguments)]
+pub fn select_multi(
+    id: &'static str,
+    p: &Palette,
+    options: &[SharedString],
+    selected: &[bool],
+    label: SharedString,
+    open: bool,
+    width: f32,
+    on_toggle: Cb,
+    on_pick: IndexCb,
+) -> Div {
+    let items: Vec<_> = options.iter().map(|label| SelectItem { label: label.clone(), badge: None }).collect();
+    select_control(id, p, &items, |i| selected[i], label, open, Some(width), on_toggle, on_pick, false)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn select_control(
+    id: &'static str,
+    p: &Palette,
+    options: &[SelectItem],
+    selected: impl Fn(usize) -> bool,
+    label: SharedString,
+    open: bool,
+    width: Option<f32>,
+    on_toggle: Cb,
+    on_pick: IndexCb,
+    close_on_pick: bool,
+) -> Div {
     let scope = motion_scope();
     let button = select_button(id, p, label, open, width, &scope, on_toggle.clone());
     let mut root = div().relative().when(width.is_none(), |d| d.w_full()).child(button);
@@ -190,7 +225,7 @@ pub fn select_items(
         .max_w(px(400.));
     // The panel only exists while open, so this runs each time it appears.
     for (i, item) in options.iter().enumerate() {
-        panel = panel.child(select_row(id, p, i, item, i == selected, &on_pick, &on_toggle));
+        panel = panel.child(select_row(id, p, i, item, selected(i), &on_pick, close_on_pick.then_some(&on_toggle)));
     }
     root.child(float(ElementId::from((ElementId::from(id), "menu")), CONTROL_H + 6., panel))
 }

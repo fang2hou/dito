@@ -89,6 +89,7 @@ fn show_in_existing_window(page: Page, foreground: bool, cx: &mut App) -> bool {
 fn open_new_window(st: Arc<AppState>, page: Page, cx: &mut App) {
     let bounds = Bounds::centered(None, size(px(1120.), px(860.)), cx);
     let opts = WindowOptions {
+        inactive_frame_interval: None,
         window_bounds: Some(WindowBounds::Windowed(bounds)),
         titlebar: Some(TitlebarOptions {
             title: Some("Dito".into()),

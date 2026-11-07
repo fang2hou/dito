@@ -64,8 +64,8 @@ pub(super) struct HudAt {
     pub(super) w: f32,
     /// 0–1 through the pop-in while it is arriving.
     pub(super) pop: Option<f32>,
-    /// 0–1 cross-fade into the green inserted capsule.
-    pub(super) inserted: f32,
+    /// Seconds since the green inserted capsule began, including its cross-fade.
+    pub(super) inserted_elapsed: Option<f32>,
     /// 1 shown … 0 gone: the way back to the start fades it out.
     pub(super) shown: f32,
 }
@@ -103,7 +103,7 @@ impl Scene {
                 since: at - began,
                 w,
                 pop: (pop < 1.).then_some(pop),
-                inserted: ((at - T_INSERT) / INSERT_FADE_S).clamp(0., 1.),
+                inserted_elapsed: (at >= T_INSERT).then_some(at - T_INSERT),
                 shown: 1. - smooth((at - T_REST_END) / RESTART_S),
             }
         });

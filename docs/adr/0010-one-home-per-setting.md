@@ -9,7 +9,7 @@ Settings edited from several places drift: the menu bar, onboarding and settings
 
 ## Decision
 
-`ConfigStore` is the only source of truth: atomic writes, change notifications, and permissive loading so old files keep working. Each setting is edited in one place in the settings window. Onboarding only sets initial values; the menu bar never changes settings. The HUD language selector, which changes the speech language, is the one documented exception.
+`ConfigStore` is the only source of truth: atomic writes, change notifications, and permissive loading so old files keep working. Each setting is edited in one place in the settings window. Onboarding only sets initial values; the menu bar never changes settings. The HUD language selector, which changes the speech language, is the one documented exception. The list of shortcuts available in the HUD is edited in General only. An empty list hides the switcher without changing the speech language.
 
 ## Alternatives Considered
 

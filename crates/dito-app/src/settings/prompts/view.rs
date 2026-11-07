@@ -13,7 +13,7 @@ impl PromptsPage {
         let language = ui::seg(
             "prompt-lang",
             &p,
-            &["日本語".into(), "English".into(), "中文".into()],
+            &langs.map(|language| language.name(c.lang).into()),
             langs.iter().position(|l| *l == self.lang).unwrap_or(0),
             cbk_idx(cx, move |this: &mut Self, i, w, cx| this.switch(langs[i], this.style.clone(), w, cx)),
         );

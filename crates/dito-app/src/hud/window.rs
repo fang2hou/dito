@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use dito_core::config::HudPosition;
 use dito_core::controller::HudState;
-use dito_platform::system::{ErrorBubble, HudFollowState, HudNativeWindow, NapGuard, PointerContact};
+use dito_platform::system::{ErrorBubble, HudFollowState, HudNativeWindow, HudWindowMove, NapGuard, PointerContact};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 use raw_window_handle::{HasWindowHandle, RawWindowHandle};
@@ -45,6 +45,7 @@ fn window_options(st: &AppState, cx: &App) -> Option<WindowOptions> {
         window_bounds: Some(WindowBounds::Windowed(Bounds::new(origin, size(px(ww), px(wh))))),
         titlebar: None,
         focus: false,
+        inactive_frame_interval: None,
         show: true,
         kind: WindowKind::PopUp,
         is_movable: false,
@@ -74,16 +75,20 @@ fn open_window(st: Arc<AppState>, cx: &mut App) {
     }
 }
 
-/// Every 8 ms: keep the window where the settings put it, and click-through except over the controls.
+/// Poll near the display cadence so a non-key panel can track hover and click-through.
 fn spawn_placement_loop(handle: WindowHandle<HudView>, settings: Arc<AppState>, cx: &mut App) {
     cx.spawn(async move |cx| {
         let mut placement = Placement::default();
         loop {
-            let ok = handle.update(cx, |view, window, cx| placement.tick(&settings, view, window, cx));
-            if ok.is_err() {
+            let Ok((movement, interval)) =
+                handle.update(cx, |view, window, cx| placement.tick(&settings, view, window, cx))
+            else {
                 break;
+            };
+            if let Some(movement) = movement {
+                movement.apply();
             }
-            cx.background_executor().timer(std::time::Duration::from_millis(8)).await;
+            cx.background_executor().timer(interval).await;
         }
     })
     .detach();
@@ -96,8 +101,16 @@ struct Placement {
 }
 
 impl Placement {
-    fn tick(&mut self, settings: &AppState, view: &mut HudView, window: &mut Window, cx: &mut Context<HudView>) {
-        let Some(native) = native_window(window) else { return };
+    fn tick(
+        &mut self,
+        settings: &AppState,
+        view: &mut HudView,
+        window: &mut Window,
+        cx: &mut Context<HudView>,
+    ) -> (Option<HudWindowMove>, std::time::Duration) {
+        let fallback = std::time::Duration::from_millis(8);
+        let Some(native) = native_window(window) else { return (None, fallback) };
+        let mut movement = None;
         let cfg = settings.cfg.get();
         // A lower error bubble needs its shadow and spring overshoot above the Dock.
         let lower_room = view.needs_lower_room();
@@ -107,10 +120,12 @@ impl Placement {
             self.applied = Some(current);
             self.follow = HudFollowState::default();
             if current.0 == HudPosition::Centered {
-                native.center_above_dock(current.1);
+                movement = native.center_above_dock(current.1);
             }
         }
-        let Some(pointer) = native.pointer() else { return };
+        let interval =
+            window.refresh_interval(cx).unwrap_or(fallback).clamp(std::time::Duration::from_millis(4), fallback);
+        let Some(pointer) = native.pointer() else { return (movement, interval) };
         let interactive = view.pointer_update(pointer.x, pointer.y, cx);
         // Keep the down/up pair on the same target while a button is held.
         if !pointer.button_down {
@@ -120,8 +135,9 @@ impl Placement {
             let contact =
                 if interactive || pointer.button_down { PointerContact::OnControls } else { PointerContact::Away };
             let bubble = if lower_room { ErrorBubble::Lowered } else { ErrorBubble::Hidden };
-            native.follow_pointer(&mut self.follow, contact, bubble);
+            movement = native.follow_pointer(&mut self.follow, contact, bubble);
         }
+        (movement, interval)
     }
 }
 
@@ -141,6 +157,11 @@ fn native_window(window: &Window) -> Option<HudNativeWindow<'_>> {
     let RawWindowHandle::AppKit(h) = handle.as_raw() else { return None };
     // SAFETY: the view belongs to `window`, which the borrow keeps alive.
     unsafe { HudNativeWindow::from_ns_view(h.ns_view) }
+}
+
+#[cfg(feature = "screenshots")]
+pub(crate) fn live_window(cx: &App) -> Option<AnyWindowHandle> {
+    cx.try_global::<HudWindow>().map(|hud| hud.window)
 }
 
 fn close_window(cx: &mut App) {

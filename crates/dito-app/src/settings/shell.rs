@@ -131,7 +131,7 @@ impl Render for Settings {
         // The shell (sidebar, health card, rail reveal) draws under the window's persistent scope:
         // its nav plate keeps moving across page switches, which reset only page scopes.
         let shell = self.motion.handle();
-        ui::with_motion_scope(shell, || self.render_shell(window, cx))
+        ui::with_motion_scope(shell, || ui::tooltip_root(self.render_shell(window, cx)))
     }
 }
 
@@ -192,7 +192,7 @@ impl Settings {
             )
     }
 
-    fn render_shell(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render_shell(&mut self, window: &mut Window, cx: &mut Context<Self>) -> Div {
         let rail = self.follow_window_width(window, cx);
         let c = Ctx::new(&self.st, cx);
         let p = c.p;
