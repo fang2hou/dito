@@ -18,7 +18,7 @@ pub use accessibility::reduce_motion;
 pub use app_icon::{has_bundle_icon, set_app_icon};
 pub use applications::{InstalledApplication, application_at, installed_application};
 pub use frontmost::MacFrontmost;
-pub use hud_follow::{ErrorBubble, HudFollowState, PointerContact};
+pub use hud_follow::{HudFollowState, PointerContact};
 pub use hud_window::{HudNativeWindow, HudPointer, HudWindowMove};
 pub use keychain::KeychainSecrets;
 pub use locale::system_language;

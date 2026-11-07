@@ -77,6 +77,8 @@ pub struct HudView {
     processing: Option<ProcessingMotion>,
     processing_pending: bool,
     displayed_fill: Fill,
+    /// Progress fill of the state being left, so the outgoing capsule keeps its bar while the surface cross-fades.
+    previous_fill: Option<f32>,
     /// Previous processing stage, retained while the brush settles and labels cross-fade.
     previous: Option<HudState>,
     /// Preview mode: fixed animation time, no live updates.
@@ -123,6 +125,7 @@ impl HudView {
             processing: None,
             processing_pending: false,
             displayed_fill: Fill::default(),
+            previous_fill: None,
             previous: None,
             freeze: None,
             motion: ui::MotionScope::new(),
@@ -146,6 +149,7 @@ impl HudView {
         let elapsed = self.elapsed();
         let displayed = self.displayed_fill;
         self.width_from = self.width();
+        self.previous_fill = self.progress();
         let was_listening = matches!(self.state, HudState::Listening { .. });
         let now_listening = matches!(state, HudState::Listening { .. });
         if was_listening && !now_listening {
@@ -230,10 +234,6 @@ impl HudView {
             cx.notify();
         }
         pointer.interactive
-    }
-
-    pub(super) fn needs_lower_room(&self) -> bool {
-        matches!(self.state, HudState::Error { .. })
     }
 
     /// The pointer entered or left the hover zone (capsule + the controls above it).
