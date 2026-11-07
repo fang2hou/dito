@@ -14,6 +14,8 @@ use crate::ui::Motion;
 use super::{HudView, LABEL_FADE_S};
 
 const SUCCESS_FADE_S: f32 = 0.20;
+/// `hud/state`: the capsule's background, border and labels cross-fade when the dictation state changes.
+pub(super) const STATE_FADE_S: f32 = 0.16;
 
 /// The two clocks every layer of one frame reads, sampled once so cross-fading layers agree.
 #[derive(Clone, Copy)]
@@ -22,8 +24,10 @@ struct FrameClock {
     scene: f32,
 }
 
+/// The incoming capsule sits complete underneath; the outgoing one fades out over it. Keeping the new shell
+/// opaque for the whole transition means the background and border cross over without the window showing through.
 fn crossfade(old: Div, next: Div, blend: f32) -> Div {
-    div().relative().child(old).child(next.absolute().top_0().left_0().opacity(blend))
+    div().relative().child(next).child(old.absolute().top_0().left_0().opacity(1. - blend))
 }
 
 impl HudView {
@@ -72,6 +76,16 @@ impl HudView {
             let next =
                 self.interactive_layer(p, clock, self.state.clone(), if terminal { None } else { self.progress() }, cx);
             return crossfade(old, next, blend);
+        }
+        if let Some(previous) = self.previous.as_ref().filter(|previous| **previous != self.state)
+            && elapsed < STATE_FADE_S
+        {
+            let old = self
+                .layer(p, clock, previous.clone(), self.previous_fill)
+                .element(&mut |b| buttons::static_button(b, Scale::HUD, p).into_any_element());
+            let next = self.interactive_layer(p, clock, self.state.clone(), self.progress(), cx);
+            let u = (elapsed / STATE_FADE_S).clamp(0., 1.);
+            return crossfade(old, next, u * u * (3. - 2. * u));
         }
         self.interactive_layer(p, clock, self.state.clone(), self.progress().filter(|_| !terminal), cx)
     }

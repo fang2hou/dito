@@ -158,7 +158,7 @@ Annotation categories: **Interaction**, **Motion**, **Content**, **Measure**. An
 | Collection | Modes | Content |
 | --- | --- | --- |
 | `Color` | Light / Dark | Every `Palette` field in `crates/dito-app/src/theme.rs` under the same name (`bg`, `text`, `muted`, `on_primary`, `seg_on`, `menu_bg`, …), the constants `white` and `plain_black`, and `hud/*` for each `hud_color` pair in `crates/dito-app/src/hud` plus `hud/danger_ring` and `hud/button_shadow` |
-| `Motion` | — | Shared: `motion/hover` 160, `tip` 150, `ring` 180, `sidebar` 260, `switch` 380, `glass` 460. HUD and onboarding: `pill` 150, `hud-pop` 420, `hud-widen` 300, `hud-label` 120, `onboarding-slide` 360 (ms) |
+| `Motion` | — | Shared: `motion/hover` 160, `tip` 150, `ring` 180, `sidebar` 260, `switch` 380, `glass` 460. HUD and onboarding: `pill` 150, `hud-pop` 420, `hud-widen` 300, `hud-label` 120, `hud/state` 160, `onboarding-slide` 360 (ms) |
 | `Size` | — | `radius/input` 12, `radius/card` 16, `radius/window` 20, `window/width` 1120, `sidebar/width` 232 |
 
 Icon instances, HUD buttons, the close button and the `11.03` controls are bound to variables; other existing layers still carry hex values. New components bind from the start, and a variable's values change together with the code that defines it.

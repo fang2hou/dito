@@ -10,6 +10,7 @@ use crate::hud::processing_motion::{Fill, ProcessingMotion};
 use crate::hud::timing::{self, COPY_END, OUTCOME_END, OUTCOME_ICON_DELAY, SETTLE_S};
 use crate::ui::Motion;
 
+use super::capsule_stack::STATE_FADE_S;
 use super::{HudView, LABEL_FADE_S, POP_MS};
 
 /// The recording countdown appears this many seconds into a recording, fading in over [`COUNTDOWN_FADE_S`].
@@ -93,6 +94,7 @@ impl HudView {
             || entry
             || self.widening()
             || self.completing()
+            || self.state_fading()
             || error_moving
             || countdown_changed
             || countdown_entering
@@ -131,6 +133,13 @@ impl HudView {
     /// The capsule is still easing toward its width.
     fn widening(&self) -> bool {
         self.freeze.is_none() && self.since.elapsed().as_secs_f32() < WIDEN_S
+    }
+
+    /// The capsule surface is still cross-fading from the state it replaced.
+    fn state_fading(&self) -> bool {
+        self.freeze.is_none()
+            && self.previous.as_ref().is_some_and(|previous| *previous != self.state)
+            && self.elapsed() < STATE_FADE_S
     }
 
     fn completing(&self) -> bool {
