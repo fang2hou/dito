@@ -14,7 +14,13 @@ pub const HOVER_MS: u64 = 160;
 /// Forget the hover remembered for one control that stops being drawn while others stay, so it cannot come back
 /// looking hovered.
 pub fn reset_hover(id: &ElementId) {
-    let Some(reg) = scope::ambient_registry() else { return };
+    reset_hover_in(scope::motion_scope(), id);
+}
+
+/// [`reset_hover`] against one explicit scope, for click handlers: they run after the build, when the ambient scope
+/// is detached, and need the scope the control was built under.
+pub fn reset_hover_in(scope: ScopeHandle, id: &ElementId) {
+    let Some(reg) = scope.registry() else { return };
     let mut reg = reg.borrow_mut();
     reg.hovered.remove(id);
     reg.tweens.remove(&ElementId::from((id.clone(), "hover-fill")));

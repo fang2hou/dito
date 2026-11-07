@@ -211,6 +211,17 @@ impl Prompts {
         true
     }
 
+    /// Remove a configured app, together with every language's copied settings for it. Returns whether it was
+    /// configured. Its past recordings are not touched: the history resolves them against the current list, so they
+    /// read as Other from now on.
+    pub fn remove_application(&mut self, bundle_id: &str) -> bool {
+        let removed = self.applications.remove(bundle_id).is_some();
+        for lang in Lang::ALL {
+            self.set_mut(lang).applications.remove(bundle_id);
+        }
+        removed
+    }
+
     pub fn reset_all(&mut self) {
         *self = Self::default();
     }
@@ -469,6 +480,24 @@ mod tests {
         loaded.reset_all();
         assert_eq!(loaded, Prompts::default());
         assert_eq!(loaded.for_application("example.editor"), Style::General);
+    }
+
+    #[test]
+    fn removing_an_application_drops_every_language_and_allows_a_fresh_add() {
+        let mut p = Prompts::default();
+        assert!(p.add_application("example.editor", "Editor", &Style::Herdr));
+        let app = p.for_application("example.editor");
+        p.en.style_mut(&app).instruction = "editor instruction".into();
+        assert!(p.remove_application("example.editor"));
+        assert!(!p.applications.contains_key("example.editor"));
+        for lang in Lang::ALL {
+            assert!(!p.set(lang).applications.contains_key("example.editor"), "{lang:?} kept the app rules");
+        }
+        assert_eq!(p.for_application("example.editor"), Style::General, "a removed app reads as Other");
+        assert!(!p.remove_application("example.editor"), "removing twice changes nothing");
+
+        assert!(p.add_application("example.editor", "Editor", &Style::Teams));
+        assert_eq!(p.en.style(&app).instruction, default_set(Lang::En).teams.instruction, "a re-add starts fresh");
     }
 
     #[test]

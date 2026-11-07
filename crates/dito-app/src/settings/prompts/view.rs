@@ -102,7 +102,14 @@ impl PromptsPage {
                     .child(
                         text(c.t(Tr::PromptsApplicationSettings), 16., FontWeight::BOLD, p.text).line_height(px(24.)),
                     )
-                    .child(self.application_picker(c, cx, false)),
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap(px(8.))
+                            .child(self.application_picker(c, cx, false))
+                            .children(self.remove_app_control(c, cx)),
+                    ),
             )
             .child(prompt_editor(&p, &self.instruction, window, cx, 96.))
             .child(

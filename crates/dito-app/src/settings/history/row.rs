@@ -124,15 +124,8 @@ impl HistoryPage {
         let p = &c.p;
         let id = e.id;
         let RowParts { mut meta, mut body, mut actions } = parts;
-        meta = meta.child(ui::tag(
-            p,
-            if matches!(e.style, dito_core::prompts::Style::Application(_)) {
-                e.app.clone().into()
-            } else {
-                ui::style_label(c.lang, e.style.clone())
-            },
-            Tint::Blue,
-        ));
+        let cfg = self.st.cfg.get();
+        meta = meta.child(ui::tag(p, ui::history_style_label(c.lang, &cfg.prompts, &e.style, &e.app), Tint::Blue));
         body = body.child(text(e.final_text().to_string(), 14., FontWeight::NORMAL, p.text).line_height(relative(1.6)));
         if expandable(e) {
             let raw = e.raw.clone();

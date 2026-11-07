@@ -110,7 +110,7 @@ pub async fn prompt_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
             c.general.display_language = DisplayLanguage::Ja;
         });
         for (width, label) in [(1120., "default"), (900., "narrow")] {
-            for case in ["normal", "menu", "add", "reset", "help", "herdr"] {
+            for case in ["normal", "menu", "add", "reset", "help", "herdr", "custom", "removeapp"] {
                 open_page_sized(st, Page::Prompts, width, 980., cx);
                 on_settings_window(cx, |w, cx, _| {
                     if let Some((_, view)) = settings::handle(cx) {

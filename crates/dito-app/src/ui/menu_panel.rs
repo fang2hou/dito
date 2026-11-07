@@ -4,7 +4,8 @@ use gpui_kit::prelude::*;
 use gpui_kit::*;
 
 use super::callbacks::Cb;
-use super::hover::{hover_fill, hover_tracker};
+use super::hover::{hover_fill, hover_tracker, reset_hover_in};
+use super::scope::motion_scope;
 use super::tween::RING_MS;
 use crate::theme::Palette;
 
@@ -31,9 +32,21 @@ pub fn menu_panel(id: ElementId, p: &Palette, on_close: Cb) -> Stateful<Div> {
         .on_mouse_down_out(move |_, w, cx| on_close(w, cx))
 }
 
-/// A hoverable row of a menu panel; the caller adds its click handler and content.
+/// A hoverable row of a menu panel; the caller adds its click handler and content. Clicking it retires the row with
+/// its menu, so the row forgets its own hover: GPUI never reports the end of a hover for an element that stops
+/// being drawn, and without this the next opening would draw that row pre-lit.
 pub fn menu_row(id: ElementId, p: &Palette) -> Stateful<Div> {
-    div()
+    row(id, p, true)
+}
+
+/// [`menu_row`] for a menu that stays open after the click (multi-select): the pointer is still on the row, so it
+/// must keep its hover fill.
+pub fn menu_row_staying(id: ElementId, p: &Palette) -> Stateful<Div> {
+    row(id, p, false)
+}
+
+fn row(id: ElementId, p: &Palette, retires: bool) -> Stateful<Div> {
+    let row = div()
         .id(id.clone())
         .relative()
         .h(px(34.))
@@ -44,7 +57,12 @@ pub fn menu_row(id: ElementId, p: &Palette) -> Stateful<Div> {
         .rounded(px(8.))
         .cursor_pointer()
         .on_hover(hover_tracker(id.clone()))
-        .child(hover_fill(&id, Some(8.), p.seg))
+        .child(hover_fill(&id, Some(8.), p.seg));
+    if !retires {
+        return row;
+    }
+    let scope = motion_scope();
+    row.on_click(move |_, _, _| reset_hover_in(scope.clone(), &id))
 }
 
 /// Places `panel` `top` px under its relative parent with the right edges aligned. It is drawn in the

@@ -74,6 +74,11 @@ pub struct HistoryFilter {
     pub query: Option<String>,
     pub since_ts: Option<i64>,
     pub style: Option<Style>,
+    /// Display name and bundle id of every app currently configured under Prompts. A recording is that app when its
+    /// stored style is the app or when the app name it recorded is one of these names; everything else outside the
+    /// built-in styles is Other. Removing an app therefore sends its past entries to Other, and adding it back
+    /// restores them without rewriting history.
+    pub configured_apps: Vec<(String, String)>,
     pub limit: Option<usize>,
 }
 
@@ -218,8 +223,58 @@ impl Store {
             args.push(since.into());
         }
         if let Some(style) = &f.style {
-            sql.push_str(&format!(" AND style = ?{}", args.len() + 1));
-            args.push(encode(style).into());
+            match style {
+                // Other: every recording outside the built-in styles that is neither a configured app's style nor one
+                // of the configured app names. The name check keeps entries recorded before the app was configured
+                // (or under another bundle id) with their app.
+                Style::General => {
+                    let mut clause = String::from("style NOT IN ('slack', 'teams', 'herdr')");
+                    if !f.configured_apps.is_empty() {
+                        let first = args.len() + 1;
+                        let id_marks: Vec<String> =
+                            (0..f.configured_apps.len()).map(|i| format!("?{}", first + i)).collect();
+                        args.extend(
+                            f.configured_apps
+                                .iter()
+                                .map(|(_, id)| encode(Style::Application(id.clone())))
+                                .map(Into::into),
+                        );
+                        let first = args.len() + 1;
+                        let name_marks: Vec<String> =
+                            (0..f.configured_apps.len()).map(|i| format!("?{}", first + i)).collect();
+                        args.extend(f.configured_apps.iter().map(|(name, _)| name.clone().into()));
+                        clause.push_str(&format!(
+                            " AND style NOT IN ({}) AND app NOT IN ({})",
+                            id_marks.join(", "),
+                            name_marks.join(", ")
+                        ));
+                    }
+                    sql.push_str(&format!(" AND ({clause})"));
+                }
+                // Built-in styles are fixed and are matched by style alone.
+                Style::Slack | Style::Teams | Style::Herdr => {
+                    sql.push_str(&format!(" AND style = ?{}", args.len() + 1));
+                    args.push(encode(style.clone()).into());
+                }
+                Style::Application(id) => {
+                    let name = f.configured_apps.iter().find(|(_, app_id)| app_id == id).map(|(n, _)| n.clone());
+                    let first = args.len() + 1;
+                    match name.filter(|n| !n.is_empty()) {
+                        Some(name) => {
+                            args.push(encode(style.clone()).into());
+                            args.push(name.into());
+                            sql.push_str(&format!(
+                                " AND (style = ?{first} OR (app = ?{} AND style NOT IN ('slack', 'teams', 'herdr')))",
+                                first + 1
+                            ));
+                        }
+                        None => {
+                            sql.push_str(&format!(" AND style = ?{first}"));
+                            args.push(encode(style.clone()).into());
+                        }
+                    }
+                }
+            }
         }
         sql.push_str(" ORDER BY ts DESC, id DESC");
         if let Some(l) = f.limit {
@@ -392,6 +447,72 @@ mod tests {
         assert_eq!(recent.len(), 1);
         let styled = s.list_history(&HistoryFilter { style: Some(Style::Slack), ..Default::default() }).unwrap();
         assert_eq!(styled[0].raw, "new");
+    }
+
+    #[test]
+    fn app_classes_follow_the_configured_list_by_style_and_name() {
+        let s = Store::open_in_memory().unwrap();
+        s.add_history(&entry(10, "Notes", "ja", "general", None)).unwrap();
+        let mut legacy = entry(15, "App Store", "ja", "legacy", None);
+        legacy.style = Style::General;
+        s.add_history(&legacy).unwrap();
+        let mut slack = entry(20, "Slack", "ja", "slack", None);
+        slack.style = Style::Slack;
+        s.add_history(&slack).unwrap();
+        let mut kept = entry(30, "App Store", "ja", "kept", None);
+        kept.style = Style::Application("com.apple.AppStore".into());
+        s.add_history(&kept).unwrap();
+        let mut gone = entry(40, "Old", "ja", "gone", None);
+        gone.style = Style::Application("example.gone".into());
+        s.add_history(&gone).unwrap();
+        let configured = vec![("App Store".to_string(), "com.apple.AppStore".to_string())];
+
+        let other =
+            HistoryFilter { style: Some(Style::General), configured_apps: configured.clone(), ..Default::default() };
+        let rows = s.list_history(&other).unwrap();
+        let raws: Vec<&str> = rows.iter().map(|e| e.raw.as_str()).collect();
+        assert_eq!(raws, ["gone", "general"], "a removed app joins Other; the configured app's entries stay out");
+
+        let app = HistoryFilter {
+            style: Some(Style::Application("com.apple.AppStore".into())),
+            configured_apps: configured.clone(),
+            ..Default::default()
+        };
+        let rows = s.list_history(&app).unwrap();
+        assert_eq!(
+            rows.iter().map(|e| e.raw.as_str()).collect::<Vec<_>>(),
+            ["kept", "legacy"],
+            "name matches recover old rows"
+        );
+
+        let re_added = HistoryFilter {
+            style: Some(Style::Application("com.example.newstore".into())),
+            configured_apps: vec![("App Store".into(), "com.example.newstore".into())],
+            ..Default::default()
+        };
+        let rows = s.list_history(&re_added).unwrap();
+        assert_eq!(
+            rows.iter().map(|e| e.raw.as_str()).collect::<Vec<_>>(),
+            ["kept", "legacy"],
+            "an app re-added under another bundle id still claims its past entries by name"
+        );
+
+        let none_configured = HistoryFilter { style: Some(Style::General), ..Default::default() };
+        let rows = s.list_history(&none_configured).unwrap();
+        let raws: Vec<&str> = rows.iter().map(|e| e.raw.as_str()).collect();
+        assert_eq!(
+            raws,
+            ["gone", "kept", "legacy", "general"],
+            "with no configured apps every recording outside the built-in styles is Other"
+        );
+        assert!(
+            s.list_history(&HistoryFilter { style: Some(Style::Slack), ..Default::default() }).unwrap()[0].raw
+                == "slack"
+        );
+        assert!(
+            !s.list_history(&none_configured).unwrap().iter().any(|e| e.style == Style::Slack),
+            "a built-in style never joins Other"
+        );
     }
 
     #[test]

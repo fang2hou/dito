@@ -29,12 +29,39 @@ pub fn error_line(lang: dito_core::i18n::Lang, line: &str) -> String {
     }
 }
 
-pub fn style_label(lang: dito_core::i18n::Lang, style: dito_core::prompts::Style) -> SharedString {
+fn other_label(lang: dito_core::i18n::Lang) -> SharedString {
+    SharedString::from(lang.tr(dito_core::i18n::Tr::PromptsOther))
+}
+
+/// A configured app named `app`, for entries recorded before the app was configured or under another bundle id:
+/// the recorded name is the only link those rows keep to their app.
+fn configured_name<'a>(prompts: &'a dito_core::prompts::Prompts, app: &str) -> Option<&'a String> {
+    if app.is_empty() {
+        return None;
+    }
+    prompts.applications.values().find(|name| name.as_str() == app)
+}
+
+/// Label of a recorded entry against the apps configured now. A configured app keeps the name it was recorded with
+/// (falling back to its configured display name); an app no longer in the list reads as Other, and adding it back
+/// restores the name without touching history. Built-in styles are fixed.
+pub fn history_style_label(
+    lang: dito_core::i18n::Lang,
+    prompts: &dito_core::prompts::Prompts,
+    style: &dito_core::prompts::Style,
+    app: &str,
+) -> SharedString {
+    use dito_core::prompts::Style;
     match style {
-        dito_core::prompts::Style::General | dito_core::prompts::Style::Application(_) => {
-            SharedString::from(lang.tr(dito_core::i18n::Tr::PromptsOther))
+        Style::Slack | Style::Teams | Style::Herdr => SharedString::from(style.label().to_owned()),
+        Style::Application(id) => match prompts.applications.get(id) {
+            Some(configured) if app.is_empty() => configured.clone().into(),
+            Some(_) => app.to_owned().into(),
+            None => configured_name(prompts, app).map(|name| name.clone().into()).unwrap_or_else(|| other_label(lang)),
+        },
+        Style::General => {
+            configured_name(prompts, app).map(|name| name.clone().into()).unwrap_or_else(|| other_label(lang))
         }
-        other => SharedString::from(other.label().to_owned()),
     }
 }
 
