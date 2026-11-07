@@ -56,13 +56,13 @@ pub use progress_bar::progress_bar;
 pub use radio::radio;
 pub use requests::Requests;
 pub use scope::{MotionScope, ScopeHandle, motion_scope, with_motion_scope};
-pub use segmented::{SegStyle, seg, seg_with};
-pub use select::{SelectItem, select, select_disabled, select_items};
+pub use segmented::{SegContent, SegOption, SegStyle, seg, seg_with};
+pub use select::{SelectItem, select, select_disabled, select_items, select_multi};
 pub use select_badge::SelectBadge;
 pub use switch::switch;
 pub use test_state::TestState;
 pub use tip_bubble::TIP_BUBBLE_H;
-pub use tooltip::{dismiss_tips, tip_above, tip_label, tip_pop, tip_pop_with};
+pub use tooltip::{dismiss_tips, tip_above, tip_label, tip_pop, tip_pop_with, tooltip_root};
 pub use tween::{spring, tweened, tweened_at};
 pub use typography::{
     cjk_family, init_text_system, is_cjk, muted12, set_ui_language, text, text_tracked, text_width, tracked,

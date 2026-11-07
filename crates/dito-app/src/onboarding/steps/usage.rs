@@ -5,6 +5,7 @@ use gpui_kit::prelude::*;
 use gpui_kit::*;
 
 use crate::settings::Ctx;
+use crate::theme::hex;
 use crate::ui::{self, text};
 
 use super::super::Onboarding;
@@ -45,6 +46,11 @@ fn mode_tile(c: &Ctx, cx: &mut Context<Onboarding>, mode: RecordMode, selected: 
         RecordMode::Hold => (1, Tr::GeneralHold, Tr::OnboardingHoldDesc, false),
     };
     let tile_id = ElementId::from(("mode-tile", i));
+    let tag = recommended.then(|| {
+        let green = hex("#187760");
+        let (background, ink) = if on { (green, ui::white()) } else { (hex("#EBF6F3"), green) };
+        recommend_tag(c.t(Tr::OnboardingRecommended), background, ink)
+    });
     div()
         .id(tile_id.clone())
         .flex_1()
@@ -57,7 +63,6 @@ fn mode_tile(c: &Ctx, cx: &mut Context<Onboarding>, mode: RecordMode, selected: 
         .rounded(px(16.))
         .cursor_pointer()
         .bg(if on { p.accent_soft } else { p.card })
-        .opacity(if on { 1. } else { 0.7 })
         .border_1()
         .border_color(ui::transparent())
         .on_hover(ui::hover_tracker(tile_id.clone()))
@@ -73,7 +78,7 @@ fn mode_tile(c: &Ctx, cx: &mut Context<Onboarding>, mode: RecordMode, selected: 
                 .items_center()
                 .justify_between()
                 .child(text(c.t(name), 16., FontWeight::BOLD, p.text))
-                .children(recommended.then(|| recommend_tag(p, c.t(Tr::OnboardingRecommended)))),
+                .children(tag),
         )
         .child(text(c.t(desc), 12., FontWeight::NORMAL, p.muted))
 }

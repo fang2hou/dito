@@ -87,6 +87,7 @@ impl Restore {
 /// One delivery in progress: the text as UTF-16, where the cursor was, and the clipboard to give back.
 struct Attempts<'a> {
     text: &'a str,
+    target: &'a FocusTarget,
     units: Vec<u16>,
     baseline: Option<usize>,
     guard: Option<PasteGuard>,
@@ -113,14 +114,14 @@ impl Attempts<'_> {
             tracing::warn!("insert: could not post key events; nothing typed");
             return (Outcome::Refuted { inserted: 0 }, self.baseline);
         }
-        verify(suffix.len(), self.baseline, &String::from_utf16_lossy(suffix))
+        verify(self.target, suffix.len(), self.baseline, &String::from_utf16_lossy(suffix))
     }
 
     fn paste(&mut self) -> (Outcome, Option<usize>) {
         match begin_paste(self.text) {
             Ok(guard) => {
                 self.guard = Some(guard);
-                verify(self.units.len(), self.baseline, self.text)
+                verify(self.target, self.units.len(), self.baseline, self.text)
             }
             Err(e) => {
                 tracing::warn!("insert: paste setup failed: {e}");
@@ -145,7 +146,8 @@ impl Attempts<'_> {
 /// [`dito_core::insert`] fallback flow, ending on the clipboard if nothing live worked.
 fn deliver_text(text: &str, method: InsertMethod) -> Delivery {
     let Some(target) = deliverable_target() else { return terminal_clipboard(text) };
-    let mut attempts = Attempts { text, units: text.encode_utf16().collect(), baseline: target.cursor, guard: None };
+    let mut attempts =
+        Attempts { text, target: &target, units: text.encode_utf16().collect(), baseline: target.cursor, guard: None };
     let mut flow = Flow::new(method);
     let mut step = Flow::first(method);
     loop {
@@ -160,6 +162,11 @@ fn deliver_text(text: &str, method: InsertMethod) -> Delivery {
                 return Delivery::Inserted;
             }
             Next::Attempt(next) => {
+                if !super::focus::read_focus().is_some_and(|current| target.same_identity(&current)) {
+                    tracing::warn!("insert: focus changed before retry; text left on clipboard");
+                    attempts.restore(Restore::Now(RESTORE_FLOOR));
+                    return terminal_clipboard(text);
+                }
                 tracing::warn!("insert: retrying with {next:?}");
                 attempts.restore(Restore::InBackground(RESTORE_FLOOR));
                 attempts.baseline = last.or(attempts.baseline);

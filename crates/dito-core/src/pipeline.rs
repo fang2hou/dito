@@ -15,7 +15,7 @@ use crate::provider::{AsrRequest, PolishRequest};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Phase {
     Recognizing,
-    Polishing,
+    Polishing { input_chars: usize, started: Instant },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -84,8 +84,8 @@ async fn recognize(
     job: &Job<'_>,
     cancel: &CancellationToken,
 ) -> Result<Output, PipelineError> {
-    let asr = engines.transcriber(cfg).await.map_err(PipelineError::Failed)?;
     let started = Instant::now();
+    let asr = engines.transcriber(cfg).await.map_err(PipelineError::Failed)?;
     let transcript = or_cancel(
         cancel,
         asr.transcribe(&AsrRequest {
@@ -122,7 +122,8 @@ async fn polish(
         }
     };
 
-    on_phase(Phase::Polishing);
+    let started = Instant::now();
+    on_phase(Phase::Polishing { input_chars: out.raw.chars().count(), started });
     let words: &[String] = if cfg.dictionary_for_polish { job.dictionary } else { &[] };
     let system = build_system_prompt(&PromptInput {
         prompts: &cfg.prompts,
@@ -130,7 +131,6 @@ async fn polish(
         text: &out.raw,
         dictionary: words,
     });
-    let started = Instant::now();
     match or_cancel(cancel, polisher.polish(&PolishRequest { system: &system, text: &out.raw })).await? {
         Ok(text) => out.polished = Some(text),
         Err(e) => out.polish_error = Some(e),
@@ -182,7 +182,10 @@ mod tests {
         )
         .await
         .unwrap();
-        assert_eq!(*phases.lock().unwrap(), [Phase::Recognizing, Phase::Polishing]);
+        assert!(matches!(
+            phases.lock().unwrap().as_slice(),
+            [Phase::Recognizing, Phase::Polishing { input_chars: 8, .. }]
+        ));
         assert_eq!(out.raw, "えーと 会議です");
         assert_eq!(out.text(), "会議です。");
         assert_eq!(out.lang, Lang::Ja);
@@ -248,7 +251,7 @@ mod tests {
         let seen = Arc::new(AtomicUsize::new(0));
         let (c2, s2) = (cancel.clone(), seen.clone());
         let on_phase = move |p: Phase| {
-            if p == Phase::Polishing {
+            if matches!(p, Phase::Polishing { .. }) {
                 s2.fetch_add(1, Ordering::SeqCst);
                 c2.cancel();
             }

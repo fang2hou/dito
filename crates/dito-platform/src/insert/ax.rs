@@ -14,8 +14,7 @@ const AX_VALUE_TYPE_CF_RANGE: u32 = 4;
 #[repr(C)]
 struct CFRange {
     location: isize,
-    /// Layout only: AXValueGetValue writes it, dito never reads it.
-    _length: isize,
+    length: isize,
 }
 
 #[link(name = "ApplicationServices", kind = "framework")]
@@ -25,25 +24,41 @@ unsafe extern "C" {
     fn AXUIElementCopyAttributeValue(element: AXUIElementRef, attribute: CFStringRef, value: *mut CFTypeRef) -> i32;
     fn AXUIElementCopyAttributeNames(element: AXUIElementRef, names: *mut CFArrayRef) -> i32;
     fn AXUIElementSetAttributeValue(element: AXUIElementRef, attribute: CFStringRef, value: CFTypeRef) -> i32;
+    safe fn AXUIElementGetTypeID() -> usize;
+    fn AXUIElementSetMessagingTimeout(element: AXUIElementRef, timeout: f32) -> i32;
     fn AXUIElementGetPid(element: AXUIElementRef, pid: *mut i32) -> i32;
+    fn AXUIElementCopyParameterizedAttributeValue(
+        element: AXUIElementRef,
+        attribute: CFStringRef,
+        parameter: CFTypeRef,
+        value: *mut CFTypeRef,
+    ) -> i32;
+    fn AXValueCreate(value_type: u32, value: *const c_void) -> CFTypeRef;
     fn AXValueGetValue(value: CFTypeRef, the_type: u32, value: *mut c_void) -> bool;
 }
 
 /// A retained accessibility element, released when dropped.
+#[derive(Clone, Debug, PartialEq)]
 pub(super) struct AxElement(CFType);
 
 impl AxElement {
     pub(super) fn system_wide() -> Option<Self> {
-        Self::adopt(AXUIElementCreateSystemWide())
+        Self::adopt(AXUIElementCreateSystemWide()).map(Self::bounded)
     }
 
     pub(super) fn application(pid: i32) -> Option<Self> {
-        Self::adopt(AXUIElementCreateApplication(pid))
+        Self::adopt(AXUIElementCreateApplication(pid)).map(Self::bounded)
     }
 
     fn adopt(created: AXUIElementRef) -> Option<Self> {
         // SAFETY: the Create functions return a +1 retained element or null; ownership passes to the wrapper.
         (!created.is_null()).then(|| Self(unsafe { CFType::wrap_under_create_rule(created) }))
+    }
+
+    fn bounded(self) -> Self {
+        // SAFETY: self owns a live AX element; the timeout is in seconds.
+        unsafe { AXUIElementSetMessagingTimeout(self.raw(), 0.15) };
+        self
     }
 
     fn raw(&self) -> AXUIElementRef {
@@ -63,13 +78,40 @@ impl AxElement {
         self.attribute(name)?.downcast::<CFString>().map(|s| s.to_string())
     }
 
+    pub(super) fn text_for_range(&self, start: usize, length: usize) -> Option<String> {
+        let range = CFRange { location: start.try_into().ok()?, length: length.try_into().ok()? };
+        let attribute = CFString::new("AXStringForRange");
+        // SAFETY: AXValueCreate copies this CFRange into a retained AXValue.
+        let value = unsafe { AXValueCreate(AX_VALUE_TYPE_CF_RANGE, (&raw const range).cast()) };
+        if value.is_null() {
+            return None;
+        }
+        // SAFETY: the non-null Create result is owned by this scope.
+        let value = unsafe { CFType::wrap_under_create_rule(value) };
+        let mut result = std::ptr::null();
+        // SAFETY: the element, attribute, and range are live; result is a valid out-pointer.
+        let status = unsafe {
+            AXUIElementCopyParameterizedAttributeValue(
+                self.raw(),
+                attribute.as_concrete_TypeRef(),
+                value.as_CFTypeRef(),
+                &mut result,
+            )
+        };
+        if status != AX_SUCCESS || result.is_null() {
+            return None;
+        }
+        // SAFETY: a successful Copy call returns an owned result.
+        unsafe { CFType::wrap_under_create_rule(result) }.downcast::<CFString>().map(|text| text.to_string())
+    }
+
     /// Whether the attribute is the boolean true (`AXFocused` and friends come back as CFBoolean).
     pub(super) fn flag(&self, name: &str) -> bool {
         self.attribute(name).is_some_and(|v| v.downcast::<CFBoolean>() == Some(CFBoolean::true_value()))
     }
 
     pub(super) fn element(&self, name: &str) -> Option<Self> {
-        self.attribute(name).map(Self)
+        self.attribute(name).filter(|value| value.type_of() == AXUIElementGetTypeID()).map(Self)
     }
 
     pub(super) fn children(&self) -> Vec<Self> {
@@ -77,7 +119,12 @@ impl AxElement {
             return Vec::new();
         };
         // SAFETY: the array's items are live CF objects; the get rule retains each one for the wrapper.
-        array.iter().map(|child| Self(unsafe { CFType::wrap_under_get_rule(*child) })).collect()
+        array
+            .iter()
+            .map(|child| unsafe { CFType::wrap_under_get_rule(*child) })
+            .filter(|child| child.type_of() == AXUIElementGetTypeID())
+            .map(Self)
+            .collect()
     }
 
     pub(super) fn selection(&self) -> Option<AxSelection> {
@@ -123,10 +170,10 @@ pub(super) struct AxSelection(CFType);
 impl AxSelection {
     /// UTF-16 offset where the selection starts, which is the caret when nothing is selected.
     pub(super) fn location(&self) -> Option<usize> {
-        let mut range = CFRange { location: 0, _length: 0 };
+        let mut range = CFRange { location: 0, length: 0 };
         // SAFETY: the value is the AXValue returned for AXSelectedTextRange and `range` is a valid CFRange
         // out-buffer; the call writes through it only when the value's type matches.
         let ok = unsafe { AXValueGetValue(self.0.as_CFTypeRef(), AX_VALUE_TYPE_CF_RANGE, (&raw mut range).cast()) };
-        ok.then(|| range.location.max(0) as usize)
+        ok.then(|| usize::try_from(range.location).ok()).flatten()
     }
 }

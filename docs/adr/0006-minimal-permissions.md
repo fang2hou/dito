@@ -11,6 +11,8 @@ Every system permission is a trust cost and a setup step. Dictation needs the mi
 
 Dito asks for Microphone and Accessibility and nothing else. The global shortcut uses an active event tap, which needs only Accessibility and can also swallow Esc and shortcut keys; it recognizes lone modifiers such as right ⌘ and treats a quick following key as typing.
 
+Only the permission buttons in onboarding and Settings request access. Startup checks Accessibility silently and starts the global shortcut once access is granted. Recording checks Microphone access before opening an input stream.
+
 ## Alternatives Considered
 
 ### Listen-only event tap

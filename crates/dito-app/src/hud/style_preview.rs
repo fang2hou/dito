@@ -130,7 +130,11 @@ impl Frame {
     fn capsule(&self, state: HudState, since: f32, completion: Option<f32>) -> Div {
         let carried = if state == HudState::Polishing { recognizing_end() } else { None };
         let fill = fill_at(&state, since, carried);
-        let wave = if self.motion.is_reduced() { Wave::Rest } else { Wave::Bars(Waveform::demo(self.time)) };
+        let wave = if matches!(state, HudState::Listening { .. }) {
+            Wave::Ocean(Waveform::demo(self.time))
+        } else {
+            Wave::Rest
+        };
         self.element(state, wave, fill, completion)
     }
 

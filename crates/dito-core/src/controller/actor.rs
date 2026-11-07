@@ -9,6 +9,7 @@ use super::env::{AppInfo, Delivery, Deps, MuteSession};
 use super::handle::{DictationHandle, Msg};
 use super::history::History;
 use super::hud::{ErrorAction, HudState};
+use super::progress::{Models, ProcessingEstimate, TimingHistory};
 use crate::audio::AudioClip;
 use crate::config::{MusicMuteMode, RecordMode};
 use crate::error::{ErrorKind, ProviderError};
@@ -20,8 +21,8 @@ use crate::store::{HistoryKind, NewHistory, Store};
 pub const MAX_RECORDING_DURATION: Duration = Duration::from_secs(5 * 60);
 
 /// How long the HUD's whole-capsule outcome animation runs; the HUD is hidden once it has finished.
-const SUCCESS_FLASH: Duration = Duration::from_millis(1080);
-const COPIED_FLASH: Duration = Duration::from_millis(1910);
+const SUCCESS_FLASH: Duration = Duration::from_millis(1100);
+const COPIED_FLASH: Duration = Duration::from_millis(1930);
 const ERROR_LINGER: Duration = Duration::from_secs(3);
 
 struct Meta {
@@ -41,6 +42,7 @@ enum State {
         meta: Meta,
         clip: Arc<AudioClip>,
         cancel: CancellationToken,
+        models: Models,
     },
     /// Terminal HUD state being shown (success flash or error). `clip` allows retry.
     Showing {
@@ -57,6 +59,8 @@ struct Actor {
     /// Bumped on every transition so late jobs and timers are ignored.
     epoch: u64,
     recording_started: watch::Sender<Option<Instant>>,
+    processing: watch::Sender<ProcessingEstimate>,
+    timings: TimingHistory,
     hide_generation: u64,
     hide_paused: bool,
 }
@@ -65,6 +69,7 @@ pub fn spawn(deps: Deps) -> DictationHandle {
     let (tx, mut rx) = mpsc::unbounded_channel();
     let (hud_tx, hud_rx) = watch::channel(HudState::Hidden);
     let (started_tx, started_rx) = watch::channel(None);
+    let (processing_tx, processing_rx) = watch::channel(ProcessingEstimate::default());
     let mut actor = Actor {
         history: History::new(deps.store.clone(), deps.audio_dir.clone()),
         deps,
@@ -73,6 +78,8 @@ pub fn spawn(deps: Deps) -> DictationHandle {
         state: State::Idle,
         epoch: 0,
         recording_started: started_tx,
+        processing: processing_tx,
+        timings: TimingHistory::default(),
         hide_generation: 0,
         hide_paused: false,
     };
@@ -81,7 +88,7 @@ pub fn spawn(deps: Deps) -> DictationHandle {
             actor.handle(m);
         }
     });
-    DictationHandle::new(tx, hud_rx, started_rx)
+    DictationHandle::new(tx, hud_rx, started_rx, processing_rx)
 }
 
 fn now() -> i64 {
@@ -137,10 +144,13 @@ impl Actor {
     fn handle(&mut self, m: Msg) {
         match m {
             Msg::Cmd(c) => self.command(c),
-            Msg::Phase(g, p) if g == self.epoch => self.set_hud(match p {
-                Phase::Recognizing => HudState::Recognizing,
-                Phase::Polishing => HudState::Polishing,
-            }),
+            Msg::Phase(g, Phase::Polishing { input_chars, started }) if g == self.epoch => {
+                if let State::Processing { models, .. } = self.state {
+                    let estimate = self.timings.polishing(models.polish, input_chars);
+                    self.processing.send_modify(|p| p.polishing = Some((started, estimate)));
+                    self.set_hud(HudState::Polishing);
+                }
+            }
             Msg::Done(g, r) if g == self.epoch => self.done(r),
             Msg::Hide(g, generation)
                 if g == self.epoch
@@ -249,16 +259,22 @@ impl Actor {
         self.epoch += 1;
         let cancel = CancellationToken::new();
         let epoch = self.epoch;
+        let cfg = self.deps.config.get();
+        let models = Models::new(&cfg.asr, &cfg.polish.engine);
+        self.processing.send_replace(ProcessingEstimate {
+            recognition_secs: self.timings.recognition(models.asr, clip.duration_ms() as f32 / 1000.),
+            polishing: None,
+        });
         self.set_hud(HudState::Recognizing);
-        let (tx, engines, config, store) =
-            (self.tx.clone(), self.deps.engines.clone(), self.deps.config.clone(), self.deps.store.clone());
+        let (tx, engines, store) = (self.tx.clone(), self.deps.engines.clone(), self.deps.store.clone());
         let (job_clip, style, token) = (clip.clone(), meta.style.clone(), cancel.clone());
         tokio::spawn(async move {
-            let cfg = config.get();
             let words = load_dictionary(store).await;
             let phase_tx = tx.clone();
             let on_phase = move |p: Phase| {
-                let _ = phase_tx.send(Msg::Phase(epoch, p));
+                if matches!(p, Phase::Polishing { .. }) {
+                    let _ = phase_tx.send(Msg::Phase(epoch, p));
+                }
             };
             let r = pipeline::run(
                 engines.as_ref(),
@@ -270,14 +286,19 @@ impl Actor {
             .await;
             let _ = tx.send(Msg::Done(epoch, r));
         });
-        self.state = State::Processing { meta, clip, cancel };
+        self.state = State::Processing { meta, clip, cancel, models };
     }
 
     fn done(&mut self, result: Result<Output, PipelineError>) {
-        let State::Processing { meta, clip, .. } = std::mem::replace(&mut self.state, State::Idle) else { return };
+        let State::Processing { meta, clip, models, .. } = std::mem::replace(&mut self.state, State::Idle) else {
+            return;
+        };
         self.epoch += 1;
         match result {
-            Ok(out) => self.deliver(&meta, &clip, &out),
+            Ok(out) => {
+                self.timings.record(models, clip.duration_ms() as f32 / 1000., &out);
+                self.deliver(&meta, &clip, &out);
+            }
             Err(PipelineError::Cancelled) => {
                 self.record_history(&meta, &clip, HistoryKind::Cancelled, None, None);
                 self.go_idle();

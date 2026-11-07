@@ -1,13 +1,17 @@
+use std::cell::Cell;
 use std::collections::HashSet;
 use std::path::Path;
+use std::rc::Rc;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use dito_core::config::{Appearance, RecordMode};
+use dito_core::config::{Appearance, DisplayLanguage, HudPosition, PreferredLanguage, RecordMode};
 use dito_core::controller::{Command, ErrorAction, HudState};
 use dito_core::error::ErrorKind;
 use gpui_kit::*;
 use image::RgbaImage;
+
+use super::input;
 
 use super::capture::{
     BACKDROP_DARK, BACKDROP_LIGHT, BACKDROP_WHITE, close_window, open_hud_window, over_backdrop, render, save,
@@ -89,6 +93,12 @@ pub async fn hud_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
             let opened = open_hud_window(cx, move |_| HudView::preview(st, state, seconds, hover, came_from));
             let Some(window) = opened else { continue };
             cx.background_executor().timer(Duration::from_millis(350)).await;
+            if case.name == "listening-lang" {
+                let _ = cx.update(|cx| {
+                    cx.update_window(window.into(), |_, w, cx| input::hover(w, cx, point(px(95.), px(102.))))
+                });
+                cx.background_executor().timer(Duration::from_millis(200)).await;
+            }
             if let Some(img) = render(cx, window) {
                 let backdrop = if dark { BACKDROP_DARK } else { BACKDROP_LIGHT };
                 save(dir, &format!("hud-{}-{}.png", case.name, theme_tag(appearance)), over_backdrop(&img, backdrop));
@@ -210,7 +220,7 @@ fn has_crisp_brush(canvas: &RgbaImage, appearance: Appearance) -> bool {
 
 /// Width in design points of the capsule in a HUD window shot (the opaque run of the row through its middle).
 fn capsule_width_pt(img: &RgbaImage) -> f32 {
-    let y = (img.height() as f32 - (7. + WIN_PAD + 13.) * HUD_SCALE).round() as u32;
+    let y = (img.height() as f32 - (35. + WIN_PAD + 16.5) * HUD_SCALE).round() as u32;
     let opaque: Vec<u32> = (0..img.width()).filter(|&x| img.get_pixel(x, y)[3] >= 250).collect();
     match (opaque.first(), opaque.last()) {
         (Some(a), Some(b)) => (b - a + 1) as f32 / HUD_SCALE,
@@ -218,17 +228,48 @@ fn capsule_width_pt(img: &RgbaImage) -> f32 {
     }
 }
 
+fn count_display_frames(window: &Window, frames: Rc<Cell<usize>>, until: Instant) {
+    window.on_next_frame(move |window, _| {
+        if Instant::now() < until {
+            frames.set(frames.get() + 1);
+            count_display_frames(window, frames, until);
+        }
+    });
+}
+
 /// The live HUD window (not a frozen preview) through a hold-mode dictation against the mock pipeline: the capsule
 /// pops in narrow, stays narrow while the key is down, and widens when it is released. Prints the capsule's width
 /// in design points per frame and saves some of the frames (`hud-live-hold-<n>.png`). Opt-in: `DITO_SHOTS_ONLY=hudlive`.
 pub async fn hud_live_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
-    let before = st.cfg.get().general.record_mode;
-    services::save_config(st, |c| c.general.record_mode = RecordMode::Hold);
-    // The real HUD opens its window once the state is no longer Hidden, so its pop-in starts on a listening capsule.
+    let before = st.cfg.get();
+    services::save_config(st, |c| {
+        c.general.record_mode = RecordMode::Hold;
+        c.general.hud_position = HudPosition::Centered;
+    });
+    cx.update(|cx| crate::hud::run(st.clone(), cx));
     st.dictation.send(Command::KeyDown);
-    cx.background_executor().timer(Duration::from_millis(80)).await;
-    let live_st = st.clone();
-    let Some(window) = open_hud_window(cx, move |cx| HudView::new(live_st, cx)) else { return };
+    cx.background_executor().timer(Duration::from_millis(120)).await;
+    let window = cx.update(|cx| crate::hud::live_window(cx)).expect("live mock HUD");
+    let bounds = |cx: &mut AsyncApp| cx.update(|cx| cx.update_window(window, |_, w, _| w.bounds())).ok();
+    let start = bounds(cx);
+    services::save_config(st, |c| c.general.hud_position = HudPosition::Pointer);
+    cx.background_executor().timer(Duration::from_millis(240)).await;
+    println!("live HUD pointer-follow bounds: {start:?} -> {:?}", bounds(cx));
+    let frames = Rc::new(Cell::new(0));
+    let duration = Duration::from_millis(500);
+    let (active, visible, refresh) = cx
+        .update(|cx| {
+            cx.update_window(window, |_, w, app| {
+                count_display_frames(w, frames.clone(), Instant::now() + duration);
+                (w.is_window_active(), w.is_visible(), w.refresh_interval(app))
+            })
+        })
+        .expect("live HUD display clock");
+    cx.background_executor().timer(duration).await;
+    println!(
+        "live HUD display callbacks: {:.0}/s, active={active}, visible={visible}, interval={refresh:?}",
+        frames.get() as f64 / duration.as_secs_f64()
+    );
     let (opened_at, hold_for) = (Instant::now(), Duration::from_millis(1000));
     let mut released_at: Option<Instant> = None;
     let mut n = 0;
@@ -251,6 +292,67 @@ pub async fn hud_live_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
         }
         cx.background_executor().timer(Duration::from_millis(20)).await;
     }
-    close_window(cx, window);
-    services::save_config(st, |c| c.general.record_mode = before);
+    services::save_config(st, |c| {
+        c.general.record_mode = before.general.record_mode;
+        c.general.hud_position = before.general.hud_position;
+    });
+}
+
+/// Exercise the real tooltip layer on the HUD, including an interrupted transfer and exit.
+pub async fn hud_tooltip_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
+    let original = st.cfg.get();
+    for dark in [false, true] {
+        let appearance = if dark { Appearance::Dark } else { Appearance::Light };
+        services::save_config(st, |config| {
+            config.general.hud_appearance = appearance;
+            config.general.display_language = DisplayLanguage::Ja;
+            config.general.hud_languages = PreferredLanguage::ALL.to_vec();
+        });
+        let preview_st = st.clone();
+        let window = open_hud_window(cx, move |_| {
+            HudView::preview(preview_st, HudState::Listening { mode: RecordMode::Toggle }, 1., PreviewHover::Zone, None)
+        })
+        .expect("tooltip HUD");
+        cx.background_executor().timer(Duration::from_millis(350)).await;
+        for (name, pointer, delay) in [
+            ("auto", Some(95.), 220),
+            ("expand-early", Some(199.), 20),
+            ("expand-middle", None, 60),
+            ("long", None, 180),
+            ("shrink-early", Some(95.), 20),
+            ("shrink-middle", None, 60),
+            ("interrupted", Some(129.), 40),
+            ("interrupted-again", Some(164.), 40),
+            ("settled", None, 220),
+            ("leave-grace", Some(20.), 60),
+            ("hidden", None, 350),
+            ("return", Some(164.), 220),
+            ("escape", None, 40),
+        ] {
+            if name == "escape" {
+                let _ = cx.update(|cx| cx.update_window(window.into(), |_, w, cx| input::press_key(w, cx, "escape")));
+            }
+            if let Some(x) = pointer {
+                let _ = cx.update(|cx| {
+                    cx.update_window(window.into(), |_, w, cx| {
+                        input::hover(w, cx, point(px(x), px(102.)));
+                    })
+                });
+            }
+            cx.background_executor().timer(Duration::from_millis(delay)).await;
+            if let Some(image) = render(cx, window) {
+                save(
+                    dir,
+                    &format!("tooltip-{}-{name}.png", theme_tag(appearance)),
+                    over_backdrop(&image, if dark { BACKDROP_DARK } else { BACKDROP_LIGHT }),
+                );
+            }
+        }
+        close_window(cx, window);
+    }
+    services::save_config(st, |config| {
+        config.general.hud_appearance = original.general.hud_appearance;
+        config.general.display_language = original.general.display_language;
+        config.general.hud_languages = original.general.hud_languages.clone();
+    });
 }

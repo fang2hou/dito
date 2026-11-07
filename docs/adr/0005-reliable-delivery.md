@@ -9,7 +9,7 @@ Typing into other apps is the product's core promise and its least controllable 
 
 ## Decision
 
-Delivery is a verified, bounded flow: try the configured method, check the cursor, continue only what is missing, switch method once if nothing landed, and fall back to the clipboard last. Never retry text that already landed; treat unverifiable targets as success; restore the clipboard from a full snapshot only if nothing else wrote to it. The policy lives in `dito-core::insert`, the macOS mechanics in `dito-platform::insert`.
+Delivery is a verified, bounded flow: try the configured method, check the cursor, continue only what is missing, switch method once if nothing landed, and fall back to the clipboard last. Never retry text that already landed; treat unverifiable targets as success; restore the clipboard from a full snapshot only if nothing else wrote to it. The policy lives in `dito-core::insert`, the macOS mechanics in `dito-platform::insert`. Resolve focus through both the system and the focused application. Web editors may expose the editable ancestor of the focused node. Require focus evidence before selecting a descendant, and verify or retry against the same accessibility element.
 
 ## Alternatives Considered
 

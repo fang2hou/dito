@@ -9,9 +9,6 @@ use crate::services;
 use crate::settings::Ctx;
 use crate::ui::{self, SelectBadge, SelectItem};
 
-const LANGUAGES: [PreferredLanguage; 4] =
-    [PreferredLanguage::Auto, PreferredLanguage::Ja, PreferredLanguage::En, PreferredLanguage::Zh];
-
 impl GeneralPage {
     pub(super) fn speech_recognition_group(&self, c: &Ctx, cx: &mut Context<Self>) -> impl IntoElement {
         let p = c.p;
@@ -20,7 +17,8 @@ impl GeneralPage {
             c.t(Tr::GeneralSpeechRecognition),
             vec![
                 ui::row(&p, c.t(Tr::GeneralMicrophone), self.microphone_select(c, cx), false),
-                ui::row(&p, c.t(Tr::GeneralPreferredLanguage), self.preferred_language_select(c, cx), true),
+                ui::row(&p, c.t(Tr::GeneralPreferredLanguage), self.preferred_language_select(c, cx), false),
+                ui::row(&p, c.t(Tr::GeneralHudLanguageShortcuts), self.hud_language_select(c, cx), true),
             ],
         )
     }
@@ -86,12 +84,40 @@ impl GeneralPage {
         ui::select(
             "pref-lang",
             &c.p,
-            &[c.t(Tr::GeneralAuto), "日本語".into(), "English".into(), "中文".into()],
-            LANGUAGES.iter().position(|l| *l == st.cfg.get().general.preferred_language).unwrap_or(0),
+            &PreferredLanguage::ALL.map(|language| language.name(c.lang).into()),
+            PreferredLanguage::ALL.iter().position(|l| *l == st.cfg.get().general.preferred_language).unwrap_or(0),
             self.open == Some("pref-lang"),
             Some(240.),
             self.toggle(cx, "pref-lang"),
-            Rc::new(move |i, _, _| services::save_config(&st, move |c| c.general.preferred_language = LANGUAGES[i])),
+            Rc::new(move |i, _, _| {
+                services::save_config(&st, move |c| c.general.preferred_language = PreferredLanguage::ALL[i])
+            }),
+        )
+    }
+
+    fn hud_language_select(&self, c: &Ctx, cx: &mut Context<Self>) -> Div {
+        let st = self.st.clone();
+        let cfg = st.cfg.get();
+        let selected = PreferredLanguage::ALL.map(|language| cfg.general.hud_languages.contains(&language));
+        let label = match selected.iter().filter(|&&on| on).count() {
+            0 => c.t(Tr::GeneralHudLanguageHidden),
+            count if count == selected.len() => c.t(Tr::GeneralHudLanguageAll),
+            _ => {
+                cfg.general.hud_languages().map(|language| language.name(c.lang)).collect::<Vec<_>>().join(", ").into()
+            }
+        };
+        ui::select_multi(
+            "hud-languages",
+            &c.p,
+            &PreferredLanguage::ALL.map(|language| language.name(c.lang).into()),
+            &selected,
+            label,
+            self.open == Some("hud-languages"),
+            240.,
+            self.toggle(cx, "hud-languages"),
+            Rc::new(move |i, _, _| {
+                services::save_config(&st, |c| c.general.toggle_hud_language(PreferredLanguage::ALL[i]));
+            }),
         )
     }
 }

@@ -16,11 +16,10 @@ use super::outcome_icon::{self, Outcome};
 use super::progress;
 use super::shimmer;
 use super::timing;
-use super::waveform::REST;
+use super::waveform::{self, OceanFrame};
 
 pub(crate) const CAPSULE_W: f32 = 105.0;
-/// Hold mode has no buttons, so while listening the capsule is only as wide as its waveform needs; it widens to
-/// [`CAPSULE_W`] when the recording ends.
+/// Hold mode has no buttons, so the listening capsule is narrower. It widens to [`CAPSULE_W`] when recording ends.
 pub(crate) const NARROW_W: f32 = 72.0;
 /// The narrow → full widening, in seconds (ease-out).
 pub(crate) const WIDEN_S: f32 = 0.3;
@@ -48,25 +47,11 @@ pub(crate) fn eased_width(from: f32, to: f32, since: f32) -> f32 {
     from + (to - from) * ui::spring(u, Motion::Full)
 }
 
-/// Smoothed microphone-driven heights, or the static design under Reduce Motion.
+/// A live or simulated frame of the same listening surface.
 #[derive(Clone, Copy)]
 pub(crate) enum Wave {
-    Bars([f32; 8]),
+    Ocean(OceanFrame),
     Rest,
-}
-
-fn waveform(wave: Wave, scale: Scale, p: &Palette) -> Div {
-    let px = |v: f32| scale.px(v);
-    let heights = match wave {
-        Wave::Bars(heights) => heights,
-        Wave::Rest => REST,
-    };
-    let mut row = div().flex().items_center().gap(px(2.)).h(px(19.));
-    for h in heights {
-        row = row
-            .child(div().flex_none().w(px(2.)).h(px(h)).rounded_full().bg(theme::hud_color(p, "#6A6455", "#D4D1C9")));
-    }
-    row
 }
 
 /// Everything one capsule shows, so the HUD window and the setup wizard's usage demo draw the very same capsule.
@@ -99,8 +84,28 @@ impl Capsule {
         };
         let height = CAPSULE_H - (copy_overshoot * 3.2).min(0.4);
         let mut cap = self.shell(height);
-        if let Some(frac) = self.fill {
-            cap = cap.child(progress::progress_layer((self.w * frac).clamp(0., self.w), self.w, scale, &self.palette));
+        if let Some(frac) = self.fill.filter(|&frac| frac > 0.) {
+            let near_ceiling = match self.state {
+                HudState::Recognizing => (0.47..=0.485).contains(&frac),
+                HudState::Polishing => (0.97..=0.985).contains(&frac),
+                _ => false,
+            };
+            let halo = if near_ceiling && !self.motion.is_reduced() { 1. + 0.20 * (self.t * 4.).sin() } else { 1. };
+            cap = cap.child(progress::progress_layer(frac, self.w, scale, &self.palette, halo));
+        }
+        if let HudState::Listening { mode } = self.state {
+            let frame = match self.wave {
+                Wave::Ocean(frame) => frame,
+                Wave::Rest => OceanFrame::default(),
+            };
+            cap = cap.child(waveform::ocean(
+                frame,
+                scale,
+                self.palette.dark,
+                self.motion.is_reduced(),
+                self.w,
+                mode == RecordMode::Toggle,
+            ));
         }
         self.with_content(cap, height, buttons)
     }
@@ -128,14 +133,13 @@ impl Capsule {
 
     /// What the state puts inside the shell: buttons, waveform, label or icon.
     fn with_content(self, cap: Div, height: f32, buttons: &mut dyn FnMut(Btn) -> AnyElement) -> Div {
-        let Capsule { state, lang, scale, palette: p, motion, w, t: since, wave, outcome_t, .. } = self;
+        let Capsule { state, lang, scale, palette: p, motion, w, t: since, outcome_t, .. } = self;
         match state {
             HudState::Hidden => cap,
-            HudState::Listening { mode: RecordMode::Toggle } => cap
-                .child(buttons(Btn::Cancel))
-                .child(div().flex_1().flex().justify_center().child(waveform(wave, scale, &p)))
-                .child(buttons(Btn::Finish)),
-            HudState::Listening { mode: RecordMode::Hold } => cap.justify_center().child(waveform(wave, scale, &p)),
+            HudState::Listening { mode: RecordMode::Toggle } => {
+                cap.child(buttons(Btn::Cancel)).child(buttons(Btn::Finish))
+            }
+            HudState::Listening { mode: RecordMode::Hold } => cap,
             HudState::Recognizing => cap.justify_center().child(shimmer::shimmer_label(
                 lang.tr(Tr::HudTranscribing),
                 since,
@@ -176,6 +180,7 @@ fn surface_colors(state: &HudState, p: &Palette) -> (Hsla, f32, Hsla) {
         HudState::Inserted => hex("#28A788"),
         HudState::Copied => hex("#AA8C40"),
         HudState::Error { .. } => theme::hud_error_bg(p),
+        HudState::Listening { .. } => theme::hud_color(p, "#F7F5F0", "#444139"),
         _ => theme::hud_color(p, "#FFF9EB", "#444139"),
     };
     let (border_w, border_c) = match state {
