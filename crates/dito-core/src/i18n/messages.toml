@@ -397,6 +397,10 @@ prompts.reset_scope = { ja = "すべての言語の共通ルール、アプリ�
 prompts.reset_apps = { ja = "個別で追加したアプリ設定も削除されます。", en = "Custom app settings will also be removed.", zh = "自行添加的应用设置也会删除。" }
 prompts.application_error = { ja = "アプリを選択できませんでした。もう一度選んでください。", en = "Could not read this application. Choose it again.", zh = "无法读取此应用，请重新选择。" }
 prompts.application_duplicate = { ja = "このアプリはすでに設定されています。", en = "This app already has writing settings.", zh = "此应用已经有专用设置。" }
+prompts.remove_application = { ja = "アプリの設定を削除", en = "Remove app settings", zh = "删除应用设置" }
+prompts.remove_title = { ja = "アプリの設定を削除しますか？", en = "Remove this app's settings?", zh = "要删除这个应用的设置吗？" }
+prompts.remove_history = { ja = "過去の履歴は消えず、「その他」として残ります。", en = "Past history is kept and reads as Other.", zh = "过去的记录会保留，并归为“其他”。" }
+prompts.remove_confirm = { ja = "削除する", en = "Delete", zh = "删除" }
 
 # --- parameterized messages (generated functions) ------------------------------
 [fmt.using_model]
@@ -433,3 +437,8 @@ zh = "剩余约 {n} 秒"
 ja = "残り約 {n} 分"
 en = "about {n} min left"
 zh = "剩余约 {n} 分钟"
+
+[fmt.remove_application_scope]
+ja = "「{app}」の書き方、例、表示名を削除します。"
+en = "Delete the writing rules, examples and display name for “{app}”."
+zh = "将删除“{app}”的写法、范例和显示名。"

@@ -27,11 +27,19 @@ impl HistoryPage {
                 cx.notify();
             }),
         );
+        let cfg = self.st.cfg.get();
+        let mut styles: Vec<Style> = Style::ALL.to_vec();
+        let mut apps: Vec<(&str, &str)> =
+            cfg.prompts.applications.iter().map(|(id, name)| (name.as_str(), id.as_str())).collect();
+        apps.sort_by_cached_key(|(name, _)| name.to_lowercase());
+        apps.dedup_by(|a, b| a.0 == b.0);
+        styles.extend(apps.iter().map(|(_, id)| Style::Application((*id).to_owned())));
         let style_opts: Vec<SharedString> = std::iter::once(c.t(Tr::HistoryAllStyles))
-            .chain(Style::ALL.iter().map(|s| ui::style_label(c.lang, s.clone())))
+            .chain(styles.iter().map(|s| ui::history_style_label(c.lang, &cfg.prompts, s, "")))
             .collect();
         let style_sel =
-            self.style.as_ref().and_then(|s| Style::ALL.iter().position(|x| x == s)).map(|i| i + 1).unwrap_or(0);
+            self.selected_style().and_then(|s| styles.iter().position(|x| *x == s)).map(|i| i + 1).unwrap_or(0);
+        let picked = styles.clone();
         let style_select = ui::select(
             "style-filter",
             p,
@@ -43,8 +51,8 @@ impl HistoryPage {
                 this.select_open = !this.select_open;
                 cx.notify();
             }),
-            cbk_idx(cx, |this: &mut Self, i, _, cx| {
-                this.style = if i == 0 { None } else { Some(Style::ALL[i - 1].clone()) };
+            cbk_idx(cx, move |this: &mut Self, i, _, cx| {
+                this.style = if i == 0 { None } else { Some(picked[i - 1].clone()) };
                 this.changed(cx);
                 cx.notify();
             }),

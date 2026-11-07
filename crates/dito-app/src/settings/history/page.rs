@@ -84,7 +84,17 @@ impl QueryPage for HistoryPage {
 
 impl HistoryPage {
     pub fn new(st: Arc<AppState>, window: &mut Window, cx: &mut Context<Self>) -> Self {
-        services::watch_config(&st, cx);
+        // A config change can add or remove a configured app: drop a filter whose app is gone, and reload so the
+        // labels and the Other bucket follow the new list.
+        ui::observe(st.cfg.subscribe(), cx, |this: &mut Self, cfg, cx| {
+            if let Some(Style::Application(id)) = &this.style
+                && !cfg.prompts.applications.contains_key(id)
+            {
+                this.style = None;
+            }
+            this.changed(cx);
+            cx.notify();
+        });
         let lang = st.cfg.get().general.lang();
         let search = cx.new(|cx| InputState::new(window, cx).placeholder(lang.tr(Tr::HistorySearch)));
         ui::notify_on_focus(&search, window, cx);
@@ -153,6 +163,18 @@ impl HistoryPage {
         cx.notify();
     }
 
+    /// The style filter, dropping an app selection whose app is no longer configured. It reads as All styles then,
+    /// matching what the picker shows.
+    pub(super) fn selected_style(&self) -> Option<Style> {
+        self.style
+            .as_ref()
+            .filter(|style| match style {
+                Style::Application(id) => self.st.cfg.get().prompts.applications.contains_key(id),
+                _ => true,
+            })
+            .cloned()
+    }
+
     fn filter(&self) -> HistoryFilter {
         let off = dito_platform::local_utc_offset_secs();
         let since = match self.period {
@@ -160,7 +182,15 @@ impl HistoryPage {
             Period::Today => Some(crate::timefmt::day_start(local_day(now(), off), off)),
             Period::Week => Some(now() - 7 * 86_400),
         };
-        HistoryFilter { query: Some(self.query.clone()), since_ts: since, style: self.style.clone(), limit: Some(500) }
+        let configured_apps =
+            self.st.cfg.get().prompts.applications.iter().map(|(id, name)| (name.clone(), id.clone())).collect();
+        HistoryFilter {
+            query: Some(self.query.clone()),
+            since_ts: since,
+            style: self.selected_style(),
+            configured_apps,
+            limit: Some(500),
+        }
     }
 
     /// Page visibility lifecycle, driven by `Settings`. While inactive the page launches no

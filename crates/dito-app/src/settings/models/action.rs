@@ -31,7 +31,7 @@ pub(super) fn model_action(
         .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
         .on_click(move |_, w, cx| {
             cx.stop_propagation();
-            ui::with_motion_scope(scope.clone(), || ui::reset_hover(&click_id));
+            ui::reset_hover_in(scope.clone(), &click_id);
             on_click(w, cx);
         })
 }

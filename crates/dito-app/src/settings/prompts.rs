@@ -252,6 +252,7 @@ struct AppChoice {
 enum Dialog {
     Add,
     Reset,
+    RemoveApp,
 }
 
 fn app_choices(prompts: &Prompts) -> Vec<AppChoice> {
@@ -260,14 +261,23 @@ fn app_choices(prompts: &Prompts) -> Vec<AppChoice> {
         .into_iter()
         .chain(prompts.applications.keys().map(String::as_str))
     {
-        if let Some(app) = installed_application(id) {
-            let style = prompts.for_application(&app.bundle_id);
-            if choices.iter().any(|c: &AppChoice| c.style == style) {
-                continue;
-            }
-            let icon = (!app.icon_png.is_empty()).then(|| Arc::new(Image::from_bytes(ImageFormat::Png, app.icon_png)));
-            choices.push(AppChoice { style, name: app.name, icon });
+        // A configured app stays in the list even when the bundle is not installed, so its settings remain selectable
+        // (and removable) instead of silently disappearing from the picker.
+        let (name, icon) = match installed_application(id) {
+            Some(app) => (
+                app.name,
+                (!app.icon_png.is_empty()).then(|| Arc::new(Image::from_bytes(ImageFormat::Png, app.icon_png))),
+            ),
+            None => match prompts.applications.get(id) {
+                Some(name) => (name.clone(), None),
+                None => continue,
+            },
+        };
+        let style = prompts.for_application(id);
+        if choices.iter().any(|c: &AppChoice| c.style == style) {
+            continue;
         }
+        choices.push(AppChoice { style, name, icon });
     }
     choices.push(AppChoice { style: Style::General, name: String::new(), icon: None });
     choices
@@ -294,6 +304,15 @@ impl PromptsPage {
             "reset" => self.open_dialog(Dialog::Reset, window, cx),
             "help" => ui::force_hover(&self.motion.handle(), ElementId::from("prompt-examples-help"), true),
             "herdr" => self.switch(self.lang, Style::Herdr, window, cx),
+            "custom" | "removeapp" => {
+                self.drafts.add_application("com.apple.AppStore", "App Store", &Style::General);
+                self.apps = app_choices(&self.drafts);
+                self.style = self.drafts.for_application("com.apple.AppStore");
+                self.load(window, cx);
+                if case == "removeapp" {
+                    self.open_dialog(Dialog::RemoveApp, window, cx);
+                }
+            }
             _ => self.switch(self.lang, Style::General, window, cx),
         }
         cx.notify();
