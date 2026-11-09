@@ -114,6 +114,8 @@ pub struct General {
     pub preferred_language: PreferredLanguage,
     pub hud_languages: Vec<PreferredLanguage>,
     pub launch_at_login: bool,
+    /// Off: no Dock icon while the app runs in the background. It still appears while a window is open.
+    pub show_dock_icon: bool,
     pub appearance: Appearance,
     /// HUD appearance follows the OS independently of the settings window.
     pub hud_appearance: Appearance,
@@ -158,6 +160,7 @@ impl Default for General {
             preferred_language: PreferredLanguage::Auto,
             hud_languages: PreferredLanguage::ALL.to_vec(),
             launch_at_login: true,
+            show_dock_icon: true,
             appearance: Appearance::System,
             hud_appearance: Appearance::Dark,
             hud_position: HudPosition::Centered,

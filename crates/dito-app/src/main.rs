@@ -1,5 +1,6 @@
 mod assets;
 mod dev;
+mod dock;
 mod hotkeys;
 mod hud;
 mod mac_focus_warmer;
@@ -37,10 +38,12 @@ fn main() -> Result<()> {
 
     dito_platform::system::configure_text_rendering();
     let mut app = gpui_kit::application().with_assets(AppAssets);
-    if st.opts.is_headless() {
+    if dock::starts_hidden(&st) {
         // Accessory activation policy: no Dock icon, no menu bar, never the frontmost app.
         app = app.with_windowing(WindowingRequest::Headless);
     }
+    let reopen_state = st.clone();
+    app.on_reopen(move |cx| startup::reopen(reopen_state.clone(), cx));
     app.run(move |cx| startup::run(st, cx));
     Ok(())
 }

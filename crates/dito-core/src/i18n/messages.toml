@@ -94,6 +94,7 @@ general.hud_language_hidden = { ja = "表示しない", en = "Hidden", zh = "不
 general.auto = { ja = "自動", en = "Auto", zh = "自动" }
 general.system = { ja = "システム", en = "System", zh = "系统" }
 general.launch_at_login = { ja = "ログイン時に起動", en = "Launch at login", zh = "登录时启动" }
+general.show_dock_icon = { ja = "Dock にアイコンを表示", en = "Show icon in Dock", zh = "在 Dock 中显示图标" }
 general.appearance = { ja = "外観", en = "Appearance", zh = "外观" }
 general.hud = { ja = "HUD", en = "HUD", zh = "HUD" }
 general.hud_appearance = { ja = "HUD の外観", en = "HUD appearance", zh = "HUD 外观" }

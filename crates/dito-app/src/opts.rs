@@ -12,8 +12,8 @@ pub struct Opts {
     pub real_mic: bool,
     /// Do not type into other apps; only log what would be inserted.
     pub log_sink: bool,
-    /// Start without opening the settings window (login item).
-    pub background: bool,
+    /// Open the settings window at launch, as a person checking a build would otherwise do from the menu bar.
+    pub open_settings: bool,
     /// Drive one dictation without keyboard input, print the outcome, then exit (smoke test).
     pub demo_run: bool,
     /// Use this 16-bit mono WAV as the microphone's recording (real engines, no microphone or permissions needed).
@@ -42,7 +42,7 @@ impl Opts {
                 }
                 "--real-mic" => o.real_mic = true,
                 "--log-sink" => o.log_sink = true,
-                "--background" => o.background = true,
+                "--open-settings" => o.open_settings = true,
                 "--demo-run" => o.demo_run = true,
                 "--wav" => o.wav = Some(it.next().ok_or_else(|| anyhow::anyhow!("--wav needs a file"))?.into()),
                 "--data-dir" => {
@@ -83,7 +83,7 @@ const HELP: &str = "dito — voice dictation
   --mock              mock cloud endpoints + synthetic microphone (build with --features mock)
   --real-mic          with --mock: record from the microphone instead of a synthetic tone
   --log-sink          do not type into other apps; log the text instead
-  --background        do not open the settings window at launch
+  --open-settings     open the settings window at launch (for checking a build)
   --wav <file>        use this 16-bit mono WAV as the recording instead of the microphone
   --demo-run          press the shortcut programmatically once, print the result, and exit
   --data-dir <dir>    config, history and models live here (default: ~/Library/Application Support/com.fang2hou.Dito, debug builds: com.fang2hou.Dito-dev)
