@@ -11,7 +11,7 @@ pub(super) const T_SECOND: f32 = 3.0;
 /// The capsule turns green.
 pub(super) const T_INSERT: f32 = 4.8;
 /// The end of the rest on the result; the picture then cross-fades back to the start.
-pub(super) const T_REST_END: f32 = 5.6;
+pub(super) const T_REST_END: f32 = T_INSERT + hud::OUTCOME_END;
 pub(super) const RESTART_S: f32 = 0.2;
 /// One loop, in seconds.
 pub(super) const PERIOD: f32 = T_REST_END + RESTART_S;

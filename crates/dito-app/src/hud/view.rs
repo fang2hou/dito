@@ -11,7 +11,7 @@ use crate::services;
 use crate::settings::{self, Page};
 use crate::state::AppState;
 use crate::theme;
-use crate::ui::{self, Motion};
+use crate::ui;
 
 use super::buttons::{self, Btn, Circle};
 use super::capsule;
@@ -33,7 +33,7 @@ pub use probe::PreviewHover;
 /// Circle-button hover cross-fade, on the same clock feel as the app's other micro-animations.
 const HOVER_MS: u64 = 140;
 /// Capsule pop-in: liquid stretch and rise.
-pub(crate) const POP_MS: u64 = 420;
+pub(crate) const POP_MS: u64 = 300;
 
 /// Hairline of the smaller pills (tooltip, stop, language chip).
 const PILL_HAIRLINE: f32 = 0.75;
@@ -65,7 +65,7 @@ pub struct HudView {
     since: Instant,
     /// Capsule width when the state last changed (design points): the width eases from it to the new
     /// state's own ([`capsule::rest_width`]) over [`WIDEN_S`], so hold mode's narrow capsule widens on release.
-    width_from: f32,
+    width_from: super::motion::Spring,
     /// Pointer is over the capsule or the controls above it (the whole hover zone).
     hover_zone: bool,
     pointer_in_zone: bool,
@@ -114,7 +114,7 @@ impl HudView {
     fn idle(st: Arc<AppState>, state: HudState) -> Self {
         Self {
             st,
-            width_from: capsule::rest_width(&state),
+            width_from: super::motion::Spring { position: capsule::rest_width(&state), velocity: 0. },
             state,
             since: Instant::now(),
             hover_zone: false,
@@ -148,7 +148,7 @@ impl HudView {
         }
         let elapsed = self.elapsed();
         let displayed = self.displayed_fill;
-        self.width_from = self.width();
+        self.width_from = self.base_width();
         self.previous_fill = self.progress();
         let was_listening = matches!(self.state, HudState::Listening { .. });
         let now_listening = matches!(state, HudState::Listening { .. });
@@ -186,6 +186,7 @@ impl HudView {
         &self,
         c: Circle,
         on: impl Fn(&mut Self, &mut Window, &mut Context<Self>) + 'static,
+        scale: Scale,
         cx: &mut Context<Self>,
     ) -> Stateful<Div> {
         let Circle { id, .. } = c;
@@ -195,12 +196,12 @@ impl HudView {
         let target = if self.hover_btn == Some(id) { 1. } else { 0. };
         let (lc, gc) = (c, c);
         let bg_layer = ui::tweened(ElementId::from((ElementId::from(id), "bg")), target, HOVER_MS, move |t| {
-            buttons::hover_layer(&lc, Scale::HUD, t)
+            buttons::hover_layer(&lc, scale, t)
         });
         let glyph_layer = ui::tweened(ElementId::from((ElementId::from(id), "glyph")), target, HOVER_MS, move |t| {
-            buttons::hover_glyph(&gc, Scale::HUD, t)
+            buttons::hover_glyph(&gc, scale, t)
         });
-        buttons::circle_shell(&c, Scale::HUD, bg_layer, glyph_layer)
+        buttons::circle_shell(&c, scale, bg_layer, glyph_layer)
             .id(id)
             .cursor_pointer()
             .on_click(move |_, window, app| {
@@ -219,8 +220,10 @@ impl HudView {
     /// continue tracking the pointer while the native window lets mouse events pass through.
     pub(super) fn pointer_update(&mut self, x: f32, y: f32, cx: &mut Context<Self>) -> bool {
         let width = self.width();
-        let chip_width = language_chip::chip_width(self.st.cfg.get().general.hud_languages());
-        let in_zone = hit::pointer_hit(&self.state, width, chip_width, self.hover_zone, x, y).in_zone;
+        let cfg = self.st.cfg.get();
+        let chip_width = language_chip::chip_width(cfg.general.hud_languages());
+        let stop_width = buttons::stop_width(cfg.general.lang());
+        let in_zone = hit::pointer_hit(&self.state, width, chip_width, stop_width, self.hover_zone, x, y).in_zone;
         if in_zone != self.pointer_in_zone {
             self.pointer_in_zone = in_zone;
             if matches!(self.state, HudState::Error { .. }) {
@@ -228,7 +231,7 @@ impl HudView {
             }
             self.zone_hover(in_zone, cx);
         }
-        let pointer = hit::pointer_hit(&self.state, width, chip_width, self.hover_zone, x, y);
+        let pointer = hit::pointer_hit(&self.state, width, chip_width, stop_width, self.hover_zone, x, y);
         if self.hover_btn != pointer.button {
             self.hover_btn = pointer.button;
             cx.notify();
@@ -255,26 +258,6 @@ impl HudView {
             });
         })
         .detach();
-    }
-
-    /// Entry animation (see [`capsule::pop_shape`]), played once when the window opens; `w` is the capsule's
-    /// current width, so a narrow hold-mode capsule pops in narrow. Frozen previews render the settled capsule.
-    fn pop_in(&self, cap: Stateful<Div>, w: f32) -> AnyElement {
-        if self.freeze.is_some() {
-            return cap.into_any_element();
-        }
-        let motion = Motion::system();
-        let e = self.opened.elapsed().as_secs_f32();
-        let dur = POP_MS as f32 / 1000.;
-        if e >= dur {
-            return cap.into_any_element();
-        }
-        cap.with_animation(
-            (ElementId::from("hud-capsule"), "pop"),
-            Animation::new(Duration::from_millis(POP_MS)),
-            move |c, t| capsule::pop_shape(c, Scale::HUD, w, t, motion),
-        )
-        .into_any_element()
     }
 }
 
@@ -321,7 +304,7 @@ impl HudView {
         let error_detail =
             if let HudState::Error { kind, .. } = &self.state { Some(ui::error_summary(lang, *kind)) } else { None };
         let above = self.tips_above(lang, &p, error_detail);
-        let capsule = self.pop_in(self.capsule(p, cx), self.width());
+        let capsule = self.capsule(p, cx).into_any_element();
         let zone = self.zone(&p, lang, capsule, cx);
         let countdown = self
             .remaining()

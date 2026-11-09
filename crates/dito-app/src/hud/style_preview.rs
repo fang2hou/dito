@@ -11,8 +11,8 @@ use crate::theme::{self, Palette};
 use crate::ui::{self, Motion};
 
 use super::waveform::Waveform;
-use super::{CAPSULE_H, CAPSULE_W, Capsule, OUTCOME_END, OUTCOME_FADE_S, OUTCOME_ICON_DELAY, POP_MS, Scale, Wave};
-use super::{fill_at, pop_shape, static_button};
+use super::{CAPSULE_H, CAPSULE_W, Capsule, OUTCOME_END, OUTCOME_FADE_S, OUTCOME_ICON_DELAY, Scale, Wave};
+use super::{fill_at, static_button};
 
 const LISTEN_END: f32 = 1.6;
 const RECOGNIZE_END: f32 = 2.5;
@@ -106,12 +106,7 @@ impl Frame {
         if state == HudState::Inserted {
             return self.inserted(elapsed);
         }
-        let capsule = self.capsule(state, elapsed, None);
-        let pop_s = POP_MS as f32 / 1000.;
-        if self.time < pop_s {
-            return pop_shape(capsule, Scale::HUD, CAPSULE_W, self.time / pop_s, self.motion);
-        }
-        capsule
+        self.capsule(state, elapsed, None)
     }
 
     fn inserted(&self, elapsed: f32) -> Div {
@@ -124,7 +119,12 @@ impl Frame {
         } else {
             result
         };
-        capsule.opacity((1. - (elapsed - (OUTCOME_END - OUTCOME_FADE_S)) / OUTCOME_FADE_S).clamp(0., 1.))
+        capsule.opacity(super::timing::outcome_opacity(
+            elapsed,
+            OUTCOME_END - OUTCOME_FADE_S,
+            OUTCOME_FADE_S,
+            self.motion,
+        ))
     }
 
     fn capsule(&self, state: HudState, since: f32, completion: Option<f32>) -> Div {
@@ -159,8 +159,9 @@ impl Frame {
             wave,
             fill,
             outcome_t,
+            entry: super::motion::EntryPose::at(self.time, self.motion),
         }
-        .element(&mut |button| static_button(button, Scale::HUD, &palette).shadow(Vec::new()).into_any_element())
+        .element(&mut |button, scale| static_button(button, scale, &palette).shadow(Vec::new()).into_any_element())
         .shadow(Vec::new())
     }
 }

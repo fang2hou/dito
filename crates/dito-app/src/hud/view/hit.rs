@@ -14,7 +14,6 @@ const UPPER_HALF_W: f32 = 90.;
 const UPPER_H: f32 = 38.;
 const ERROR_NOTE_HALF_W: f32 = 135.;
 const ERROR_NOTE_BELOW_SLACK: f32 = 4.;
-const STOP_HALF_W: f32 = 31.;
 const STOP_TOP: f32 = 35.;
 
 /// What the pointer is over.
@@ -27,7 +26,15 @@ pub(super) struct Hit {
     pub(super) interactive: bool,
 }
 
-pub(super) fn pointer_hit(state: &HudState, width: f32, chip_width: f32, hover_zone: bool, x: f32, y: f32) -> Hit {
+pub(super) fn pointer_hit(
+    state: &HudState,
+    width: f32,
+    chip_width: f32,
+    stop_width: f32,
+    hover_zone: bool,
+    x: f32,
+    y: f32,
+) -> Hit {
     let center = (WIN_W + 2. * WIN_PAD) / 2.;
     let top = CAPSULE_TOP;
     let left = center - width / 2.;
@@ -55,10 +62,11 @@ pub(super) fn pointer_hit(state: &HudState, width: f32, chip_width: f32, hover_z
         && y <= top - ZONE_GAP;
     let stop = processing
         && hover_zone
-        && x >= center - STOP_HALF_W
-        && x <= center + STOP_HALF_W
+        && x >= center - stop_width / 2.
+        && x <= center + stop_width / 2.
         && y >= top - STOP_TOP
         && y <= top - ZONE_GAP;
+    let button = if stop { Some("hud-stop") } else { button };
     Hit { in_zone, button, interactive: left_button || right_button || chip || stop }
 }
 
@@ -88,11 +96,11 @@ mod tests {
             action: ErrorAction::OpenSettings,
         };
         let center = (WIN_W + 2. * WIN_PAD) / 2.;
-        let hit = pointer_hit(&error, CAPSULE_W, 143.5, true, center, CAPSULE_TOP + 55.);
+        let hit = pointer_hit(&error, CAPSULE_W, 143.5, 64.5, true, center, CAPSULE_TOP + 55.);
         assert!(hit.in_zone);
         assert!(hit.button.is_none());
         assert!(!hit.interactive);
-        assert!(!pointer_hit(&error, CAPSULE_W, 143.5, true, center, CAPSULE_TOP + 80.).in_zone);
+        assert!(!pointer_hit(&error, CAPSULE_W, 143.5, 64.5, true, center, CAPSULE_TOP + 80.).in_zone);
     }
 
     #[test]
@@ -100,9 +108,9 @@ mod tests {
         let toggle = HudState::Listening { mode: RecordMode::Toggle };
         let center = (WIN_W + 2. * WIN_PAD) / 2.;
         let y = CAPSULE_TOP - 20.;
-        assert!(!pointer_hit(&toggle, CAPSULE_W, 0., true, center, y).interactive);
-        assert!(pointer_hit(&toggle, CAPSULE_W, 75.5, true, center, y).interactive);
-        assert!(!pointer_hit(&toggle, CAPSULE_W, 75.5, true, center + 50., y).interactive);
+        assert!(!pointer_hit(&toggle, CAPSULE_W, 0., 64.5, true, center, y).interactive);
+        assert!(pointer_hit(&toggle, CAPSULE_W, 75.5, 64.5, true, center, y).interactive);
+        assert!(!pointer_hit(&toggle, CAPSULE_W, 75.5, 64.5, true, center + 50., y).interactive);
     }
 
     #[test]
@@ -113,7 +121,7 @@ mod tests {
         let top = CAPSULE_TOP;
         let button_x = center - CAPSULE_W / 2. + CAPSULE_PAD + BTN / 2.;
         let interactive =
-            |state: &HudState, width, zone, x, y| pointer_hit(state, width, 143.5, zone, x, y).interactive;
+            |state: &HudState, width, zone, x, y| pointer_hit(state, width, 143.5, 64.5, zone, x, y).interactive;
         assert!(interactive(&toggle, CAPSULE_W, false, button_x, top + 16.5));
         assert!(!interactive(&toggle, CAPSULE_W, false, center, top + 16.5));
         assert!(!interactive(&hold, 72., false, button_x, top + 16.5));

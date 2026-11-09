@@ -25,6 +25,18 @@ pub enum PreviewHover {
 }
 
 impl HudView {
+    /// Feed the native panel's polling path without moving the user's pointer.
+    pub fn preview_pointer(&mut self, x: f32, y: f32, cx: &mut Context<Self>) {
+        self.pointer_update(x, y, cx);
+    }
+
+    pub fn entry_preview(st: Arc<AppState>, cx: &mut Context<Self>) -> Self {
+        let mut view = Self::waveform_preview(st, 0.06, cx);
+        view.opened = std::time::Instant::now();
+        view.hover_zone = false;
+        view
+    }
+
     /// A frozen HUD for screenshots: `t` seconds into `state`, with the pointer at `hover`. `came_from` is the
     /// state before, which sets the width the capsule is still widening from.
     pub fn preview(
@@ -44,7 +56,7 @@ impl HudView {
         };
         let hover_zone = hover != PreviewHover::Away;
         Self {
-            width_from: capsule::rest_width(came_from.as_ref().unwrap_or(&state)),
+            width_from: Spring { position: capsule::rest_width(came_from.as_ref().unwrap_or(&state)), velocity: 0. },
             hover_zone,
             pointer_in_zone: hover_zone,
             hover_btn,
@@ -60,7 +72,7 @@ impl HudView {
         view.start_hidden_preview_clock(cx);
         view.state = HudState::Recognizing;
         view.start_processing(super::Fill::default());
-        view.width_from = CAPSULE_W;
+        view.width_from = Spring { position: CAPSULE_W, velocity: 0. };
         view.opened -= Duration::from_millis(POP_MS);
         view
     }
@@ -71,7 +83,7 @@ impl HudView {
         view.state = if copy { HudState::Copied } else { HudState::Inserted };
         let previous = crate::hud::processing_motion::ProcessingMotion::recognizing(1., false);
         view.start_processing(previous.at(10.));
-        view.width_from = CAPSULE_W;
+        view.width_from = Spring { position: CAPSULE_W, velocity: 0. };
         view.opened -= Duration::from_millis(POP_MS);
         view
     }
@@ -81,7 +93,7 @@ impl HudView {
         let mut view = Self::new(st, cx);
         view.start_hidden_preview_clock(cx);
         view.state = HudState::Listening { mode: RecordMode::Toggle };
-        view.width_from = CAPSULE_W;
+        view.width_from = Spring { position: CAPSULE_W, velocity: 0. };
         view.hover_zone = true;
         view.wave_preview_gain = Some(gain);
         view.opened -= Duration::from_millis(POP_MS);

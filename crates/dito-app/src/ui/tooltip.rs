@@ -31,10 +31,15 @@ struct Anchor {
     bounds: Bounds<Pixels>,
     above: bool,
     colors: TipColors,
+    suppressed: bool,
 }
 
 impl Anchor {
     fn requested(&self) -> bool {
+        !self.suppressed && self.active()
+    }
+
+    fn active(&self) -> bool {
         self.scope.registry().is_some_and(|registry| {
             registry.borrow().tip_epoch == self.epoch
                 && self.explicit.unwrap_or_else(|| is_hovered_in(&self.scope, &self.id))
@@ -45,7 +50,7 @@ impl Anchor {
 #[derive(Default)]
 struct WindowTips {
     anchors: Vec<Weak<RefCell<Anchor>>>,
-    selected: Option<Weak<RefCell<Anchor>>>,
+    selected: Option<Rc<RefCell<Anchor>>>,
     motion: Option<TooltipMotion>,
     frame: u64,
     key_listener: Option<Subscription>,
@@ -71,6 +76,7 @@ fn anchor_marker(anchor: Anchor) -> impl IntoElement {
             window.with_global_id(ElementId::from((id, "tooltip-anchor")), |id, window| {
                 window.with_element_state(id, |existing: Option<Rc<RefCell<Anchor>>>, _| {
                     let lease = if let Some(lease) = existing {
+                        anchor.suppressed = lease.borrow().suppressed && anchor.active();
                         *lease.borrow_mut() = anchor;
                         lease
                     } else {
@@ -129,15 +135,17 @@ fn dismiss_window_tips(tips: &Weak<RefCell<WindowTips>>, window: &mut Window) {
     let Some(tips) = tips.upgrade() else { return };
     let mut tips = tips.borrow_mut();
     for anchor in tips.anchors.iter().filter_map(Weak::upgrade) {
-        let anchor = anchor.borrow();
+        let mut anchor = anchor.borrow_mut();
+        anchor.suppressed = true;
         if let Some(registry) = anchor.scope.registry() {
             let mut registry = registry.borrow_mut();
             registry.hovered.remove(&anchor.id);
             registry.tip_epoch += 1;
         }
     }
-    tips.motion = None;
-    tips.selected = None;
+    if let Some(motion) = &mut tips.motion {
+        motion.dismiss(Instant::now());
+    }
     window.refresh();
 }
 
@@ -147,15 +155,16 @@ impl WindowTips {
         self.frame = self.frame.wrapping_add(1);
         self.anchors.retain(|anchor| anchor.strong_count() > 0);
         if self.selected.as_ref().is_some_and(|anchor| {
-            anchor.upgrade().is_none_or(|anchor| {
-                let anchor = anchor.borrow();
-                anchor.scope.registry().is_none_or(|registry| registry.borrow().tip_epoch != anchor.epoch)
-            })
-        }) {
-            self.motion = None;
-            self.selected = None;
+            let anchor = anchor.borrow();
+            anchor.scope.registry().is_none_or(|registry| registry.borrow().tip_epoch != anchor.epoch)
+        }) && let Some(motion) = &mut self.motion
+        {
+            motion.dismiss(Instant::now());
         }
-        let target = self.anchors.iter().rev().filter_map(Weak::upgrade).find(|anchor| anchor.borrow().requested());
+        let target = self.anchors.iter().rev().filter_map(Weak::upgrade).find(|anchor| {
+            let anchor = anchor.borrow();
+            anchor.frame == frame && anchor.requested()
+        });
         let now = Instant::now();
         let reduced = dito_platform::system::reduce_motion();
         if let Some(target) = &target {
@@ -183,12 +192,12 @@ impl WindowTips {
                 self.motion = Some(TooltipMotion::new(geometry, anchor.label.clone(), now));
             }
             self.motion.as_mut().unwrap().target(geometry, anchor.label.clone(), now, reduced);
-            self.selected = Some(Rc::downgrade(target));
+            self.selected = Some(target.clone());
         } else if let Some(motion) = &mut self.motion {
             motion.leave(now);
         }
         let Some(motion) = &self.motion else { return };
-        let Some(anchor) = self.selected.as_ref().and_then(Weak::upgrade) else { return };
+        let Some(anchor) = self.selected.as_ref() else { return };
         let anchor = anchor.borrow();
         let alpha = motion.alpha(now);
         if alpha > 0.001 {
@@ -239,6 +248,7 @@ pub fn tip_above(p: &Palette, id: &ElementId) -> AnyElement {
         bounds: Bounds::default(),
         above: true,
         colors: TipColors::new(p, bg, fg),
+        suppressed: false,
     })
     .into_any_element()
 }
@@ -263,6 +273,7 @@ pub fn tip_pop_with(p: &Palette, id: ElementId, label: SharedString, on: bool, b
             bounds: Bounds::default(),
             above: false,
             colors: TipColors::new(p, bg, fg),
+            suppressed: false,
         }))
         .into_any_element()
 }

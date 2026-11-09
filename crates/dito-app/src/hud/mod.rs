@@ -5,6 +5,7 @@ mod buttons;
 mod capsule;
 mod elevation;
 mod motion;
+pub(crate) use motion::EntryPose;
 mod outcome_icon;
 mod processing_motion;
 mod progress;
@@ -19,12 +20,16 @@ mod window;
 pub(crate) use buttons::{Btn, legend_button, static_button};
 #[cfg(test)]
 pub(crate) use capsule::NARROW_W;
-pub(crate) use capsule::{CAPSULE_H, CAPSULE_W, Capsule, Wave, eased_width, pop_shape, rest_width};
+pub(crate) use capsule::{CAPSULE_H, CAPSULE_W, Capsule, Wave, eased_width, rest_width};
 pub use scale::HUD_SCALE;
 pub(crate) use scale::Scale;
 use scale::{px, tx};
 pub(crate) use style_preview::StylePreview;
 pub(crate) use timing::{OUTCOME_END, OUTCOME_FADE_S, OUTCOME_ICON_DELAY, fill_at};
+
+pub(crate) fn inserted_opacity(elapsed: f32, motion: crate::ui::Motion) -> f32 {
+    timing::outcome_opacity(elapsed, timing::OUTCOME_HOLD_END, OUTCOME_FADE_S, motion)
+}
 pub(crate) use view::POP_MS;
 #[cfg(feature = "screenshots")]
 pub use view::{HudView, PreviewHover};
