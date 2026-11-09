@@ -42,7 +42,12 @@ impl HudView {
             } else {
                 (OUTCOME_HOLD_END, OUTCOME_FADE_S)
             };
-            cap = cap.opacity((1. - (self.outcome_elapsed(elapsed) - hold_end) / fade).clamp(0., 1.));
+            cap = cap.opacity(crate::hud::timing::outcome_opacity(
+                self.outcome_elapsed(elapsed),
+                hold_end,
+                fade,
+                Motion::system(),
+            ));
         }
         cap.id("hud-capsule")
     }
@@ -55,7 +60,7 @@ impl HudView {
         {
             let old = self
                 .layer(p, clock, listening.clone(), None)
-                .element(&mut |b| buttons::static_button(b, Scale::HUD, p).into_any_element());
+                .element(&mut |b, scale| buttons::static_button(b, scale, p).into_any_element());
             let next = self.interactive_layer(p, clock, self.state.clone(), self.progress(), cx);
             return crossfade(old, next, (elapsed / LABEL_FADE_S).clamp(0., 1.));
         }
@@ -82,7 +87,7 @@ impl HudView {
         {
             let old = self
                 .layer(p, clock, previous.clone(), self.previous_fill)
-                .element(&mut |b| buttons::static_button(b, Scale::HUD, p).into_any_element());
+                .element(&mut |b, scale| buttons::static_button(b, scale, p).into_any_element());
             let next = self.interactive_layer(p, clock, self.state.clone(), self.progress(), cx);
             let u = (elapsed / STATE_FADE_S).clamp(0., 1.);
             return crossfade(old, next, u * u * (3. - 2. * u));
@@ -102,6 +107,11 @@ impl HudView {
             t: clock.scene,
             wave: if self.freeze.is_some() { Wave::Rest } else { Wave::Ocean(self.waveform.frame()) },
             fill,
+            entry: if self.freeze.is_some() {
+                Default::default()
+            } else {
+                crate::hud::motion::EntryPose::at(self.opened.elapsed().as_secs_f32(), motion)
+            },
             outcome_t: self.freeze.map_or_else(
                 || Some((self.outcome_elapsed(clock.elapsed) - OUTCOME_ICON_DELAY).max(0.)),
                 |t| (t > 0.).then_some(t),
@@ -118,6 +128,6 @@ impl HudView {
         cx: &mut Context<Self>,
     ) -> Div {
         self.layer(p, clock, state, fill)
-            .element(&mut |b| self.circle_button(b.look(p), b.on_press(), cx).into_any_element())
+            .element(&mut |b, scale| self.circle_button(b.look(p), b.on_press(), scale, cx).into_any_element())
     }
 }

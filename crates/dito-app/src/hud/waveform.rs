@@ -5,6 +5,7 @@ use gpui_kit::*;
 use super::Scale;
 use super::buttons::BTN;
 use super::capsule::CAPSULE_PAD;
+use super::motion::EntryPose;
 
 #[derive(Clone, Copy)]
 struct OceanPreset {
@@ -232,6 +233,7 @@ pub(super) fn ocean(
     reduced: bool,
     width: f32,
     frost: bool,
+    entry: EntryPose,
 ) -> impl IntoElement {
     canvas(
         |_, _, _| (),
@@ -295,7 +297,8 @@ pub(super) fn ocean(
                     let y = (34.
                         - 21.5 * across.powf(0.78)
                         - shape_amplitude * (4.9 * distant + 0.55 * depth * overlap) * height)
-                        * stretch_y;
+                        * stretch_y
+                        - (1. - ((x - w * 0.5) / (w * 0.5)).powi(2)).max(0.) * (entry.height - 1.).max(0.) / 0.16 * 1.5;
                     let edge = (x - w * 0.5).abs() - (w * 0.5 - half);
                     let from_edge = half - 1. - edge.max(0.).hypot(y - half);
                     if from_edge <= 0. {
@@ -325,10 +328,11 @@ pub(super) fn ocean(
                             dot(paths[band][shade].get_or_insert_with(PathBuilder::fill), center, scale.px(radius));
                         }
                     };
-                    if frost && (x < CAPSULE_PAD + BTN || x > w - CAPSULE_PAD - BTN) {
-                        let center_x = CAPSULE_PAD + BTN * 0.5;
+                    let button_radius = BTN * entry.button * 0.5;
+                    if frost && (x < (CAPSULE_PAD + BTN) * entry.button || x > w - (CAPSULE_PAD + BTN) * entry.button) {
+                        let center_x = CAPSULE_PAD * entry.button + button_radius;
                         let dx = x.min(w - x) - center_x;
-                        let inside = BTN * 0.5 - dx.hypot(y - half);
+                        let inside = button_radius - dx.hypot(y - half);
                         if inside > 0. {
                             // A small two-radius spread of the same dot approximates the local blur.
                             // Keep its support inside the control and reuse the existing draw buckets.

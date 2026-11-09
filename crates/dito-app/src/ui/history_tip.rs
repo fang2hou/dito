@@ -27,7 +27,7 @@ pub fn history_tip(
     tweened_at(motion_scope(), toggle_id, if open { 1. } else { 0. }, if reduced { 1 } else { 200 }, move |v| {
         let (show, hide) = (show.clone(), hide.clone());
         tweened_at(motion_scope(), pop_id.clone(), if on { 1. } else { 0. }, if reduced { 60 } else { 150 }, move |a| {
-            if !on || a <= 0.001 {
+            if a <= 0.001 {
                 return div().into_any_element();
             }
             hint_bubble(&p, &show, &hide, v, a)

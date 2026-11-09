@@ -108,17 +108,21 @@ impl HudView {
     /// Capsule width in design points: eases from where it was when the state changed to the state's own.
     /// Copied uses one continuous spring toward the full localized label width.
     pub(super) fn width(&self) -> f32 {
-        let mut w = if Motion::system().is_reduced() {
-            capsule::rest_width(&self.state)
-        } else {
-            capsule::eased_width(self.width_from, capsule::rest_width(&self.state), self.elapsed())
-        };
+        let mut w = self.base_width().position;
         if matches!(self.state, HudState::Copied) && self.elapsed() >= self.catch_up() {
             let t = (self.outcome_elapsed(self.elapsed()) - OUTCOME_ICON_DELAY).max(0.);
             let clock = self.freeze.map_or(Some(t), |f| (f > 0.).then_some(f));
             w += timing::copied_growth(clock, Motion::system(), self.st.cfg.get().general.lang());
         }
         w
+    }
+
+    pub(super) fn base_width(&self) -> Spring {
+        let target = capsule::rest_width(&self.state);
+        if Motion::system().is_reduced() {
+            return Spring { position: target, velocity: 0. };
+        }
+        capsule::width_at(self.width_from, target, self.elapsed())
     }
 
     pub(super) fn remaining(&self) -> Option<u64> {

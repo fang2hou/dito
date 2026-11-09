@@ -21,7 +21,7 @@ use crate::store::{HistoryKind, NewHistory, Store};
 pub const MAX_RECORDING_DURATION: Duration = Duration::from_secs(5 * 60);
 
 /// How long the HUD's whole-capsule outcome animation runs; the HUD is hidden once it has finished.
-const SUCCESS_FLASH: Duration = Duration::from_millis(1100);
+const SUCCESS_FLASH: Duration = Duration::from_millis(1430);
 const COPIED_FLASH: Duration = Duration::from_millis(1930);
 const ERROR_LINGER: Duration = Duration::from_secs(3);
 

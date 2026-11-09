@@ -13,6 +13,8 @@ Each window, page and onboarding step owns its motion state (`MotionScope`, reac
 
 Each window owns one shared hover-tooltip layer. Trigger leases belong to their element trees and retain weak handles to their view scopes. Rapid handoffs reuse the visible bubble, retargeting position and width from their current values and velocities. Text stays single-line, centered, and softly clipped at both horizontal edges. Scope resets, scroll, Escape, and removing a trigger dismiss stale tips. Transition frames request redraws only while moving or waiting to dismiss.
 
+The tooltip layer retains only its last selected anchor through the exit fade, even when its trigger unmounts. That anchor can paint the outgoing bubble but cannot request a tooltip in a later frame. Scroll and Escape suppress a still-hovered trigger until it is left, and fade from the current opacity rather than discarding the visual. HUD hover disclosures likewise stay mounted through exit and keep their settled layout anchor; the non-activating panel's pointer poll owns the combined capsule, gap and Stop hover zone.
+
 The dictation controller owns a rolling in-memory timing estimate. The HUD owns the displayed progress curve and retargets it from its current position and velocity when results arrive. Text delivery happens immediately, while the HUD waits for its final fill before showing the outcome.
 
 ## Alternatives Considered

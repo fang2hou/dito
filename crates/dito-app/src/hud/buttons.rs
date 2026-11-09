@@ -1,5 +1,6 @@
 //! The round buttons a capsule carries: their look, hover cross-fade and static rendering.
 
+use dito_core::i18n::{Lang, Tr};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
@@ -154,4 +155,31 @@ pub(crate) fn static_button(b: Btn, scale: Scale, p: &Palette) -> Div {
 /// The legend uses exactly the same button colors as its HUD preview.
 pub(crate) fn legend_button(b: Btn, p: &Palette) -> Div {
     static_button(b, Scale::DESIGN, p)
+}
+
+pub(super) fn stop_width(lang: Lang) -> f32 {
+    2. * 10.75 + BTN_ICON + 5. + ui::text_width(lang.tr(Tr::HudStop), 12., FontWeight::NORMAL)
+}
+
+/// The HUD Stop pill owns its semantic appearance, using the shared hover clock.
+pub(super) fn stop_pill(p: &Palette, lang: Lang, hover: f32) -> Div {
+    let ink = theme::hud_stop_ink(p);
+    let foreground = ui::mix_rgb(ink, theme::hud_color(p, "#FFFFFF", "#24221D"), hover);
+    div()
+        .w(Scale::HUD.px(stop_width(lang)))
+        .h(Scale::HUD.px(29.))
+        .rounded_full()
+        .bg(ui::mix_rgb(theme::hud_error_bg(p), ink, hover))
+        .border(Scale::HUD.px(0.75))
+        .border_color(theme::hud_error_pill_border())
+        .shadow(elevation::surface_shadow(p, Scale::HUD, Elevation::Surface))
+        .flex()
+        .items_center()
+        .justify_center()
+        .gap(Scale::HUD.px(5.))
+        .child(icon(Ic::Stop, Scale::HUD.tx(BTN_ICON), foreground))
+        .child(
+            ui::text(lang.tr(Tr::HudStop), Scale::HUD.tx(12.), FontWeight::NORMAL, foreground)
+                .line_height(Scale::HUD.px(18.)),
+        )
 }

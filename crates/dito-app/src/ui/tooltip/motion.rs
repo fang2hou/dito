@@ -132,6 +132,11 @@ impl TooltipMotion {
         }
     }
 
+    pub fn dismiss(&mut self, now: Instant) {
+        self.left_at = Some(now - HANDOFF);
+        self.leave(now);
+    }
+
     pub fn moving(&self, now: Instant) -> bool {
         now.duration_since(self.travel.start).as_secs_f32() < TRAVEL
             || now.duration_since(self.label_start).as_secs_f32() < TRAVEL
@@ -177,6 +182,23 @@ mod tests {
         motion.target(geometry, "B".into(), fading, false);
         assert_eq!(motion.alpha(fading), alpha);
         assert_eq!(motion.alpha(fading + Duration::from_millis(150)), 1.);
+    }
+
+    #[test]
+    fn dismissal_keeps_the_visible_bubble_until_its_exit_finishes() {
+        let start = Instant::now();
+        let geometry = Geometry { center: 50., bottom: 50., width: 45. };
+        let mut motion = TooltipMotion::new(geometry, "Tip".into(), start);
+        let now = start + Duration::from_secs(1);
+        motion.dismiss(now);
+        assert_eq!(motion.alpha(now), 1.);
+        assert!(motion.alpha(now + Duration::from_millis(75)) > 0.);
+        assert_eq!(motion.geometry(now + Duration::from_millis(75)).values(), geometry.values());
+        assert_eq!(motion.alpha(now + Duration::from_millis(150)), 0.);
+        let reenter = now + Duration::from_millis(90);
+        let current = motion.alpha(reenter);
+        motion.target(geometry, "Tip".into(), reenter, false);
+        assert_eq!(motion.alpha(reenter), current);
     }
     #[test]
     fn rapid_skimming_bounds_text_layers_and_reduced_motion_stops_travel() {

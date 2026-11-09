@@ -9,14 +9,13 @@ use dito_core::i18n::{Lang, Tr};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
-use crate::assets::Ic;
-use crate::hud::buttons::BTN;
+use crate::hud::buttons::{self, BTN};
 use crate::hud::capsule::{CAPSULE_H, CAPSULE_PAD, CAPSULE_W};
 use crate::hud::elevation::{self, Elevation};
 use crate::hud::window::{WIN_PAD, WIN_W};
 use crate::hud::{Scale, px, tx};
 use crate::theme::{self, Palette};
-use crate::ui::{self, icon, text};
+use crate::ui::{self, text};
 
 use super::clock::{COUNTDOWN_FADE_S, COUNTDOWN_START_S};
 use super::layout::{CAPSULE_TOP, ERROR_BUBBLE_H, ZONE_GAP};
@@ -102,10 +101,11 @@ impl HudView {
             zone = zone.child(chip);
         }
         if let Some(pill) = ui::hover_pop(ElementId::from("hud-stop-pill"), pill_on, || {
-            self.pill("hud-stop", p)
-                .on_click(cx.listener(|this, _, _, _| this.send(Command::Stop)))
-                .child(icon(Ic::Stop, tx(11.), theme::hud_stop_ink(p)))
-                .child(text(lang.tr(Tr::HudStop).to_string(), tx(12.), FontWeight::NORMAL, theme::hud_stop_ink(p)))
+            let palette = *p;
+            let hover = f32::from(self.hover_btn == Some("hud-stop"));
+            div().id("hud-stop").cursor_pointer().on_click(cx.listener(|this, _, _, _| this.send(Command::Stop))).child(
+                ui::tweened("hud-stop-appearance".into(), hover, 140, move |v| buttons::stop_pill(&palette, lang, v)),
+            )
         }) {
             zone = zone.child(pill);
         }
@@ -154,22 +154,6 @@ impl HudView {
             .justify_center()
             .opacity(opacity)
             .child(pill)
-    }
-
-    fn pill(&self, id: &'static str, p: &Palette) -> Stateful<Div> {
-        div()
-            .id(id)
-            .px(px(10.))
-            .py(px(5.))
-            .rounded_full()
-            .bg(theme::hud_error_bg(p))
-            .border(px(PILL_HAIRLINE))
-            .border_color(theme::hud_error_pill_border())
-            .shadow(elevation::surface_shadow(p, Scale::HUD, Elevation::Surface))
-            .flex()
-            .items_center()
-            .gap(px(5.))
-            .cursor_pointer()
     }
 
     /// A tooltip centred above the capsule button whose centre is `center_x` from the window's left edge, in the

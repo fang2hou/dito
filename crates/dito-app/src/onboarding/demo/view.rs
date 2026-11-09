@@ -122,22 +122,26 @@ fn hud_slot(p: &Palette, lang: Lang, hud: Option<&HudAt>, still: bool) -> Div {
             wave,
             fill,
             outcome_t,
+            entry: at.pop.map_or_else(Default::default, |u| {
+                hud::EntryPose::at(
+                    u * hud::POP_MS as f32 / 1000.,
+                    if still { Motion::Reduced } else { Motion::system() },
+                )
+            }),
         }
-        .element(&mut |b| hud::static_button(b, Scale::DESIGN, p).into_any_element())
+        .element(&mut |b, scale| hud::static_button(b, scale, p).into_any_element())
     };
     let inserted = at.inserted_elapsed.map(|elapsed| {
         let blend = (elapsed / INSERT_FADE_S).clamp(0., 1.);
         let outcome_t = (elapsed - hud::OUTCOME_ICON_DELAY).max(0.);
-        (build(HudState::Inserted, hud::CAPSULE_W, elapsed, Some(outcome_t)), blend)
+        let alpha = hud::inserted_opacity(elapsed, if still { Motion::Reduced } else { Motion::system() });
+        (build(HudState::Inserted, hud::CAPSULE_W, elapsed, Some(outcome_t)).opacity(alpha), blend)
     });
     let inserted = match inserted {
         Some((capsule, blend)) if blend >= 1. => return slot.child(capsule).opacity(at.shown),
         cross_fade => cross_fade,
     };
-    let mut capsule = build(at.state.clone(), at.w, at.since, None);
-    if let Some(u) = at.pop {
-        capsule = hud::pop_shape(capsule, Scale::DESIGN, at.w, u, Motion::Full);
-    }
+    let capsule = build(at.state.clone(), at.w, at.since, None);
     let mut slot = slot.child(capsule);
     if let Some((capsule, blend)) = inserted {
         // On top of the recognizing capsule, at the spot where it sits: the cross-fade to green.

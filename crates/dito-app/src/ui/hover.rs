@@ -57,17 +57,17 @@ pub fn force_hover(scope: &ScopeHandle, id: ElementId, over: bool) {
     }
 }
 
-/// The hover pop of the HUD's in-flow content: it rises and fades in when it appears and is not drawn once the
-/// pointer leaves. The value lives in the registry, so unmounting on leave still settles it to 0 and every
-/// re-appearance pops. Unlike [`tweened_at`] the content is built once per render and only the wrapper is
-/// restyled each frame, which keeps interactive state (hover, presses) intact.
+/// Keep the same interactive child mounted through entrance, exit and interrupted re-entry.
 pub fn hover_pop<E: IntoElement + 'static>(id: ElementId, on: bool, build: impl FnOnce() -> E) -> Option<AnyElement> {
     const MS: u64 = 150;
     const RISE: f32 = 6.;
     let dur = Duration::from_millis(MS);
     let scope = scope::motion_scope();
+    if scope.registry().is_some_and(|reg| !reg.borrow().tweens.contains_key(&id)) {
+        tween::tween_to_at(&scope, &id, 0., dur);
+    }
     let (from, to, active, bump) = tween::tween_to_at(&scope, &id, if on { 1. } else { 0. }, dur);
-    if !on {
+    if !on && !active {
         return None;
     }
     let el = build();
@@ -79,9 +79,9 @@ pub fn hover_pop<E: IntoElement + 'static>(id: ElementId, on: bool, build: impl 
         div()
             .child(el)
             .with_animation((id, SharedString::from(format!("pop-{bump}"))), Animation::new(dur), move |el, t| {
-                let v = from + (to - from) * (1. - (1. - t.clamp(0., 1.)).powi(3));
+                let v = from + (to - from) * tween::ease(t.clamp(0., 1.));
                 let rise = if reduced { 0. } else { (1. - v) * RISE };
-                el.mt(px(rise)).opacity(v)
+                el.relative().top(px(rise)).opacity(v)
             })
             .into_any_element(),
     )
@@ -99,12 +99,16 @@ pub fn hover_pop_scaled<E: IntoElement + 'static>(
     const MS: u64 = 150;
     const RISE: f32 = 6.;
     let scope = scope::motion_scope();
-    if !on {
-        tween::tween_to_at(&scope, &id, 0., Duration::from_millis(MS));
+    let dur = Duration::from_millis(MS);
+    if scope.registry().is_some_and(|reg| !reg.borrow().tweens.contains_key(&id)) {
+        tween::tween_to_at(&scope, &id, 0., dur);
+    }
+    let (_, _, active, _) = tween::tween_to_at(&scope, &id, f32::from(on), dur);
+    if !on && !active {
         return None;
     }
     let reduced = dito_platform::system::reduce_motion();
-    Some(tween::tweened_at(scope, id, 1., MS, move |v| {
+    Some(tween::tweened_at(scope, id, f32::from(on), MS, move |v| {
         let e = 1. - (1. - v).powi(3);
         let (k, rise) = if reduced { (1., 0.) } else { (from + (1. - from) * e, (1. - e) * RISE) };
         div().relative().top(px(rise)).opacity(e).child(build(k))
