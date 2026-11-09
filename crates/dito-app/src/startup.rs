@@ -12,7 +12,7 @@ use crate::dev::demo_run;
 use crate::state::{AppGlobal, AppState};
 use crate::{hotkeys, hud, menubar, onboarding, settings};
 
-actions!(dito, [Quit]);
+actions!(dito, [Quit, OpenSettings, OpenHistory, OpenDictionary, OpenStatus]);
 
 /// Wire the global state, the application menu and the first windows once GPUI is running.
 pub fn run(st: Arc<AppState>, cx: &mut App) {
@@ -24,6 +24,7 @@ pub fn run(st: Arc<AppState>, cx: &mut App) {
 
     unload_local_models_on_quit(&st, cx);
     install_app_menu(&st, cx);
+    crate::dock::run(st.clone(), cx);
 
     #[cfg(feature = "screenshots")]
     if let Some(dir) = st.opts.screenshots.clone() {
@@ -57,10 +58,14 @@ fn unload_local_models_on_quit(st: &AppState, cx: &mut App) {
     .detach();
 }
 
-fn install_app_menu(st: &AppState, cx: &mut App) {
+fn install_app_menu(st: &Arc<AppState>, cx: &mut App) {
     cx.on_action(|_: &Quit, cx| cx.quit());
     cx.bind_keys([KeyBinding::new("cmd-q", Quit, None)]);
-    set_app_menu(st.cfg.get().general.lang(), cx);
+    on_open_page::<OpenSettings>(st, settings::Page::General, cx);
+    on_open_page::<OpenHistory>(st, settings::Page::History, cx);
+    on_open_page::<OpenDictionary>(st, settings::Page::Dictionary, cx);
+    on_open_page::<OpenStatus>(st, settings::Page::Status, cx);
+    set_menus(st.cfg.get().general.lang(), cx);
     let mut config_rx = st.cfg.subscribe();
     cx.spawn(async move |cx| {
         let mut shown = config_rx.borrow().general.lang();
@@ -68,26 +73,83 @@ fn install_app_menu(st: &AppState, cx: &mut App) {
             let lang = config_rx.borrow_and_update().general.lang();
             if lang != shown {
                 shown = lang;
-                cx.update(|cx| set_app_menu(lang, cx));
+                cx.update(|cx| set_menus(lang, cx));
             }
         }
     })
     .detach();
 }
 
-fn set_app_menu(lang: Lang, cx: &mut App) {
+fn on_open_page<A: Action>(st: &Arc<AppState>, page: settings::Page, cx: &mut App) {
+    let st = st.clone();
+    cx.on_action(move |_: &A, cx| settings::open(st.clone(), page, cx));
+}
+
+/// The application menu holds only Quit; the Dock menu repeats the menu bar item's page shortcuts, Settings first.
+fn set_menus(lang: Lang, cx: &mut App) {
     cx.set_menus(vec![Menu {
         name: "Dito".into(),
         items: vec![MenuItem::action(lang.tr(Tr::MenubarQuit), Quit)],
         disabled: false,
     }]);
+    cx.set_dock_menu(vec![
+        MenuItem::action(lang.tr(Tr::MenubarSettings), OpenSettings),
+        MenuItem::action(lang.tr(Tr::HistoryOpen), OpenHistory),
+        MenuItem::action(lang.tr(Tr::MenubarAddWord), OpenDictionary),
+        MenuItem::action(lang.tr(Tr::NavStatus), OpenStatus),
+    ]);
+}
+
+/// The window a launch opens by itself. Starting Dito means the user wants to dictate, so everything else waits
+/// for a request from the menu bar, the Dock or a second launch.
+#[derive(Debug, PartialEq, Eq)]
+enum LaunchWindow {
+    Onboarding,
+    Settings(settings::Page),
+}
+
+fn launch_window(
+    onboarded: bool,
+    open_settings: bool,
+    accessibility: Status,
+    microphone: Status,
+) -> Option<LaunchWindow> {
+    if !onboarded {
+        Some(LaunchWindow::Onboarding)
+    } else if accessibility != Status::Granted {
+        Some(LaunchWindow::Settings(settings::Page::General))
+    } else if microphone == Status::Denied {
+        Some(LaunchWindow::Settings(settings::Page::Status))
+    } else if open_settings {
+        Some(LaunchWindow::Settings(settings::Page::General))
+    } else {
+        None
+    }
+}
+
+/// Clicking the Dock icon, or opening Dito again from Finder or Spotlight, while it runs with no window open.
+pub fn reopen(st: Arc<AppState>, cx: &mut App) {
+    if st.opts.is_headless() {
+        return;
+    }
+    if st.cfg.get().onboarded {
+        settings::open(st, settings::Page::General, cx);
+    } else {
+        onboarding::restart(st, cx);
+    }
 }
 
 fn open_first_window(st: &Arc<AppState>, cx: &mut App) {
-    if !st.cfg.get().onboarded {
-        onboarding::open(st.clone(), cx);
-    } else if !st.opts.background {
-        settings::open(st.clone(), settings::Page::General, cx);
+    let window = launch_window(
+        st.cfg.get().onboarded,
+        st.opts.open_settings,
+        permissions::status(Permission::Accessibility),
+        permissions::status(Permission::Microphone),
+    );
+    match window {
+        Some(LaunchWindow::Onboarding) => onboarding::open(st.clone(), cx),
+        Some(LaunchWindow::Settings(page)) => settings::open(st.clone(), page, cx),
+        None => {}
     }
 }
 
@@ -142,4 +204,44 @@ fn retry_hotkeys_when_allowed(st: Arc<AppState>, cx: &mut App) {
         }
     })
     .detach();
+}
+
+#[cfg(test)]
+mod tests {
+    use dito_platform::Status;
+
+    use super::{LaunchWindow, launch_window};
+    use crate::settings;
+
+    const OK: Status = Status::Granted;
+
+    #[test]
+    fn a_normal_launch_opens_nothing() {
+        assert_eq!(launch_window(true, false, OK, OK), None);
+        assert_eq!(launch_window(true, false, OK, Status::NotDetermined), None, "the system asks on first recording");
+    }
+
+    #[test]
+    fn first_run_opens_onboarding_whatever_the_permissions() {
+        assert_eq!(launch_window(false, false, OK, OK), Some(LaunchWindow::Onboarding));
+        assert_eq!(launch_window(false, false, Status::Denied, Status::Denied), Some(LaunchWindow::Onboarding));
+    }
+
+    #[test]
+    fn a_missing_permission_opens_the_page_that_explains_it() {
+        let general = Some(LaunchWindow::Settings(settings::Page::General));
+        let status = Some(LaunchWindow::Settings(settings::Page::Status));
+        assert_eq!(launch_window(true, false, Status::Denied, OK), general);
+        assert_eq!(launch_window(true, false, OK, Status::Denied), status);
+        assert_eq!(
+            launch_window(true, false, Status::Denied, Status::Denied),
+            general,
+            "the General banner comes first"
+        );
+    }
+
+    #[test]
+    fn the_dev_flag_opens_settings() {
+        assert_eq!(launch_window(true, true, OK, OK), Some(LaunchWindow::Settings(settings::Page::General)));
+    }
 }

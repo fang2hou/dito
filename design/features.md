@@ -6,7 +6,7 @@ What the app is for and what it does, from the user's side. How it looks and mov
 
 - **Speak instead of type, anywhere.** One shortcut, then talk; polished text appears where the cursor is, in any app.
 - **Never lose what was said.** If polishing fails, the raw text is inserted. If there is nowhere to type, the text goes to the clipboard. Every result stays in History.
-- **Stay out of the way.** The HUD never takes focus, never covers menus, and disappears when done. Settings change in one place each.
+- **Stay out of the way.** The HUD never takes focus, never covers menus, and disappears when done. Starting Dito opens no window. Settings change in one place each.
 - **Local first, cloud when wanted.** Recognition and polishing each run on the Mac or through a provider, chosen separately.
 - **Japanese first.** The UI is designed in Japanese; English and Simplified Chinese are available. The speech language is a separate setting.
 - **Calm and precise.** Short, purposeful motion; no flashing; Reduce Motion respected everywhere.
@@ -55,6 +55,12 @@ The sidebar shows a health dot (green when ready, red with the reason when a loc
 
 A waveform icon showing the engine status and today's character count, with shortcuts to History, Dictionary, Status, Settings and Quit. It never changes settings.
 
+## Dock
+
+- **Dock icon (General, on by default).** Off, Dito runs from the menu bar alone and has no Dock tile. While a window is open the tile comes back, so the window can be found with the Dock and Cmd-Tab, and it leaves again when the last window closes.
+- **Dock menu.** Right-clicking the tile lists the first four rows of the menu bar menu, Settings first, with no status line. Like the menu bar, it only opens pages.
+- **Reopen.** Clicking the tile, or opening Dito again from Finder or Spotlight, while it runs with no window opens Settings on General.
+
 ## Onboarding
 
 Shown on first launch and restartable from General, in seven steps: welcome, permissions (Microphone and Accessibility), how to use (with a looping demo), recording shortcut, engine choice (local or provider), preparing the models or the connection, and trying a dictation. Steps slide forward and back; with Reduce Motion they cross-fade.
@@ -68,6 +74,8 @@ Design decisions that aren't visible in a single screen. Timings and sizes thems
 - **Automatic microphone.** Automatic picking opens only wired devices (built-in, USB, Thunderbolt and similar). Opening a Bluetooth headset drops it to its low-quality call profile, and opening an iPhone wakes it as a Continuity microphone, so those are chosen by hand.
 - **HUD size.** The capsule is 105 × 33 pt (72 pt wide in hold mode while listening), drawn at 1× in whole points, with opaque surfaces and one soft shadow.
 - **Outcome timing.** The HUD hides when its outcome animation ends: about 1.1 s after Inserted and 1.9 s after Copied. Errors stay 3 s, and hovering keeps them open.
+
+- **Silent launch.** Starting Dito, at login or by hand, means the user wants to dictate, not to configure. No window opens, the app never takes focus, and the menu bar icon is the sign that it runs. Two things may open a window by themselves: Onboarding on first run, and Settings when a permission is missing, because dictation cannot work without it (General when Accessibility is missing, where the banner explains it; Status when only the Microphone is denied). Otherwise Settings open on request: menu bar, Dock menu, Dock click, or opening the app again while it runs.
 
 ## Known Gaps
 

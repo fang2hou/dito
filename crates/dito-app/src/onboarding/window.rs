@@ -41,6 +41,11 @@ pub fn open_with_view(
     slot.map(|v| (h, v))
 }
 
+/// The wizard keeps its global after the window closes, so ask the app whether the window is still there.
+pub fn is_open(cx: &App) -> bool {
+    cx.try_global::<WizardWindow>().is_some_and(|h| cx.windows().iter().any(|w| w.window_id() == h.0.window_id()))
+}
+
 /// Open the wizard again (Settings ▸ 初期設定), or bring the one that is already open to the front.
 pub fn restart(st: Arc<AppState>, cx: &mut App) {
     if let Some(h) = cx.try_global::<WizardWindow>().map(|h| h.0)
@@ -75,6 +80,7 @@ pub fn open(st: Arc<AppState>, cx: &mut App) {
         Err(e) => tracing::error!("could not open onboarding: {e}"),
     }
     if foreground {
+        crate::dock::sync(cx);
         cx.activate(true);
     }
 }

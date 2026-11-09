@@ -28,6 +28,6 @@ pub use page::Page;
 pub use page_layout::{content_width, page, page_fill};
 #[cfg(feature = "screenshots")]
 pub use shell::Settings;
-pub use window::{global_state, open};
+pub use window::{global_state, is_open, open};
 #[cfg(feature = "screenshots")]
 pub use window::{handle, page_motion, shell_motion};
