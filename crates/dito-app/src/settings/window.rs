@@ -53,6 +53,10 @@ pub fn page_motion(page: Page, cx: &App) -> Option<ui::ScopeHandle> {
     })
 }
 
+pub fn is_open(cx: &App) -> bool {
+    cx.has_global::<SettingsHandle>()
+}
+
 /// Open (or focus) the settings window on `page`.
 pub fn open(st: Arc<AppState>, page: Page, cx: &mut App) {
     let foreground = !st.opts.is_headless();
@@ -60,6 +64,7 @@ pub fn open(st: Arc<AppState>, page: Page, cx: &mut App) {
         open_new_window(st.clone(), page, cx);
     }
     if foreground {
+        crate::dock::sync(cx);
         cx.activate(true);
     }
 }

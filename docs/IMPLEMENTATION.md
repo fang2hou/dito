@@ -87,7 +87,7 @@ The Python benchmark harness has its own tasks: `mise run bench:sync`, `bench:te
 | `--wav <file>` | Use a WAV file as the recording |
 | `--data-dir <dir>` | Config and history location; an empty directory shows onboarding |
 | `--lang <code>` | Pretend the system language is `ja`, `en` or `zh` |
-| `--background` | Start without the settings window |
+| `--open-settings` | Open the settings window at launch. A launch opens no window by itself (see [ADR 0014](adr/0014-silent-launch.md)), so `mise run dev` and `dev:mock` pass this flag |
 | `--demo-run` | Run one dictation headlessly and print it; no Dock icon, menu bar or window, never frontmost |
 | `--screenshots <dir>` | Render screenshots (build with `--features screenshots`; narrow with `DITO_SHOTS_ONLY`); windows are never shown and never take focus |
 
@@ -110,12 +110,12 @@ Things that look removable or simplifiable but exist for a reason. Product-level
 - **Outcome timing lives in two crates.** The controller's `SUCCESS_FLASH` and `COPIED_FLASH` must equal the HUD's `OUTCOME_END` and `COPY_END` in `hud/drawing.rs`; change both together.
 - **Compiled-in design files.** `design/asr-templates/*.json` and `crates/dito-core/src/provider/asr-help/*.md` are compiled into `dito-core`. Moving or deleting them breaks the build. `design/asr-config.schema.json` is documentation only.
 - **App icon.** `assets/icon/Dito.icon` is an Icon Composer document. `scripts/icon.sh compile` builds `Assets.car` and a flat `Dito.icns`; `preview` renders the appearances. Never call `setApplicationIconImage` in a bundled run (it flattens the Liquid Glass icon); only bare binaries set a PNG. Declare `features: ["refractivity", "specular-location"]` whenever those keys are used, and use `blur-material`, not `blur`, or Icon Composer won't open the file.
+- **Dock icon policy.** With "Show icon in Dock" off, `main` starts GPUI with the Headless windowing request, which on macOS is only the Accessory activation policy (windows still draw). It must be set before the run loop; setting it later flashes the icon in the Dock at launch. `dock::sync` switches to Regular while the settings or onboarding window is open and back when the last one closes. The switch back runs one turn after the close callback: inside it, AppKit reports an active-status change for the removed window and GPUI logs `window not found`. Open a window, call `dock::sync`, then `cx.activate`; a Regular app that is not activated has no menu bar.
 - **Mock mode types for real.** `--mock` without `--log-sink` types into the frontmost app. Agents and automated runs always add `--log-sink`.
 
 ## Known Limitations
 
 - Cancelling local inference stops waiting, not the computation.
-- The login item is a LaunchAgent and starts the app without `--background`.
 - Bedrock and the legacy cloud ASR paths are covered only by the mock server, not by a real account.
 - GitHub Actions enforces only the pull request rules and the release tag; tests and clippy run in the local commit hooks, which `--no-verify` skips.
 - The display language defaults to the system language; the design calls for Japanese by default.

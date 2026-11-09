@@ -15,7 +15,7 @@ mod wizard;
 use step::Step;
 #[cfg(feature = "screenshots")]
 pub use window::open_with_view;
-pub use window::{open, restart};
+pub use window::{is_open, open, restart};
 #[cfg(feature = "screenshots")]
 pub use wizard::Onboarding;
 #[cfg(not(feature = "screenshots"))]

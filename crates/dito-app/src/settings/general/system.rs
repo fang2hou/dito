@@ -23,6 +23,7 @@ impl GeneralPage {
             c.t(Tr::GeneralSystem),
             vec![
                 ui::row(&p, c.t(Tr::GeneralLaunchAtLogin), self.launch_at_login_switch(&p), false),
+                ui::row(&p, c.t(Tr::GeneralShowDockIcon), self.show_dock_icon_switch(&p), false),
                 ui::row(&p, c.t(Tr::GeneralAppearance), self.appearance_seg(c), false),
                 ui::row(&p, c.t(Tr::GeneralDisplayLanguage), self.display_language_select(c, cx), true),
             ],
@@ -85,6 +86,16 @@ impl GeneralPage {
                 }
                 services::save_config(&st, move |c| c.general.launch_at_login = on)
             }),
+        )
+    }
+
+    fn show_dock_icon_switch(&self, p: &Palette) -> Stateful<Div> {
+        let st = self.st.clone();
+        ui::switch(
+            "dock-icon",
+            p,
+            self.st.cfg.get().general.show_dock_icon,
+            Rc::new(move |on, _, _| services::save_config(&st, move |c| c.general.show_dock_icon = on)),
         )
     }
 

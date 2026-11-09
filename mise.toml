@@ -15,11 +15,11 @@ UV_PYTHON_DOWNLOADS = "never"
 
 [tasks.dev]
 description = "Run the app against real microphone, models and providers (debug build)"
-run = "cargo run -p dito-app --"
+run = "cargo run -p dito-app -- --open-settings"
 
 [tasks."dev:mock"]
 description = "Run the app with mock cloud, microphone and data; never types into other apps"
-run = "cargo run -p dito-app --features mock -- --mock --log-sink"
+run = "cargo run -p dito-app --features mock -- --mock --log-sink --open-settings"
 
 [tasks.bundle]
 description = "Build the optimized release bundle at target/bundle/Dito.app"
