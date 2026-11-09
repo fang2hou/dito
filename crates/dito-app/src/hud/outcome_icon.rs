@@ -3,20 +3,20 @@
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
-use crate::assets::HudIc;
+use crate::assets::Ic;
 use crate::theme::hex;
-use crate::ui::{Motion, hud_icon};
+use crate::ui::{Motion, icon};
 
 use super::Scale;
 use super::timing::OUTCOME_ICON_S;
 
 /// Centered state glyphs in design points.
-const CHECK_ICON: f32 = 19.;
-pub(super) const COPY_ICON: f32 = 18.;
+const CHECK_ICON: f32 = 18.;
+pub(super) const COPY_ICON: f32 = 14.;
 
 /// A constant-speed tip travels along the two segments, following the check's actual centerline.
 fn check_trace(progress: f32) -> Vec<(f32, f32)> {
-    let [a, b, c] = [(2.499_f32, 10.108_f32), (6.760, 14.374), (16.502, 4.627)];
+    let [a, b, c] = [(4_f32, 13_f32), (9., 18.), (20., 7.)].map(|(x, y)| (x * CHECK_ICON / 24., y * CHECK_ICON / 24.));
     let ab = (b.0 - a.0).hypot(b.1 - a.1);
     let bc = (c.0 - b.0).hypot(c.1 - b.1);
     let length = progress.clamp(0., 1.) * (ab + bc);
@@ -31,7 +31,7 @@ fn check_trace(progress: f32) -> Vec<(f32, f32)> {
 
 fn drawn_check(progress: f32, scale: Scale) -> AnyElement {
     if progress >= 1. {
-        return hud_icon(HudIc::Check, scale.tx(CHECK_ICON), hex("#FFFFFF")).into_any_element();
+        return icon(Ic::Check, scale.tx(CHECK_ICON), hex("#FFFFFF")).into_any_element();
     }
     canvas(
         |_, _, _| (),
@@ -52,8 +52,8 @@ fn drawn_check(progress: f32, scale: Scale) -> AnyElement {
                         let theta =
                             angle - std::f32::consts::FRAC_PI_2 + (end as f32 + i as f32 / 16.) * std::f32::consts::PI;
                         let point = point(
-                            bounds.origin.x + scale.px(center.0 + theta.cos() * 0.916),
-                            bounds.origin.y + scale.px(center.1 + theta.sin() * 0.916),
+                            bounds.origin.x + scale.px(center.0 + theta.cos() * CHECK_ICON / 24.),
+                            bounds.origin.y + scale.px(center.1 + theta.sin() * CHECK_ICON / 24.),
                         );
                         if end == 0 && i == 0 {
                             path.move_to(point);
@@ -88,7 +88,7 @@ pub(super) fn draw(outcome: Outcome, time: Option<f32>, motion: Motion, scale: S
     }
     let ink = hex("#FFF9EB");
     if progress >= 1. {
-        return hud_icon(HudIc::Copy, scale.tx(COPY_ICON), ink).into_any_element();
+        return icon(Ic::Copy, scale.tx(COPY_ICON), ink).into_any_element();
     }
     let front = (progress / 0.375).clamp(0., 1.);
     let back = ((progress - 0.3125) / 0.6875).clamp(0., 1.);

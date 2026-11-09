@@ -91,9 +91,9 @@ pub fn text_tracked(s: &str, size: f32, weight: FontWeight, color: Hsla, cjk_em:
     if em == 0. {
         return text(s.to_string(), size, weight, color).line_height(relative(1.));
     }
-    let mut d = div().flex().items_center().gap(px(size * em));
+    let mut d = div().flex_none().flex().items_baseline().gap(px(size * em));
     for ch in s.chars() {
-        d = d.child(text(ch.to_string(), size, weight, color).line_height(relative(1.)));
+        d = d.child(text(ch.to_string(), size, weight, color).line_height(relative(1.)).flex_none());
     }
     d
 }

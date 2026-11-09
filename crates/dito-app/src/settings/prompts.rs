@@ -1,10 +1,14 @@
+use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use dito_core::i18n::{Lang, Tr};
 use dito_core::prompts::{Prompts, Style};
 use dito_platform::system::{InstalledApplication, installed_application};
 
 mod application_ui;
+mod history;
+use history::{Editor, History, Snapshot};
 mod view;
 use gpui_kit::component::input::{InputEvent, InputState, Textarea, TextareaState};
 use gpui_kit::prelude::*;
@@ -31,7 +35,10 @@ pub struct PromptsPage {
     samples: Vec<Entity<InputState>>,
     try_in: Entity<TextareaState>,
     try_state: Try,
-    dirty: bool,
+    histories: HashMap<(Lang, Option<Style>), History>,
+    save_revision: u64,
+    save_error: Option<String>,
+    group_started: [Option<Instant>; 2],
     preview_revision: u64,
     drafts: Prompts,
     apps: Vec<AppChoice>,
@@ -46,6 +53,8 @@ pub struct PromptsPage {
     help_focus: [FocusHandle; 2],
     /// The page's own motion scope: its controls' transient state, reset on navigation.
     motion: ui::MotionScope,
+    #[cfg(feature = "screenshots")]
+    edit_probe: Option<(Snapshot, Option<Snapshot>)>,
 }
 
 fn textarea(window: &mut Window, cx: &mut Context<PromptsPage>, value: &str) -> Entity<TextareaState> {
@@ -67,11 +76,14 @@ impl PromptsPage {
             cx.on_focus_in(&handle, window, |_, _, cx| cx.notify()).detach();
             cx.on_focus_out(&handle, window, |_, _, _, cx| cx.notify()).detach();
         }
-        for ent in [&base, &instruction] {
-            cx.subscribe_in(ent, window, |this: &mut Self, _, ev: &InputEvent, _, cx| {
+        for (editor, ent) in [(Editor::Common, &base), (Editor::Application, &instruction)] {
+            cx.subscribe_in(ent, window, move |this: &mut Self, _, ev: &InputEvent, _, cx| {
                 if matches!(ev, InputEvent::Change) {
-                    this.changed();
+                    this.changed(editor, cx);
                     cx.notify();
+                }
+                if matches!(ev, InputEvent::Blur) {
+                    this.close_group(editor, cx);
                 }
             })
             .detach();
@@ -86,6 +98,8 @@ impl PromptsPage {
         .detach();
         let mut page = Self {
             motion: ui::MotionScope::new(),
+            #[cfg(feature = "screenshots")]
+            edit_probe: None,
             st,
             lang,
             style,
@@ -96,7 +110,10 @@ impl PromptsPage {
             try_state: Try::Idle,
             drafts: cfg.prompts.clone(),
             apps: app_choices(&cfg.prompts),
-            dirty: false,
+            histories: HashMap::new(),
+            save_revision: 0,
+            save_error: None,
+            group_started: [None, None],
             preview_revision: 0,
             menu_open: false,
             copy_menu_open: false,
@@ -112,14 +129,171 @@ impl PromptsPage {
             cx.on_focus_in(handle, window, |_, _, cx| cx.notify()).detach();
             cx.on_focus_out(handle, window, |_, _, _, cx| cx.notify()).detach();
         }
+        page.ensure_histories();
         page.rebuild_samples(window, cx);
         page
     }
 
-    fn changed(&mut self) {
-        self.dirty = true;
+    fn history_key(&self, editor: Editor) -> (Lang, Option<Style>) {
+        (self.lang, (editor == Editor::Application).then(|| self.style.clone()))
+    }
+
+    fn snapshot(&self, editor: Editor) -> Snapshot {
+        let set = self.drafts.set(self.lang);
+        match editor {
+            Editor::Common => Snapshot::Common(set.base.clone()),
+            Editor::Application => Snapshot::Application(set.style(&self.style).clone()),
+        }
+    }
+
+    fn ensure_histories(&mut self) {
+        for editor in [Editor::Common, Editor::Application] {
+            let key = self.history_key(editor);
+            let initial = self.snapshot(editor);
+            self.histories.entry(key).or_insert_with(|| History::new(initial));
+        }
+    }
+
+    fn changed(&mut self, editor: Editor, cx: &mut Context<Self>) {
+        // InputEvent::Change is emitted for committed input, never marked IME text.
+        match editor {
+            Editor::Common => self.drafts.set_mut(self.lang).base = self.base.read(cx).value().to_string(),
+            Editor::Application => {
+                let prompt = self.drafts.set_mut(self.lang).style_mut(&self.style);
+                prompt.instruction = self.instruction.read(cx).value().to_string();
+                prompt.samples = self.samples.iter().map(|s| s.read(cx).value().to_string()).collect();
+            }
+        }
+        let key = self.history_key(editor);
+        let snapshot = self.snapshot(editor);
+        self.histories.get_mut(&key).expect("active editor history").change(snapshot);
+        let slot = editor as usize;
+        if self.group_started[slot].is_some_and(|start| start.elapsed() >= Duration::from_secs(15)) {
+            self.histories.get_mut(&key).unwrap().checkpoint(false);
+            self.group_started[slot] = None;
+        }
+        self.group_started[slot].get_or_insert_with(Instant::now);
         self.preview_revision += 1;
         self.try_state = Try::Idle;
+        self.schedule_save(cx);
+        let revision = self.save_revision;
+        cx.spawn(async move |this, cx| {
+            cx.background_executor().timer(Duration::from_secs(2)).await;
+            let _ = this.update(cx, |this, cx| {
+                if this.save_revision == revision {
+                    if let Some(history) = this.histories.get_mut(&key) {
+                        history.checkpoint(false);
+                    }
+                    this.group_started[slot] = None;
+                    cx.notify();
+                }
+            });
+        })
+        .detach();
+        cx.notify();
+    }
+
+    fn schedule_save(&mut self, cx: &mut Context<Self>) {
+        self.save_revision += 1;
+        let revision = self.save_revision;
+        cx.spawn(async move |this, cx| {
+            cx.background_executor().timer(Duration::from_secs(3)).await;
+            let _ = this.update(cx, |this, cx| {
+                if this.save_revision == revision {
+                    this.save(cx);
+                }
+            });
+        })
+        .detach();
+    }
+
+    fn close_group(&mut self, editor: Editor, cx: &mut Context<Self>) {
+        let key = self.history_key(editor);
+        if let Some(history) = self.histories.get_mut(&key) {
+            history.checkpoint(false);
+        }
+        self.group_started[editor as usize] = None;
+        let saved = self.st.cfg.get();
+        let dirty = match editor {
+            Editor::Common => self.drafts.set(self.lang).base != saved.prompts.set(self.lang).base,
+            Editor::Application => {
+                self.drafts.set(self.lang).style(&self.style) != saved.prompts.set(self.lang).style(&self.style)
+            }
+        };
+        if dirty {
+            self.save(cx);
+        }
+    }
+
+    fn apply_snapshot(&mut self, snapshot: Snapshot, window: &mut Window, cx: &mut Context<Self>) {
+        match snapshot {
+            Snapshot::Common(value) => {
+                self.drafts.set_mut(self.lang).base = value.clone();
+                self.base.update(cx, |state, cx| {
+                    let selection = state.selected_range();
+                    state.set_value(value, window, cx);
+                    state.set_selected_range(selection, cx);
+                });
+            }
+            Snapshot::Application(value) => {
+                let sample_focus = self.samples.iter().enumerate().find_map(|(index, input)| {
+                    input
+                        .read(cx)
+                        .focus_handle(cx)
+                        .contains_focused(window, cx)
+                        .then(|| (index, input.read(cx).selected_range()))
+                });
+                *self.drafts.set_mut(self.lang).style_mut(&self.style) = value.clone();
+                self.instruction.update(cx, |state, cx| {
+                    let selection = state.selected_range();
+                    state.set_value(value.instruction, window, cx);
+                    state.set_selected_range(selection, cx);
+                });
+                self.rebuild_samples(window, cx);
+                if let Some((index, selection)) = sample_focus {
+                    if let Some(input) = self.samples.get(index.min(self.samples.len().saturating_sub(1))) {
+                        input.update(cx, |state, cx| state.set_selected_range(selection, cx));
+                        input.read(cx).focus_handle(cx).focus(window, cx);
+                    } else {
+                        self.instruction.read(cx).focus_handle(cx).focus(window, cx);
+                    }
+                }
+            }
+        }
+        self.preview_revision += 1;
+        self.try_state = Try::Idle;
+        self.schedule_save(cx);
+    }
+
+    fn undo(&mut self, editor: Editor, window: &mut Window, cx: &mut Context<Self>) {
+        let key = self.history_key(editor);
+        if let Some(snapshot) = self.histories.get_mut(&key).and_then(History::undo) {
+            self.apply_snapshot(snapshot, window, cx);
+        }
+        cx.notify();
+    }
+
+    fn redo(&mut self, editor: Editor, window: &mut Window, cx: &mut Context<Self>) {
+        let key = self.history_key(editor);
+        if let Some(snapshot) = self.histories.get_mut(&key).and_then(History::redo) {
+            self.apply_snapshot(snapshot, window, cx);
+        }
+        cx.notify();
+    }
+
+    fn restore(&mut self, editor: Editor, window: &mut Window, cx: &mut Context<Self>) {
+        let key = self.history_key(editor);
+        let snapshot = match editor {
+            Editor::Common => Snapshot::Common(Prompts::default().set(self.lang).base.clone()),
+            Editor::Application => Snapshot::Application(self.drafts.default_style(self.lang, &self.style)),
+        };
+        let history = self.histories.get_mut(&key).unwrap();
+        history.checkpoint(true);
+        history.change(snapshot.clone());
+        history.checkpoint(true);
+        self.apply_snapshot(snapshot, window, cx);
+        self.dialog = None;
+        self.save(cx);
     }
 
     fn rebuild_samples(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -133,48 +307,40 @@ impl PromptsPage {
         ui::notify_on_focus(&ent, window, cx);
         cx.subscribe_in(&ent, window, |this: &mut Self, _, ev: &InputEvent, _, cx| {
             if matches!(ev, InputEvent::Change) {
-                this.changed();
+                this.changed(Editor::Application, cx);
                 cx.notify();
+            }
+            if matches!(ev, InputEvent::Blur) {
+                this.close_group(Editor::Application, cx);
             }
         })
         .detach();
         ent
     }
 
-    /// Current edits applied to a copy of the saved prompts.
-    fn edited(&self, cx: &App) -> Prompts {
-        let mut prompts = self.drafts.clone();
-        let set = prompts.set_mut(self.lang);
-        set.base = self.base.read(cx).value().to_string();
-        let sp = set.style_mut(&self.style);
-        sp.instruction = self.instruction.read(cx).value().to_string();
-        sp.samples =
-            self.samples.iter().map(|s| s.read(cx).value().to_string()).filter(|s| !s.trim().is_empty()).collect();
-        prompts
-    }
-
     fn save(&mut self, cx: &mut Context<Self>) {
-        let edited = self.edited(cx);
-        self.drafts = edited.clone();
-        services::save_config(&self.st, |c| c.prompts = edited);
-        self.dirty = false;
+        let prompts = self.drafts.clone();
+        self.save_error = self.st.cfg.update(|config| config.prompts = prompts).err().map(|error| {
+            tracing::warn!("could not save prompt drafts: {error}");
+            error.to_string()
+        });
         cx.notify();
     }
 
     fn load(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let dirty = self.dirty;
         let set = self.drafts.set(self.lang);
         let (base, instr) = (set.base.clone(), set.style(&self.style).instruction.clone());
         self.base.update(cx, |s, cx| s.set_value(base, window, cx));
         self.instruction.update(cx, |s, cx| s.set_value(instr, window, cx));
         self.rebuild_samples(window, cx);
-        self.dirty = dirty;
+        self.ensure_histories();
         self.try_state = Try::Idle;
         cx.notify();
     }
 
     fn switch(&mut self, lang: Lang, style: Style, window: &mut Window, cx: &mut Context<Self>) {
-        self.drafts = self.edited(cx);
+        self.close_group(Editor::Common, cx);
+        self.close_group(Editor::Application, cx);
         self.preview_revision += 1;
         self.menu_open = false;
         if self.lang != lang {
@@ -197,7 +363,7 @@ impl PromptsPage {
         }
         self.try_state = Try::Running;
         cx.notify();
-        let (st, prompts, style, lang) = (self.st.clone(), self.edited(cx), self.style.clone(), self.lang);
+        let (st, prompts, style, lang) = (self.st.clone(), self.drafts.clone(), self.style.clone(), self.lang);
         let request_style = style.clone();
         let revision = self.preview_revision;
         cx.spawn(async move |this, cx| {
@@ -219,7 +385,9 @@ impl PromptsPage {
 
 impl PromptsPage {
     /// Reset the page's transient motion state; its controls mount statically on the next entry.
-    pub(super) fn reset_motion(&mut self) {
+    pub(super) fn reset_motion(&mut self, cx: &mut Context<Self>) {
+        self.close_group(Editor::Common, cx);
+        self.close_group(Editor::Application, cx);
         self.menu_open = false;
         self.copy_menu_open = false;
         self.dialog = None;
@@ -251,7 +419,7 @@ struct AppChoice {
 #[derive(Clone, Copy, PartialEq)]
 enum Dialog {
     Add,
-    Reset,
+    Reset(Editor),
     RemoveApp,
 }
 
@@ -274,6 +442,9 @@ fn app_choices(prompts: &Prompts) -> Vec<AppChoice> {
             },
         };
         let style = prompts.for_application(id);
+        if style == Style::General {
+            continue;
+        }
         if choices.iter().any(|c: &AppChoice| c.style == style) {
             continue;
         }
@@ -286,22 +457,152 @@ fn app_choices(prompts: &Prompts) -> Vec<AppChoice> {
 #[cfg(feature = "screenshots")]
 impl PromptsPage {
     pub(in crate::settings) fn preview(&mut self, case: &str, window: &mut Window, cx: &mut Context<Self>) {
-        self.dialog = None;
+        let preserve_controls =
+            matches!(case, "probe-blur" | "probe-menu-open" | "probe-menu-closed" | "probe-add-open");
+        if !preserve_controls {
+            self.dialog = None;
+        }
         if self.lang != Lang::Ja {
             self.switch(Lang::Ja, self.style.clone(), window, cx);
         }
-        self.menu_open = false;
-        self.copy_menu_open = false;
+        if !preserve_controls {
+            self.menu_open = false;
+            self.copy_menu_open = false;
+        }
         ui::force_hover(&self.motion.handle(), ElementId::from("prompt-examples-help"), false);
         match case {
+            "probe-blur" => {
+                assert!(!self.base.read(cx).focus_handle(cx).contains_focused(window, cx));
+                assert!(
+                    !self.instruction.read(cx).focus_handle(cx).contains_focused(window, cx),
+                    "outside click must end editing"
+                );
+            }
+            "probe-menu-open" => assert!(self.menu_open, "application select must open on click"),
+            "probe-menu-closed" => assert!(!self.menu_open, "clicking the open trigger must close it"),
+            "probe-add-open" => {
+                assert!(self.dialog == Some(Dialog::Add));
+                assert!(!self.instruction.read(cx).focus_handle(cx).contains_focused(window, cx));
+            }
+            "probe-ime" => {
+                use gpui_kit::EntityInputHandler;
+                self.edit_probe = Some((self.snapshot(Editor::Application), None));
+                self.instruction.update(cx, |state, cx| {
+                    state.focus_handle(cx).focus(window, cx);
+                    state.replace_and_mark_text_in_range(None, "marked draft", None, window, cx);
+                });
+            }
+            "probe-input" => {
+                use gpui_kit::EntityInputHandler;
+                assert_eq!(
+                    self.snapshot(Editor::Application),
+                    self.edit_probe.as_ref().unwrap().0,
+                    "IME marked text must stay out of drafts"
+                );
+                let text = format!("Committed editing revision {}", self.preview_revision);
+                self.instruction.update(cx, |state, cx| state.replace_text_in_range(None, &text, window, cx));
+            }
+            "probe-not-saved" => {
+                let persisted =
+                    Snapshot::Application(self.st.cfg.get().prompts.set(self.lang).style(&self.style).clone());
+                assert_eq!(persisted, self.edit_probe.as_ref().unwrap().0, "a short thinking pause must not save");
+                assert_ne!(
+                    self.snapshot(Editor::Application),
+                    persisted,
+                    "committed input must remain an unsaved draft before 3 seconds"
+                );
+            }
+            "probe-undo" => {
+                let edited = self.snapshot(Editor::Application);
+                assert_ne!(edited, self.edit_probe.as_ref().unwrap().0, "native committed input must update drafts");
+                assert_eq!(
+                    self.drafts.set(self.lang).style(&self.style),
+                    self.st.cfg.get().prompts.set(self.lang).style(&self.style),
+                    "committed drafts must autosave"
+                );
+                self.edit_probe.as_mut().unwrap().1 = Some(edited);
+                window.dispatch_action(Box::new(gpui_kit::base::input::Undo), cx);
+            }
+            "probe-redo" => {
+                assert_eq!(
+                    self.snapshot(Editor::Application),
+                    self.edit_probe.as_ref().unwrap().0,
+                    "native Undo must use grouped history"
+                );
+                window.dispatch_action(Box::new(gpui_kit::base::input::Redo), cx);
+            }
+            "probe-reset" => {
+                let edited = self.edit_probe.as_ref().unwrap().1.clone().unwrap();
+                assert_eq!(self.snapshot(Editor::Application), edited, "native Redo must restore the same edit");
+                let common = self.drafts.set(self.lang).base.clone();
+                let other_language = if self.lang == Lang::En { Lang::Ja } else { Lang::En };
+                let other = self.drafts.set(other_language).clone();
+                self.restore(Editor::Application, window, cx);
+                assert_eq!(self.drafts.set(self.lang).base, common);
+                assert_eq!(self.drafts.set(other_language), &other, "reset must not alter another language");
+                self.undo(Editor::Application, window, cx);
+                assert_eq!(self.snapshot(Editor::Application), edited, "reset must be one undoable replacement");
+                self.save(cx);
+            }
+            "probe-save-failure" => {
+                assert!(
+                    self.st.opts.mock && self.st.opts.screenshots.is_some(),
+                    "save failure probe requires isolated screenshot data"
+                );
+                let path = self.st.cfg.path().to_owned();
+                let backup = path.with_extension("probe-backup");
+                let persisted = self.st.cfg.get().prompts.clone();
+                std::fs::rename(&path, &backup).unwrap();
+                std::fs::create_dir(&path).unwrap();
+                self.instruction
+                    .update(cx, |state, cx| state.set_value("A retained draft after a failed write", window, cx));
+                self.changed(Editor::Application, cx);
+                self.save(cx);
+                let failed = self.save_error.is_some();
+                std::fs::remove_dir(&path).unwrap();
+                std::fs::rename(backup, path).unwrap();
+                assert!(failed, "failed persistence must expose an unsaved state");
+                assert_eq!(
+                    self.st.cfg.get().prompts,
+                    persisted,
+                    "failed writes must retain the last saved configuration"
+                );
+                assert_ne!(self.drafts.set(self.lang).style(&self.style), persisted.set(self.lang).style(&self.style));
+            }
+            "probe-retry" => {
+                self.save(cx);
+                assert!(self.save_error.is_none());
+                assert_eq!(self.st.cfg.get().prompts, self.drafts, "retry must save the retained draft");
+            }
             "menu" => self.menu_open = true,
+            "add-empty" => self.open_dialog(Dialog::Add, window, cx),
             "add" => {
                 self.open_dialog(Dialog::Add, window, cx);
                 self.target = installed_application("com.apple.TextEdit");
                 self.target_icon =
                     self.target.as_ref().map(|a| Arc::new(Image::from_bytes(ImageFormat::Png, a.icon_png.clone())));
             }
-            "reset" => self.open_dialog(Dialog::Reset, window, cx),
+            "reset" => self.open_dialog(Dialog::Reset(Editor::Common), window, cx),
+            "reset-app" => self.open_dialog(Dialog::Reset(Editor::Application), window, cx),
+            "history" => {
+                let key = self.history_key(Editor::Application);
+                self.histories.get_mut(&key).unwrap().checkpoint(true);
+                let initial = self.snapshot(Editor::Application);
+                self.instruction.update(cx, |state, cx| {
+                    state.set_value(
+                        format!("A revised application instruction for preview, revision {}.", self.preview_revision),
+                        window,
+                        cx,
+                    )
+                });
+                self.changed(Editor::Application, cx);
+                let edited = self.snapshot(Editor::Application);
+                self.undo(Editor::Application, window, cx);
+                assert_eq!(self.snapshot(Editor::Application), initial);
+                self.redo(Editor::Application, window, cx);
+                assert_eq!(self.snapshot(Editor::Application), edited);
+            }
+            "preview" => self.try_state = Try::Done(dito_core::i18n::sample_utterance(self.lang).into(), 420),
             "help" => ui::force_hover(&self.motion.handle(), ElementId::from("prompt-examples-help"), true),
             "herdr" => self.switch(self.lang, Style::Herdr, window, cx),
             "custom" | "removeapp" => {

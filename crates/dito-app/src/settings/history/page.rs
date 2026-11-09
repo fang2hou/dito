@@ -87,8 +87,8 @@ impl HistoryPage {
         // A config change can add or remove a configured app: drop a filter whose app is gone, and reload so the
         // labels and the Other bucket follow the new list.
         ui::observe(st.cfg.subscribe(), cx, |this: &mut Self, cfg, cx| {
-            if let Some(Style::Application(id)) = &this.style
-                && !cfg.prompts.applications.contains_key(id)
+            if let Some(style) = &this.style
+                && !cfg.prompts.profile_enabled(style)
             {
                 this.style = None;
             }
@@ -166,13 +166,7 @@ impl HistoryPage {
     /// The style filter, dropping an app selection whose app is no longer configured. It reads as All styles then,
     /// matching what the picker shows.
     pub(super) fn selected_style(&self) -> Option<Style> {
-        self.style
-            .as_ref()
-            .filter(|style| match style {
-                Style::Application(id) => self.st.cfg.get().prompts.applications.contains_key(id),
-                _ => true,
-            })
-            .cloned()
+        self.style.as_ref().filter(|style| self.st.cfg.get().prompts.profile_enabled(style)).cloned()
     }
 
     fn filter(&self) -> HistoryFilter {
@@ -189,6 +183,7 @@ impl HistoryPage {
             since_ts: since,
             style: self.selected_style(),
             configured_apps,
+            disabled_builtin_styles: self.st.cfg.get().prompts.disabled_builtin_styles.clone(),
             limit: Some(500),
         }
     }

@@ -16,7 +16,7 @@ pub fn menu_panel(id: ElementId, p: &Palette, on_close: Cb) -> Stateful<Div> {
         .p(px(6.))
         .flex()
         .flex_col()
-        .gap(px(1.))
+        .gap(px(2.))
         .rounded(px(12.))
         .bg(p.card)
         .border_1()
@@ -77,4 +77,9 @@ pub fn float<E: IntoElement + Styled + 'static>(id: ElementId, top: f32, panel: 
     div().absolute().top(px(top)).right(px(0.)).size(px(0.)).child(
         deferred(anchored().anchor(Anchor::TopRight).snap_to_window_with_margin(px(8.)).child(appear)).with_priority(1),
     )
+}
+
+/// Separators occupy layout space independently of option rows.
+pub fn menu_separator(p: &Palette) -> Div {
+    div().h(px(9.)).w_full().flex_none().py(px(4.)).child(div().h(px(1.)).w_full().bg(p.border))
 }

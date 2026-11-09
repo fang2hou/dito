@@ -53,7 +53,10 @@ pub fn history_style_label(
 ) -> SharedString {
     use dito_core::prompts::Style;
     match style {
-        Style::Slack | Style::Teams | Style::Herdr => SharedString::from(style.label().to_owned()),
+        Style::Slack | Style::Teams | Style::Herdr if prompts.profile_enabled(style) => {
+            SharedString::from(style.label().to_owned())
+        }
+        Style::Slack | Style::Teams | Style::Herdr => other_label(lang),
         Style::Application(id) => match prompts.applications.get(id) {
             Some(configured) if app.is_empty() => configured.clone().into(),
             Some(_) => app.to_owned().into(),

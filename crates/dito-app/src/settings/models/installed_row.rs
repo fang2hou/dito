@@ -140,11 +140,10 @@ impl ModelsPage {
         let id = spec.id.clone();
         let more_open = self.menu.as_deref() == Some(id.as_str());
         let id2 = id.clone();
-        let btn = ui::menu_button_sized(
+        let btn = ui::menu_button(
             SharedString::from(format!("more-{}-{id}", role::index(role))),
             p,
             Ic::MoreV,
-            20.,
             more_open,
             cbk(cx, move |this: &mut Self, _, cx| {
                 // Keep menu clicks local to the menu control.

@@ -4,19 +4,14 @@ use gpui_kit::*;
 
 use crate::settings::Ctx;
 use crate::theme::Palette;
-use crate::ui::{self, text};
+use crate::ui::{self, BtnKind, BtnSize, cbk};
 
 use super::super::Onboarding;
 
-const WELCOME_BTN_H: f32 = 50.;
 const WELCOME_LOGO_H: f32 = 103.;
 const WELCOME_TAG_H: f32 = 26.;
 const WELCOME_TAG_GAP: f32 = 14.;
 const WELCOME_GAP: f32 = 56.;
-
-fn welcome_button_w(label: &str) -> f32 {
-    (ui::text_width(label, 15., FontWeight::MEDIUM) + 80.).ceil().max(142.)
-}
 
 /// The wordmark with the health-dot (green in every theme); `ink` is the wordmark's color.
 fn welcome_logo(p: &Palette, ink: Hsla) -> Div {
@@ -41,23 +36,16 @@ pub(in crate::onboarding) fn page(_w: &Onboarding, c: &Ctx, cx: &mut Context<Onb
         p.muted,
         0.08,
     ));
-    let btn_id = ElementId::from("wizard-start");
-    let tint = if p.primary.l < 0.5 { hsla(0., 0., 1., 0.24) } else { hsla(0., 0., 0., 0.16) };
-    let button = div()
-        .id(btn_id.clone())
-        .relative()
-        .w(px(welcome_button_w(&c.t(Tr::OnboardingGetStarted))))
-        .h(px(WELCOME_BTN_H))
-        .rounded_full()
-        .bg(p.primary)
-        .flex()
-        .items_center()
-        .justify_center()
-        .cursor_pointer()
-        .on_hover(ui::hover_tracker(btn_id.clone()))
-        .child(ui::hover_fill(&btn_id, None, tint))
-        .child(text(c.t(Tr::OnboardingGetStarted), 15., FontWeight::MEDIUM, p.on_primary).line_height(relative(1.)))
-        .on_click(cx.listener(|this, _, _, cx| this.next(cx)));
+    let button = ui::button_with(
+        "wizard-start",
+        p,
+        &c.t(Tr::OnboardingGetStarted),
+        BtnKind::Primary,
+        BtnSize::Hero,
+        None,
+        None,
+        cbk(cx, |this: &mut Onboarding, _, cx| this.next(cx)),
+    );
     div()
         .size_full()
         .flex()

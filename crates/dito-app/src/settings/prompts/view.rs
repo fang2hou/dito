@@ -4,6 +4,8 @@ use super::*;
 use crate::assets::Ic;
 use crate::theme::Palette;
 use crate::ui::{BtnKind, cbk, cbk_idx, text};
+use gpui_kit::EntityInputHandler;
+use gpui_kit::base::input::{Redo, Undo};
 
 impl PromptsPage {
     pub(super) fn view(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
@@ -29,89 +31,215 @@ impl PromptsPage {
                 .gap(px(20.))
                 .child(self.base_card(&c, window, cx))
                 .child(self.style_card(&c, window, cx))
-                .child(self.try_card(&c, window, cx))
-                .child(self.actions(&c, cx)),
+                .child(self.try_card(&c, window, cx)),
         )
     }
 
-    fn actions(&self, c: &Ctx, cx: &mut Context<Self>) -> Div {
-        let p = c.p;
-        div()
-            .w_full()
-            .flex()
-            .items_center()
-            .justify_between()
-            .child(ui::button(
-                "reset-prompts",
-                &p,
-                &c.t(Tr::PromptsRestoreDefaults),
-                BtnKind::Secondary,
-                Some(Ic::Reset),
-                cbk(cx, |this: &mut Self, w, cx| this.open_dialog(Dialog::Reset, w, cx)),
-            ))
-            .child(
-                ui::button(
-                    "save-prompts",
-                    &p,
-                    &c.t(Tr::PromptsSave),
-                    BtnKind::Primary,
-                    None,
-                    cbk(cx, |this: &mut Self, _, cx| this.save(cx)),
+    fn history_actions(&self, c: &Ctx, editor: Editor, cx: &mut Context<Self>) -> Div {
+        let history = &self.histories[&self.history_key(editor)];
+        let mut actions = div().flex_none().flex().items_center().gap(px(8.));
+        for (name, glyph, label, enabled) in [
+            ("undo", Ic::Undo, Tr::AsrEditorUndo, history.can_undo()),
+            ("redo", Ic::Redo, Tr::AsrEditorRedo, history.can_redo()),
+            ("restore", Ic::Reset, Tr::PromptsRestoreDefaults, true),
+        ] {
+            let id = ElementId::from(SharedString::from(format!("prompt-{editor:?}-{name}")));
+            ui::tip_label(id.clone(), c.t(label));
+            actions = actions.child(
+                ui::icon_button_with(
+                    id.clone(),
+                    &c.p,
+                    glyph,
+                    false,
+                    ui::CircleSize::Small,
+                    cbk(cx, move |this: &mut Self, window, cx| {
+                        if !enabled {
+                            return;
+                        }
+                        match name {
+                            "undo" => this.undo(editor, window, cx),
+                            "redo" => this.redo(editor, window, cx),
+                            _ => this.open_dialog(Dialog::Reset(editor), window, cx),
+                        }
+                    }),
                 )
-                .opacity(if self.dirty { 1. } else { 0.55 }),
-            )
+                .opacity(if enabled { 1. } else { 0.35 })
+                .role(Role::Button)
+                .aria_label(c.t(label))
+                .child(ui::tip_above(&c.p, &id)),
+            );
+        }
+        actions
     }
 
-    fn base_card(&self, c: &Ctx, window: &Window, cx: &App) -> Div {
+    fn save_status(&self, c: &Ctx, editor: Editor) -> Div {
+        let saved = self.st.cfg.get();
+        let current = self.drafts.set(self.lang);
+        let persisted = saved.prompts.set(self.lang);
+        let dirty = match editor {
+            Editor::Common => current.base != persisted.base,
+            Editor::Application => current.style(&self.style) != persisted.style(&self.style),
+        };
+        let label = if dirty && self.save_error.is_some() {
+            Tr::PromptsSaveFailed
+        } else if dirty {
+            Tr::PromptsUnsaved
+        } else {
+            Tr::PromptsSaved
+        };
+        text(c.t(label), 12., FontWeight::NORMAL, c.p.muted).line_height(px(18.)).flex_none()
+    }
+
+    fn composing(&mut self, editor: Editor, window: &mut Window, cx: &mut Context<Self>) -> bool {
+        match editor {
+            Editor::Common => self.base.update(cx, |state, cx| state.marked_text_range(window, cx).is_some()),
+            Editor::Application => {
+                self.instruction.update(cx, |state, cx| state.marked_text_range(window, cx).is_some())
+                    || self
+                        .samples
+                        .iter()
+                        .any(|input| input.update(cx, |state, cx| state.marked_text_range(window, cx).is_some()))
+            }
+        }
+    }
+
+    fn base_card(&self, c: &Ctx, window: &Window, cx: &mut Context<Self>) -> Stateful<Div> {
         let p = c.p;
         ui::card(&p)
+            .id("prompt-common-card")
+            .capture_action(cx.listener(|this, _: &Undo, window, cx| {
+                if this.composing(Editor::Common, window, cx) {
+                    cx.propagate();
+                    return;
+                }
+                this.undo(Editor::Common, window, cx);
+                cx.stop_propagation();
+            }))
+            .capture_action(cx.listener(|this, _: &Redo, window, cx| {
+                if this.composing(Editor::Common, window, cx) {
+                    cx.propagate();
+                    return;
+                }
+                this.redo(Editor::Common, window, cx);
+                cx.stop_propagation();
+            }))
+            .on_mouse_down_out(cx.listener(|this, _, _, cx| this.close_group(Editor::Common, cx)))
             .px(px(22.))
             .py(px(18.))
             .gap(px(12.))
             .child(
                 div()
-                    .flex()
-                    .items_center()
-                    .gap(px(8.))
-                    .child(text(c.t(Tr::PromptsBase), 16., FontWeight::BOLD, p.text).line_height(px(24.)))
-                    .child(context_help(
-                        &p,
-                        "prompt-common-help",
-                        c.t(Tr::PromptsCommonHelp),
-                        &self.help_focus[0],
-                        window,
-                        cx,
-                    )),
-            )
-            .child(prompt_editor(&p, &self.base, window, cx, 112.))
-    }
-
-    fn style_card(&self, c: &Ctx, window: &Window, cx: &mut Context<Self>) -> Div {
-        let p = c.p;
-        let mut card = ui::card(&p)
-            .px(px(22.))
-            .py(px(18.))
-            .gap(px(12.))
-            .child(
-                div()
+                    .h(px(36.))
                     .w_full()
                     .flex()
                     .items_center()
                     .justify_between()
                     .gap(px(12.))
                     .child(
-                        text(c.t(Tr::PromptsApplicationSettings), 16., FontWeight::BOLD, p.text).line_height(px(24.)),
+                        div()
+                            .flex_1()
+                            .min_w(px(0.))
+                            .flex()
+                            .items_center()
+                            .gap(px(8.))
+                            .child(
+                                text(c.t(Tr::PromptsBase), 16., FontWeight::BOLD, p.text)
+                                    .line_height(px(24.))
+                                    .truncate(),
+                            )
+                            .child(context_help(
+                                &p,
+                                "prompt-common-help",
+                                c.t(Tr::PromptsCommonHelp),
+                                &self.help_focus[0],
+                                window,
+                                cx,
+                            ))
+                            .child(self.save_status(c, Editor::Common)),
+                    )
+                    .child(self.history_actions(c, Editor::Common, cx)),
+            )
+            .child(
+                prompt_editor(&p, &self.base, window, cx, 168.)
+                    .id("prompt-common-editor")
+                    .on_mouse_down_out(ui::blur_on_outside(self.base.read(cx).focus_handle(cx)))
+                    .on_mouse_down(MouseButton::Left, ui::focus_on_click(self.base.read(cx).focus_handle(cx)))
+                    .on_hover(cx.listener(|this, inside: &bool, _, cx| {
+                        if !*inside {
+                            this.close_group(Editor::Common, cx);
+                        }
+                    })),
+            )
+    }
+
+    fn style_card(&self, c: &Ctx, window: &Window, cx: &mut Context<Self>) -> Stateful<Div> {
+        let p = c.p;
+        let mut card = ui::card(&p)
+            .id("prompt-application-card")
+            .capture_action(cx.listener(|this, _: &Undo, window, cx| {
+                if this.composing(Editor::Application, window, cx) {
+                    cx.propagate();
+                    return;
+                }
+                this.undo(Editor::Application, window, cx);
+                cx.stop_propagation();
+            }))
+            .capture_action(cx.listener(|this, _: &Redo, window, cx| {
+                if this.composing(Editor::Application, window, cx) {
+                    cx.propagate();
+                    return;
+                }
+                this.redo(Editor::Application, window, cx);
+                cx.stop_propagation();
+            }))
+            .on_mouse_down_out(cx.listener(|this, _, _, cx| this.close_group(Editor::Application, cx)))
+            .px(px(22.))
+            .py(px(18.))
+            .gap(px(12.))
+            .child(
+                div()
+                    .h(px(36.))
+                    .w_full()
+                    .flex()
+                    .items_center()
+                    .justify_between()
+                    .gap(px(12.))
+                    .child(
+                        div()
+                            .flex_1()
+                            .min_w(px(0.))
+                            .flex()
+                            .items_center()
+                            .gap(px(8.))
+                            .child(
+                                text(c.t(Tr::PromptsApplicationSettings), 16., FontWeight::BOLD, p.text)
+                                    .line_height(px(24.))
+                                    .truncate(),
+                            )
+                            .child(self.save_status(c, Editor::Application)),
                     )
                     .child(
                         div()
                             .flex()
                             .items_center()
                             .gap(px(8.))
-                            .child(self.application_picker(c, cx, false))
-                            .children(self.remove_app_control(c, cx)),
+                            .flex_none()
+                            .child(self.history_actions(c, Editor::Application, cx))
+                            .children(self.remove_app_control(c, cx))
+                            .child(self.application_picker(c, cx, false)),
                     ),
             )
-            .child(prompt_editor(&p, &self.instruction, window, cx, 96.))
+            .child(
+                prompt_editor(&p, &self.instruction, window, cx, 144.)
+                    .id("prompt-application-editor")
+                    .on_mouse_down_out(ui::blur_on_outside(self.instruction.read(cx).focus_handle(cx)))
+                    .on_mouse_down(MouseButton::Left, ui::focus_on_click(self.instruction.read(cx).focus_handle(cx)))
+                    .on_hover(cx.listener(|this, inside: &bool, _, cx| {
+                        if !*inside {
+                            this.close_group(Editor::Application, cx);
+                        }
+                    })),
+            )
             .child(
                 div()
                     .w_full()
@@ -144,7 +272,7 @@ impl PromptsPage {
                             let input = this.sample_input("", w, cx);
                             input.read(cx).focus_handle(cx).focus(w, cx);
                             this.samples.push(input);
-                            this.changed();
+                            this.changed(Editor::Application, cx);
                             cx.notify();
                         }),
                     )),
@@ -167,7 +295,7 @@ impl PromptsPage {
                         cbk(cx, move |this: &mut Self, _, cx| {
                             if i < this.samples.len() {
                                 this.samples.remove(i);
-                                this.changed();
+                                this.changed(Editor::Application, cx);
                                 cx.notify();
                             }
                         }),
@@ -233,7 +361,15 @@ impl PromptsPage {
                             .flex_col()
                             .gap(px(6.))
                             .child(ui::muted12(&p, c.t(Tr::MenubarWhatYouSaid)))
-                            .child(prompt_editor(&p, &self.try_in, window, cx, 90.)),
+                            .child(
+                                prompt_editor(&p, &self.try_in, window, cx, 135.)
+                                    .id("prompt-preview-input")
+                                    .on_mouse_down_out(ui::blur_on_outside(self.try_in.read(cx).focus_handle(cx)))
+                                    .on_mouse_down(
+                                        MouseButton::Left,
+                                        ui::focus_on_click(self.try_in.read(cx).focus_handle(cx)),
+                                    ),
+                            ),
                     )
                     .child(
                         div()
@@ -253,7 +389,7 @@ impl PromptsPage {
                             .child(
                                 div()
                                     .w_full()
-                                    .min_h(px(90.))
+                                    .min_h(px(135.))
                                     .px(px(12.))
                                     .py(px(10.))
                                     .rounded(px(12.))
@@ -275,6 +411,8 @@ fn prompt_editor(p: &Palette, ent: &Entity<TextareaState>, window: &Window, cx: 
             .bordered(false)
             .h_full()
             .text_size(px(13.))
+            .font_weight(FontWeight::NORMAL)
+            .line_height(px(20.))
             .pl(px(11.))
             .pr(px(11.))
             .pt(px(9.))
