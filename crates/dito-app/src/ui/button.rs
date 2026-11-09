@@ -26,6 +26,7 @@ pub enum BtnKind {
 pub enum BtnSize {
     Regular,
     Large,
+    Hero,
 }
 
 struct BtnColors {
@@ -76,20 +77,21 @@ pub fn button_with(
     trail: Option<Ic>,
     on_click: Cb,
 ) -> Stateful<Div> {
-    button_impl(id, p, label, kind, size, lead, trail, None, on_click)
+    button_impl(id, p, label, kind, size, lead, trail, Some(on_click))
 }
 
-/// A regular button with an optically adjusted leading glyph.
-pub fn button_with_icon_size(
+/// Disabled controls share their label, icon and width calculation with active buttons, without hover or clicks.
+#[allow(clippy::too_many_arguments)]
+pub fn disabled_button(
     id: impl Into<ElementId>,
     p: &Palette,
     label: &str,
     kind: BtnKind,
-    icon: Ic,
-    glyph_size: f32,
-    on_click: Cb,
+    size: BtnSize,
+    lead: Option<Ic>,
+    trail: Option<Ic>,
 ) -> Stateful<Div> {
-    button_impl(id, p, label, kind, BtnSize::Regular, Some(icon), None, Some(glyph_size), on_click)
+    button_impl(id, p, label, kind, size, lead, trail, None)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -101,15 +103,14 @@ fn button_impl(
     size: BtnSize,
     lead: Option<Ic>,
     trail: Option<Ic>,
-    glyph_size: Option<f32>,
-    on_click: Cb,
+    on_click: Option<Cb>,
 ) -> Stateful<Div> {
-    let (h, pad, label_size) = match size {
-        BtnSize::Regular => (CONTROL_H, 16., 13.),
-        BtnSize::Large => (40., 22., 14.),
+    let (h, pad, label_size, lead_size, trail_size) = match size {
+        BtnSize::Regular => (CONTROL_H, 16., 13., 16., 14.),
+        BtnSize::Large => (40., 22., 14., 18., 16.),
+        BtnSize::Hero => (50., 40., 15., 20., 18.),
     };
     let BtnColors { bg, fg, border, tint } = BtnColors::of(p, kind, size);
-    let icon_size = glyph_size.unwrap_or(if kind == BtnKind::Download { 16. } else { 14. });
     let id: ElementId = id.into();
     let mut el = div()
         .id(id.clone())
@@ -121,113 +122,136 @@ fn button_impl(
         .gap(px(8.))
         .relative()
         .rounded_full()
-        .bg(bg)
-        .cursor_pointer()
-        .on_click(click_cb(on_click))
-        .on_hover(hover_tracker(id.clone()))
-        .child(hover_fill(&id, None, tint));
+        .bg(bg);
+    if let Some(on_click) = on_click {
+        el = el
+            .cursor_pointer()
+            .on_click(click_cb(on_click))
+            .on_hover(hover_tracker(id.clone()))
+            .child(hover_fill(&id, None, tint));
+    }
     if let Some(b) = border {
         el = el.border_1().border_color(b);
     }
     if let Some(ic) = lead {
-        el = el.child(icon(ic, icon_size, fg));
+        el = el.child(icon(ic, lead_size, fg));
     }
     let tracking = if size == BtnSize::Regular { 0.05 } else { 0.04 };
     el = el.child(text_tracked(label, label_size, FontWeight::MEDIUM, fg, tracking));
     if let Some(ic) = trail {
-        el = el.child(icon(ic, icon_size, fg));
+        el = el.child(icon(ic, trail_size, fg));
     }
     el
 }
 
 /// Circular icon button (copy, ⋮ ...).
 pub fn icon_button(id: impl Into<ElementId>, p: &Palette, ic: Ic, active: bool, on_click: Cb) -> Stateful<Div> {
-    icon_button_sized(id, p, ic, active, 16., on_click)
+    icon_button_with(id, p, ic, active, CircleSize::Regular, on_click)
 }
 
-/// A circular action with a context-specific optical glyph size.
-pub fn icon_button_sized(
+/// The approved circle and glyph pairs from 11.05.6.
+#[derive(Clone, Copy)]
+pub enum CircleSize {
+    Compact,
+    Small,
+    Regular,
+    #[expect(dead_code, reason = "Approved 40/22 template, reserved for large circular actions")]
+    Large,
+}
+
+impl CircleSize {
+    pub const fn dimensions(self) -> (f32, f32) {
+        match self {
+            Self::Compact => (24., 14.),
+            Self::Small => (32., 18.),
+            Self::Regular => (36., 20.),
+            Self::Large => (40., 22.),
+        }
+    }
+}
+
+/// A circular action with a fixed control-to-glyph ratio.
+pub fn icon_button_with(
     id: impl Into<ElementId>,
     p: &Palette,
     ic: Ic,
     active: bool,
-    glyph_size: f32,
+    size: CircleSize,
     on_click: Cb,
 ) -> Stateful<Div> {
-    let id: ElementId = id.into();
-    div()
-        .id(id.clone())
-        .size(px(CONTROL_H))
-        .flex()
-        .items_center()
-        .justify_center()
-        .relative()
-        .rounded_full()
-        .border_1()
-        .border_color(p.border_strong)
-        .when(active, |d| d.bg(p.seg))
-        .cursor_pointer()
-        .on_click(click_cb(on_click))
-        .on_hover(hover_tracker(id.clone()))
-        .child(hover_fill(&id, None, p.seg))
-        .child(icon(ic, glyph_size, p.text))
+    circle_control(
+        id,
+        ic,
+        size,
+        CircleAppearance {
+            background: active.then_some(p.seg),
+            foreground: p.text,
+            border: Some(p.border_strong),
+            hover: Some(p.seg),
+        },
+    )
+    .cursor_pointer()
+    .on_click(click_cb(on_click))
 }
 
-/// Circular destructive action (remove this app's settings): red glyph and border on the surface.
-pub fn danger_icon_button(id: impl Into<ElementId>, p: &Palette, ic: Ic, on_click: Cb) -> Stateful<Div> {
-    let id: ElementId = id.into();
-    div()
+/// Appearance changes by semantic role; geometry and hover behavior stay shared.
+pub struct CircleAppearance {
+    pub background: Option<Hsla>,
+    pub foreground: Hsla,
+    pub border: Option<Hsla>,
+    pub hover: Option<Hsla>,
+}
+
+pub fn circle_control(
+    id: impl Into<ElementId>,
+    ic: Ic,
+    size: CircleSize,
+    appearance: CircleAppearance,
+) -> Stateful<Div> {
+    let id = id.into();
+    let (diameter, glyph) = size.dimensions();
+    let mut control = div()
         .id(id.clone())
-        .size(px(CONTROL_H))
+        .size(px(diameter))
         .flex_none()
+        .relative()
         .flex()
         .items_center()
         .justify_center()
-        .relative()
         .rounded_full()
-        .bg(p.button_danger_bg)
-        .border_1()
-        .border_color(p.button_danger_border)
-        .cursor_pointer()
-        .on_click(click_cb(on_click))
-        .on_hover(hover_tracker(id.clone()))
-        .child(hover_fill(&id, None, p.button_danger_hover))
-        .child(icon(ic, 16., p.button_danger_text))
+        .on_hover(hover_tracker(id.clone()));
+    if let Some(background) = appearance.background {
+        control = control.bg(background);
+    }
+    if let Some(border) = appearance.border {
+        control = control.border_1().border_color(border);
+    }
+    if let Some(hover) = appearance.hover {
+        control = control.child(hover_fill(&id, None, hover));
+    }
+    control.child(icon(ic, glyph, appearance.foreground))
 }
 
-/// The dialog close button: a cross that gets a surface on hover.
+/// The dialog close button uses the same Small circle geometry as other controls.
 pub fn close_button(id: impl Into<ElementId>, p: &Palette, on_click: Cb) -> Stateful<Div> {
-    let id: ElementId = id.into();
-    div()
-        .id(id.clone())
-        .size(px(32.))
-        .flex_none()
-        .flex()
-        .items_center()
-        .justify_center()
-        .relative()
-        .rounded_full()
-        .cursor_pointer()
-        .on_click(click_cb(on_click))
-        .on_hover(hover_tracker(id.clone()))
-        .child(hover_fill(&id, None, p.sub))
-        .child(icon(Ic::X, 24., p.text))
+    circle_control(
+        id,
+        Ic::X,
+        CircleSize::Small,
+        CircleAppearance { background: None, foreground: p.text, border: None, hover: Some(p.sub) },
+    )
+    .cursor_pointer()
+    .on_click(click_cb(on_click))
 }
 
-/// Plain (borderless) icon button, e.g. the × beside a sample row.
+/// Plain circular action with a muted foreground.
 pub fn bare_icon_button(id: impl Into<ElementId>, p: &Palette, ic: Ic, on_click: Cb) -> Stateful<Div> {
-    let id: ElementId = id.into();
-    div()
-        .id(id.clone())
-        .size(px(CONTROL_H))
-        .flex()
-        .items_center()
-        .justify_center()
-        .relative()
-        .rounded_full()
-        .cursor_pointer()
-        .on_click(click_cb(on_click))
-        .on_hover(hover_tracker(id.clone()))
-        .child(hover_fill(&id, None, p.seg))
-        .child(icon(ic, 16., p.muted))
+    circle_control(
+        id,
+        ic,
+        CircleSize::Regular,
+        CircleAppearance { background: None, foreground: p.muted, border: None, hover: Some(p.seg) },
+    )
+    .cursor_pointer()
+    .on_click(click_cb(on_click))
 }

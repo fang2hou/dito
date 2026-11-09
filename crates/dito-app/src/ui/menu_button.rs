@@ -1,10 +1,8 @@
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
-use super::button::CONTROL_H;
+use super::button::{CircleAppearance, CircleSize, circle_control};
 use super::callbacks::Cb;
-use super::hover::{hover_fill, hover_tracker};
-use super::primitives::icon;
 use super::scope::{ScopeHandle, motion_scope};
 use crate::assets::Ic;
 use crate::theme::Palette;
@@ -49,37 +47,22 @@ pub(super) fn press_toggle(
 
 /// Circular ⋮-style button that opens a menu: like [`icon_button`], but a press while the menu is open closes it.
 pub fn menu_button(id: impl Into<ElementId>, p: &Palette, ic: Ic, open: bool, toggle: Cb) -> Stateful<Div> {
-    menu_button_sized(id, p, ic, 16., open, toggle)
-}
-
-/// Circular menu control with a context-specific optical icon size.
-pub fn menu_button_sized(
-    id: impl Into<ElementId>,
-    p: &Palette,
-    ic: Ic,
-    icon_size: f32,
-    open: bool,
-    toggle: Cb,
-) -> Stateful<Div> {
     let id: ElementId = id.into();
     let scope = motion_scope();
-    div()
-        .id(id.clone())
-        .size(px(CONTROL_H))
-        .flex()
-        .items_center()
-        .justify_center()
-        .rounded_full()
-        .border_1()
-        .border_color(p.border_strong)
-        .bg(if open { p.seg } else { p.card })
-        .cursor_pointer()
-        .on_mouse_down(MouseButton::Left, press_mark(scope.clone(), id.clone(), open))
-        .on_click(press_toggle(scope, id.clone(), toggle))
-        .on_hover(hover_tracker(id.clone()))
-        .relative()
-        .child(hover_fill(&id, None, p.seg))
-        .child(icon(ic, icon_size, p.text))
+    circle_control(
+        id.clone(),
+        ic,
+        CircleSize::Regular,
+        CircleAppearance {
+            background: Some(if open { p.seg } else { p.card }),
+            foreground: p.text,
+            border: Some(p.border_strong),
+            hover: Some(p.seg),
+        },
+    )
+    .cursor_pointer()
+    .on_mouse_down(MouseButton::Left, press_mark(scope.clone(), id.clone(), open))
+    .on_click(press_toggle(scope, id, toggle))
 }
 
 #[cfg(test)]

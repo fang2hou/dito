@@ -107,23 +107,26 @@ impl RenderOnce for TextInput {
             if let Some(ic) = leading {
                 d = d.child(icon(ic, 14., p.muted));
             }
-            d.child(
-                div()
-                    .flex_1()
-                    .min_w(px(0.))
-                    // Match the select's 13 px label: the component's own sizing (text_sm) runs first,
-                    // this refinement wins. Its built-in horizontal padding folds into the chrome's
-                    // 12 px inset instead of stacking on top of it.
-                    .child(
-                        Input::new(&state)
-                            .appearance(false)
-                            .bordered(false)
-                            .focus_bordered(false)
-                            .text_size(px(13.))
-                            .pl(px(0.))
-                            .pr(px(0.)),
-                    ),
-            )
+            d.id(("input-shell", state.entity_id().as_u64() as usize))
+                .on_mouse_down_out(blur_on_outside(state.read(cx).focus_handle(cx)))
+                .on_mouse_down(MouseButton::Left, focus_on_click(state.read(cx).focus_handle(cx)))
+                .child(
+                    div()
+                        .flex_1()
+                        .min_w(px(0.))
+                        // Match the select's 13 px label: the component's own sizing (text_sm) runs first,
+                        // this refinement wins. Its built-in horizontal padding folds into the chrome's
+                        // 12 px inset instead of stacking on top of it.
+                        .child(
+                            Input::new(&state)
+                                .appearance(false)
+                                .bordered(false)
+                                .focus_bordered(false)
+                                .text_size(px(13.))
+                                .pl(px(0.))
+                                .pr(px(0.)),
+                        ),
+                )
         })
     }
 }
@@ -136,4 +139,23 @@ pub fn field(p: &Palette, label: impl Into<SharedString>, control: impl IntoElem
 /// A connection-form field: a quieter caption above a [`TextInput::form`] control.
 pub fn form_field(p: &Palette, label: impl Into<SharedString>, control: impl IntoElement) -> Div {
     div().flex().flex_col().gap(px(8.)).child(text(label, 13., FontWeight::NORMAL, p.muted)).child(control)
+}
+
+/// Clicking outside a focused field dismisses editing without intercepting the next control's click.
+pub fn blur_on_outside(focus: FocusHandle) -> impl Fn(&MouseDownEvent, &mut Window, &mut App) + 'static {
+    move |_, window, cx| {
+        if focus.contains_focused(window, cx) {
+            window.blur(cx);
+            window.refresh();
+        }
+    }
+}
+
+/// Chrome padding belongs to its field too; inner input handlers retain text selection behavior.
+pub fn focus_on_click(focus: FocusHandle) -> impl Fn(&MouseDownEvent, &mut Window, &mut App) + 'static {
+    move |_, window, cx| {
+        focus.focus(window, cx);
+        window.refresh();
+        cx.stop_propagation();
+    }
 }

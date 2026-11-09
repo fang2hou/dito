@@ -9,14 +9,14 @@ use dito_core::i18n::{Lang, Tr};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
-use crate::assets::HudIc;
+use crate::assets::Ic;
 use crate::hud::buttons::BTN;
 use crate::hud::capsule::{CAPSULE_H, CAPSULE_PAD, CAPSULE_W};
 use crate::hud::elevation::{self, Elevation};
 use crate::hud::window::{WIN_PAD, WIN_W};
 use crate::hud::{Scale, px, tx};
 use crate::theme::{self, Palette};
-use crate::ui::{self, hud_icon, text};
+use crate::ui::{self, icon, text};
 
 use super::clock::{COUNTDOWN_FADE_S, COUNTDOWN_START_S};
 use super::layout::{CAPSULE_TOP, ERROR_BUBBLE_H, ZONE_GAP};
@@ -104,7 +104,7 @@ impl HudView {
         if let Some(pill) = ui::hover_pop(ElementId::from("hud-stop-pill"), pill_on, || {
             self.pill("hud-stop", p)
                 .on_click(cx.listener(|this, _, _, _| this.send(Command::Stop)))
-                .child(hud_icon(HudIc::Stop, tx(11.), theme::hud_stop_ink(p)))
+                .child(icon(Ic::Stop, tx(11.), theme::hud_stop_ink(p)))
                 .child(text(lang.tr(Tr::HudStop).to_string(), tx(12.), FontWeight::NORMAL, theme::hud_stop_ink(p)))
         }) {
             zone = zone.child(pill);

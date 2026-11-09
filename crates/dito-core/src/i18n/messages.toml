@@ -229,7 +229,6 @@ dictionary.no_hotword_support = { ja = "現在のモデルはホットワード�
 # --- prompts page -------------------------------------------------------------
 prompts.base = { ja = "共通ルール", en = "Common rules", zh = "通用规则" }
 prompts.examples = { ja = "書き方の例（任意）", en = "Writing examples (optional)", zh = "写法示例（可选）" }
-prompts.save = { ja = "保存", en = "Save", zh = "保存" }
 prompts.restore_defaults = { ja = "初期設定に戻す", en = "Restore defaults", zh = "恢复默认" }
 prompts.try_it = { ja = "整形を試す", en = "Try polishing", zh = "试试润色" }
 prompts.applied_first = { ja = "すべてのスタイルで最初に適用", en = "Applied first to every style", zh = "所有风格都会先应用" }
@@ -385,7 +384,12 @@ prompts.application_settings = { ja = "アプリ別の設定", en = "App setting
 prompts.add_application = { ja = "アプリを追加…", en = "Add application\u2026", zh = "添加应用…" }
 prompts.add_title = { ja = "アプリ別の書き方を追加", en = "Add app writing settings", zh = "添加应用写法" }
 prompts.target_application = { ja = "対象のアプリ", en = "Application", zh = "目标应用" }
-prompts.choose_application = { ja = "アプリを選ぶ…", en = "Choose application\u2026", zh = "选择应用…" }
+prompts.choose_application = { ja = "アプリを選ぶ", en = "Choose application", zh = "选择应用" }
+prompts.change_application = { ja = "変更", en = "Change", zh = "更改" }
+prompts.unselected = { ja = "未選択", en = "Unselected", zh = "未选择" }
+prompts.saved = { ja = "保存済み", en = "Saved", zh = "已保存" }
+prompts.unsaved = { ja = "未保存", en = "Unsaved", zh = "未保存" }
+prompts.save_failed = { ja = "保存できませんでした", en = "Could not save", zh = "保存失败" }
 prompts.copy_from = { ja = "設定のコピー元", en = "Copy settings from", zh = "复制已有设置" }
 prompts.add_confirm = { ja = "追加する", en = "Add", zh = "添加" }
 prompts.add_example = { ja = "例を追加", en = "Add example", zh = "添加范例" }
@@ -394,8 +398,6 @@ prompts.common_help = { ja = "すべてのアプリに適用する基本のル�
 prompts.examples_help = { ja = "普段の文章を加えると、語尾や言い回しをあなたらしく整えやすくなります。例の内容は出力に追加されません。", en = "Add sentences you normally write to guide tone and phrasing. Their content is never added to the output.", zh = "添加日常写的句子，帮助贴近你的语气和表达。范例内容不会添加到输出中。" }
 prompts.preview_placeholder = { ja = "ここに仕上がりが表示されます。", en = "The polished text will appear here.", zh = "润色结果将显示在这里。" }
 prompts.reset_title = { ja = "初期設定に戻しますか？", en = "Restore default settings?", zh = "恢复默认设置？" }
-prompts.reset_scope = { ja = "すべての言語の共通ルール、アプリ一覧、アプリ別の書き方と例を初期状態に戻します。", en = "Restore common rules, the app list, app writing settings and examples for every language.", zh = "恢复所有语言的通用规则、应用列表、应用写法和范例。" }
-prompts.reset_apps = { ja = "個別で追加したアプリ設定も削除されます。", en = "Custom app settings will also be removed.", zh = "自行添加的应用设置也会删除。" }
 prompts.application_error = { ja = "アプリを選択できませんでした。もう一度選んでください。", en = "Could not read this application. Choose it again.", zh = "无法读取此应用，请重新选择。" }
 prompts.application_duplicate = { ja = "このアプリはすでに設定されています。", en = "This app already has writing settings.", zh = "此应用已经有专用设置。" }
 prompts.remove_application = { ja = "アプリの設定を削除", en = "Remove app settings", zh = "删除应用设置" }
@@ -443,3 +445,13 @@ zh = "剩余约 {n} 分钟"
 ja = "「{app}」の書き方、例、表示名を削除します。"
 en = "Delete the writing rules, examples and display name for “{app}”."
 zh = "将删除“{app}”的写法、范例和显示名。"
+
+[fmt.reset_common_scope]
+ja = "{language}の共通ルールを初期設定に戻します。"
+en = "Restore the default common rules for {language}."
+zh = "恢复{language}的默认通用规则。"
+
+[fmt.reset_app_scope]
+ja = "「{app}」の{language}の書き方と例を初期設定に戻します。"
+en = "Restore the default {language} writing rules and examples for {app}."
+zh = "恢复“{app}”的{language}默认写法和范例。"

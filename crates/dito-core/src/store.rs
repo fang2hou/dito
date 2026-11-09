@@ -79,6 +79,7 @@ pub struct HistoryFilter {
     /// built-in styles is Other. Removing an app therefore sends its past entries to Other, and adding it back
     /// restores them without rewriting history.
     pub configured_apps: Vec<(String, String)>,
+    pub disabled_builtin_styles: Vec<Style>,
     pub limit: Option<usize>,
 }
 
@@ -228,7 +229,20 @@ impl Store {
                 // of the configured app names. The name check keeps entries recorded before the app was configured
                 // (or under another bundle id) with their app.
                 Style::General => {
-                    let mut clause = String::from("style NOT IN ('slack', 'teams', 'herdr')");
+                    let active: Vec<_> = [Style::Slack, Style::Teams, Style::Herdr]
+                        .into_iter()
+                        .filter(|style| {
+                            !f.disabled_builtin_styles.contains(style)
+                                || f.configured_apps.iter().any(|(_, id)| Style::for_bundle_id(id) == *style)
+                        })
+                        .collect();
+                    let mut clause = String::from("1 = 1");
+                    if !active.is_empty() {
+                        let first = args.len() + 1;
+                        let marks: Vec<_> = (0..active.len()).map(|i| format!("?{}", first + i)).collect();
+                        args.extend(active.into_iter().map(|style| encode(style).into()));
+                        clause.push_str(&format!(" AND style NOT IN ({})", marks.join(", ")));
+                    }
                     if !f.configured_apps.is_empty() {
                         let first = args.len() + 1;
                         let id_marks: Vec<String> =
@@ -259,18 +273,25 @@ impl Store {
                 Style::Application(id) => {
                     let name = f.configured_apps.iter().find(|(_, app_id)| app_id == id).map(|(n, _)| n.clone());
                     let first = args.len() + 1;
-                    match name.filter(|n| !n.is_empty()) {
-                        Some(name) => {
-                            args.push(encode(style.clone()).into());
-                            args.push(name.into());
-                            sql.push_str(&format!(
+                    let builtin = Style::for_bundle_id(id);
+                    if !matches!(builtin, Style::Application(_) | Style::General) {
+                        args.push(encode(style.clone()).into());
+                        args.push(encode(builtin).into());
+                        sql.push_str(&format!(" AND (style = ?{first} OR style = ?{})", first + 1));
+                    } else {
+                        match name.filter(|n| !n.is_empty()) {
+                            Some(name) => {
+                                args.push(encode(style.clone()).into());
+                                args.push(name.into());
+                                sql.push_str(&format!(
                                 " AND (style = ?{first} OR (app = ?{} AND style NOT IN ('slack', 'teams', 'herdr')))",
                                 first + 1
                             ));
-                        }
-                        None => {
-                            sql.push_str(&format!(" AND style = ?{first}"));
-                            args.push(encode(style.clone()).into());
+                            }
+                            None => {
+                                sql.push_str(&format!(" AND style = ?{first}"));
+                                args.push(encode(style.clone()).into());
+                            }
                         }
                     }
                 }
@@ -447,6 +468,24 @@ mod tests {
         assert_eq!(recent.len(), 1);
         let styled = s.list_history(&HistoryFilter { style: Some(Style::Slack), ..Default::default() }).unwrap();
         assert_eq!(styled[0].raw, "new");
+    }
+
+    #[test]
+    fn removing_and_readding_builtin_profiles_reclassifies_history_without_deleting_it() {
+        let store = Store::open_in_memory().unwrap();
+        let mut recorded = entry(10, "Herdr", "ja", "preserved", None);
+        recorded.style = Style::Herdr;
+        store.add_history(&recorded).unwrap();
+        let mut filter = HistoryFilter {
+            style: Some(Style::General),
+            disabled_builtin_styles: vec![Style::Herdr],
+            ..Default::default()
+        };
+        assert_eq!(store.list_history(&filter).unwrap().len(), 1);
+        filter.configured_apps.push(("Agent work".into(), "dev.herdr.app".into()));
+        assert!(store.list_history(&filter).unwrap().is_empty());
+        filter.style = Some(Style::Application("dev.herdr.app".into()));
+        assert_eq!(store.list_history(&filter).unwrap()[0].raw, "preserved");
     }
 
     #[test]

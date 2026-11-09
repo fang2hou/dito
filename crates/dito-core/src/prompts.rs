@@ -88,6 +88,8 @@ pub struct PromptSet {
     pub teams: StylePrompt,
     pub herdr: StylePrompt,
     pub applications: BTreeMap<String, StylePrompt>,
+    /// Creation-time templates for scoped Restore defaults. Legacy profiles use the built-in Other template.
+    pub application_defaults: BTreeMap<String, StylePrompt>,
 }
 
 impl PromptSet {
@@ -118,6 +120,7 @@ pub struct Prompts {
     pub en: PromptSet,
     pub zh: PromptSet,
     pub applications: BTreeMap<String, String>,
+    pub disabled_builtin_styles: Vec<Style>,
 }
 
 impl<'de> Deserialize<'de> for Prompts {
@@ -132,6 +135,8 @@ impl<'de> Deserialize<'de> for Prompts {
             zh: PromptSet,
             #[serde(default)]
             applications: BTreeMap<String, String>,
+            #[serde(default)]
+            disabled_builtin_styles: Vec<Style>,
         }
         fn ja_defaults() -> PromptSet {
             default_set(Lang::Ja)
@@ -154,7 +159,13 @@ impl<'de> Deserialize<'de> for Prompts {
             }
         }
         let saved: Saved = serde_json::from_value(value).map_err(serde::de::Error::custom)?;
-        Ok(Self { ja: saved.ja, en: saved.en, zh: saved.zh, applications: saved.applications })
+        Ok(Self {
+            ja: saved.ja,
+            en: saved.en,
+            zh: saved.zh,
+            applications: saved.applications,
+            disabled_builtin_styles: saved.disabled_builtin_styles,
+        })
     }
 }
 
@@ -165,6 +176,7 @@ impl Default for Prompts {
             en: default_set(Lang::En),
             zh: default_set(Lang::Zh),
             applications: BTreeMap::new(),
+            disabled_builtin_styles: Vec::new(),
         }
     }
 }
@@ -187,7 +199,13 @@ impl Prompts {
     }
 
     pub fn for_application(&self, bundle_id: &str) -> Style {
+        if self.applications.contains_key(bundle_id) {
+            return Style::Application(bundle_id.to_owned());
+        }
         let style = Style::for_bundle_id(bundle_id);
+        if self.disabled_builtin_styles.contains(&style) {
+            return Style::General;
+        }
         if matches!(style, Style::Application(_)) && !self.applications.contains_key(bundle_id) {
             Style::General
         } else {
@@ -198,13 +216,15 @@ impl Prompts {
     /// Copy app-specific settings across languages without linking them to the source.
     pub fn add_application(&mut self, bundle_id: &str, name: &str, source: &Style) -> bool {
         if bundle_id.is_empty()
-            || !matches!(Style::for_bundle_id(bundle_id), Style::Application(_))
+            || (!matches!(Style::for_bundle_id(bundle_id), Style::Application(_))
+                && !self.disabled_builtin_styles.contains(&Style::for_bundle_id(bundle_id)))
             || self.applications.contains_key(bundle_id)
         {
             return false;
         }
         for lang in Lang::ALL {
             let copy = self.set(lang).style(source).clone();
+            self.set_mut(lang).application_defaults.insert(bundle_id.to_owned(), copy.clone());
             self.set_mut(lang).applications.insert(bundle_id.to_owned(), copy);
         }
         self.applications.insert(bundle_id.to_owned(), name.to_owned());
@@ -218,8 +238,36 @@ impl Prompts {
         let removed = self.applications.remove(bundle_id).is_some();
         for lang in Lang::ALL {
             self.set_mut(lang).applications.remove(bundle_id);
+            self.set_mut(lang).application_defaults.remove(bundle_id);
         }
         removed
+    }
+
+    pub fn remove_profile(&mut self, style: &Style) -> bool {
+        match style {
+            Style::General => false,
+            Style::Application(id) => self.remove_application(id),
+            _ if self.disabled_builtin_styles.contains(style) => false,
+            _ => {
+                self.disabled_builtin_styles.push(style.clone());
+                true
+            }
+        }
+    }
+
+    pub fn profile_enabled(&self, style: &Style) -> bool {
+        match style {
+            Style::Application(id) => self.applications.contains_key(id),
+            _ => !self.disabled_builtin_styles.contains(style),
+        }
+    }
+
+    /// Restore only this editor's rules; app identity and other languages stay intact.
+    pub fn default_style(&self, lang: Lang, style: &Style) -> StylePrompt {
+        if let Style::Application(id) = style {
+            return self.set(lang).application_defaults.get(id).cloned().unwrap_or_else(|| default_set(lang).general);
+        }
+        default_set(lang).style(style).clone()
     }
 
     pub fn reset_all(&mut self) {
@@ -250,6 +298,7 @@ pub fn default_set(lang: Lang) -> PromptSet {
                 &[],
             ),
             applications: BTreeMap::new(),
+            application_defaults: BTreeMap::new(),
         },
         Lang::En => PromptSet {
             base: "You are a polishing assistant for dictated text. Rewrite what was spoken as natural written text.\n\
@@ -269,6 +318,7 @@ pub fn default_set(lang: Lang) -> PromptSet {
                 &[],
             ),
             applications: BTreeMap::new(),
+            application_defaults: BTreeMap::new(),
         },
         Lang::Zh => PromptSet {
             base: "你是语音输入的润色助手。请把口述内容整理成自然的书面文字。\n\
@@ -285,6 +335,7 @@ pub fn default_set(lang: Lang) -> PromptSet {
                 &[],
             ),
             applications: BTreeMap::new(),
+            application_defaults: BTreeMap::new(),
         },
     }
 }
@@ -480,6 +531,40 @@ mod tests {
         loaded.reset_all();
         assert_eq!(loaded, Prompts::default());
         assert_eq!(loaded.for_application("example.editor"), Style::General);
+    }
+
+    #[test]
+    fn deleting_builtin_profiles_falls_back_and_readding_copies_a_new_template() {
+        let mut prompts = Prompts::default();
+        assert!(prompts.remove_profile(&Style::Teams));
+        assert_eq!(prompts.for_application("com.microsoft.teams"), Style::General);
+        assert_eq!(prompts.for_application("com.microsoft.teams2"), Style::General);
+        let mut loaded: Prompts = toml::from_str(&toml::to_string(&prompts).unwrap()).unwrap();
+        assert!(!loaded.profile_enabled(&Style::Teams));
+        assert!(loaded.add_application("com.microsoft.teams2", "Team chat", &Style::Slack));
+        let style = loaded.for_application("com.microsoft.teams2");
+        assert_eq!(loaded.ja.style(&style), &loaded.ja.slack);
+        assert_eq!(loaded.default_style(Lang::En, &style), loaded.en.slack);
+        assert!(loaded.profile_enabled(&style));
+    }
+
+    #[test]
+    fn application_defaults_survive_roundtrip_and_legacy_edits_remain_intact() {
+        let mut prompts = Prompts::default();
+        prompts.ja.slack.instruction = "creation template".into();
+        prompts.add_application("example.editor", "Editor", &Style::Slack);
+        let app = prompts.for_application("example.editor");
+        prompts.ja.style_mut(&app).instruction = "edited afterwards".into();
+        let loaded: Prompts = toml::from_str(&toml::to_string(&prompts).unwrap()).unwrap();
+        assert_eq!(loaded.default_style(Lang::Ja, &app).instruction, "creation template");
+        assert_eq!(loaded.ja.style(&app).instruction, "edited afterwards");
+        let mut legacy = serde_json::to_value(&prompts).unwrap();
+        for lang in ["ja", "en", "zh"] {
+            legacy[lang].as_object_mut().unwrap().remove("application_defaults");
+        }
+        let loaded: Prompts = serde_json::from_value(legacy).unwrap();
+        assert_eq!(loaded.ja.style(&app).instruction, "edited afterwards");
+        assert_eq!(loaded.default_style(Lang::Ja, &app), default_set(Lang::Ja).general);
     }
 
     #[test]

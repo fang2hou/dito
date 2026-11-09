@@ -77,6 +77,9 @@ async fn render_app_shots(st: &Arc<AppState>, dir: &Path, groups: &Groups, cx: &
     if groups.selects("promptmotion") {
         pages::prompt_motion_shots(st, dir, cx).await;
     }
+    if groups.selects("promptediting") {
+        pages::prompt_editing_shots(st, dir, cx).await;
+    }
     if groups.selects("prompts") {
         pages::prompt_shots(st, dir, cx).await;
     }

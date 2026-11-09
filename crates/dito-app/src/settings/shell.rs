@@ -107,7 +107,7 @@ impl Settings {
             Page::General => self.general.update(cx, |g, _| g.reset_motion()),
             Page::Models => self.models.update(cx, |m, cx| m.reset_motion(cx)),
             Page::Dictionary => self.dictionary.update(cx, |d, _| d.reset_motion()),
-            Page::Prompts => self.prompts.update(cx, |p, _| p.reset_motion()),
+            Page::Prompts => self.prompts.update(cx, |p, cx| p.reset_motion(cx)),
             Page::History => self.history.update(cx, |h, _| h.reset_motion()),
             Page::Stats => self.stats.update(cx, |s, _| s.reset_motion()),
             Page::Status => self.status.update(cx, |s, _| s.reset_motion()),

@@ -1,16 +1,1 @@
-<!-- @license lucide-static v1.65.0 - ISC -->
-<svg
-  class="lucide lucide-copy"
-  xmlns="http://www.w3.org/2000/svg"
-  width="24"
-  height="24"
-  viewBox="0 0 24 24"
-  fill="none"
-  stroke="currentColor"
-  stroke-width="2"
-  stroke-linecap="round"
-  stroke-linejoin="round"
->
-  <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
-  <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
-</svg>
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g><g><g><path transform="matrix(1 0 0 1 8 2)" d="M12 14C13.1 14 14 13.1 14 12L14 2C14 0.9 13.1 0 12 0L2 0C0.9 0 0 0.9 0 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g><g><path transform="matrix(1 0 0 1 2 8)" d="M2 0L12 0C13.105 0 14 0.895 14 2L14 12C14 13.105 13.105 14 12 14L2 14C0.895 14 0 13.105 0 12L0 2C0 0.895 0.895 0 2 0Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g></g></g></svg>

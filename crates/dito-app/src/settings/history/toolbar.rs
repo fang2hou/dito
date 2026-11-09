@@ -28,7 +28,8 @@ impl HistoryPage {
             }),
         );
         let cfg = self.st.cfg.get();
-        let mut styles: Vec<Style> = Style::ALL.to_vec();
+        let mut styles: Vec<Style> =
+            Style::ALL.into_iter().filter(|style| cfg.prompts.profile_enabled(style)).collect();
         let mut apps: Vec<(&str, &str)> =
             cfg.prompts.applications.iter().map(|(id, name)| (name.as_str(), id.as_str())).collect();
         apps.sort_by_cached_key(|(name, _)| name.to_lowercase());

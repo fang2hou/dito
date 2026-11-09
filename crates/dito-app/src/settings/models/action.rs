@@ -23,48 +23,35 @@ pub(super) fn model_action(
     };
     let click_id = id.clone();
     let scope = ui::motion_scope();
-    control(id.clone(), bg, border)
-        .cursor_pointer()
-        .child(ui::hover_fill(&id, None, hover))
-        .child(action_icon(ic, fg))
-        .child(ui::tip_above(p, &id))
-        .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-        .on_click(move |_, w, cx| {
-            cx.stop_propagation();
-            ui::reset_hover_in(scope.clone(), &click_id);
-            on_click(w, cx);
-        })
+    ui::circle_control(
+        id.clone(),
+        ic,
+        ui::CircleSize::Regular,
+        ui::CircleAppearance { background: Some(bg), foreground: fg, border: Some(border), hover: Some(hover) },
+    )
+    .cursor_pointer()
+    .child(ui::tip_above(p, &id))
+    .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+    .on_click(move |_, w, cx| {
+        cx.stop_propagation();
+        ui::reset_hover_in(scope.clone(), &click_id);
+        on_click(w, cx);
+    })
 }
 
 pub(super) fn in_use_status(id: impl Into<ElementId>, p: &Palette, label: SharedString) -> Stateful<Div> {
     let id = id.into();
     ui::tip_label(id.clone(), label);
-    control(id.clone(), p.model_in_use_pill_bg, p.model_in_use_pill_bg)
-        .child(action_icon(Ic::Check, p.model_in_use_pill_text))
-        .child(ui::tip_above(p, &id))
-}
-
-fn control(id: ElementId, bg: Hsla, border: Hsla) -> Stateful<Div> {
-    div()
-        .id(id.clone())
-        .size(px(36.))
-        .flex_none()
-        .relative()
-        .flex()
-        .items_center()
-        .justify_center()
-        .rounded_full()
-        .bg(bg)
-        .border_1()
-        .border_color(border)
-        .on_hover(ui::hover_tracker(id.clone()))
-}
-
-fn action_icon(ic: Ic, fg: Hsla) -> Div {
-    let glyph = match ic {
-        Ic::X => svg().path("icons/model-cancel.svg").size(px(24.)).flex_none().text_color(fg),
-        Ic::Download => svg().path("icons/model-download.svg").size(px(17.5)).flex_none().text_color(fg),
-        _ => ui::icon(ic, 20., fg),
-    };
-    div().flex().items_center().justify_center().relative().when(ic == Ic::Check, |d| d.top(px(0.5))).child(glyph)
+    ui::circle_control(
+        id.clone(),
+        Ic::Check,
+        ui::CircleSize::Regular,
+        ui::CircleAppearance {
+            background: Some(p.model_in_use_pill_bg),
+            foreground: p.model_in_use_pill_text,
+            border: Some(p.model_in_use_pill_bg),
+            hover: None,
+        },
+    )
+    .child(ui::tip_above(p, &id))
 }

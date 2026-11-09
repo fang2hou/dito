@@ -104,26 +104,102 @@ pub async fn prompt_motion_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncA
 /// Prompt controls at default and narrow widths, with both appearances.
 pub async fn prompt_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     let original = st.cfg.get();
-    for appearance in [Appearance::Light, Appearance::Dark] {
-        services::save_config(st, |c| {
-            c.general.appearance = appearance;
-            c.general.display_language = DisplayLanguage::Ja;
-        });
-        for (width, label) in [(1120., "default"), (900., "narrow")] {
-            for case in ["normal", "menu", "add", "reset", "help", "herdr", "custom", "removeapp"] {
-                open_page_sized(st, Page::Prompts, width, 980., cx);
-                on_settings_window(cx, |w, cx, _| {
-                    if let Some((_, view)) = settings::handle(cx) {
-                        view.update(cx, |s, cx| s.preview_prompts(case, w, cx));
-                    }
-                });
-                page_shot(cx, dir, &format!("prompts-{}-{label}-{case}.png", theme_tag(appearance))).await;
+    for language in [DisplayLanguage::Ja, DisplayLanguage::En, DisplayLanguage::Zh] {
+        for appearance in [Appearance::Light, Appearance::Dark] {
+            services::save_config(st, |c| {
+                c.general.appearance = appearance;
+                c.general.display_language = language;
+            });
+            for (width, label) in [(1120., "default"), (900., "narrow")] {
+                for case in [
+                    "normal",
+                    "menu",
+                    "add-empty",
+                    "add",
+                    "reset",
+                    "help",
+                    "herdr",
+                    "custom",
+                    "reset-app",
+                    "history",
+                    "preview",
+                    "removeapp",
+                ] {
+                    open_page_sized(st, Page::Prompts, width, 980., cx);
+                    on_settings_window(cx, |w, cx, _| {
+                        if let Some((_, view)) = settings::handle(cx) {
+                            view.update(cx, |s, cx| s.preview_prompts(case, w, cx));
+                        }
+                    });
+                    page_shot(
+                        cx,
+                        dir,
+                        &format!(
+                            "prompts-{}-{}-{label}-{case}.png",
+                            match language {
+                                DisplayLanguage::En => "en",
+                                DisplayLanguage::Zh => "zh",
+                                _ => "ja",
+                            },
+                            theme_tag(appearance)
+                        ),
+                    )
+                    .await;
+                }
             }
         }
     }
     services::save_config(st, |c| {
         c.general.appearance = original.general.appearance;
         c.general.display_language = original.general.display_language;
+    });
+}
+
+/// Verify committed input, IME, autosave and native Undo/Redo through real input events.
+pub async fn prompt_editing_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
+    let original = st.cfg.get();
+    for appearance in [Appearance::Light, Appearance::Dark] {
+        services::save_config(st, |config| {
+            config.general.appearance = appearance;
+            config.general.display_language = DisplayLanguage::Ja;
+        });
+        open_page_sized(st, Page::Prompts, 1120., 980., cx);
+        for case in [
+            "probe-ime",
+            "probe-input",
+            "probe-not-saved",
+            "probe-undo",
+            "probe-redo",
+            "probe-reset",
+            "probe-save-failure",
+            "probe-retry",
+        ] {
+            on_settings_window(cx, |window, cx, view| {
+                view.update(cx, |view, cx| view.preview_prompts(case, window, cx))
+            });
+            page_shot(cx, dir, &format!("prompt-editing-{}-{case}.png", theme_tag(appearance))).await;
+            if case == "probe-not-saved" {
+                cx.background_executor().timer(Duration::from_millis(2500)).await;
+            }
+        }
+        for (case, position) in [
+            ("probe-blur", point(px(350.), px(64.))),
+            ("probe-menu-open", point(px(940.), px(428.))),
+            ("probe-menu-closed", point(px(940.), px(428.))),
+            ("probe-menu-open", point(px(940.), px(428.))),
+            ("probe-add-open", point(px(940.), px(478.))),
+        ] {
+            on_settings_window(cx, |window, cx, _| click(window, cx, position));
+            page_shot(cx, dir, &format!("prompt-control-{}-{case}.png", theme_tag(appearance))).await;
+            on_settings_window(cx, |window, cx, view| {
+                view.update(cx, |view, cx| view.preview_prompts(case, window, cx))
+            });
+        }
+    }
+    services::save_config(st, |config| {
+        config.general.appearance = original.general.appearance;
+        config.general.display_language = original.general.display_language;
+        config.prompts = original.prompts.clone();
     });
 }
 
