@@ -56,6 +56,7 @@ Always:
 - Treat `design/dito.figcraft` as the source of truth: the design leads and the code follows it. Change the design first for any UI change, through the `figcraft-live` MCP, and save it with `file.save` after every change without asking.
 - Before editing the design, decide whether the change is a shared component or belongs to one screen. Shared components live on `11 Type, Space & Components` and `12 Motion`; screen-specific parts live in that screen's section on pages `20`–`22`.
 - Change code only after the user has reviewed the design section in FigCraft and approved it, then make the code match it and name the section in your reply.
+- After adding an icon or changing an icon's shape, run the `icon-keylines` skill (`.agents/skills/icon-keylines`) so its optical size and centering follow the shared rule.
 - Run `./scripts/check.sh fast` and `mise run lint:rust` before handing work back; the commit hooks run both.
 - Follow Git Flow (`docs/CONTRIBUTING.md`): branch from `develop` as `<type>/<kebab-name>` (for example `feat/menu-bar-icon`), open pull requests into `develop` with a Conventional Commit title, and never target `main` except from `release/*` or `hotfix/*`. CI rejects other branch names and titles.
 - Keep screen copy identical to the `ja` values in `messages.toml`.

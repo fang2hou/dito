@@ -57,7 +57,7 @@ The Python benchmark harness has its own tasks: `mise run bench:sync`, `bench:te
 - `assets/icon/`: the Icon Composer document.
 - `bench/`: Python benchmark harness for ASR and polish models, with stored results.
 - `mise.toml`: tool versions and the project tasks. `prek.toml`: commit hooks. `.github/`: PR rules, and the release workflow (see [CONTRIBUTING.md](CONTRIBUTING.md)).
-- `scripts/`: `bundle.sh` (release app), `install.sh` (install to `~/Applications`), `quit.sh` (quit the running release Dito), `certs.sh` (signing identity), `check.sh` (checks), `dev-runner.sh` (wraps runs in `DitoDev.app`), `icon.sh` (icon build and preview).
+- `scripts/`: `bundle.sh` (release app), `install.sh` (install to `~/Applications`), `quit.sh` (quit the running release Dito), `certs.sh` (signing identity), `check.sh` (checks), `dev-runner.sh` (wraps runs in `DitoDev.app`), `icon.sh` (icon build and preview), `setup-macos.sh` (Metal toolchain), `check-design-icons.py` (geometry check of the saved design), `check-flow.sh` and `check-release-tag.sh` (branch and tag rules for CI). `.agents/skills/` holds the project skills, including `icon-keylines`.
 - `docs/`: this document, architecture, contributing and ADRs. `docs/workflow/`: step-by-step workflows.
 
 ## Coding Standards
