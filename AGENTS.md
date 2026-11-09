@@ -51,6 +51,8 @@ Project-specific overrides:
 
 Always:
 
+- Reuse shared UI controls in `crates/dito-app/src/ui` before composing screen-specific chrome. Extend the shared component when a new content type needs the same behavior; keep sizing, arrow and hover animation, disabled states, and input focus ownership in that shared path.
+
 - Treat `design/dito.figcraft` as the source of truth: the design leads and the code follows it. Change the design first for any UI change, through the `figcraft-live` MCP, and save it with `file.save` after every change without asking.
 - Before editing the design, decide whether the change is a shared component or belongs to one screen. Shared components live on `11 Type, Space & Components` and `12 Motion`; screen-specific parts live in that screen's section on pages `20`–`22`.
 - Change code only after the user has reviewed the design section in FigCraft and approved it, then make the code match it and name the section in your reply.
