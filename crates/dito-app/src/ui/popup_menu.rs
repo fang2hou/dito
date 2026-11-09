@@ -3,7 +3,7 @@ use gpui_kit::*;
 
 use super::button::CONTROL_H;
 use super::callbacks::Cb;
-use super::menu_panel::{float, menu_panel, menu_row};
+use super::menu_panel::{float, menu_panel, menu_row, menu_separator};
 use super::primitives::icon;
 use super::typography::text;
 use crate::assets::Ic;
@@ -62,7 +62,7 @@ pub fn popup_menu_grouped(id: impl Into<ElementId>, p: &Palette, groups: Vec<Vec
     let mut panel = menu_panel(id.clone(), p, on_close.clone()).w(px(224.));
     for (group, items) in groups.into_iter().filter(|items| !items.is_empty()).enumerate() {
         if group > 0 {
-            panel = panel.child(div().h(px(1.)).w_full().flex_none().bg(p.border));
+            panel = panel.child(menu_separator(p));
         }
         for (index, item) in items.into_iter().enumerate() {
             let item_id = ElementId::from((id.clone(), SharedString::from(format!("g{group}-m{index}"))));

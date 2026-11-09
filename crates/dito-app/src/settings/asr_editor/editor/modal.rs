@@ -33,23 +33,7 @@ impl AsrEditor {
                 div(),
             )
         };
-        div()
-            .id("asr-help-modal")
-            .track_focus(&self.help_focus)
-            .absolute()
-            .inset_0()
-            .occlude()
-            .bg(hsla(0., 0., 0., 0.3))
-            .flex()
-            .items_center()
-            .justify_center()
-            .on_mouse_down(
-                MouseButton::Left,
-                cx.listener(|this, _, window, cx| {
-                    this.help_focus.focus(window, cx);
-                    cx.stop_propagation();
-                }),
-            )
+        ui::modal_layer("asr-help-modal", &self.help_focus)
             .on_key_down(cx.listener(|this, event: &KeyDownEvent, window, cx| {
                 if event.keystroke.key == "escape" {
                     this.back_or_close(window, cx);

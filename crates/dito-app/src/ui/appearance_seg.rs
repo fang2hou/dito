@@ -9,6 +9,7 @@ use super::scope::{ScopeHandle, motion_scope};
 use super::segmented::segment_hover_colors;
 use super::tooltip::{tip_above, tip_label};
 use super::tween::tweened_at;
+use crate::assets::Ic;
 use crate::theme::Palette;
 
 const GLYPHS: [&str; 3] = ["system", "light", "dark"];
@@ -83,11 +84,11 @@ fn icons_layer(paint: &IconPaint, hovered: &[bool], a: f32, b: f32) -> Div {
     for (i, glyph) in GLYPHS.into_iter().enumerate() {
         let x = left(i);
         let cover = coverage(a, b, x, x + CELL_W);
-        let path = SharedString::from(format!("icons/appearance/{glyph}.svg"));
+        let glyph_icon = [Ic::Monitor, Ic::Sun, Ic::Moon][i];
         let hover_id = ElementId::from((paint.id.clone(), SharedString::from(format!("icon-hover-{glyph}"))));
         let (muted, text_color, hover_icon) = (paint.muted, paint.text, paint.hover);
         let icon = tweened_at(paint.scope.clone(), hover_id, if hovered[i] { 1. } else { 0. }, HOVER_MS, move |hv| {
-            svg().path(path.clone()).size(px(18.)).text_color(mix(mix(muted, hover_icon, hv), text_color, cover))
+            super::primitives::icon(glyph_icon, 18., mix(mix(muted, hover_icon, hv), text_color, cover))
         });
         layer = layer.child(cell_slot(x).flex().items_center().justify_center().child(icon));
     }

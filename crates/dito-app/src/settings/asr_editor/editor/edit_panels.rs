@@ -124,11 +124,14 @@ impl AsrEditor {
             .child(actions)
     }
 
-    fn code_box(&self, c: &Ctx, cx: &App) -> Div {
+    fn code_box(&self, c: &Ctx, cx: &App) -> Stateful<Div> {
         let p = &c.p;
         let source = self.source.read(cx).value().to_string();
         div()
             .w_full()
+            .id("asr-source-field")
+            .on_mouse_down_out(ui::blur_on_outside(self.source.read(cx).focus_handle(cx)))
+            .on_mouse_down(MouseButton::Left, ui::focus_on_click(self.source.read(cx).focus_handle(cx)))
             .h(px(360.))
             .flex_none()
             .flex()
@@ -233,13 +236,12 @@ impl AsrEditor {
                         )
                         .opacity(if ready { 1. } else { 0.45 }),
                     )
-                    .child(ui::button_with_icon_size(
+                    .child(ui::button(
                         "asr-help",
                         p,
                         &c.t(Tr::AsrEditorHelp),
                         BtnKind::Secondary,
-                        Ic::BookOpen,
-                        12.,
+                        Some(Ic::BookOpen),
                         cbk(cx, |this: &mut Self, w, cx| this.open_help(w, cx)),
                     )),
             )
@@ -249,6 +251,5 @@ impl AsrEditor {
 fn editor_icon(id: &'static str, p: &Palette, label: SharedString, icon: Ic, action: ui::Cb) -> Stateful<Div> {
     let key = ElementId::from(id);
     ui::tip_label(key.clone(), label);
-    ui::icon_button_sized(key.clone(), p, icon, false, if icon == Ic::Copy { 18. } else { 20. }, action)
-        .child(ui::tip_above(p, &key))
+    ui::icon_button(key.clone(), p, icon, false, action).child(ui::tip_above(p, &key))
 }

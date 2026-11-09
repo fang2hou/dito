@@ -11,6 +11,7 @@ mod inputs;
 mod layout;
 mod menu_button;
 mod menu_panel;
+mod modal;
 mod motion;
 mod plate;
 mod popup_menu;
@@ -32,8 +33,8 @@ mod watch;
 
 pub use appearance_seg::appearance_seg;
 pub use button::{
-    BtnKind, BtnSize, CONTROL_H, bare_icon_button, button, button_with, button_with_icon_size, close_button,
-    danger_icon_button, icon_button, icon_button_sized,
+    BtnKind, BtnSize, CONTROL_H, CircleAppearance, CircleSize, bare_icon_button, button, button_with, circle_control,
+    close_button, disabled_button, icon_button, icon_button_with,
 };
 pub use callbacks::{Cb, cbk, cbk_idx, click_cb};
 pub use format::{error_line, error_summary, fmt_bytes, fmt_eta, history_style_label};
@@ -45,19 +46,22 @@ pub use hover::{
     HOVER_MS, choice_label, hover_fill, hover_fill_if, hover_pop, hover_pop_scaled, hover_tracker, is_hovered,
     is_hovered_in, reset_hover, reset_hover_in,
 };
-pub use inputs::{field, field_chrome, form_field, notify_on_focus, ring_overlay, text_input, with_ring};
+pub use inputs::{
+    blur_on_outside, field, focus_on_click, form_field, notify_on_focus, ring_overlay, text_input, with_ring,
+};
 pub use layout::{StatusTone, card, drag_area, group, page_title, row, status_chip, status_tag, tag};
-pub use menu_button::{menu_button, menu_button_sized};
+pub use menu_button::menu_button;
+pub use modal::modal_layer;
 pub use motion::Motion;
 pub use plate::{GLASS_MS, coverage, plate_state};
 pub use popup_menu::{MenuItem, MenuTone, popup_menu, popup_menu_grouped};
-pub use primitives::{hex_alpha, hud_icon, icon, mix, mix_rgb, transparent, white};
+pub use primitives::{hex_alpha, icon, mix, mix_rgb, transparent, white};
 pub use progress_bar::progress_bar;
 pub use radio::radio;
 pub use requests::Requests;
 pub use scope::{MotionScope, ScopeHandle, motion_scope, with_motion_scope};
 pub use segmented::{SegContent, SegOption, SegStyle, seg, seg_with};
-pub use select::{SelectItem, select, select_disabled, select_items, select_multi};
+pub use select::{SelectItem, select, select_disabled, select_items, select_multi, select_trigger};
 pub use select_badge::SelectBadge;
 pub use switch::switch;
 pub use test_state::TestState;
@@ -70,4 +74,4 @@ pub use typography::{
 };
 pub use watch::{notify_on_change, observe};
 
-pub(crate) use menu_panel::{float as float_menu, menu_panel, menu_row};
+pub(crate) use menu_panel::{float as float_menu, menu_panel, menu_row, menu_separator};

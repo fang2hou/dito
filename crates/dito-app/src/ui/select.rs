@@ -84,36 +84,28 @@ pub fn select(
     select_items(id, p, &items, selected, open, width, on_toggle, on_pick)
 }
 
-fn select_button(
+/// Shared trigger for plain and application selects. Content varies; chrome, hover, arrow and toggling do not.
+pub fn select_trigger(
     id: &'static str,
     p: &Palette,
-    label: SharedString,
     open: bool,
-    width: Option<f32>,
-    scope: &ScopeHandle,
+    content: impl IntoElement,
     on_toggle: Cb,
 ) -> Stateful<Div> {
-    let button = field_chrome((ElementId::from(id), "ring"), p, open)
+    let scope = motion_scope();
+    field_chrome((ElementId::from(id), "ring"), p, open)
         .id(id)
         .px(px(14.))
         .cursor_pointer()
         .justify_between()
-        // The open menu closes itself on any press outside it, including this button's; so a click that began
-        // while the menu was open must not toggle it back open.
+        .gap(px(10.))
         .on_hover(hover_tracker(ElementId::from(id)))
         .child(hover_fill(&ElementId::from(id), Some(12.), p.select_hover))
         .child(hover_border(&ElementId::from(id), p.select_hover_border, open))
         .on_mouse_down(MouseButton::Left, press_mark(scope.clone(), ElementId::from(id), open))
-        .on_click(press_toggle(scope.clone(), ElementId::from(id), on_toggle))
-        .gap(px(10.))
-        // `truncate` clips both axes. A font-size-high line box cuts off Outfit descenders
-        // (notably the g in English); reserve a full 20 pt line and center it in the control.
-        .child(text(label, 14., FontWeight::NORMAL, p.text).line_height(px(20.)).min_w(px(0.)).truncate())
-        .child(chevron(ElementId::from((ElementId::from(id), "chevron")), p.muted, open));
-    match width {
-        Some(w) => button.w(px(w)),
-        None => button.w_full(),
-    }
+        .on_click(press_toggle(scope, ElementId::from(id), on_toggle))
+        .child(content)
+        .child(chevron(ElementId::from((ElementId::from(id), "chevron")), p.muted, open))
 }
 
 /// Fill-width buttons resolve their width at layout time; record it every paint so the menu
@@ -216,7 +208,17 @@ fn select_control(
     close_on_pick: bool,
 ) -> Div {
     let scope = motion_scope();
-    let button = select_button(id, p, label, open, width, &scope, on_toggle.clone());
+    let button = select_trigger(
+        id,
+        p,
+        open,
+        text(label, 14., FontWeight::NORMAL, p.text).line_height(px(20.)).flex_1().min_w(px(0.)).truncate(),
+        on_toggle.clone(),
+    );
+    let button = match width {
+        Some(width) => button.w(px(width)),
+        None => button.w_full(),
+    };
     let mut root = div().relative().when(width.is_none(), |d| d.w_full()).child(button);
     if width.is_none() {
         root = root.child(width_probe(id, scope.clone()));

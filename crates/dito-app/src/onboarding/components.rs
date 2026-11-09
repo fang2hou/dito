@@ -12,17 +12,8 @@ use crate::ui::{self, BtnKind, BtnSize, cbk, text};
 use super::{Onboarding, Step};
 
 /// A primary pill that does nothing: the look of a button that is not available (the caller dims it).
-pub(super) fn static_primary(p: &Palette, label: &str, lead: Option<Ic>, trail: Option<Ic>) -> Div {
-    let mut b =
-        div().h(px(40.)).px(px(22.)).flex().items_center().justify_center().gap(px(8.)).rounded_full().bg(p.primary);
-    if let Some(ic) = lead {
-        b = b.child(ui::icon(ic, 14., p.on_primary));
-    }
-    b = b.child(text(label.to_string(), 14., FontWeight::MEDIUM, p.on_primary).line_height(relative(1.)));
-    if let Some(ic) = trail {
-        b = b.child(ui::icon(ic, 14., p.on_primary));
-    }
-    b
+pub(super) fn static_primary(p: &Palette, label: &str, lead: Option<Ic>, trail: Option<Ic>) -> Stateful<Div> {
+    ui::disabled_button("wizard-disabled-primary", p, label, BtnKind::Primary, BtnSize::Large, lead, trail)
 }
 
 pub(super) fn recommend_tag(label: SharedString, background: Hsla, ink: Hsla) -> Div {

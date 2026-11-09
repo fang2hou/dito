@@ -1,15 +1,1 @@
-<!-- @license lucide-static v1.65.0 - ISC -->
-<svg
-  class="lucide lucide-activity"
-  xmlns="http://www.w3.org/2000/svg"
-  width="24"
-  height="24"
-  viewBox="0 0 24 24"
-  fill="none"
-  stroke="currentColor"
-  stroke-width="2"
-  stroke-linecap="round"
-  stroke-linejoin="round"
->
-  <path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2" />
-</svg>
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g><g clip-path="url(#clip1)"><path transform="matrix(1 0 0 1 2 2)" d="M20 10L17.52 10C16.622 9.998 15.833 10.595 15.59 11.46L13.24 19.82C13.209 19.927 13.111 20 13 20C12.889 20 12.791 19.927 12.76 19.82L7.24 0.18C7.209 0.073 7.111 0 7 0C6.889 0 6.791 0.073 6.76 0.18L4.41 8.54C4.168 9.401 3.384 9.997 2.49 10L0 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g></g><defs><clipPath id="clip1"><path d="M0 0L24 0L24 24L0 24Z"/></clipPath></defs></svg>

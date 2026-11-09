@@ -39,6 +39,10 @@ pub fn fonts() -> Vec<Cow<'static, [u8]>> {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Ic {
+    Apps,
+    Monitor,
+    Sun,
+    Moon,
     Mic,
     BookOpen,
     Sparkles,
@@ -80,8 +84,12 @@ pub enum Ic {
 impl Ic {
     pub fn path(self) -> &'static str {
         match self {
+            Self::Apps => "icons/lucide/layout-grid.svg",
+            Self::Monitor => "icons/lucide/monitor.svg",
+            Self::Sun => "icons/lucide/sun.svg",
+            Self::Moon => "icons/lucide/moon.svg",
             Self::Mouse => "icons/lucide/mouse.svg",
-            Self::MouseLeftButton => "icons/lucide/mouse-left-button.svg",
+            Self::MouseLeftButton => "icons/illustrations/mouse-left-button.svg",
             Self::Mic => "icons/lucide/mic.svg",
             Self::BookOpen => "icons/lucide/book-open.svg",
             Self::Sparkles => "icons/lucide/sparkles.svg",
@@ -101,7 +109,7 @@ impl Ic {
             Self::Redo => "icons/lucide/redo-2.svg",
             Self::ArrowLeft => "icons/lucide/arrow-left.svg",
             Self::ArrowRight => "icons/lucide/arrow-right.svg",
-            Self::ArrowThin => "icons/lucide/arrow-thin.svg",
+            Self::ArrowThin => "icons/illustrations/arrow-thin.svg",
             Self::Copy => "icons/lucide/copy.svg",
             Self::Alert => "icons/lucide/triangle-alert.svg",
             Self::Lock => "icons/lucide/lock.svg",
@@ -120,30 +128,16 @@ impl Ic {
     }
 }
 
-/// Canonical HUD glyphs exported from the final FigCraft layers, including their native icon boxes.
+/// The automatic-language indicator is a label symbol, not an action icon.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum HudIc {
     Auto,
-    X,
-    Finish,
-    Check,
-    Retry,
-    Sliders,
-    Copy,
-    Stop,
 }
 
 impl HudIc {
     pub fn path(self) -> &'static str {
         match self {
             Self::Auto => "icons/hud/auto.svg",
-            Self::X => "icons/hud/x.svg",
-            Self::Finish => "icons/hud/finish.svg",
-            Self::Check => "icons/hud/check.svg",
-            Self::Retry => "icons/hud/retry.svg",
-            Self::Sliders => "icons/hud/sliders.svg",
-            Self::Copy => "icons/hud/copy.svg",
-            Self::Stop => "icons/hud/stop.svg",
         }
     }
 }

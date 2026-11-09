@@ -29,6 +29,8 @@ New views follow the same pattern: own your state, load in the background, apply
 
 The inline Cloud ASR editor owns one persistent editor entity per template, including drafts and native undo history. Opening or closing documentation does not remount these editors. A revision-guarded 200 ms validation task saves only valid drafts; invalid edits retain the last valid saved configuration. Connection-test results are accepted only for the same draft revision and preferred language. The settings shell presents the editor-owned help overlay as the sole dialog. Its header and footer stay fixed while only the four-card documentation body scrolls.
 
+The Prompt page owns grouped history per editor, language and application. Committed input updates drafts, idle tasks are revision guarded, and IME marked text is excluded. Toolbar and native editing actions use the same grouped history. Draft autosave waits for 3 s idle or an actual editor exit. An untouched editor cannot flush another editor's active draft. Autosave failures retain drafts and expose a retryable unsaved state; scoped resets require confirmation and remain undoable.
+
 ## Pitfalls
 
 Moves that look reasonable but go against this decision:
