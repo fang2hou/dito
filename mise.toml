@@ -42,6 +42,10 @@ run = "scripts/check.sh fast"
 description = "Fast checks plus compile checks of every build flavor"
 run = "scripts/check.sh full"
 
+[tasks."check:design"]
+description = "Check shared icon geometry in the saved FigCraft design"
+run = "python scripts/check-design-icons.py"
+
 [tasks.lint]
 description = "Clippy for the workspace, ruff and ty for bench, and actionlint for workflows"
 depends = ["lint:rust", "bench:lint", "lint:actions"]
