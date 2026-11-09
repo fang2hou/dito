@@ -108,6 +108,9 @@ async fn render_app_shots(st: &Arc<AppState>, dir: &Path, groups: &Groups, cx: &
 }
 
 async fn render_preview_shots(st: &Arc<AppState>, dir: &Path, groups: &Groups, cx: &mut AsyncApp) {
+    if groups.selects("hudinteractions") {
+        hud::hud_interaction_shots(st, dir, cx).await;
+    }
     if groups.selects("hudstylepreview") {
         pages::hud_style_preview_shots(st, dir, cx).await;
     }

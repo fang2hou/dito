@@ -154,8 +154,8 @@ mod tests {
         let go = clock.tick(RecordMode::Toggle, after(base, 60_600), true, Motion::Full);
         assert!((go.layers[0].at - 2.0).abs() < 1e-3);
         // And it wraps at the end of the loop.
-        let wrapped = clock.tick(RecordMode::Toggle, after(base, 60_600 + 4_000), true, Motion::Full);
-        assert!((wrapped.layers[0].at - (2.0 + 4.0 - PERIOD)).abs() < 1e-2, "{}", wrapped.layers[0].at);
+        let wrapped = clock.tick(RecordMode::Toggle, after(base, 60_600 + (PERIOD * 1000.) as u64), true, Motion::Full);
+        assert!((wrapped.layers[0].at - 2.).abs() < 1e-2, "{}", wrapped.layers[0].at);
     }
 
     #[test]

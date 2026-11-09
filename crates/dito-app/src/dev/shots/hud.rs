@@ -356,3 +356,51 @@ pub async fn hud_tooltip_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp
         config.general.hud_languages = original.general.hud_languages.clone();
     });
 }
+
+/// The same pointer poll and render paths as the live non-activating panel.
+pub async fn hud_interaction_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
+    let original = st.cfg.get();
+    for (appearance, backdrop) in [(Appearance::Light, BACKDROP_LIGHT), (Appearance::Dark, BACKDROP_DARK)] {
+        let tag = theme_tag(appearance);
+        services::save_config(st, |c| {
+            c.general.hud_appearance = appearance;
+            c.general.display_language = DisplayLanguage::Ja;
+        });
+        let preview = st.clone();
+        let window = open_hud_window(cx, move |cx| HudView::entry_preview(preview, cx)).expect("entry HUD");
+        let start = Instant::now();
+        for frame in 0..15 {
+            wait_for_frame(cx, start, frame).await;
+            let image = render(cx, window).expect("entry frame");
+            save(dir, &format!("entry-{tag}-{frame:03}.png"), over_backdrop(&image, backdrop));
+        }
+        close_window(cx, window);
+        let preview = st.clone();
+        let window = open_hud_window(cx, move |_| {
+            HudView::preview(preview, HudState::Recognizing, 1., PreviewHover::Away, None)
+        })
+        .expect("Stop HUD");
+        for (name, x, y, delay) in [
+            ("hidden", 10., 10., 180),
+            ("enter", 146.5, 138.5, 70),
+            ("shown", 146.5, 138.5, 180),
+            ("button-hover", 146.5, 101.5, 180),
+            ("gap", 146.5, 119., 100),
+            ("leave-grace", 10., 10., 180),
+            ("exit-middle", 10., 10., 140),
+            ("reenter", 146.5, 138.5, 50),
+            ("returned", 146.5, 101.5, 180),
+            ("exit", 10., 10., 500),
+        ] {
+            window.update(cx, |view, _, cx| view.preview_pointer(x, y, cx)).expect("pointer poll");
+            cx.background_executor().timer(Duration::from_millis(delay)).await;
+            let image = render(cx, window).expect("Stop frame");
+            save(dir, &format!("stop-{tag}-{name}.png"), over_backdrop(&image, backdrop));
+        }
+        close_window(cx, window);
+    }
+    services::save_config(st, |c| {
+        c.general.hud_appearance = original.general.hud_appearance;
+        c.general.display_language = original.general.display_language;
+    });
+}

@@ -7,11 +7,12 @@ use gpui_kit::prelude::*;
 use gpui_kit::*;
 
 use crate::theme::{self, Palette, hex};
-use crate::ui::{self, Motion, text};
+use crate::ui::{self, Motion};
 
 use super::Scale;
 use super::buttons::Btn;
 use super::elevation::{self, Elevation};
+use super::motion::{self, EntryPose};
 use super::outcome_icon::{self, Outcome};
 use super::progress;
 use super::shimmer;
@@ -40,11 +41,24 @@ pub(crate) fn rest_width(state: &HudState) -> f32 {
 
 /// The width `since` seconds into a spring from `from` to `to` (hold mode's capsule widening on release).
 pub(crate) fn eased_width(from: f32, to: f32, since: f32) -> f32 {
-    if since >= WIDEN_S - 0.000_01 {
-        return to;
+    width_at(motion::Spring { position: from, velocity: 0. }, to, since).position
+}
+
+pub(super) fn width_at(from: motion::Spring, to: f32, since: f32) -> motion::Spring {
+    if since >= WIDEN_S {
+        return motion::Spring { position: to, velocity: 0. };
     }
-    let u = (since / WIDEN_S).clamp(0., 1.);
-    from + (to - from) * ui::spring(u, Motion::Full)
+    let peak = to + (to - from.position) * 0.097;
+    let (a, b, velocity, local) = if since < 0.15 {
+        (from.position, peak, from.velocity, since / 0.15)
+    } else {
+        (peak, to, 0., (since - 0.15) / 0.15)
+    };
+    let u = local.clamp(0., 1.);
+    motion::Spring {
+        position: a + (b - a) * motion::smooth(u) + velocity * 0.15 * u * (1. - u).powi(2),
+        velocity: (b - a) * 6. * u * (1. - u) / 0.15 + velocity * (1. - u) * (1. - 3. * u),
+    }
 }
 
 /// A live or simulated frame of the same listening surface.
@@ -70,19 +84,17 @@ pub(crate) struct Capsule {
     pub fill: Option<f32>,
     /// None renders the settled icon for static previews.
     pub outcome_t: Option<f32>,
+    pub entry: EntryPose,
 }
 
 impl Capsule {
     /// The capsule. `buttons` supplies every round button it carries: the HUD window passes live ones,
     /// a still picture passes [`static_button`]s.
-    pub(crate) fn element(self, buttons: &mut dyn FnMut(Btn) -> AnyElement) -> Div {
+    pub(crate) fn element(mut self, buttons: &mut dyn FnMut(Btn, Scale) -> AnyElement) -> Div {
         let scale = self.scale;
-        let copy_overshoot = if matches!(self.state, HudState::Copied) {
-            (timing::copied_progress(self.outcome_t, self.motion) - 1.).max(0.)
-        } else {
-            0.
-        };
-        let height = CAPSULE_H - (copy_overshoot * 3.2).min(0.4);
+        let (rest_width, entry) = (self.w, self.entry);
+        self.w *= entry.width;
+        let height = CAPSULE_H * entry.height;
         let mut cap = self.shell(height);
         if let Some(frac) = self.fill.filter(|&frac| frac > 0.) {
             let near_ceiling = match self.state {
@@ -103,11 +115,19 @@ impl Capsule {
                 scale,
                 self.palette.dark,
                 self.motion.is_reduced(),
-                self.w,
+                rest_width,
                 mode == RecordMode::Toggle,
+                entry,
             ));
         }
-        self.with_content(cap, height, buttons)
+        let width = self.w;
+        let content = self
+            .with_content(cap, height, buttons)
+            .absolute()
+            .left(scale.px((rest_width - width) / 2.))
+            .top(scale.px((CAPSULE_H - height) / 2. + entry.y))
+            .opacity(entry.alpha);
+        div().relative().w(scale.px(rest_width)).h(scale.px(CAPSULE_H)).flex_none().child(content)
     }
 
     fn shell(&self, height: f32) -> Div {
@@ -124,7 +144,7 @@ impl Capsule {
             .shadow(elevation::surface_shadow(p, scale, Elevation::Surface))
             .overflow_hidden()
             .relative()
-            .px(px(CAPSULE_PAD))
+            .px(px(CAPSULE_PAD * self.entry.button))
             .flex()
             .items_center()
             .justify_between()
@@ -132,12 +152,13 @@ impl Capsule {
     }
 
     /// What the state puts inside the shell: buttons, waveform, label or icon.
-    fn with_content(self, cap: Div, height: f32, buttons: &mut dyn FnMut(Btn) -> AnyElement) -> Div {
+    fn with_content(self, cap: Div, height: f32, buttons: &mut dyn FnMut(Btn, Scale) -> AnyElement) -> Div {
+        let button_scale = Scale(self.scale.0 * self.entry.button);
         let Capsule { state, lang, scale, palette: p, motion, w, t: since, outcome_t, .. } = self;
         match state {
             HudState::Hidden => cap,
             HudState::Listening { mode: RecordMode::Toggle } => {
-                cap.child(buttons(Btn::Cancel)).child(buttons(Btn::Finish))
+                cap.child(buttons(Btn::Cancel, button_scale)).child(buttons(Btn::Finish, button_scale))
             }
             HudState::Listening { mode: RecordMode::Hold } => cap,
             HudState::Recognizing => cap.justify_center().child(shimmer::shimmer_label(
@@ -156,10 +177,10 @@ impl Capsule {
             HudState::Copied => cap.child(copied_row(lang, scale, motion, w, height, outcome_t)),
             HudState::Error { action, .. } => {
                 let right = match action {
-                    ErrorAction::Retry => buttons(Btn::Retry),
-                    ErrorAction::OpenSettings => buttons(Btn::Settings),
+                    ErrorAction::Retry => buttons(Btn::Retry, button_scale),
+                    ErrorAction::OpenSettings => buttons(Btn::Settings, button_scale),
                 };
-                cap.child(buttons(Btn::Dismiss))
+                cap.child(buttons(Btn::Dismiss, button_scale))
                     .child(spaced(
                         lang.tr(Tr::HudError),
                         12.,
@@ -191,51 +212,64 @@ fn surface_colors(state: &HudState, p: &Palette) -> (Hsla, f32, Hsla) {
     (bg, border_w, border_c)
 }
 
-/// The copied icon and label, which grow in together. Full-size horizontal slots are kept throughout; only opacity
-/// and Y move per glyph.
+/// Only revealed glyph advances participate in the centered group. The baseline never moves.
 fn copied_row(lang: Lang, scale: Scale, motion: Motion, w: f32, height: f32, outcome_t: Option<f32>) -> Div {
     let px = |v: f32| scale.px(v);
     let label = lang.tr(Tr::HudCopied);
-    let size = scale.tx(12.);
-    let full_width = scale.tx(timing::copied_label_width(lang));
-    let progress = timing::copied_progress(outcome_t, motion);
-    let icon_left = (scale.tx(w - outcome_icon::COPY_ICON) / 2.) - (full_width + scale.tx(4.)) / 2. * progress;
-    let mut row = div().absolute().left_0().top(px((height - 18.) / 2.)).w(px(w)).h(px(18.));
-    row = row.child(div().absolute().left(gpui_kit::px(icon_left)).top_0().child(outcome_icon::draw(
-        Outcome::Copied,
-        outcome_t,
-        motion,
-        scale,
-    )));
-    let mut prefix = String::new();
-    for (i, ch) in label.chars().enumerate() {
-        let x = ui::text_width(&prefix, size, FontWeight::NORMAL);
-        prefix.push(ch);
-        let (opacity, rise) = timing::copied_glyph(outcome_t, i, motion);
-        row = row.child(
-            div()
-                .absolute()
-                .left(gpui_kit::px(icon_left + scale.tx(outcome_icon::COPY_ICON + 4.) + x))
-                .top(px(rise))
-                .opacity(opacity)
-                .child(text(ch.to_string(), size, FontWeight::NORMAL, hex("#FFF9EB")).line_height(px(18.))),
-        );
+    let size = scale.tx(timing::COPY_FONT);
+    let glyphs: Vec<_> = label
+        .chars()
+        .enumerate()
+        .map(|(i, ch)| {
+            let value = ch.to_string();
+            let width = ui::text_width(&value, timing::COPY_FONT, FontWeight::NORMAL);
+            let (alpha, rise, advance) = timing::copied_glyph(outcome_t, i, motion);
+            (value, width, alpha, rise, advance)
+        })
+        .collect();
+    let (_, _, icon_advance) = timing::copied_sheets(outcome_t, motion);
+    let gap = timing::COPY_GAP * glyphs.first().map_or(0., |glyph| glyph.4);
+    let active_width = icon_advance + gap + glyphs.iter().map(|g| g.1 * g.4).sum::<f32>();
+    let left = (w - active_width) / 2.;
+    let mut row = div().absolute().left_0().top(px((height - 18.) / 2.)).w(px(w)).h(px(18.)).child(
+        div().absolute().left(px(left)).top(px((18. - outcome_icon::COPY_ICON) / 2.)).child(outcome_icon::draw(
+            Outcome::Copied,
+            outcome_t,
+            motion,
+            scale,
+        )),
+    );
+    let mut x = left + icon_advance + gap;
+    for (value, width, alpha, rise, advance) in glyphs {
+        let column = width * advance;
+        let glyph = canvas(
+            |_, _, _| (),
+            move |bounds, _, window, cx| {
+                let run = TextRun {
+                    len: value.len(),
+                    font: font(if ui::is_cjk(&value) { ui::cjk_family() } else { "Outfit" }),
+                    color: hex("#FFF9EB").opacity(alpha),
+                    background_color: None,
+                    underline: None,
+                    strikethrough: None,
+                };
+                let line = window.text_system().shape_line(value.clone().into(), gpui_kit::px(size), &[run], None);
+                let origin = point(
+                    bounds.center().x - line.width() / 2.,
+                    bounds.origin.y + gpui_kit::px((scale.tx(18.) - size) / 2.),
+                );
+                line.paint(origin, gpui_kit::px(size), TextAlign::Left, None, window, cx).ok();
+            },
+        )
+        .absolute()
+        .left(px(x))
+        .top(px(rise))
+        .w(px(column))
+        .h(px(18.));
+        row = row.child(glyph);
+        x += column;
     }
     row
-}
-
-/// The capsule's entry: it arrives like a drop of liquid — narrower and taller at first, rising from below —
-/// and springs into its exact shape (a plain ease under Reduce Motion). `t` runs 0–1 over [`POP_MS`]; `w` is the
-/// capsule's width in design points once arrived.
-pub(crate) fn pop_shape<E: Styled>(c: E, scale: Scale, w: f32, t: f32, motion: Motion) -> E {
-    let s = ui::spring(t, motion);
-    let h = CAPSULE_H * (1.18 - 0.18 * s);
-    let fade = (t * 2.2).min(1.);
-    c.w(scale.px(w * (0.68 + 0.32 * s)))
-        .h(scale.px(h))
-        .rounded(scale.px(h / 2.))
-        .mb(scale.px(-18. * (1. - s)))
-        .opacity(fade * fade)
 }
 
 #[cfg(test)]

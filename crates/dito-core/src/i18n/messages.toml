@@ -278,7 +278,7 @@ hud.error = { ja = "エラー", en = "Error", zh = "出错" }
 hud.stop = { ja = "中止", en = "Stop", zh = "中止" }
 hud.finish = { ja = "ディクテーションを終了", en = "Finish dictation", zh = "结束听写" }
 hud.cancel = { ja = "ディクテーションをキャンセル", en = "Cancel dictation", zh = "取消听写" }
-hud.copied = { ja = "コピーした", en = "Copied", zh = "已复制" }
+hud.copied = { ja = "コピーした！", en = "Copied!", zh = "已复制！" }
 hud.close = { ja = "閉じる", en = "Close", zh = "关闭" }
 hud.retry = { ja = "再試行", en = "Retry", zh = "重试" }
 hud.open_settings = { ja = "設定を開く", en = "Open settings", zh = "打开设置" }
