@@ -11,6 +11,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 IDENTITY = [1, 0, 0, 1, 0, 0]
 SLOTS = {24: 14, 32: 18, 36: 20, 40: 22}
+KEYLINE_MAX = 20
+KEYLINE_CENTER = 1
+KEYLINE_OFFSET_EXEMPT = {"lucide/check"}
 TEXT_BUTTON_SLOTS = {
     "Regular": (36, 16, 14),
     "Large": (40, 18, 16),
@@ -40,6 +43,7 @@ def check_document(document):
         if node["type"] == "component" and node.get("name", "").startswith("lucide/")
     }
     errors = []
+    extents = {}
 
     def number(actual, expected, label):
         if not math.isclose(actual, expected, abs_tol=0.04):
@@ -153,6 +157,9 @@ def check_document(document):
             (node.get("width", 0), node.get("height", 0)),
         ]:
             cx, cy = a * px + c * py + x, b * px + d * py + y
+            box = extents.setdefault(label, [24, 24, 0, 0])
+            box[0], box[1] = min(box[0], cx - radius), min(box[1], cy - radius)
+            box[2], box[3] = max(box[2], cx + radius), max(box[3], cy + radius)
             if min(cx, cy) - radius < 0.96 or max(cx, cy) + radius > 23.04:
                 errors.append(
                     f"{label} ({node['id']}): contour exceeds its 1 pt canvas safe zone"
@@ -165,6 +172,19 @@ def check_document(document):
         source_constraints(icon)
         for child_id in icon.get("children", []):
             source_bounds(nodes[child_id], IDENTITY, icon["name"])
+        box = extents.get(icon["name"])
+        if box:
+            width, height = box[2] - box[0], box[3] - box[1]
+            if max(width, height) > KEYLINE_MAX + 0.05:
+                errors.append(
+                    f"{icon['name']}: ink box {width:g} by {height:g} exceeds the {KEYLINE_MAX} pt keyline"
+                )
+            if icon["name"] not in KEYLINE_OFFSET_EXEMPT:
+                for axis, low, high in ((0, box[0], box[2]), (1, box[1], box[3])):
+                    if abs((low + high) / 2 - 12) > KEYLINE_CENTER + 0.05:
+                        errors.append(
+                            f"{icon['name']}: ink box center is {(low + high) / 2:g} on axis {axis}, beyond {KEYLINE_CENTER} pt of the canvas center"
+                        )
 
     instances = 0
     for node in nodes.values():
