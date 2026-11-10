@@ -221,10 +221,7 @@ impl AsrEditor {
                 p,
                 c.t(Tr::ModelsDelete),
                 Ic::Trash,
-                cbk(cx, |this: &mut Self, window, cx| {
-                    let id = this.shown.clone();
-                    this.delete_configuration(&id, window, cx);
-                }),
+                cbk(cx, |this: &mut Self, window, cx| this.ask_delete_configuration(window, cx)),
             )
         } else {
             ui::disabled_icon_button("asr-delete", p, Ic::Trash)

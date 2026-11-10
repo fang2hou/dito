@@ -342,7 +342,11 @@ async fn models_hover_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
             view.update(cx, |s, cx| s.preview_models(Role::Polish, None, window, cx));
         });
     });
-    ui::force_hover(&models, ElementId::from("cloud-polish-tile-bedrock"), true);
+    ui::force_hover(
+        &models,
+        ElementId::from((ElementId::from("cloud-polish-tiles"), SharedString::from("bedrock"))),
+        true,
+    );
     ui::force_hover(&models, ElementId::from("cloud-polish-test"), true);
     page_shot(cx, dir, "hover-warmup.png").await;
     page_shot(cx, dir, "models-hover.png").await;

@@ -88,6 +88,14 @@ impl CloudPolishForm {
     pub(super) fn set_name(&self, name: String, window: &mut Window, cx: &mut Context<ModelsPage>) {
         self[CloudPolishField::Name].update(cx, |input, cx| input.set_value(name, window, cx));
     }
+
+    /// Put the cursor in the name field with all of its text selected: typing replaces the name.
+    pub(super) fn edit_name(&self, window: &mut Window, cx: &mut Context<ModelsPage>) {
+        self[CloudPolishField::Name].update(cx, |input, cx| {
+            input.focus(window, cx);
+            input.select_all(window, cx);
+        });
+    }
 }
 
 impl Index<CloudPolishField> for CloudPolishForm {
@@ -117,37 +125,66 @@ fn placeholder(field: CloudPolishField, template: CloudPolishTemplate, lang: Lan
     }
 }
 
-/// What the selector shows of each cloud polish configuration, in the order of the list. The tile row takes exactly
-/// this, so the selector can be swapped for it without touching what feeds it.
-pub(super) fn cloud_polish_config_tiles(configurations: &CloudPolishConfigurations) -> Vec<ui::ConfigTile> {
+/// What the tile row shows of each cloud polish configuration, in the order of the list: the name over the model, or
+/// over the note that it has none yet.
+pub(super) fn cloud_polish_config_tiles(configurations: &CloudPolishConfigurations, lang: Lang) -> Vec<ui::ConfigTile> {
     configurations
         .items
         .iter()
-        .map(|item| ui::ConfigTile {
-            id: item.id.clone().into(),
-            name: item.name.clone().into(),
-            detail: item.target.model().to_owned().into(),
-            selected: item.id == configurations.selected,
+        .map(|item| {
+            let model = item.target.model().trim();
+            ui::ConfigTile {
+                id: item.id.clone().into(),
+                name: item.name.clone().into(),
+                detail: if model.is_empty() { lang.tr(Tr::ModelsNoModel).into() } else { model.to_owned().into() },
+                selected: item.id == configurations.selected,
+            }
         })
         .collect()
 }
 
 impl ModelsPage {
-    /// One tile per saved cloud polish configuration. Selecting one makes it the configuration in use; the form
-    /// follows.
-    pub(super) fn cloud_polish_tiles(&self, c: &Ctx, cx: &mut Context<Self>) -> Div {
-        let p = &c.p;
-        let mut row = div().w_full().flex().gap(px(12.));
+    /// One tile per saved cloud polish configuration, and the plus button that adds one. A click selects, and the form
+    /// follows; a drag reorders; the order is saved when the tile is dropped.
+    pub(super) fn cloud_polish_tile_row(&self, c: &Ctx, cx: &mut Context<Self>) -> AnyElement {
         let cfg = self.st.cfg.get();
-        for tile in cloud_polish_config_tiles(&cfg.polish.engine.polish_configurations(c.lang)) {
-            let id = tile.id.clone();
-            row = row.child(cloud_polish_tile(
-                p,
-                &tile,
-                cx.listener(move |this, _, _, cx| this.select_cloud_polish(&id, cx)),
-            ));
-        }
-        row
+        let tiles = cloud_polish_config_tiles(&cfg.polish.engine.polish_configurations(c.lang), c.lang);
+        ui::tile_row("cloud-polish-tiles", &c.p, &self.cloud_polish_tiles, tiles)
+            .on_select(ui::cbk_id(cx, |this: &mut Self, id, _, cx| this.select_cloud_polish(id, cx)))
+            .on_move(ui::cbk_move(cx, |this: &mut Self, id, to, _, cx| this.move_cloud_polish(id, to, cx)))
+            .plus(ui::TilePlus {
+                open: self.cloud_polish_menu_open,
+                on_press: cbk(cx, |this: &mut Self, _, cx| {
+                    this.cloud_polish_menu_open = !this.cloud_polish_menu_open;
+                    cx.notify();
+                }),
+                menu: self.cloud_polish_menu_open.then(|| self.cloud_polish_add_menu(c, cx)),
+            })
+            .into_any_element()
+    }
+
+    /// The menu of the plus button: the three templates a new configuration can start from, then a copy of the
+    /// configuration in use.
+    fn cloud_polish_add_menu(&self, c: &Ctx, cx: &mut Context<Self>) -> AnyElement {
+        let templates = CloudPolishTemplate::ALL
+            .iter()
+            .map(|&template| ui::AddEntry {
+                label: c.t(template.label()),
+                on_click: cbk(cx, move |this: &mut Self, window, cx| {
+                    this.add_cloud_polish_from_template(template, window, cx)
+                }),
+            })
+            .collect();
+        let duplicate = ui::AddEntry {
+            label: c.t(Tr::ModelsDuplicateConfiguration),
+            on_click: cbk(cx, |this: &mut Self, window, cx| this.duplicate_cloud_polish(window, cx)),
+        };
+        let close = cbk(cx, |this: &mut Self, _, cx| {
+            this.cloud_polish_menu_open = false;
+            cx.notify();
+        });
+        ui::add_menu("cloud-polish-add-menu", &c.p, c.t(Tr::ModelsCreateFromTemplate), templates, duplicate, close)
+            .into_any_element()
     }
 
     /// The form of the cloud polish configuration in use: its name and address, its model and credential, its
@@ -374,49 +411,6 @@ fn cloud_polish_test_button(c: &Ctx, cx: &mut Context<ModelsPage>, enabled: bool
         .into_any_element()
 }
 
-/// One tile of the selector: the name over the model, the radio on the right.
-fn cloud_polish_tile(
-    p: &Palette,
-    tile: &ui::ConfigTile,
-    on_click: impl Fn(&ClickEvent, &mut Window, &mut App) + 'static,
-) -> Stateful<Div> {
-    let card_id = ElementId::from(SharedString::from(format!("cloud-polish-tile-{}", tile.id)));
-    let ring_id = SharedString::from(format!("cloud-polish-tile-ring-{}", tile.id));
-    let on = tile.selected;
-    let label = div()
-        .flex_1()
-        .min_w(px(0.))
-        .overflow_hidden()
-        .flex()
-        .flex_col()
-        .gap(px(1.))
-        .child(ui::choice_label(&card_id, p, tile.name.clone(), 14., on))
-        .when(!tile.detail.is_empty(), |d| {
-            d.child(text(tile.detail.clone(), 12., FontWeight::NORMAL, p.muted).line_height(relative(1.5)))
-        });
-    div()
-        .id(card_id.clone())
-        .flex_1()
-        .h(px(56.))
-        .px(px(18.))
-        .gap(px(12.))
-        .flex()
-        .items_center()
-        .justify_between()
-        .rounded(px(14.))
-        .cursor_pointer()
-        .bg(if on { p.accent_soft } else { p.card })
-        .relative()
-        .border_1()
-        .border_color(ui::transparent())
-        .on_hover(ui::hover_tracker(card_id.clone()))
-        .child(ui::hover_fill_if(&card_id, Some(14.), ui::hex_alpha(p.seg, 0.6), !on))
-        .child(ui::ring_overlay(ring_id, on, 14., p.border_strong, p.accent))
-        .on_click(on_click)
-        .child(label)
-        .child(ui::radio(p, on))
-}
-
 fn form_input(p: &Palette, state: &Entity<InputState>) -> impl IntoElement {
     ui::text_input(p, state, None).form()
 }
@@ -442,29 +436,38 @@ fn model_label(template: CloudPolishTemplate) -> Tr {
 #[cfg(test)]
 mod tests {
     use dito_core::config::CloudPolishConfigurations;
-    use dito_core::i18n::Lang;
+    use dito_core::i18n::{Lang, Tr};
 
     use super::{CloudPolishField, cloud_polish_config_tiles};
 
     #[test]
-    fn the_selector_feed_follows_the_name_and_model_as_they_are_typed() {
+    fn the_tile_feed_follows_the_name_and_model_as_they_are_typed() {
         let mut list = CloudPolishConfigurations::new(Lang::En);
         list.select("compat");
         let compat = list.get_mut("compat").unwrap();
         assert!(CloudPolishField::Name.apply(compat, "Fast"));
         assert!(CloudPolishField::Model.apply(compat, "gpt-x"));
-        let feed: Vec<_> = cloud_polish_config_tiles(&list)
+        let feed: Vec<_> = cloud_polish_config_tiles(&list, Lang::En)
             .into_iter()
             .map(|t| (t.id.to_string(), t.name.to_string(), t.detail.to_string(), t.selected))
             .collect();
+        let none = Lang::En.tr(Tr::ModelsNoModel);
         assert_eq!(
             feed,
             [
-                ("azure".into(), "Azure OpenAI".into(), String::new(), false),
-                ("bedrock".into(), "Amazon Bedrock".into(), String::new(), false),
+                ("azure".into(), "Azure OpenAI".into(), none.into(), false),
+                ("bedrock".into(), "Amazon Bedrock".into(), none.into(), false),
                 ("compat".into(), "Fast".into(), "gpt-x".into(), true),
             ],
-            "ordered as saved, the selected one marked"
+            "ordered as saved, the selected one marked, a missing model said so"
         );
+    }
+
+    #[test]
+    fn a_model_of_blanks_counts_as_none() {
+        let mut list = CloudPolishConfigurations::new(Lang::Ja);
+        assert!(CloudPolishField::Model.apply(list.get_mut("azure").unwrap(), "   "));
+        let feed = cloud_polish_config_tiles(&list, Lang::Ja);
+        assert_eq!(feed[0].detail.to_string(), Lang::Ja.tr(Tr::ModelsNoModel));
     }
 }

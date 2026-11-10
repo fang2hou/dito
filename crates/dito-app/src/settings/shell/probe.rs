@@ -51,8 +51,8 @@ impl Settings {
         self.models.update(cx, |m, cx| m.probe(case, arg, text, window, cx));
     }
 
-    pub fn models_probe(&self, cx: &App) -> crate::settings::ModelsProbe {
-        self.models.read(cx).probe_state(cx)
+    pub fn models_probe(&self, window: &Window, cx: &App) -> crate::settings::ModelsProbe {
+        self.models.read(cx).probe_state(window, cx)
     }
 
     pub fn preview_models(

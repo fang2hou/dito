@@ -33,6 +33,9 @@ impl AsrEditor {
                 div(),
             )
         };
+        // The onboarding wizard draws this modal itself, so the delete dialog goes in it; on the Models page the
+        // shell draws the dialog over the window.
+        let delete_dialog = self.dialog.then(|| self.delete_dialog(window, cx)).flatten();
         ui::modal_layer("asr-help-modal", &self.help_focus)
             .on_key_down(cx.listener(|this, event: &KeyDownEvent, window, cx| {
                 if event.keystroke.key == "escape" {
@@ -57,6 +60,7 @@ impl AsrEditor {
                     .child(body)
                     .child(div().flex_none().child(footer)),
             )
+            .children(delete_dialog)
     }
 
     /// Dress the editor of the configuration the form shows. Every configuration has an editor of its own, so each one

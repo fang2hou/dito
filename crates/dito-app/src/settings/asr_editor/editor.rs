@@ -53,6 +53,11 @@ pub struct AsrEditor {
     tiles: ui::TileRowState,
     /// Whether the menu of the plus button is open.
     menu: bool,
+    /// The configuration a delete dialog asks about, while it is open.
+    deleting: Option<configuration_tiles::ConfigurationDeletion>,
+    delete_focus: FocusHandle,
+    /// The last save failed: the banner above the card says so until it is closed or a save works.
+    save_failed: bool,
     help_focus: FocusHandle,
     help: bool,
     dialog: bool,
@@ -88,6 +93,9 @@ impl AsrEditor {
             key,
             tiles: ui::TileRowState::new(),
             menu: false,
+            deleting: None,
+            delete_focus: cx.focus_handle(),
+            save_failed: false,
             help_focus: cx.focus_handle(),
             help: false,
             dialog: false,
@@ -210,9 +218,7 @@ impl AsrEditor {
     /// saved one when it loses focus.
     fn name_edited(&mut self, cx: &mut Context<Self>) {
         let name = self.name.read(cx).value().to_string();
-        if let Err(error) = configuration_list::rename(&self.st.cfg, &self.shown, &name) {
-            self.save_failed(&error, cx);
-        }
+        self.saved(configuration_list::rename(&self.st.cfg, &self.shown, &name), cx);
         cx.notify();
     }
 
@@ -306,10 +312,11 @@ impl AsrEditor {
         if key_changed {
             self.st.factory.invalidate_engines();
         }
-        match saved {
-            Ok(true) => draft.saved_key = draft.key.clone(),
-            Ok(false) => {}
-            Err(error) => draft.error = Some(error.to_string()),
+        let typed_key = draft.key.clone();
+        if let Some(true) = self.saved(saved, cx)
+            && let Some(draft) = self.drafts.get_mut(id)
+        {
+            draft.saved_key = typed_key;
         }
     }
 
@@ -321,12 +328,28 @@ impl AsrEditor {
         }
     }
 
-    /// A change to the list of configurations failed to save. The line under the editor says so; nothing changed.
-    fn save_failed(&mut self, error: &anyhow::Error, cx: &mut Context<Self>) {
-        tracing::warn!("could not save the speech configurations: {error:#}");
-        if let Some(draft) = self.drafts.get_mut(&self.shown) {
-            draft.error = Some(error.to_string());
+    /// What a change to the saved configurations came to. A save that fails raises the banner above the card and
+    /// leaves everything as it was; one that works takes the banner down.
+    fn saved<T>(&mut self, result: anyhow::Result<T>, cx: &mut Context<Self>) -> Option<T> {
+        let failed = result.is_err();
+        if let Err(error) = &result {
+            tracing::warn!("could not save the speech configurations: {error:#}");
         }
+        if std::mem::replace(&mut self.save_failed, failed) != failed {
+            cx.emit(Changed);
+        }
+        cx.notify();
+        result.ok()
+    }
+
+    /// Whether the last save of a speech configuration failed.
+    pub(in crate::settings) fn save_failed(&self) -> bool {
+        self.save_failed
+    }
+
+    /// The banner was closed.
+    pub(in crate::settings) fn dismiss_save_failure(&mut self, cx: &mut Context<Self>) {
+        self.save_failed = false;
         cx.notify();
     }
 
@@ -406,13 +429,15 @@ impl AsrEditor {
         self.motion.reset();
         self.menu = false;
         self.help = false;
+        // A dialog belongs to the visit that opened it.
+        self.deleting = None;
     }
 
-    pub(in crate::settings) fn help_overlay(
-        &mut self,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) -> Option<AnyElement> {
+    /// What the shell paints over the whole window: the delete dialog, or the help.
+    pub(in crate::settings) fn overlay(&mut self, window: &mut Window, cx: &mut Context<Self>) -> Option<AnyElement> {
+        if self.deleting.is_some() {
+            return ui::with_motion_scope(self.motion.handle(), || self.delete_dialog(window, cx));
+        }
         if !self.help {
             return None;
         }

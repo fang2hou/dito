@@ -15,7 +15,7 @@ use serde_json::Value;
 
 use super::capture::{page_shot, resize_settings_window, theme_tag};
 use super::inline_asr::{command, settle, with_editor};
-use super::input::{click, drag_to, hover, on_settings_window, press, redraw, release};
+use super::input::{click, drag_to, hover, on_settings_window, press, press_key, redraw, release};
 use crate::services;
 use crate::settings::asr_editor::{AsrEditor, CloudAsrDraftState, CloudAsrFormState, EditorCommand};
 use crate::settings::{self, Page};
@@ -61,6 +61,16 @@ fn menu_row(index: usize) -> Point<Pixels> {
 /// The trash button, left of the test button in the footer.
 fn trash() -> Point<Pixels> {
     point(px(798.), px(990.))
+}
+
+/// The answers of the delete dialog: it is centred in the window, its 176 pt height ends in a row of 36 pt buttons
+/// 28 pt above its bottom edge, and the answers sit at its right.
+fn dialog_confirm() -> Point<Pixels> {
+    point(px(WIDTH / 2. + 252.), px(HEIGHT / 2. + 42.))
+}
+
+fn dialog_cancel() -> Point<Pixels> {
+    point(px(WIDTH / 2. + 131.), px(HEIGHT / 2. + 42.))
 }
 
 /// Where the tile `index` of `count` is centred in the row scrolled to `offset`.
@@ -133,6 +143,24 @@ impl Rig<'_> {
 
     fn command(&mut self, what: EditorCommand) {
         command(self.cx, what);
+    }
+
+    fn escape(&mut self) {
+        on_settings_window(self.cx, |window, cx, _| {
+            press_key(window, cx, "escape");
+            redraw(window, cx);
+        });
+    }
+
+    /// Click the trash and answer the dialog that opens: with Delete, or with Cancel.
+    async fn delete_shown(&mut self, confirm: bool) {
+        let shown = self.form().name;
+        self.click(trash());
+        self.wait(300).await;
+        assert_eq!(self.form().deleting, Some(shown), "the trash asks first, about the configuration it shows");
+        self.click(if confirm { dialog_confirm() } else { dialog_cancel() });
+        self.wait(400).await;
+        assert_eq!(self.form().deleting, None, "the dialog closed");
     }
 
     fn form(&mut self) -> CloudAsrFormState {
@@ -270,6 +298,17 @@ async fn scene(rig: &mut Rig<'_>, appearance: Appearance) {
     rig.click(menu_row(1));
     rig.wait(700).await;
     rig.shot(&format!("speech-tiles-added-{tag}.png")).await;
+
+    // The delete dialog (`20.05.12`): Escape backs out and nothing is deleted.
+    let before = saved(rig.st);
+    let name = rig.form().name;
+    rig.click(trash());
+    rig.wait(300).await;
+    assert_eq!(rig.form().deleting, Some(name), "the trash asks first, about the configuration it shows");
+    rig.shot(&format!("speech-delete-{tag}.png")).await;
+    rig.escape();
+    assert_eq!(rig.form().deleting, None, "Escape closes the dialog");
+    assert_eq!(saved(rig.st), before, "and nothing was deleted");
 }
 
 /// Run every action once against the tab and check the saved result. Selecting, adding from each template, duplicating,
@@ -452,8 +491,9 @@ async fn behavior(rig: &mut Rig<'_>, server: &str) {
     rig.wait(300).await;
     assert_eq!(saved(rig.st).1, added);
     assert_eq!(rig.form().key, "mine-key");
-    rig.click(trash());
-    rig.wait(500).await;
+    rig.delete_shown(false).await;
+    assert_eq!(saved(rig.st).0.len(), rows.len(), "Cancel keeps the configuration");
+    rig.delete_shown(true).await;
     let (after, selected) = saved(rig.st);
     assert_eq!(after.len(), rows.len() - 1);
     assert!(after.iter().all(|(id, ..)| *id != added), "the configuration is gone");
@@ -466,15 +506,40 @@ async fn behavior(rig: &mut Rig<'_>, server: &str) {
 
     // Down to one: the trash is disabled and does nothing.
     while ids(rig.st).len() > 1 {
-        rig.click(trash());
-        rig.wait(400).await;
+        rig.delete_shown(true).await;
     }
     assert_eq!(ids(rig.st).len(), 1);
     rig.shot("speech-tiles-single.png").await;
     let last = ids(rig.st);
     rig.click(trash());
     rig.wait(300).await;
+    assert_eq!(rig.form().deleting, None, "the last configuration cannot be deleted");
     assert_eq!(ids(rig.st), last, "the last configuration stays");
+
+    // A save that fails raises the banner above the card, and a save that works takes it down. The settings file is
+    // written through a temporary file, which a directory of the same name blocks.
+    let blocker = rig.st.cfg.path().with_extension("toml.tmp");
+    std::fs::create_dir_all(&blocker).expect("block the settings file's temporary name");
+    let before = saved(rig.st);
+    rig.command(EditorCommand::SelectName);
+    rig.command(EditorCommand::TypeName("Blocked".into()));
+    assert!(rig.form().save_failed, "a rename that cannot be saved raises the banner");
+    assert_eq!(saved(rig.st), before, "and nothing changed");
+    rig.shot("speech-save-failed.png").await;
+    std::fs::remove_dir(&blocker).expect("unblock the settings file");
+    rig.command(EditorCommand::SelectName);
+    rig.command(EditorCommand::TypeName(before.0[0].1.clone()));
+    assert!(!rig.form().save_failed, "the next save that works takes the banner down");
+    // A draft that cannot be saved raises it too, and stays valid: the banner says why it was not kept.
+    std::fs::create_dir_all(&blocker).expect("block again");
+    rig.replace(|config| config["connection"]["model"] = "unsaved".into());
+    settle(rig.cx).await;
+    assert!(rig.form().save_failed, "a draft that cannot be saved raises the banner");
+    assert_eq!(rig.draft(&before.0[0].0).error, None, "the draft itself is fine");
+    std::fs::remove_dir(&blocker).expect("unblock the settings file");
+    rig.replace(|config| config["connection"]["model"] = before.0[0].2.clone().into());
+    settle(rig.cx).await;
+    assert!(!rig.form().save_failed);
 
     // Everything is in the file, not only in memory.
     let on_disk = ConfigStore::open(rig.st.cfg.path()).expect("the settings file reads back").get();

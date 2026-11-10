@@ -10,7 +10,13 @@ use serde_json::Value;
 use super::AsrEditor;
 use crate::settings::Ctx;
 use crate::settings::asr_editor::configuration_list;
-use crate::ui::{self, cbk};
+use crate::ui::{self, DialogAnswer, cbk, text};
+
+/// The configuration a delete dialog asks about.
+pub(super) struct ConfigurationDeletion {
+    id: String,
+    pub(super) name: String,
+}
 
 /// The model a configuration's request JSON names, or that it names none yet.
 fn model_label(config: &Value, c: &Ctx) -> SharedString {
@@ -74,17 +80,14 @@ impl AsrEditor {
 
     /// A click on a tile: its configuration becomes the one in use, at once.
     fn select_configuration(&mut self, id: &str, window: &mut Window, cx: &mut Context<Self>) {
-        match configuration_list::select(&self.st.cfg, id) {
-            Ok(()) => self.sync(window, cx),
-            Err(error) => self.save_failed(&error, cx),
+        if self.saved(configuration_list::select(&self.st.cfg, id), cx).is_some() {
+            self.sync(window, cx);
         }
     }
 
     /// A tile was dropped in a new place.
     fn move_configuration(&mut self, id: &str, to: usize, cx: &mut Context<Self>) {
-        if let Err(error) = configuration_list::move_to(&self.st.cfg, id, to) {
-            self.save_failed(&error, cx);
-        }
+        self.saved(configuration_list::move_to(&self.st.cfg, id, to), cx);
         cx.notify();
     }
 
@@ -94,9 +97,9 @@ impl AsrEditor {
 
     /// Add a configuration that starts from `template`.
     fn add_from_template(&mut self, template: CloudAsrTemplate, window: &mut Window, cx: &mut Context<Self>) {
-        match configuration_list::add(&self.st.cfg, template, &self.new_configuration_name()) {
-            Ok(id) => self.configuration_added(&id, window, cx),
-            Err(error) => self.save_failed(&error, cx),
+        let added = configuration_list::add(&self.st.cfg, template, &self.new_configuration_name());
+        if let Some(id) = self.saved(added, cx) {
+            self.configuration_added(&id, window, cx);
         }
     }
 
@@ -104,10 +107,9 @@ impl AsrEditor {
     fn duplicate_shown_configuration(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let id = self.shown.clone();
         self.flush(&id, cx);
-        match configuration_list::duplicate(&self.st.cfg, &id, &self.new_configuration_name()) {
-            Ok(Some(copy)) => self.configuration_added(&copy, window, cx),
-            Ok(None) => {}
-            Err(error) => self.save_failed(&error, cx),
+        let copy = configuration_list::duplicate(&self.st.cfg, &id, &self.new_configuration_name());
+        if let Some(Some(copy)) = self.saved(copy, cx) {
+            self.configuration_added(&copy, window, cx);
         }
     }
 
@@ -121,17 +123,69 @@ impl AsrEditor {
         });
     }
 
+    /// The trash was pressed: ask whether to delete the configuration the form shows. The last one cannot go.
+    pub(super) fn ask_delete_configuration(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let config = self.st.cfg.get();
+        let list = configuration_list::of(&config);
+        if list.profiles.len() < 2 {
+            return;
+        }
+        let Some(shown) = list.profiles.iter().find(|profile| profile.id == self.shown) else { return };
+        self.deleting = Some(ConfigurationDeletion { id: shown.id.clone(), name: shown.name.clone() });
+        self.delete_focus.focus(window, cx);
+        cx.emit(super::Changed);
+        cx.notify();
+    }
+
+    fn close_delete_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.deleting = None;
+        window.blur(cx);
+        cx.emit(super::Changed);
+        cx.notify();
+    }
+
+    /// Delete was confirmed.
+    fn confirm_delete(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(ConfigurationDeletion { id, .. }) = self.deleting.take() else { return };
+        window.blur(cx);
+        self.delete_configuration(&id, window, cx);
+        cx.emit(super::Changed);
+    }
+
+    /// The dialog that asks whether to delete a configuration (`20.05.12`), while it is open.
+    pub(super) fn delete_dialog(&self, window: &Window, cx: &mut Context<Self>) -> Option<AnyElement> {
+        let name = self.deleting.as_ref()?.name.clone();
+        let c = Ctx::new(&self.st, cx);
+        let body =
+            text(dito_core::i18n::fmt::delete_configuration_body(c.lang, &name), 13., FontWeight::NORMAL, c.p.text)
+                .line_height(px(20.))
+                .into_any_element();
+        Some(ui::confirm_dialog(
+            window,
+            &c.p,
+            "asr-delete-dialog",
+            &self.delete_focus,
+            c.t(Tr::ModelsDeleteConfigurationTitle),
+            vec![body],
+            DialogAnswer {
+                label: c.t(Tr::AsrEditorCancel),
+                on_click: Some(cbk(cx, |this: &mut Self, window, cx| this.close_delete_dialog(window, cx))),
+            },
+            DialogAnswer {
+                label: c.t(Tr::PromptsRemoveConfirm),
+                on_click: Some(cbk(cx, |this: &mut Self, window, cx| this.confirm_delete(window, cx))),
+            },
+        ))
+    }
+
     /// Delete the configuration `id` with its key; its neighbour takes over. This is the one place a configuration is
-    /// deleted: the trash button calls it, and so does anything that has to ask first.
+    /// deleted: the confirmation of the dialog calls it, and so does anything that has to ask first.
     pub(super) fn delete_configuration(&mut self, id: &str, window: &mut Window, cx: &mut Context<Self>) {
-        match configuration_list::remove(&self.st.cfg, &*self.st.secrets, id) {
-            Ok(true) => {
-                self.drafts.remove(id);
-                self.st.factory.invalidate_engines();
-                self.sync(window, cx);
-            }
-            Ok(false) => {}
-            Err(error) => self.save_failed(&error, cx),
+        let removed = configuration_list::remove(&self.st.cfg, &*self.st.secrets, id);
+        if let Some(true) = self.saved(removed, cx) {
+            self.drafts.remove(id);
+            self.st.factory.invalidate_engines();
+            self.sync(window, cx);
         }
     }
 }

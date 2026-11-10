@@ -2,7 +2,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
 
-use dito_core::config::{CloudPolishTarget, EngineConfig, Source};
+use dito_core::config::{CloudPolishTarget, CloudPolishTemplate, EngineConfig, Source};
 use dito_core::factory::LocalBackend;
 use dito_core::i18n::{Lang, Tr};
 use dito_core::provider::configured_asr::CloudAsrConfigurations;
@@ -38,6 +38,10 @@ pub struct ModelsPage {
     pub(super) select: Option<&'static str>,
     /// The cloud polish form: its inputs show the configuration in use. Cloud speech has its own editor.
     pub(super) cloud_polish: CloudPolishForm,
+    /// The tile row of the cloud polish configurations: its scroll position and the tile being dragged.
+    pub(super) cloud_polish_tiles: ui::TileRowState,
+    /// Whether the menu of the plus button next to the tiles is open.
+    pub(super) cloud_polish_menu_open: bool,
     /// The parameters of the local polish model in use.
     pub(super) local_polish: LocalPolishForm,
     /// The last save failed: the banner above the card says so until it is closed or a save works.
@@ -63,17 +67,7 @@ impl ModelsPage {
         ui::notify_on_change(st.models.subscribe(), cx);
         Self::poll_engine_state(cx);
 
-        let cloud_polish = CloudPolishForm::new(window, cx);
-        for field in CloudPolishField::ALL {
-            cx.subscribe_in(&cloud_polish[field], window, move |this: &mut Self, _, ev: &InputEvent, window, cx| {
-                match ev {
-                    InputEvent::Change => this.cloud_polish_edited(field, cx),
-                    InputEvent::Blur if field == CloudPolishField::Name => this.settle_cloud_polish_name(window, cx),
-                    _ => {}
-                }
-            })
-            .detach();
-        }
+        let cloud_polish = Self::new_cloud_polish_form(window, cx);
         let local_polish = LocalPolishForm::new(window, cx);
         for field in LocalPolishField::ALL {
             cx.subscribe_in(&local_polish[field], window, move |this: &mut Self, _, ev: &InputEvent, _, cx| {
@@ -103,6 +97,8 @@ impl ModelsPage {
             menu: None,
             select: None,
             cloud_polish,
+            cloud_polish_tiles: ui::TileRowState::new(),
+            cloud_polish_menu_open: false,
             local_polish,
             save_failed: false,
             deleting_cloud_polish: None,
@@ -115,6 +111,20 @@ impl ModelsPage {
             #[cfg(feature = "screenshots")]
             preview_snapshot: None,
         }
+    }
+
+    /// The inputs of the cloud polish form, listened to: what is typed saves as it changes.
+    pub(super) fn new_cloud_polish_form(window: &mut Window, cx: &mut Context<Self>) -> CloudPolishForm {
+        let form = CloudPolishForm::new(window, cx);
+        for field in CloudPolishField::ALL {
+            cx.subscribe_in(&form[field], window, move |this: &mut Self, _, ev: &InputEvent, window, cx| match ev {
+                InputEvent::Change => this.cloud_polish_edited(field, cx),
+                InputEvent::Blur if field == CloudPolishField::Name => this.settle_cloud_polish_name(window, cx),
+                _ => {}
+            })
+            .detach();
+        }
+        form
     }
 
     /// Engine status has no event stream; poll gently while the page exists.
@@ -158,10 +168,11 @@ impl ModelsPage {
         editor
     }
 
-    /// What the shell paints over the whole window: the cloud polish delete dialog, or the help of the speech editor.
+    /// What the shell paints over the whole window: the cloud polish delete dialog, or what the speech editor has to
+    /// show there (its delete dialog, its help).
     pub(in crate::settings) fn overlay(&mut self, window: &mut Window, cx: &mut Context<Self>) -> Option<AnyElement> {
         self.cloud_polish_delete_dialog(window, cx)
-            .or_else(|| self.editor.update(cx, |editor, cx| editor.help_overlay(window, cx)))
+            .or_else(|| self.editor.update(cx, |editor, cx| editor.overlay(window, cx)))
     }
 
     fn status_key(&self) -> String {
@@ -251,6 +262,64 @@ impl ModelsPage {
         cx.notify();
     }
 
+    /// A tile was dropped in a new place: the order is saved.
+    pub(super) fn move_cloud_polish(&mut self, id: &str, to: usize, cx: &mut Context<Self>) {
+        let saved = services::try_save_config(&self.st, |cfg| {
+            let lang = cfg.general.lang();
+            cfg.polish.engine.polish_configurations_mut(lang).move_to(id, to);
+        });
+        self.note_save(saved.is_ok());
+        cx.notify();
+    }
+
+    /// Add a cloud polish configuration that starts from `template`, named `新しい設定` in the display language.
+    pub(super) fn add_cloud_polish_from_template(
+        &mut self,
+        template: CloudPolishTemplate,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let name = self.st.cfg.get().general.lang().tr(Tr::ModelsNewConfiguration);
+        let saved = services::try_save_config(&self.st, |cfg| {
+            let lang = cfg.general.lang();
+            cfg.polish.engine.polish_configurations_mut(lang).add_from_template(template, name);
+        });
+        self.note_save(saved.is_ok());
+        if saved.is_ok() {
+            self.cloud_polish_added(window, cx);
+        } else {
+            cx.notify();
+        }
+    }
+
+    /// Add a copy of the cloud polish configuration the form shows, without its key.
+    pub(super) fn duplicate_cloud_polish(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(source) = self.cloud_polish.shown().map(str::to_owned) else { return };
+        let name = self.st.cfg.get().general.lang().tr(Tr::ModelsNewConfiguration);
+        let mut copied = false;
+        let saved = services::try_save_config(&self.st, |cfg| {
+            let lang = cfg.general.lang();
+            copied = cfg.polish.engine.polish_configurations_mut(lang).duplicate(&source, name).is_some();
+        });
+        self.note_save(saved.is_ok());
+        if saved.is_ok() && copied {
+            self.cloud_polish_added(window, cx);
+        } else {
+            cx.notify();
+        }
+    }
+
+    /// A configuration was added and is selected: the form shows it, its tile is scrolled into view, and the name is
+    /// focused with all of its text selected, for the user to name it.
+    fn cloud_polish_added(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.cloud_polish_menu_open = false;
+        self.cloud_polish_test = TestState::Idle;
+        let lang = self.st.cfg.get().general.lang();
+        self.follow_polish_settings(lang, window, cx);
+        self.cloud_polish.edit_name(window, cx);
+        cx.notify();
+    }
+
     /// The trash was pressed: ask whether to delete the cloud polish configuration in use. The last one cannot go.
     pub(super) fn ask_delete_cloud_polish(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let cfg = self.st.cfg.get();
@@ -292,7 +361,11 @@ impl ModelsPage {
         let cfg = self.st.cfg.get();
         let secrets = self.st.secrets.clone();
         let configurations = cfg.polish.engine.polish_configurations(lang);
+        let before = self.cloud_polish.shown().map(str::to_owned);
         self.cloud_polish.follow(configurations.active(), lang, &*secrets, window, cx);
+        if let Some(shown) = self.cloud_polish.shown().filter(|shown| before.as_deref() != Some(shown)) {
+            self.cloud_polish_tiles.reveal(shown.to_owned());
+        }
         let model = &cfg.polish.engine.local_model;
         self.local_polish.follow(model, &cfg.polish.engine.local_params_for(model), lang, window, cx);
     }
@@ -339,8 +412,9 @@ impl ModelsPage {
     /// Reset the page's transient motion state; its controls mount statically on the next entry.
     pub(in crate::settings) fn reset_motion(&mut self, cx: &mut Context<Self>) {
         self.motion.reset();
-        // A dialog belongs to the visit that opened it.
+        // A dialog and a menu belong to the visit that opened them.
         self.deleting_cloud_polish = None;
+        self.cloud_polish_menu_open = false;
         self.editor.update(cx, |editor, _| editor.reset_motion());
     }
 }
@@ -370,7 +444,7 @@ impl ModelsPage {
         } else if role == Role::Asr {
             card = card.child(self.editor.clone());
         } else {
-            card = card.child(self.cloud_polish_tiles(&c, cx)).child(self.cloud_polish_view(&c, cx));
+            card = card.child(self.cloud_polish_tile_row(&c, cx)).child(self.cloud_polish_view(&c, cx));
         }
 
         let actions = is_local.then(|| {
@@ -413,9 +487,10 @@ impl ModelsPage {
             ))
     }
 
-    /// The shared failure banner, while the last save of a setting on this page failed.
+    /// The shared failure banner, while the last save of a setting on this page failed: a polish setting, or a speech
+    /// configuration that the editor saves.
     fn save_banner(&self, c: &Ctx, cx: &mut Context<Self>) -> Option<Div> {
-        self.save_failed.then(|| {
+        (self.save_failed || self.editor.read(cx).save_failed()).then(|| {
             ui::banner(
                 &c.p,
                 c.t(Tr::ModelsSaveFailed),
@@ -425,6 +500,7 @@ impl ModelsPage {
                     kind: BtnKind::Secondary,
                     on_click: cbk(cx, |this: &mut Self, _, cx| {
                         this.save_failed = false;
+                        this.editor.update(cx, |editor, cx| editor.dismiss_save_failure(cx));
                         cx.notify();
                     }),
                 }),
@@ -443,6 +519,7 @@ impl ModelsPage {
                 this.tab = if i == 0 { Role::Asr } else { Role::Polish };
                 this.menu = None;
                 this.select = None;
+                this.cloud_polish_menu_open = false;
                 cx.notify();
             }),
         )

@@ -18,6 +18,13 @@ impl ModelsPage {
         cx: &mut Context<Self>,
     ) {
         self.tab = role;
+        // Each shot starts from the settings alone: nothing typed, scrolled or opened before is left in the page.
+        self.cloud_polish = Self::new_cloud_polish_form(window, cx);
+        self.cloud_polish_tiles = ui::TileRowState::new();
+        self.cloud_polish_menu_open = false;
+        self.deleting_cloud_polish = None;
+        self.save_failed = false;
+        self.cloud_polish_test = TestState::Idle;
         // Synthetic visual states never touch downloads or files on disk.
         if std::env::var_os("DITO_MODEL_STATES").is_some() {
             let kind = if role == Role::Asr { dito_local::ModelKind::Asr } else { dito_local::ModelKind::Polish };
@@ -104,14 +111,6 @@ impl ModelsPage {
             // A window that is never shown moves no focus, so focus leaving the name is delivered as the input's own
             // event, which is what the page listens to.
             "blur-name" => self.cloud_polish[CloudPolishField::Name].update(cx, |_, cx| cx.emit(InputEvent::Blur)),
-            "select" => self.select_cloud_polish(arg, cx),
-            "trash" => self.ask_delete_cloud_polish(window, cx),
-            "confirm-delete" => self.delete_cloud_polish(window, cx),
-            "close-banner" => {
-                self.save_failed = false;
-                cx.notify();
-            }
-            "test" => self.run_cloud_polish_test(cx),
             "local-states" => {
                 // The first polish model is in use and downloaded, the second is downloaded, the rest are not.
                 let specs: Vec<_> = self
@@ -146,11 +145,16 @@ impl ModelsPage {
     }
 
     /// What the harness reads of the polish forms after a step.
-    pub(in crate::settings) fn probe_state(&self, cx: &App) -> ModelsProbe {
+    pub(in crate::settings) fn probe_state(&self, window: &Window, cx: &App) -> ModelsProbe {
         let cloud = &self.cloud_polish;
         let local = &self.local_polish;
+        let name = cloud[CloudPolishField::Name].read(cx);
         ModelsProbe {
             save_failed: self.save_failed,
+            menu_open: self.cloud_polish_menu_open,
+            name_focused: name.focus_handle(cx).is_focused(window),
+            name_selection: name.selected_range(),
+            tiles: self.cloud_polish_tiles.probe(),
             test: match &self.cloud_polish_test {
                 TestState::Idle => "idle",
                 TestState::Running => "running",
@@ -183,6 +187,13 @@ impl ModelsPage {
 /// What the harness reads of the polish forms.
 pub struct ModelsProbe {
     pub save_failed: bool,
+    /// Whether the menu of the plus button next to the cloud polish tiles is open.
+    pub menu_open: bool,
+    /// Whether the name field of the cloud polish form has the focus, and which part of its text is selected.
+    pub name_focused: bool,
+    pub name_selection: std::ops::Range<usize>,
+    /// The tile row's scroll offset, the furthest it goes, and the slot a dragged tile is over.
+    pub tiles: (f32, f32, Option<usize>),
     /// `idle`, `running`, `ok` or `failed`: the connection test of the cloud polish form.
     pub test: &'static str,
     /// The name the open delete dialog asks about.
