@@ -386,8 +386,16 @@ impl Store {
         Ok(n > 0)
     }
 
-    pub fn remove_word(&self, term: &str) -> Result<()> {
-        self.conn().execute("DELETE FROM dictionary WHERE term=?1", [term])?;
+    pub fn remove_words(&self, terms: &[String]) -> Result<()> {
+        let mut conn = self.conn();
+        let tx = conn.transaction()?;
+        {
+            let mut delete = tx.prepare("DELETE FROM dictionary WHERE term=?1")?;
+            for term in terms {
+                delete.execute([term])?;
+            }
+        }
+        tx.commit()?;
         Ok(())
     }
 
@@ -671,8 +679,23 @@ mod tests {
         assert!(!s.add_word("   ", 3).unwrap());
         assert_eq!(s.import_words("Contoso\nAcme\n\nBedrock\n", 4).unwrap(), 2);
         assert_eq!(s.export_words().unwrap(), "Acme\nBedrock\nContoso");
-        s.remove_word("Contoso").unwrap();
-        assert_eq!(s.words(Some("B")).unwrap(), ["Bedrock"]);
+        s.remove_words(&["Contoso".into(), "Acme".into(), "missing".into()]).unwrap();
+        assert_eq!(s.words(None).unwrap(), ["Bedrock"]);
+    }
+
+    #[test]
+    fn dictionary_batch_deletion_rolls_back_on_error() {
+        let s = Store::open_in_memory().unwrap();
+        s.import_words("Acme\nContoso", 1).unwrap();
+        s.conn()
+            .execute_batch(
+                "CREATE TRIGGER reject_delete BEFORE DELETE ON dictionary
+                 WHEN OLD.term = 'Contoso' BEGIN SELECT RAISE(ABORT, 'test failure'); END;",
+            )
+            .unwrap();
+
+        assert!(s.remove_words(&["Acme".into(), "Contoso".into()]).is_err());
+        assert_eq!(s.words(None).unwrap(), ["Acme", "Contoso"]);
     }
 
     #[test]

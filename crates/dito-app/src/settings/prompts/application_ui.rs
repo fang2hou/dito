@@ -327,6 +327,7 @@ impl PromptsPage {
                 label: c.t(confirm_label),
                 on_click: (dialog != Dialog::Add || self.target.is_some()).then_some(confirm),
             },
+            ui::ConfirmStyle::Standard,
         ))
     }
 }

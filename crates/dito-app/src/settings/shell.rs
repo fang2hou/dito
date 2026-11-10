@@ -54,6 +54,7 @@ impl Settings {
         };
         // The modal is painted by the window shell, above the sidebar as well as the page.
         cx.subscribe(&this.models, |_, _, _: &models::ModalChanged, cx| cx.notify()).detach();
+        cx.subscribe(&this.dictionary, |_, _, _: &dictionary::ModalChanged, cx| cx.notify()).detach();
         cx.observe(&this.prompts, |_, _, cx| cx.notify()).detach();
         this.activate(page, cx);
         this
@@ -204,6 +205,11 @@ impl Settings {
         } else {
             None
         };
+        let dictionary_overlay = if self.page == Page::Dictionary {
+            self.dictionary.update(cx, |dictionary, cx| dictionary.overlay(window, cx))
+        } else {
+            None
+        };
         div()
             .size_full()
             .flex()
@@ -220,5 +226,6 @@ impl Settings {
             .child(self.health_overlay(&c))
             .children(prompt_overlay)
             .children(models_overlay)
+            .children(dictionary_overlay)
     }
 }

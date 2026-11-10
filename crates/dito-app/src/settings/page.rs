@@ -31,7 +31,7 @@ impl Page {
         match self {
             Self::General => "General",
             Self::Models => "Models",
-            Self::Dictionary => "Dictionary",
+            Self::Dictionary => "Wordbook",
             Self::Prompts => "Prompts",
             Self::History => "History",
             Self::Stats => "Stats",
