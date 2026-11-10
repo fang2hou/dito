@@ -42,6 +42,8 @@ pub struct HistoryPage {
     pub(super) list: PageQuery<Arc<Vec<HistoryEntry>>>,
     /// Distinguishes the poll task of the current activation from earlier, exited ones.
     pub(super) poll_epoch: u64,
+    /// The probe loop of the current activation; replacing it cancels the previous one.
+    _poll: Option<Task<()>>,
     /// Newest history id seen by the lightweight poll probe; only the probe writes it, so a
     /// change always means the database moved since the previous probe.
     pub(super) last_seen_id: i64,
@@ -121,6 +123,7 @@ impl HistoryPage {
             busy: HashSet::new(),
             list: PageQuery::new("history list", Arc::new(Vec::new())),
             poll_epoch: 0,
+            _poll: None,
             last_seen_id: 0,
             placeholder_lang: lang,
             skeleton: true,
@@ -210,7 +213,7 @@ impl HistoryPage {
     fn start_poll(&mut self, cx: &mut Context<Self>) {
         self.poll_epoch += 1;
         let epoch = self.poll_epoch;
-        cx.spawn(async move |this, cx| {
+        self._poll = Some(cx.spawn(async move |this, cx| {
             loop {
                 cx.background_executor().timer(POLL_INTERVAL).await;
                 // Never launch a probe for a hidden page or a superseded task.
@@ -220,8 +223,7 @@ impl HistoryPage {
                     break;
                 }
             }
-        })
-        .detach();
+        }));
     }
 
     fn polls(&self, epoch: u64) -> bool {
