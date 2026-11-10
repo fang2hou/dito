@@ -9,13 +9,14 @@ use crate::prompts::{Style, default_set};
 
 /// Version of the persisted shape that this build reads and writes. Raise it together with appending one function to
 /// `MIGRATIONS`, and never edit or renumber a shipped migration: files in the field have already passed through it.
-pub const SCHEMA_VERSION: u32 = 3;
+pub const SCHEMA_VERSION: u32 = 4;
 
 const VERSION_KEY: &str = "schema_version";
 
 /// `MIGRATIONS[n]` upgrades a table from version `n` to version `n + 1`. The array length is tied to `SCHEMA_VERSION`,
 /// so the compiler rejects a version bump that comes without its migration.
-const MIGRATIONS: [fn(&mut Table); SCHEMA_VERSION as usize] = [herdr_defaults, asr_profile_ids, cloud_configurations];
+const MIGRATIONS: [fn(&mut Table); SCHEMA_VERSION as usize] =
+    [herdr_defaults, asr_profile_ids, cloud_configurations, wordbook_setting];
 
 /// Why a table was not upgraded. Either way the file must stay as it is.
 #[derive(Debug, PartialEq)]
@@ -242,6 +243,13 @@ fn configuration<const FIELDS: usize, const PARAMS: usize>(
     Value::Table(item)
 }
 
+/// 3 to 4: move the spelling-reference toggle to the wordbook key.
+fn wordbook_setting(table: &mut Table) {
+    if let Some(value) = table.remove("dictionary_for_polish") {
+        table.entry("wordbook_for_polish").or_insert(value);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -250,6 +258,15 @@ mod tests {
 
     fn parse(text: &str) -> Table {
         text.parse().unwrap()
+    }
+
+    #[test]
+    fn version_three_moves_the_wordbook_toggle() {
+        let mut legacy = parse("schema_version = 3\ndictionary_for_polish = true");
+        assert_eq!(upgrade(&mut legacy), Ok(3));
+        assert!(!legacy.contains_key("dictionary_for_polish"));
+        let config: Config = legacy.try_into().unwrap();
+        assert!(config.wordbook_for_polish);
     }
 
     #[test]

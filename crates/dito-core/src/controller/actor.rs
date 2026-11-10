@@ -104,14 +104,14 @@ fn now() -> i64 {
     SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0)
 }
 
-/// Dictionary words are a hint only: without them the dictation still runs.
-async fn load_dictionary(store: Arc<Store>) -> Vec<String> {
+/// Wordbook words are a hint only: without them the dictation still runs.
+async fn load_wordbook(store: Arc<Store>) -> Vec<String> {
     let loaded = tokio::task::spawn_blocking(move || store.words(None))
         .await
         .map_err(|e| e.to_string())
         .and_then(|words| words.map_err(|e| e.to_string()));
     loaded.unwrap_or_else(|error| {
-        tracing::warn!(operation = "load dictionary", %error, "continuing without dictionary words");
+        tracing::warn!(operation = "load wordbook", %error, "continuing without wordbook words");
         Vec::new()
     })
 }
@@ -292,7 +292,7 @@ impl Actor {
         let (tx, engines, store) = (self.tx.clone(), self.deps.engines.clone(), self.deps.store.clone());
         let (job_clip, style, token) = (clip.clone(), meta.style.clone(), cancel.clone());
         tokio::spawn(async move {
-            let words = load_dictionary(store).await;
+            let words = load_wordbook(store).await;
             let phase_tx = tx.clone();
             let on_phase = move |p: Phase| {
                 if matches!(p, Phase::Polishing { .. }) {
@@ -302,7 +302,7 @@ impl Actor {
             let r = pipeline::run(
                 engines.as_ref(),
                 &cfg,
-                &Job { clip: &job_clip, style, dictionary: &words },
+                &Job { clip: &job_clip, style, wordbook: &words },
                 &on_phase,
                 &token,
             )

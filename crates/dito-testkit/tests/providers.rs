@@ -338,7 +338,7 @@ async fn full_pipeline_over_http_with_polish_outage_still_delivers_raw_text() {
     let out = pipeline::run(
         &engines,
         &cfg,
-        &Job { clip: &clip, style: Style::General, dictionary: &[] },
+        &Job { clip: &clip, style: Style::General, wordbook: &[] },
         &|_| {},
         &CancellationToken::new(),
     )

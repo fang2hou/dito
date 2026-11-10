@@ -53,7 +53,7 @@ pub fn banner(p: &Palette, message: impl Into<SharedString>, action: Option<Bann
 }
 
 /// A [`banner`] for a failure the user can read and put away: the `message` and a secondary button, `id` and
-/// `close_label`, that runs `on_close`. The Dictionary page and the Models page show their failures with it.
+/// `close_label`, that runs `on_close`. The Wordbook page and the Models page show their failures with it.
 pub fn dismissible_banner(
     p: &Palette,
     id: impl Into<ElementId>,

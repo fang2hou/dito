@@ -14,15 +14,15 @@
   {
     "id": "ja-katakana-mixed",
     "lang": "ja",
-    "note": "English terms transcribed as katakana, no dictionary",
+    "note": "English terms transcribed as katakana, no wordbook",
     "text": "このイシュは次のスプリントでフィックスする予定なので、まずクイックなレビューをお願いします。"
   },
   {
-    "id": "ja-katakana-dictionary",
+    "id": "ja-katakana-wordbook",
     "lang": "ja",
-    "note": "Same text, with a dictionary that maps the katakana back to Latin terms",
+    "note": "Same text, with a wordbook that maps the katakana back to Latin terms",
     "text": "このイシュは次のスプリントでフィックスする予定なので、まずクイックなレビューをお願いします。",
-    "dictionary": ["issue", "sprint", "fix", "quick", "review"]
+    "wordbook": ["issue", "sprint", "fix", "quick", "review"]
   },
   {
     "id": "zh-halfwidth-punctuation",

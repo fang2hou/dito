@@ -7,7 +7,7 @@ const SAMPLE_WORDS: [&str; 5] = ["Acme", "Contoso", "gpui-kit", "サンプル株
 const DAILY_CHARS: [usize; 6] = [1200, 980, 1560, 1340, 1820, 560];
 const DAILY_APPS: [&str; 4] = ["Slack", "Gmail", "Notion", "Teams"];
 
-/// Sample history and dictionary so a fresh mock run has something to show.
+/// Sample history and wordbook so a fresh mock run has something to show.
 pub fn demo(store: &Store, now: i64) -> Result<()> {
     if !store.list_history(&Default::default())?.is_empty() {
         return Ok(());
