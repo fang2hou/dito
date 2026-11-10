@@ -5,9 +5,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use dito_core::audio::AudioClip;
 use dito_core::factory::Engines;
-use dito_core::pipeline::{self, CancellationToken, Job, PipelineError};
-use dito_core::prompts::{PromptInput, build_system_prompt};
-use dito_core::provider::PolishRequest;
+use dito_core::pipeline::{self, CancellationToken, Job, PipelineError, PolishJob};
 use dito_core::store::HistoryEntry;
 
 use crate::state::AppState;
@@ -95,22 +93,20 @@ pub async fn polish_again(st: Arc<AppState>, entry: HistoryEntry) -> Result<(), 
         .spawn(async move {
             let cfg = st2.cfg.get();
             let polisher = st2.factory.polisher_for(&cfg.polish.engine).await.map_err(|e| e.to_string())?;
-            let words = if cfg.dictionary_for_polish {
-                let store = st2.store.clone();
-                st2.rt.spawn_blocking(move || store.words(None).unwrap_or_default()).await.map_err(|e| e.to_string())?
-            } else {
-                Vec::new()
-            };
-            let system = build_system_prompt(&PromptInput {
+            let store = st2.store.clone();
+            let words = st2
+                .rt
+                .spawn_blocking(move || store.words(None).unwrap_or_default())
+                .await
+                .map_err(|e| e.to_string())?;
+            let polish_job = PolishJob {
                 prompts: &cfg.prompts,
                 style: entry.style.clone(),
                 text: &entry.raw,
-                dictionary: &words,
-            });
-            let text = polisher
-                .polish(&PolishRequest { system: &system, text: &entry.raw })
-                .await
-                .map_err(|e| e.to_string())?;
+                dictionary: pipeline::polish_dictionary(&cfg, &words),
+                lang: None,
+            };
+            let text = pipeline::polish_text(polisher.as_ref(), polish_job).await.map_err(|e| e.to_string())?;
             let (id, text) = (entry.id, text);
             let store = st2.store.clone();
             st2.rt
