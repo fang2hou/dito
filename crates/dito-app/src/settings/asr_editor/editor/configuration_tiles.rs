@@ -7,7 +7,7 @@ use gpui_kit::prelude::*;
 use gpui_kit::*;
 use serde_json::Value;
 
-use super::{AsrEditor, shown_id};
+use super::AsrEditor;
 use crate::settings::Ctx;
 use crate::settings::asr_editor::configuration_list;
 use crate::ui::{self, cbk};
@@ -26,7 +26,7 @@ impl AsrEditor {
     pub(super) fn tile_row(&self, c: &Ctx, cx: &mut Context<Self>) -> AnyElement {
         let config = self.st.cfg.get();
         let list = configuration_list::of(&config);
-        let shown = shown_id(&list);
+        let shown = list.selected_id();
         let tiles = list
             .profiles
             .iter()

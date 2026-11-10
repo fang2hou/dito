@@ -117,17 +117,9 @@ impl AsrProfiles {
         asr_account(&self.selected)
     }
 
-    /// Position of the selected profile in `profiles` for the positional settings tabs; the first when no profile has
-    /// the selected id.
-    pub fn selected_index(&self) -> usize {
-        self.profiles.iter().position(|profile| profile.id == self.selected).unwrap_or(0)
-    }
-
-    /// Select `profiles[index]`; an index past the list changes nothing.
-    pub fn select_index(&mut self, index: usize) {
-        if let Some(profile) = self.profiles.get(index) {
-            self.selected = profile.id.clone();
-        }
+    /// Id of the selected profile, or of the first one when no profile has the selected id.
+    pub fn selected_id(&self) -> &str {
+        self.selected_profile().or(self.profiles.first()).map_or("", |profile| profile.id.as_str())
     }
 
     /// Make `id` the profile in use. An unknown id changes nothing.

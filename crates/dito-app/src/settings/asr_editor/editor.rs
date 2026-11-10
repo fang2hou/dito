@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use dito_core::config::{AsrProfile, AsrProfiles};
+use dito_core::config::AsrProfile;
 use gpui_kit::base::input::{Diagnostic, DiagnosticSeverity, Position};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
@@ -39,12 +39,6 @@ pub enum EditorPreview {
     End,
     Invalid,
     Help,
-}
-
-/// The id of the configuration the form shows: the selected one, or the first when the selection names none.
-fn shown_id(list: &AsrProfiles) -> &str {
-    let selected = list.profiles.iter().find(|profile| profile.id == list.selected);
-    selected.or(list.profiles.first()).map_or("", |profile| profile.id.as_str())
 }
 
 /// The cloud speech form: the configurations as tiles, and the selected one's name, key and request JSON.
@@ -153,7 +147,7 @@ impl AsrEditor {
         let config = self.st.cfg.get();
         let list = configuration_list::of(&config);
         self.drafts.retain(|id, _| list.profiles.iter().any(|profile| profile.id == *id));
-        let id = shown_id(&list);
+        let id = list.selected_id();
         if self.shown != id {
             self.show(id, window, cx);
         }
