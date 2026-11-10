@@ -47,12 +47,20 @@ pub struct EngineFactory {
     secrets: Arc<dyn SecretStore>,
     local: Option<Arc<dyn LocalBackend>>,
     bedrock_endpoint: Option<String>,
+    speech_profile: Option<serde_json::Value>,
     cache: Mutex<EngineCache>,
 }
 
 impl EngineFactory {
     pub fn new(secrets: Arc<dyn SecretStore>) -> Self {
-        Self { secrets, local: None, bedrock_endpoint: None, cache: Mutex::default() }
+        Self { secrets, local: None, bedrock_endpoint: None, speech_profile: None, cache: Mutex::default() }
+    }
+
+    /// Test hook: provider speech uses this connection config, without a key, instead of the saved profile. `--mock`
+    /// points speech at its in-process server this way, so the settings keep showing the bundled templates.
+    pub fn with_speech_profile(mut self, config: Option<serde_json::Value>) -> Self {
+        self.speech_profile = config;
+        self
     }
 
     /// Drop the cached engines; the next dictation builds them again from the current config and secrets.
@@ -121,6 +129,9 @@ impl EngineFactory {
         match e.source {
             Source::Local => self.require_local()?.transcriber(&e.local_model).await,
             Source::Provider => {
+                if let Some(config) = &self.speech_profile {
+                    return Ok(Arc::new(ConfiguredAsr::new(config.clone(), String::new())?));
+                }
                 // `cloud_asr` stays `None` until a profile list is first saved; the bundled profiles stand in.
                 let bundled;
                 let profiles = match &e.cloud_asr {
