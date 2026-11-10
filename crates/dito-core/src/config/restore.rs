@@ -174,4 +174,43 @@ mod tests {
         let problem = problem_with("title = \"\u{3042}\u{3044}\u{3046}\" @\n");
         assert_eq!(problem.position, Some((1, 15)));
     }
+
+    #[test]
+    fn a_file_that_is_not_utf8_cannot_be_opened_and_restore_keeps_every_byte_of_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = config_in(&dir);
+        // Valid TOML up to a stray Latin-1 byte: the file cannot be decoded, so it is a read error, not a parse error.
+        let undecodable: &[u8] = b"onboarded = true\n# caf\xe9\n";
+        std::fs::write(&path, undecodable).unwrap();
+        let Err(ConfigError::Read { source, .. }) = ConfigStore::open(&path) else {
+            panic!("a file that is not UTF-8 is a read error");
+        };
+        assert_eq!(source.kind(), io::ErrorKind::InvalidData);
+
+        let backup = restore_defaults(&path).unwrap().expect("there was a file to keep");
+
+        assert_eq!(std::fs::read(&backup).unwrap(), undecodable);
+        assert_eq!(*ConfigStore::open(&path).unwrap().get(), Config::default());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_file_that_cannot_be_read_is_left_alone_and_nothing_is_written_over_it() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = tempfile::tempdir().unwrap();
+        let path = config_in(&dir);
+        std::fs::write(&path, "onboarded = true\n").unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000)).unwrap();
+        if File::open(&path).is_ok() {
+            return; // Running as root: file permissions do not apply.
+        }
+        assert!(matches!(ConfigStore::open(&path), Err(ConfigError::Read { .. })));
+
+        assert!(restore_defaults(&path).is_err(), "no copy, no reset");
+
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap();
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "onboarded = true\n", "the file is untouched");
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1, "no backup and no temporary file");
+    }
 }

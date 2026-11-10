@@ -2,19 +2,21 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
-use dito_core::config::Appearance;
+use dito_core::config::{Appearance, ConfigStore};
 use dito_core::i18n::{Lang, set_system_language, system_language};
 use gpui_kit::*;
 
 use super::capture::{BACKDROP_WHITE, close_window, over_backdrop, render, save, theme_tag};
+use crate::opts::Opts;
 use crate::startup_failure::{Failure, Launch, open};
 use crate::state::AppState;
 
-/// The two failures of design 20.10 as a person with the default data folder would see them.
-fn samples() -> [(&'static str, Failure); 2] {
+/// The failures of design 20.10 as a person with the default data folder would see them, and a settings file that
+/// cannot even be decoded, whose reason is the real error `ConfigStore` returns for such a file.
+fn samples() -> Vec<(&'static str, Failure)> {
     let home = PathBuf::from(std::env::var_os("HOME").unwrap_or_default());
     let data = home.join("Library/Application Support/com.fang2hou.Dito");
-    [
+    vec![
         (
             "unreadable",
             Failure::UnreadableSettings {
@@ -24,11 +26,34 @@ fn samples() -> [(&'static str, Failure); 2] {
             },
         ),
         ("newer", Failure::NewerData { path: data.join("dito.db"), found: 3, supported: 2 }),
+        (
+            "unreadable-file",
+            Failure::UnreadableSettings {
+                path: data.join("config.toml"),
+                position: None,
+                message: undecodable_file_reason(),
+            },
+        ),
     ]
 }
 
-/// The startup failure window (`startup-failure-<failure>-<theme>[-<lang>].png`): both failures in both appearances
-/// in Japanese, and in English and Chinese, whose longer lines wrap, in the light one.
+/// The reason the window gives for a `config.toml` that is not UTF-8, taken from the error of a real file in a
+/// throwaway folder so the shot shows what the app would.
+fn undecodable_file_reason() -> String {
+    let dir = std::env::temp_dir().join(format!("dito-shot-undecodable-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("shot data folder");
+    let file = dir.join("config.toml");
+    std::fs::write(&file, b"onboarded = true\n# caf\xe9\n").expect("shot settings file");
+    let error = ConfigStore::open(&file).err().expect("a file that is not UTF-8 does not load");
+    let opts = Opts { data_dir: Some(dir.clone()), ..Opts::default() };
+    let failure = Failure::from_error(&anyhow::Error::from(error), &opts);
+    let _ = std::fs::remove_dir_all(&dir);
+    let Some(Failure::UnreadableSettings { message, .. }) = failure else { panic!("{failure:?}") };
+    message
+}
+
+/// The startup failure window (`startup-failure-<failure>-<theme>[-<lang>].png`): the failures in both appearances in
+/// Japanese, and in English and Chinese, whose longer lines wrap, in the light one.
 pub async fn startup_failure_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     let launch = Launch { opts: st.opts.clone(), rt: st.rt.clone() };
     let original = system_language();

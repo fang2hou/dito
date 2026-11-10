@@ -10,12 +10,14 @@ use crate::state::database_path;
 /// A startup failure that has a window of its own. Every other failure ends the process with its error, as before.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Failure {
-    /// `config.toml` could not be read. The person can fix the file, or start over from the default settings.
+    /// `config.toml` could not be read: it does not parse, or it exists but cannot be opened or decoded. The person
+    /// can fix the file, or start over from the default settings, which keeps the file as a backup and leaves it
+    /// alone when even that copy cannot be made.
     UnreadableSettings {
         path: PathBuf,
         /// Line and column in the file (both from 1), when the parser knows where it stopped.
         position: Option<(usize, usize)>,
-        /// The parser's message.
+        /// What went wrong, in the words of the parser, the decoder or the operating system.
         message: String,
     },
     /// `config.toml` or `dito.db` was saved by a newer Dito. Only an update helps, so nothing offers to change it.
@@ -38,7 +40,12 @@ impl Failure {
                 ConfigError::NewerSchema { path, found, supported } => {
                     Some(Self::NewerData { path: absolute(path), found: *found, supported: *supported })
                 }
-                ConfigError::Read { .. } | ConfigError::Write(_) | ConfigError::Encode(_) => None,
+                // A settings file that exists but cannot be opened or decoded is as unreadable as one that does not
+                // parse. A missing one never gets here: that is a first launch.
+                ConfigError::Read { path, source } => {
+                    Some(Self::UnreadableSettings { path: absolute(path), position: None, message: source.to_string() })
+                }
+                ConfigError::Write(_) | ConfigError::Encode(_) => None,
             };
         }
         match error.downcast_ref::<StoreError>()? {
@@ -115,7 +122,7 @@ fn tilde(path: &Path, home: Option<&Path>) -> String {
 
 #[cfg(test)]
 mod tests {
-    use dito_core::config::SCHEMA_VERSION;
+    use dito_core::config::{ConfigStore, SCHEMA_VERSION};
 
     use super::*;
 
@@ -143,7 +150,18 @@ mod tests {
             path,
             source: std::io::Error::from(std::io::ErrorKind::PermissionDenied),
         });
-        assert_eq!(Failure::from_error(&unreadable_disk, &opts_in("/data")), None);
+        assert_eq!(
+            Failure::from_error(&unreadable_disk, &opts_in("/data")),
+            Some(Failure::UnreadableSettings {
+                path: PathBuf::from("/data/config.toml"),
+                position: None,
+                message: std::io::Error::from(std::io::ErrorKind::PermissionDenied).to_string(),
+            }),
+            "a settings file that exists but cannot be read is as unreadable as one that does not parse"
+        );
+        let not_the_files_fault =
+            anyhow::Error::from(ConfigError::Write(std::io::Error::from(std::io::ErrorKind::PermissionDenied)));
+        assert_eq!(Failure::from_error(&not_the_files_fault, &opts_in("/data")), None);
         assert_eq!(Failure::from_error(&anyhow::anyhow!("no audio input"), &opts_in("/data")), None);
     }
 
@@ -169,6 +187,21 @@ mod tests {
         let failure = Failure::NewerData { path: PathBuf::from("/data/dito.db"), found: 3, supported: SCHEMA_VERSION };
         assert_eq!(failure.reason(Lang::En), format!("Format version: 3 (this Dito opens up to {SCHEMA_VERSION})"));
         assert!(!failure.can_restore() && failure.hint(Lang::En).is_none());
+    }
+
+    #[test]
+    fn a_settings_file_that_is_not_utf8_gets_the_unreadable_window_with_the_decoding_error() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+        std::fs::write(&path, b"onboarded = true\n# caf\xe9\n").unwrap();
+        let Err(error) = ConfigStore::open(&path) else { panic!("a file that is not UTF-8 must not load") };
+
+        let failure = Failure::from_error(&anyhow::Error::from(error), &opts_in("/data")).expect("it has a window");
+
+        let Failure::UnreadableSettings { position, message, .. } = &failure else { panic!("{failure:?}") };
+        assert_eq!(*position, None);
+        assert!(message.contains("UTF-8"), "{message}");
+        assert!(failure.can_restore(), "the reset is on offer: the bytes can still be copied");
     }
 
     #[test]
