@@ -45,7 +45,7 @@ pub fn page_motion(page: Page, cx: &App) -> Option<ui::ScopeHandle> {
         match page {
             Page::General => view.general.read(cx).motion_scope(),
             Page::Models => view.models.read(cx).motion_scope(),
-            Page::Dictionary => view.dictionary.read(cx).motion_scope(),
+            Page::Wordbook => view.wordbook.read(cx).motion_scope(),
             Page::Prompts => view.prompts.read(cx).motion_scope(),
             Page::History => view.history.read(cx).motion_scope(),
             Page::Stats => view.stats.read(cx).motion_scope(),

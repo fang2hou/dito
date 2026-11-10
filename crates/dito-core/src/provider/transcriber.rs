@@ -7,7 +7,7 @@ pub struct AsrRequest<'a> {
     pub clip: &'a AudioClip,
     /// ISO-639-1 hint (`ja`, `en`, `zh`); `None` = detect.
     pub language: Option<&'a str>,
-    /// Dictionary words, passed as a vocabulary hint where the engine supports it.
+    /// Wordbook words, passed as a vocabulary hint where the engine supports it.
     pub hotwords: &'a [String],
 }
 

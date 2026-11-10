@@ -4,7 +4,6 @@ pub(crate) mod asr_editor;
 mod asr_highlight;
 mod configuration_panel;
 mod ctx;
-mod dictionary;
 mod downloads_dir;
 mod edge_fade;
 mod general;
@@ -23,6 +22,7 @@ mod sidebar;
 mod stats;
 mod status;
 mod window;
+mod wordbook;
 
 pub use ctx::Ctx;
 #[cfg(feature = "screenshots")]

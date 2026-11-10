@@ -5,7 +5,7 @@ use std::time::Duration;
 use gpui_kit::*;
 
 use super::input::redraw;
-use super::{demo, dictionary, hud, onboarding, pages, polish_form, startup, tile_row};
+use super::{demo, hud, onboarding, pages, polish_form, startup, tile_row, wordbook};
 use crate::settings::{self, Page};
 use crate::state::{AppGlobal, AppState};
 
@@ -83,8 +83,8 @@ async fn render_app_shots(st: &Arc<AppState>, dir: &Path, groups: &Groups, cx: &
     if groups.selects("prompts") {
         pages::prompt_shots(st, dir, cx).await;
     }
-    if groups.selects("dictionary") {
-        dictionary::dictionary_failure_shots(st, dir, cx).await;
+    if groups.selects("wordbook") {
+        wordbook::wordbook_failure_shots(st, dir, cx).await;
     }
     if groups.selects("tilerow") {
         tile_row::tile_row_shots(dir, cx).await;

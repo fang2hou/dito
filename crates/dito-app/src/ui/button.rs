@@ -15,6 +15,7 @@ pub enum BtnKind {
     Primary,
     Secondary,
     Danger,
+    Destructive,
     /// Model download action.
     Download,
     /// A quiet pill on the sub surface, for form actions (編集, 接続テスト).
@@ -46,6 +47,7 @@ impl BtnColors {
             BtnKind::Danger => {
                 (p.button_danger_bg, p.button_danger_text, Some(p.button_danger_border), p.button_danger_hover)
             }
+            BtnKind::Destructive => (p.danger, super::primitives::white(), None, p.button_primary_hover),
             BtnKind::Download => (p.model_download, p.model_on_download, None, p.button_primary_hover),
             BtnKind::Subtle => (p.sub, p.text, Some(p.field_border), p.seg),
         };

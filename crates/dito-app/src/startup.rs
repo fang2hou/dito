@@ -12,7 +12,7 @@ use crate::dev::demo_run;
 use crate::state::{AppGlobal, AppState};
 use crate::{hotkeys, hud, menubar, onboarding, settings};
 
-actions!(dito, [Quit, OpenSettings, OpenHistory, OpenDictionary, OpenStatus]);
+actions!(dito, [Quit, OpenSettings, OpenHistory, OpenWordbook, OpenStatus]);
 
 /// Everything a window needs once GPUI is running, with or without the app state: the UI kit, the icon, the bundled
 /// fonts, text measurement, and Quit with its shortcut.
@@ -75,7 +75,7 @@ fn unload_local_models_on_quit(st: &AppState, cx: &mut App) {
 fn install_app_menu(st: &Arc<AppState>, cx: &mut App) {
     on_open_page::<OpenSettings>(st, settings::Page::General, cx);
     on_open_page::<OpenHistory>(st, settings::Page::History, cx);
-    on_open_page::<OpenDictionary>(st, settings::Page::Dictionary, cx);
+    on_open_page::<OpenWordbook>(st, settings::Page::Wordbook, cx);
     on_open_page::<OpenStatus>(st, settings::Page::Status, cx);
     set_menus(st.cfg.get().general.lang(), cx);
     let mut config_rx = st.cfg.subscribe();
@@ -116,7 +116,7 @@ fn set_dock_menu(lang: Lang, cx: &mut App) {
     cx.set_dock_menu(vec![
         MenuItem::action(lang.tr(Tr::MenubarSettings), OpenSettings),
         MenuItem::action(lang.tr(Tr::HistoryOpen), OpenHistory),
-        MenuItem::action(lang.tr(Tr::MenubarAddWord), OpenDictionary),
+        MenuItem::action(lang.tr(Tr::MenubarAddWord), OpenWordbook),
         MenuItem::action(lang.tr(Tr::NavStatus), OpenStatus),
     ]);
 }

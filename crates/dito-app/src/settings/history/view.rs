@@ -32,7 +32,7 @@ impl HistoryPage {
         let actions = ui::button(
             "export-history",
             &p,
-            &c.t(Tr::DictionaryExport),
+            &c.t(Tr::WordbookExport),
             BtnKind::Secondary,
             Some(Ic::Download),
             cbk(cx, |this: &mut Self, _, cx| this.export(cx)),
