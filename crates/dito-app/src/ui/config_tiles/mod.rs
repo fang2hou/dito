@@ -1,4 +1,4 @@
-//! The row of configuration tiles above a cloud form (`20.05.13`).
+//! The row of configuration tiles above a cloud form (`design:models/cloud/tile-row`).
 //!
 //! Every tile is 216 wide and 64 high, whatever the window and the number of tiles; tiles sit at the left. A row that
 //! does not fit scrolls sideways, without a scrollbar, fading into the card where tiles continue past an edge; a

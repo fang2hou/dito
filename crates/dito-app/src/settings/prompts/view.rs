@@ -1,4 +1,4 @@
-//! Prompt editors and the side-by-side preview from 20.03 Prompts.
+//! Prompt editors and the side-by-side preview from `design:settings/prompts`.
 
 use super::*;
 use crate::assets::Ic;

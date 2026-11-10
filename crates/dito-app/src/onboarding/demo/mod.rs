@@ -7,7 +7,7 @@
 //! when the mode changes (the old picture cross-fades into the new one), and under Reduce Motion the loop is
 //! replaced by one still: keyframe 2, the recording.
 //!
-//! The sequence follows the storyboard of the design file (22.09 Usage Demo).
+//! The sequence follows the storyboard of the design file (`design:onboarding/usage-demo`).
 
 mod clock;
 mod timeline;

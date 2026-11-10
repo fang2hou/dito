@@ -1,4 +1,4 @@
-//! The parameter block of a model (20.05.7 cloud, 20.04.2 local): a head line with a title and a hint, one row of equal
+//! The parameter block of a model (`design:models/cloud/configurations`, `design:settings/local-models/parameters`): a head line with a title and a hint, one row of equal
 //! form fields and, below it, fields of the full width. The caller supplies the labels, the inputs (with their
 //! placeholders) and which of them hold text that does not parse.
 

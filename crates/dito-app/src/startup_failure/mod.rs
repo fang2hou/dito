@@ -1,4 +1,4 @@
-//! The window Dito opens instead of exiting when its settings or history cannot be used (design 20.10).
+//! The window Dito opens instead of exiting when its settings or history cannot be used (`design:settings/startup-failure`).
 //!
 //! `AppState::build` fails before GPUI exists, so this starts GPUI without any app state: no hotkeys, HUD, menu bar
 //! or dictation, only the window. Restoring the default settings builds the app in this same process and hands the

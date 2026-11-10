@@ -12,7 +12,7 @@ use crate::settings::{Ctx, role};
 use crate::theme::Palette;
 use crate::ui::{self, BtnKind, cbk, text};
 
-/// Fixed two-line cards matching 20.04 Local Models.
+/// Fixed two-line cards matching `design:settings/local-models`.
 const ROW_SLOT_H: f32 = 88.;
 
 /// The name and status column and the controls column of one model row, built up by the row's state.

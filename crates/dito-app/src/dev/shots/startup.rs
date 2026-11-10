@@ -11,7 +11,7 @@ use crate::opts::Opts;
 use crate::startup_failure::{Failure, Launch, open};
 use crate::state::AppState;
 
-/// The failures of design 20.10 as a person with the default data folder would see them, and a settings file that
+/// The failures of `design:settings/startup-failure` as a person with the default data folder would see them, and a settings file that
 /// cannot even be decoded, whose reason is the real error `ConfigStore` returns for such a file.
 fn samples() -> Vec<(&'static str, Failure)> {
     let home = PathBuf::from(std::env::var_os("HOME").unwrap_or_default());

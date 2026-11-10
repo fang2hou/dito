@@ -1,4 +1,4 @@
-//! Design tokens from the FigCraft design (`10 Color`), light and dark.
+//! Design tokens from the FigCraft design (`design:foundations/color`), light and dark.
 
 use dito_core::config::Appearance;
 use gpui_kit::{App, Hsla, Rgba, WindowAppearance};

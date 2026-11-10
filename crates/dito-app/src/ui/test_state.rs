@@ -57,7 +57,7 @@ pub fn test_status(p: &Palette, lang: Lang, state: &TestState) -> Div {
     status
 }
 
-/// Where the message of a failed test goes in [`test_summary`]: the cloud polish form sets it beside the tag (20.05.10),
+/// Where the message of a failed test goes in [`test_summary`]: the cloud polish form sets it beside the tag (`design:models/cloud/failed-test`),
 /// the cloud speech form under it.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum ErrorPlacement {

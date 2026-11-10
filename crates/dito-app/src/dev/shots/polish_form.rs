@@ -1,6 +1,6 @@
 //! The cloud polish tab, driven the way a person drives it: simulated pointer events on the tiles, the plus menu, the
 //! trash button and the dialog, and typing through the inputs. Every step checks what it did to the saved settings and
-//! the key store, and the shots are the ones `20.05.7` to `20.05.13` are compared with. Opt-in:
+//! the key store, and the shots are the ones `design:models/cloud/configurations` to `design:models/cloud/tile-row` are compared with. Opt-in:
 //! `DITO_SHOTS_ONLY=polishform`, with `--mock --data-dir <dir>` so the settings file is known. Run with `--lang en` to
 //! see that the stand-in names follow the display language, not the system's.
 
@@ -119,7 +119,7 @@ fn shot_name(name: &str, language: &str, tag: &str) -> String {
     if language == "ja" { format!("polish-{name}-{tag}.png") } else { format!("polish-{name}-{language}-{tag}.png") }
 }
 
-/// The three configurations of `20.05.7` in the order of the design, the first in use and holding a key, and with a
+/// The three configurations of `design:models/cloud/configurations` in the order of the design, the first in use and holding a key, and with a
 /// fourth that makes the row overflow when `four`.
 fn staged(four: bool) -> CloudPolishConfigurations {
     let mut list = CloudPolishConfigurations::new(Lang::Ja);

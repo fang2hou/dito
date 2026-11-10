@@ -1,4 +1,4 @@
-//! The cloud polish configurations as tiles (20.05.1, 20.05.7 to 20.05.13): what feeds the row, and what the tiles, the
+//! The cloud polish configurations as tiles (`design:models/cloud/speech-form`, `design:models/cloud/configurations`): what feeds the row, and what the tiles, the
 //! menu of the plus button and the trash do to the saved configurations. The row, the menu and the delete dialog are
 //! the shared [`ConfigurationPanel`]'s, as on the cloud speech tab.
 
@@ -170,7 +170,7 @@ impl ModelsPage {
         cx.notify();
     }
 
-    /// The dialog that asks whether to delete the cloud polish configuration in use (20.05.12), while it is open.
+    /// The dialog that asks whether to delete the cloud polish configuration in use (`design:models/cloud/delete-configuration`), while it is open.
     pub(super) fn cloud_polish_delete_dialog(&self, window: &Window, cx: &mut Context<Self>) -> Option<AnyElement> {
         self.cloud_polish.tiles.deleting()?;
         let c = Ctx::new(&self.st, cx);

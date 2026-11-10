@@ -29,7 +29,7 @@ pub struct Launch {
     pub rt: tokio::runtime::Handle,
 }
 
-// Metrics of design 20.10, in points.
+// Metrics of `design:settings/startup-failure`, in points.
 const WIDTH: f32 = 620.;
 const RADIUS: f32 = 20.;
 const BORDER: f32 = 1.;
@@ -53,7 +53,7 @@ const TITLE: Type = Type { size: 20., line: 30. };
 const BODY: Type = Type { size: 13., line: 20. };
 const DETAIL: Type = Type { size: 12., line: 18. };
 
-/// The card of design 20.10. It follows the system appearance and language: the saved ones cannot be trusted while the
+/// The card of `design:settings/startup-failure`. It follows the system appearance and language: the saved ones cannot be trusted while the
 /// settings cannot be read, and the window must look the same whichever file failed.
 pub struct FailureView {
     failure: Failure,

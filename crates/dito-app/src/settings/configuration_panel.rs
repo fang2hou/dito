@@ -1,5 +1,5 @@
-//! What the cloud speech form and the cloud polish form do the same way with their configurations (20.05.1, 20.05.11,
-//! 20.05.12): a row of tiles with the menu of its plus button, the dialog that asks before one is deleted, and the step
+//! What the cloud speech form and the cloud polish form do the same way with their configurations (`design:models/cloud/speech-form`, `design:models/cloud/add-from-template`,
+//! `design:models/cloud/delete-configuration`): a row of tiles with the menu of its plus button, the dialog that asks before one is deleted, and the step
 //! after one was added. The owner keeps what differs: the tiles it feeds, the templates it offers, and what selecting,
 //! moving, duplicating and deleting do to its own settings.
 
@@ -164,7 +164,7 @@ impl ConfigurationPanel {
         host.dialog_changed(cx);
     }
 
-    /// The dialog that asks whether to delete a configuration (20.05.12), while it is open. Delete runs `delete` on the
+    /// The dialog that asks whether to delete a configuration (`design:models/cloud/delete-configuration`), while it is open. Delete runs `delete` on the
     /// owner, with the id of the configuration the dialog asked about.
     pub(in crate::settings) fn delete_dialog<V: ConfigurationHost>(
         &self,

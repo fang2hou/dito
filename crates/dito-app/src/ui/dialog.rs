@@ -1,4 +1,4 @@
-//! The confirmation dialog (20.03 Prompts, 20.05.12 cloud configurations): a card over the dimmed window with a title,
+//! The confirmation dialog (`design:settings/prompts`, `design:models/cloud/delete-configuration`): a card over the dimmed window with a title,
 //! some content and, right-aligned, the answer that backs out and the one that goes ahead.
 
 use gpui_kit::prelude::*;

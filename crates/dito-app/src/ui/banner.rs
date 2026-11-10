@@ -16,7 +16,7 @@ pub struct BannerAction {
     pub on_click: Cb,
 }
 
-/// Full-width failure strip: alert icon, one message line and an optional trailing button (20.02.4).
+/// Full-width failure strip: alert icon, one message line and an optional trailing button (`design:settings/dictionary/failure-banner`).
 pub fn banner(p: &Palette, message: impl Into<SharedString>, action: Option<BannerAction>) -> Div {
     let (bg, border, icon_color, fg) = if p.dark {
         (hex_alpha(p.danger, 0.12), hex_alpha(p.danger, 0.5), p.danger, p.text)

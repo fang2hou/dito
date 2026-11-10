@@ -1,5 +1,5 @@
 //! Where the tiles of a configuration row sit, how far the row scrolls and which slot a dragged tile lands in.
-//! Everything here is plain arithmetic on points; the numbers are the design's (`20.05.13`).
+//! Everything here is plain arithmetic on points; the numbers are the design's (`design:models/cloud/tile-row`).
 
 pub(super) const TILE_H: f32 = 64.;
 /// Every tile is this wide, whatever the window or the number of tiles.
@@ -123,7 +123,7 @@ mod tests {
     fn tiles_keep_their_width_and_the_row_scrolls_only_when_they_do_not_fit() {
         // Three tiles fill the default window exactly.
         assert_eq!(Layout::new(VIEW, 3).max_offset(), 0.);
-        // The compact window (`20.05.5`): 500 wide, less the plus button and its gap.
+        // The compact window (`design:models/cloud/compact-window`): 500 wide, less the plus button and its gap.
         let narrow = Layout::new(452., 3);
         assert_eq!(narrow.max_offset(), 672. - 452.);
         assert_eq!(narrow.fades(0.), (0., 1.), "the third tile shows under the fade at the right edge");

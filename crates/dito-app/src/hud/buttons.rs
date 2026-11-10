@@ -13,7 +13,7 @@ use super::elevation::{self, Elevation};
 
 /// Round button inside the capsule.
 pub(super) const BTN: f32 = crate::ui::CircleSize::Compact.dimensions().0;
-/// Shared 24 pt vector canvas rendered in the 14 pt slot from FigCraft 21.09.
+/// Shared 24 pt vector canvas rendered in the 14 pt slot from `design:hud/buttons`.
 pub(super) const BTN_ICON: f32 = crate::ui::CircleSize::Compact.dimensions().1;
 
 /// Look of one round HUD button; all actions share the same circle and icon slot.

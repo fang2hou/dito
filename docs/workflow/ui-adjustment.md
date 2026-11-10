@@ -8,15 +8,15 @@ Decide whether the element is shared or local before touching anything.
 
 | The element is… | Edit it on |
 | --- | --- |
-| A shared component or shared motion (switch, segmented control, dropdown, slider, tooltip, tokens) | `11 Type, Space & Components` or `12 Motion` |
-| Part of one screen (a HUD state, a settings page, an onboarding step) | That screen's section on pages `20`–`22` |
+| A shared component or shared motion (switch, segmented control, dropdown, slider, tooltip, tokens) | `design:components` or `design:motion` |
+| Part of one screen (a HUD state, a settings page, an onboarding step) | That screen's section under `design:settings`, `design:hud` or `design:onboarding` |
 
 If an existing element sits in the wrong place, move it first, then change it. Conventions for sections, captions and note cards are in [design/README.md](../../design/README.md).
 
 ## 2. Update the design
 
 1. Open the design through the `figcraft-live` MCP (`ensure` with `design/dito.figcraft`).
-2. Inspect the current style of the element and of its neighbors, then make the change: adjust details, add states, or add an animation as a storyboard with timings and a token from `12.01` (or `21.05` for the HUD).
+2. Inspect the current style of the element and of its neighbors, then make the change: adjust details, add states, or add an animation as a storyboard with timings and a token from `design:motion/tokens` (or `design:hud/motion-tokens` for the HUD).
 3. After any content or layout change, inspect every affected ancestor up to its documentation board. A numbered section normally uses one top-level frame for both its background and content layout. Do not wrap it in a same-named Section. Layout-only rows and cells stay transparent. Let auto-layout boards hug their content and resize fixed presentation boards explicitly; a transparent multi-board Section must contain its boards.
 4. Render the entire affected board, including its bottom edge, and inspect its solved bounds. Checking only a selected screen or component is insufficient. Cards, notes and examples must remain inside their board; an unchanged background with overflowing content means the task is not finished.
 5. Save with `file.save`. Save after every change; the user rolls back if needed.

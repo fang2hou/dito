@@ -1,4 +1,4 @@
-//! One tile of a configuration row (`20.05.13`): the name over the detail, the radio on the right.
+//! One tile of a configuration row (`design:models/cloud/tile-row`): the name over the detail, the radio on the right.
 
 use gpui_kit::prelude::*;
 use gpui_kit::*;

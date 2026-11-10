@@ -1,4 +1,4 @@
-//! The footer of a cloud configuration form (20.05.1, 20.05.10): under a rule, the state of the connection test on the
+//! The footer of a cloud configuration form (`design:models/cloud/speech-form`, `design:models/cloud/failed-test`): under a rule, the state of the connection test on the
 //! left and, on the right, the trash that deletes the configuration, the test button and whatever else the form puts
 //! there. A trash with nothing to delete and a test that cannot start are the shared disabled controls: they look the
 //! part and do nothing when pressed.

@@ -1,7 +1,7 @@
 //! The cloud speech tab with its configuration tiles, driven the way a person drives it: simulated pointer events on the
 //! tiles, the plus menu and the trash button, typing through the input handler. It checks what each action did to the
-//! saved settings, the key store and the editor's state per configuration, and takes the shots that `20.05.1`, `20.05.5`
-//! and `20.05.11` are compared with. Opt-in: `DITO_SHOTS_ONLY=cloudspeechtiles`, with `--mock --data-dir <dir>`.
+//! saved settings, the key store and the editor's state per configuration, and takes the shots that `design:models/cloud/speech-form`, `design:models/cloud/compact-window`
+//! and `design:models/cloud/add-from-template` are compared with. Opt-in: `DITO_SHOTS_ONLY=cloudspeechtiles`, with `--mock --data-dir <dir>`.
 
 use std::path::Path;
 use std::sync::Arc;
@@ -23,10 +23,10 @@ use crate::state::AppState;
 use crate::ui::TestState;
 
 /// The design's 1120 wide window has a 1 pt frame on each side. The shots use the window without it, so the card is
-/// the 774 wide of `20.05.1` and its rows line up with the reference.
+/// the 774 wide of `design:models/cloud/speech-form` and its rows line up with the reference.
 const WIDTH: f32 = 1118.;
 const HEIGHT: f32 = 1100.;
-/// The compact window of `20.05.5`: 900 wide is the smallest the settings window gets. Below 1024 its sidebar is the
+/// The compact window of `design:models/cloud/compact-window`: 900 wide is the smallest the settings window gets. Below 1024 its sidebar is the
 /// icon rail, which the design's compact window does not show, so the card is wider than the design's 554 and the row
 /// overflows by 62 instead of 220.
 const COMPACT: (f32, f32) = (900., 818.);
@@ -194,7 +194,7 @@ impl Rig<'_> {
         });
     }
 
-    /// Start from three configurations: the bundled templates with the models of the design's `20.05.1`, Qwen ASR
+    /// Start from three configurations: the bundled templates with the models of the design's `design:models/cloud/speech-form`, Qwen ASR
     /// selected and holding a key. Rebuilds the editor so that it starts from them.
     async fn start(&mut self, appearance: Appearance, width: f32, height: f32) {
         let mut configurations = CloudAsrConfigurations::default();
@@ -307,7 +307,7 @@ async fn scene(rig: &mut Rig<'_>, appearance: Appearance) {
     rig.wait(700).await;
     rig.shot(&format!("speech-tiles-added-{tag}.png")).await;
 
-    // The delete dialog (`20.05.12`): Escape backs out and nothing is deleted.
+    // The delete dialog (`design:models/cloud/delete-configuration`): Escape backs out and nothing is deleted.
     let before = saved(rig.st);
     let name = rig.form().name;
     rig.click(trash());

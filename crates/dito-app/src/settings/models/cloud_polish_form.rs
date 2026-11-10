@@ -1,4 +1,4 @@
-//! The cloud polish form (20.05.7 to 20.05.10): the inputs that show the configuration in use, and the code that draws
+//! The cloud polish form (`design:models/cloud/configurations`): the inputs that show the configuration in use, and the code that draws
 //! them under the selector, with the parameter block and the footer.
 
 use std::ops::Index;

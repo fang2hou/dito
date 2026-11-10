@@ -85,7 +85,7 @@ pub fn menu_separator(p: &Palette) -> Div {
     div().h(px(9.)).w_full().flex_none().py(px(4.)).child(div().h(px(1.)).w_full().bg(p.border))
 }
 
-/// A caption inside a menu panel, naming what the rows under it are (`20.05.11`). It is not a row: it takes no hover
+/// A caption inside a menu panel, naming what the rows under it are (`design:models/cloud/add-from-template`). It is not a row: it takes no hover
 /// and no click. 12 Medium `muted`, in a 28 pt slot (6 above the 18 pt line, 4 below) and set in like the rows.
 pub fn menu_label(p: &Palette, label: impl Into<SharedString>) -> Div {
     div()

@@ -70,7 +70,7 @@ pub fn status_tag(p: &Palette, ok: bool, label: impl Into<SharedString>) -> Div 
     solid_tag(label, bg, fg, true)
 }
 
-/// Semantic colors for the shared inverse labels in 11.03 Controls and 20.08 Status.
+/// Semantic colors for the shared inverse labels in `design:components/controls` and `design:settings/status`.
 #[derive(Clone, Copy)]
 pub enum StatusTone {
     Success,

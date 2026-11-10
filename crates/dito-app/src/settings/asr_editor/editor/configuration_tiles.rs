@@ -128,7 +128,7 @@ impl AsrEditor {
         ConfigurationPanel::ask_delete(self, deletion, window, cx);
     }
 
-    /// The dialog that asks whether to delete a configuration (`20.05.12`), while it is open.
+    /// The dialog that asks whether to delete a configuration (`design:models/cloud/delete-configuration`), while it is open.
     pub(super) fn delete_dialog(&self, window: &Window, cx: &mut Context<Self>) -> Option<AnyElement> {
         self.tiles.deleting()?;
         let c = Ctx::new(&self.st, cx);

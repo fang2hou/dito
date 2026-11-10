@@ -160,7 +160,7 @@ pub fn disabled_icon_button(id: impl Into<ElementId>, p: &Palette, ic: Ic) -> St
     .opacity(0.45)
 }
 
-/// The approved circle and glyph pairs from 11.05.6.
+/// The approved circle and glyph pairs from `design:components/control-icon-contracts`.
 #[derive(Clone, Copy)]
 pub enum CircleSize {
     Compact,

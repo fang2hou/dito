@@ -53,7 +53,7 @@ impl EngineLine {
 }
 
 impl ModelsPage {
-    /// 20.04 Local Models: a fixed name line and a fixed status line, without memory details.
+    /// `design:settings/local-models`: a fixed name line and a fixed status line, without memory details.
     pub(super) fn installed_row(
         &self,
         c: &Ctx,

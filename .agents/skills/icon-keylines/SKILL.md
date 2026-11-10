@@ -1,6 +1,6 @@
 ---
 name: icon-keylines
-description: Size and center Dito's 24 pt outline icons with one shared rule (keylines). Run it whenever an icon is added to assets/icons/lucide or 11.02 Icons, an icon's shape is edited or re-imported, or an icon looks too big, small or off-center in a circle. Measures, syncs FigCraft masters and instances, bakes the SVGs.
+description: Size and center Dito's 24 pt outline icons with one shared rule (keylines). Run it whenever an icon is added to assets/icons/lucide or `design:components/icons`, an icon's shape is edited or re-imported, or an icon looks too big, small or off-center in a circle. Measures, syncs FigCraft masters and instances, bakes the SVGs.
 ---
 
 # Icon keylines
@@ -66,6 +66,6 @@ The design leads, so the FigCraft masters change before any SVG does.
 
 - FigCraft's `transform.scale` scales strokes and does not reach existing instances. `sync` restores the 2 pt stroke and resets each instance; do not hand-edit masters without it, or every screen keeps the old geometry while `check:design` fails.
 - Resetting an instance also resets its stroke weight and can reset scaled HUD effects. The repair step restores them, so do not stop after `masters` and `instances`.
-- `icons/hud/copy-front.svg` and `copy-back.svg` mirror the `.motion/copy-front` and `copy-back` masters, not `lucide/copy`. If the copy construction changes, regenerate both from those masters and recheck the Copied outcome in `21.06`.
+- `icons/hud/copy-front.svg` and `copy-back.svg` mirror the `.motion/copy-front` and `copy-back` masters, not `lucide/copy`. If the copy construction changes, regenerate both from those masters and recheck the Copied outcome in `design:hud/processing`.
 - Never wrap an SVG in a scaling `<g>` to fix size, and never add per-icon scales or offsets at call sites. Both split the design from the code.
 - `file.save` through figcraft-live needs an absolute path; `sync` and the commands above already pass one.

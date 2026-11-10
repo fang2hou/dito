@@ -30,7 +30,7 @@ impl GeneralPage {
         )
     }
 
-    /// 20.01 General: HUD settings form their own category between recognition and System.
+    /// `design:settings/general`: HUD settings form their own category between recognition and System.
     pub(super) fn hud_group(&self, c: &Ctx, cx: &mut Context<Self>) -> impl IntoElement {
         let p = c.p;
         ui::group(

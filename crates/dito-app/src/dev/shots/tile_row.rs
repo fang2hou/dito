@@ -1,4 +1,4 @@
-//! The configuration tile row on a card of its own, drawn as `20.05.13` shows it, and a scripted run of the row's
+//! The configuration tile row on a card of its own, drawn as `design:models/cloud/tile-row` shows it, and a scripted run of the row's
 //! interactions with simulated wheel and pointer events. Opt-in: `DITO_SHOTS_ONLY=tilerow`.
 
 use std::path::Path;

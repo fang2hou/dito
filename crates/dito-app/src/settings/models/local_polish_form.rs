@@ -1,4 +1,4 @@
-//! The parameters of the local polish model in use (20.04.2): the inputs that show them, and the block under the model
+//! The parameters of the local polish model in use (`design:settings/local-models/parameters`): the inputs that show them, and the block under the model
 //! list that draws them.
 
 use std::ops::Index;

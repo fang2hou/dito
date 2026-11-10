@@ -21,6 +21,7 @@ mise run lint:rust                           # clippy, also with the mock and sc
 ./scripts/check.sh fast                      # fmt and fast tests (`mise run check`); the commit hooks run it
 ./scripts/check.sh full                      # adds compile checks of every build flavor
 figcraft-cli render design/dito.figcraft -o out.png --page "<page>"  # render a design page headlessly
+mise run check:design-refs                   # every design:<id> reference resolves against design/sections.toml
 ```
 
 First-time setup (Xcode Metal toolchain, signing certificate) is in `docs/IMPLEMENTATION.md`.
@@ -54,7 +55,7 @@ Always:
 - Reuse shared UI controls in `crates/dito-app/src/ui` before composing screen-specific chrome. Extend the shared component when a new content type needs the same behavior; keep sizing, arrow and hover animation, disabled states, and input focus ownership in that shared path.
 
 - Treat `design/dito.figcraft` as the source of truth: the design leads and the code follows it. Change the design first for any UI change, through the `figcraft-live` MCP, and save it with `file.save` after every change without asking.
-- Before editing the design, decide whether the change is a shared component or belongs to one screen. Shared components live on `11 Type, Space & Components` and `12 Motion`; screen-specific parts live in that screen's section on pages `20`–`22`.
+- Before editing the design, decide whether the change is a shared component or belongs to one screen. Shared components live in `design:components` and `design:motion`; screen-specific parts live in that screen's section under `design:settings`, `design:hud` or `design:onboarding`. Refer to sections by these ids (`design/sections.toml`), never by number; `mise run check:design-refs` verifies them.
 - Change code only after the user has reviewed the design section in FigCraft and approved it, then make the code match it and name the section in your reply.
 - After adding an icon or changing an icon's shape, run the `icon-keylines` skill (`.agents/skills/icon-keylines`) so its optical size and centering follow the shared rule.
 - Run `./scripts/check.sh fast` and `mise run lint:rust` before handing work back; the commit hooks run both.

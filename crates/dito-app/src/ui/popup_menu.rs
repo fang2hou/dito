@@ -72,7 +72,7 @@ fn add_row(id: ElementId, p: &Palette, entry: AddEntry, on_close: Cb) -> Statefu
         .child(text(entry.label, 14., FontWeight::NORMAL, p.text).line_height(px(20.)))
 }
 
-/// The menu under the plus button of a configuration row (`20.05.11`), for cloud speech and cloud polish alike: a
+/// The menu under the plus button of a configuration row (`design:models/cloud/add-from-template`), for cloud speech and cloud polish alike: a
 /// caption, the `templates` a new configuration can start from, a rule, and the row that copies the selected
 /// configuration. The caption says the entries are templates that only pre-fill the new configuration, not things to
 /// choose between. Hangs under its (relative) parent with the right edges aligned, drawn above everything.
