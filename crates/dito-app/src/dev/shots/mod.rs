@@ -8,6 +8,7 @@ mod input;
 mod onboarding;
 mod pages;
 mod runner;
+mod tile_row;
 mod verify;
 
 pub use runner::run;

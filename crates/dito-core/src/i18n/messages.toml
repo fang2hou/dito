@@ -212,6 +212,8 @@ models.endpoint = { ja = "エンドポイント", en = "Endpoint", zh = "端点"
 models.deployment = { ja = "デプロイ名", en = "Deployment", zh = "部署名称" }
 models.api_key = { ja = "API キー", en = "API key", zh = "API 密钥" }
 models.reasoning_effort = { ja = "思考強度", en = "Reasoning effort", zh = "推理强度" }
+models.new_configuration = { ja = "新しい設定", en = "New configuration", zh = "新设置" }
+models.no_model = { ja = "モデル未設定", en = "No model set", zh = "未设置模型" }
 models.aws_profile = { ja = "AWS プロファイル", en = "AWS profile", zh = "AWS 配置文件" }
 models.region = { ja = "リージョン", en = "Region", zh = "区域" }
 models.model_id = { ja = "モデル ID", en = "Model ID", zh = "模型 ID" }

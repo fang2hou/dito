@@ -4,6 +4,8 @@ mod appearance_seg;
 mod banner;
 mod button;
 mod callbacks;
+#[cfg_attr(not(feature = "screenshots"), expect(dead_code, reason = "the Models page adopts the tile row later"))]
+mod config_tiles;
 mod format;
 mod glass;
 mod history_tip;
@@ -39,6 +41,11 @@ pub use button::{
     close_button, disabled_button, icon_button, icon_button_with,
 };
 pub use callbacks::{Cb, cbk, cbk_idx, click_cb};
+#[cfg_attr(
+    not(feature = "screenshots"),
+    expect(unused_imports, reason = "the Models page adopts the tile row later")
+)]
+pub use config_tiles::{ConfigTile, TilePlus, TileRowState, cbk_id, tile_row};
 pub use format::{error_line, error_summary, fmt_bytes, fmt_eta, history_style_label};
 pub use glass::{prepare as prepare_card_backdrop, wordmark as page_wordmark};
 pub use history_tip::history_tip;
