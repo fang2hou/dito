@@ -96,6 +96,9 @@ pub struct HudView {
     countdown_tick: Option<u64>,
     #[cfg(feature = "screenshots")]
     wave_preview_gain: Option<f32>,
+    /// The hidden-capture frame loop; dropping the view cancels it.
+    #[cfg(feature = "screenshots")]
+    preview_clock: Option<Task<()>>,
 }
 
 impl HudView {
@@ -139,6 +142,8 @@ impl HudView {
             countdown_tick: None,
             #[cfg(feature = "screenshots")]
             wave_preview_gain: None,
+            #[cfg(feature = "screenshots")]
+            preview_clock: None,
         }
     }
 
