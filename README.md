@@ -6,55 +6,63 @@ Dictation for macOS: press a shortcut, speak, and polished text appears at your 
 
 </div>
 
-Dito records your voice, recognizes it on your Mac or through a cloud provider, optionally polishes it with a language model, and types it into whatever app has focus. The UI is in Japanese, with English and Simplified Chinese available. It is in early, fast-moving development.
+Dito records your voice, turns it into text on your Mac or through a cloud provider, optionally polishes it with a language model, and types it into whatever app has focus. The interface is in Japanese, with English and Simplified Chinese available. Dito is in early, fast-moving development.
 
-## 🚀 Quick Start
+## Features
 
-**With an AI coding agent**: paste this into the agent to hand it the repository:
+- **Works in any app**: typing or paste with automatic fallback, and your clipboard restored afterwards.
+- **Local or cloud, per stage**: on-device Qwen3-ASR and SenseVoice for speech, Qwen3.5 for polishing, or your own cloud configurations.
+- **Polishing that follows the app**: separate writing styles for Slack, Teams and any app you add.
+- **A HUD that stays out of the way**: a small capsule with a live waveform that never takes focus.
+- **Never loses a dictation**: if polishing fails, the raw text is inserted; every result stays in History.
+- **Private by default**: history and audio stay on your Mac, and API keys live in the macOS Keychain.
 
-```text
-Work in this repository. Read AGENTS.md at the repository root first and follow it.
-```
+## Install
 
-**As a human**: requires macOS, [mise](https://mise.jdx.dev) (installs the pinned Rust and Python tools from `mise.toml`), Xcode with its Metal Toolchain, and cmake.
+1. Download the zipped app from the [latest release](../../releases/latest) and move `Dito.app` to `Applications`.
+2. Open it. Dito starts in the menu bar and opens no window by itself; on the first launch it shows a short setup.
+3. Allow **Microphone** and **Accessibility** when asked. Accessibility lets Dito type into other apps.
 
-```bash
-mise install          # pinned Rust, Python, uv and ruff
-mise run certs        # once per machine: signing identity that keeps permissions across rebuilds
-mise run dev:mock     # the whole app with mock providers; nothing is typed into other apps
-```
+Release builds are ad-hoc signed, so macOS asks for both permissions again after each update. Building from source with your own signing identity avoids this; see [Contributing](#for-developers).
 
-The settings window opens and a menu bar icon appears. Put the cursor in a text field and press right ⌘ to start and stop a dictation. Dito needs Microphone and Accessibility permissions; the settings window links to both.
+## Quick start
 
-<details>
-<summary>Real mode and release builds</summary>
+1. In **Models**, download a local model or add a cloud configuration.
+2. Put the cursor in any text field.
+3. Press the right **⌘** key, speak, and press it again. The text appears at the cursor.
 
-- `mise run dev` uses the real microphone, local models and providers. Download local models under Models → Local, or set up a provider under Models.
-- `mise run release` builds the optimized `target/bundle/Dito.app` and launches it.
-- `mise run release:install` builds the release bundle and installs it to `~/Applications`. It creates the `dito-dev` signing identity first when it is missing (one macOS authorization prompt).
-- If only the Command Line Tools are selected, export `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` and run `xcodebuild -downloadComponent MetalToolchain` once.
+| To | Do |
+| --- | --- |
+| Cancel while recording | Esc or the × on the HUD |
+| Finish early | The ✓ on the HUD |
+| Stop transcription or polishing | The Stop button on the HUD |
+| Dictate while holding the key | Choose Hold mode in **General** |
+| Change shortcut, language, microphone or appearance | **General** |
+| Review or copy earlier results | **History** |
+| Teach Dito your words | **Dictionary** |
+| Change how text is polished per app | **Prompts** |
 
-</details>
+Recordings stop after 5 minutes and are still processed.
 
-## ✨ Features
+## Your data
 
-- **Works in any app**: verified typing or paste with automatic fallback, and the clipboard restored afterwards.
-- **Local or cloud, per stage**: on-device Qwen3-ASR, SenseVoice and Qwen3.5, or cloud configurations through an editable request JSON.
-- **Polishing that follows the app**: prompts per language, with General, Slack and Teams styles.
-- **A HUD that never steals focus**: a small capsule with a live waveform, progress and clear errors.
-- **Never loses a dictation**: polish failures insert the raw text, and every result stays in History.
+Settings, history, recorded audio and downloaded models live in `~/Library/Application Support/com.fang2hou.Dito`. Cloud API keys are stored in the Keychain, never in files. Nothing is sent anywhere unless you choose a cloud provider for a stage.
 
-## 📚 Learn More
+## For developers
 
 | Goal | Read |
 | --- | --- |
+| Build, run with mocks, test | [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md) |
+| Run locally, flags, diagnose a problem | [docs/DEBUGGING.md](docs/DEBUGGING.md) |
+| Architecture and decisions | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [ADRs](docs/adr/README.md) |
+| Terms and where each concept lives | [docs/GLOSSARY.md](docs/GLOSSARY.md) |
+| Contribute a change | [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) |
 | What the app does and why | [design/features.md](design/features.md) |
 | UI and motion design | [design/README.md](design/README.md) |
-| Architecture and decisions | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [ADRs](docs/adr/README.md) |
-| Build, test and debug | [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md) |
-| Contribute a change | [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) |
-| Give it to an agent | [AGENTS.md](AGENTS.md) |
+| Work with an AI coding agent | [AGENTS.md](AGENTS.md) |
 
-## 📄 License
+The shortest path to a running copy is `mise install` and `mise run dev:mock`, which needs macOS, Xcode with its Metal Toolchain and cmake; details are in [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md).
+
+## License
 
 All rights reserved. See [LICENSE](LICENSE).

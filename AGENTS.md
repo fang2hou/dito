@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Guidance for AI agents working in this repository. Read this before making changes.
+Guidance for AI agents working in this repository. Read this before making changes. Terms and where each concept lives: `docs/GLOSSARY.md`; run and diagnose: `docs/DEBUGGING.md`.
 
 Dito is a macOS dictation app in Rust and GPUI: press a shortcut, speak, and polished text is typed at the cursor. It is a personal, daily-use tool in fast early development.
 

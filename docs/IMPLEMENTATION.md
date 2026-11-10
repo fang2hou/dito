@@ -25,6 +25,7 @@ mise run release:install                      # release bundle installed to ~/Ap
 mise run check                                # ./scripts/check.sh fast: fmt, unit tests, mock-server tests, i18n coverage
 mise run lint:rust                            # clippy for the workspace, again with the mock and screenshots features
 mise run check:full                           # fast, plus compile checks of every build flavor
+mise run check:design-refs                    # every design:<id> reference resolves
 mise run lint                                 # lint:rust, ruff and ty for bench, actionlint for workflows
 mise run hooks:install                        # once per clone: install the prek commit hooks (see CONTRIBUTING.md, Checks)
 mise run hooks                                # run every hook against all files
@@ -57,7 +58,7 @@ The Python benchmark harness has its own tasks: `mise run bench:sync`, `bench:te
 - `assets/icon/`: the Icon Composer document.
 - `bench/`: Python benchmark harness for ASR and polish models, with stored results.
 - `mise.toml`: tool versions and the project tasks. `prek.toml`: commit hooks. `.github/`: PR rules, and the release workflow (see [CONTRIBUTING.md](CONTRIBUTING.md)).
-- `scripts/`: `bundle.sh` (release app), `install.sh` (install to `~/Applications`), `quit.sh` (quit the running release Dito), `certs.sh` (signing identity), `check.sh` (checks), `dev-runner.sh` (wraps runs in `DitoDev.app`), `icon.sh` (icon build and preview), `setup-macos.sh` (Metal toolchain), `check-design-icons.py` (geometry check of the saved design), `check-flow.sh` and `check-release-tag.sh` (branch and tag rules for CI). `.agents/skills/` holds the project skills, including `icon-keylines`.
+- `scripts/`: `bundle.sh` (release app), `install.sh` (install to `~/Applications`), `quit.sh` (quit the running release Dito), `certs.sh` (signing identity), `check.sh` (checks), `dev-runner.sh` (wraps runs in `DitoDev.app`), `icon.sh` (icon build and preview), `setup-macos.sh` (Metal toolchain), `check-design-icons.py` (geometry check of the saved design) and `check-design-refs.py` (`design:<id>` references against `design/sections.toml`), `check-flow.sh` and `check-release-tag.sh` (branch and tag rules for CI). `.agents/skills/` holds the project skills, including `icon-keylines`.
 - `docs/`: this document, architecture, contributing and ADRs. `docs/workflow/`: step-by-step workflows.
 
 ## Coding Standards
@@ -80,24 +81,7 @@ The Python benchmark harness has its own tasks: `mise run bench:sync`, `bench:te
 
 ## Debugging
 
-| Flag | Effect |
-| --- | --- |
-| `--mock` | Mock cloud server, memory secrets, synthetic microphone, data in `$TMPDIR/dito-mock` (build with `--features mock`) |
-| `--log-sink` | Log results instead of typing them |
-| `--real-mic` | Use the real microphone in mock mode |
-| `--wav <file>` | Use a WAV file as the recording |
-| `--data-dir <dir>` | Config and history location; an empty directory shows onboarding |
-| `--lang <code>` | Pretend the system language is `ja`, `en` or `zh` |
-| `--open-settings` | Open the settings window at launch. A launch opens no window by itself (see [ADR 0014](adr/0014-silent-launch.md)), so `mise run dev` and `dev:mock` pass this flag |
-| `--demo-run` | Run one dictation headlessly and print it; no Dock icon, menu bar or window, never frontmost |
-| `--screenshots <dir>` | Render screenshots (build with `--features screenshots`; narrow with `DITO_SHOTS_ONLY`); windows are never shown and never take focus |
-
-- Logs go to stdout through `tracing`; the dev runner tails the app's output into the terminal. Override with `RUST_LOG`.
-- Data lives in `~/Library/Application Support/com.fang2hou.Dito`: `config.toml`, `dito.db`, `audio/` and `models/`. Keys are in the Keychain under `com.fang2hou.dito`, one item per cloud polish configuration (`polish.<id>`) and per cloud speech configuration (`asr.<id>`). The login item is `~/Library/LaunchAgents/com.fang2hou.dito.plist`.
-- Debug builds (`mise run dev`, `cargo run`, tests) use a separate identity, `com.fang2hou.dito-dev` (data in `com.fang2hou.Dito-dev`, own Keychain items, login item, and Microphone and Accessibility grants), so they never read or change the installed app's config, history, keys or login item. API keys, models and permissions start empty there; point `models_dir` at the release folder to reuse downloaded models.
-- `--data-dir` doesn't move the models folder; set `models_dir` for that.
-- Use `--mock --log-sink` for any automated or agent run.
-- Examples for manual checks: `cargo run -p dito-audio --example record`, `cargo run -p dito-platform --example probe`, `cargo run -p dito-platform --example press_shortcut -- 2` (presses right Command, to drive a running Dito), `cargo run -p dito-platform --example request -- accessibility` or `-- mic` (asks for a permission and watches its status), `cargo run -p dito-runtimes --example local_e2e`.
+Flags, data locations, logs and a symptom table are in [DEBUGGING.md](DEBUGGING.md).
 
 ## Engineering Traps
 
@@ -127,7 +111,7 @@ The commit hooks run `./scripts/check.sh fast` and `mise run lint:rust`; run `./
 
 ### Changing the database schema
 
-The SQLite store behind `dito.db` versions its schema with `PRAGMA user_version`, which equals the number of entries in `MIGRATIONS` (`crates/dito-core/src/store.rs`) that have been applied. To change the schema, append a migration to that list; never edit or reorder one that has shipped, because existing databases have already run it. The store applies pending migrations when it opens the database and owns `user_version`, so nothing else writes it, and it refuses a database whose version is newer than the list. Add a test that opens a database at the previous version and checks that its rows survive and `user_version` reaches the new value.
+The SQLite store behind `dito.db` versions its schema with `PRAGMA user_version`, which equals the number of entries in `MIGRATIONS` (`crates/dito-core/src/store/schema.rs`) that have been applied. To change the schema, append a migration to that list; never edit or reorder one that has shipped, because existing databases have already run it. The store applies pending migrations when it opens the database and owns `user_version`, so nothing else writes it, and it refuses a database whose version is newer than the list. Add a test that opens a database at the previous version and checks that its rows survive and `user_version` reaches the new value.
 
 ### Adding a local model
 

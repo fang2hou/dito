@@ -15,7 +15,7 @@ What the app is for and what it does, from the user's side. How it looks and mov
 
 - Press the shortcut (right ⌘ alone by default), speak, and the text is recognized, optionally polished, and typed at the cursor.
 - **Toggle mode** (default): press to start, press again to finish. **Hold mode**: speak while holding, release to finish.
-- Esc or × cancels while recording; ✓ finishes; Stop cancels recognition or polishing.
+- Esc or × cancels while recording; ✓ finishes; Stop cancels transcription or polishing.
 - A lone-modifier shortcut followed quickly by another key counts as typing, not as a dictation.
 - Recordings stop at 5 minutes; a countdown appears in the last minute.
 - Insertion uses key input (default) or paste, with automatic fallback, and restores the clipboard afterwards.
@@ -26,7 +26,7 @@ What the app is for and what it does, from the user's side. How it looks and mov
 ## HUD
 
 - A small capsule above the Dock, or following the pointer. It never takes focus and stays above app windows.
-- States: listening (with a live waveform), recognizing, polishing, inserted, copied, and errors (authentication, no speech, microphone, network, other).
+- States: listening (with a live waveform), transcribing, polishing, inserted, copied, and errors (authentication, no speech, microphone, network, other).
 - Errors explain the reason and offer Retry or Open Settings; they close after 3 seconds, and hovering keeps them open.
 - Hovering shows the speech language selector, button tooltips and the Stop button.
 - Its appearance (system, light or dark; dark by default) is set separately from the settings window.

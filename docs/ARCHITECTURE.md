@@ -1,6 +1,6 @@
 # Architecture
 
-This document keeps the design of the code from drifting, especially during broad changes by AI agents. It names modules and boundaries, not files. Revisit it when the architecture changes, not on routine edits.
+Terms are defined in [GLOSSARY.md](GLOSSARY.md). This document keeps the design of the code from drifting, especially during broad changes by AI agents. It names modules and boundaries, not files. Revisit it when the architecture changes, not on routine edits.
 
 ## Overview
 
@@ -15,6 +15,25 @@ Dito is a macOS dictation app. A global shortcut starts a recording; the audio i
 - `dito-platform`: macOS integration: event tap and shortcut machine, permissions, text insertion, Keychain, music mute, window helpers, login item.
 - `dito-testkit`: an in-process mock server for cloud APIs and downloads.
 - `dito-app`: the GPUI app: HUD, settings pages, onboarding, menu bar, shared `ui` controls, theme and motion.
+
+## Dictation Flow
+
+```mermaid
+flowchart LR
+    Shortcut[dito-platform: shortcut machine] --> Controller[dito-core: controller actor]
+    Controller --> Recorder[Recorder: dito-audio] --> Clip[(AudioClip)]
+    Clip --> Pipeline[pipeline::run]
+    Pipeline --> Transcribe[Transcriber] --> Polish[Polisher]
+    Transcribe -. local .-> Local[dito-local + dito-runtimes]
+    Transcribe -. provider .-> Cloud[dito-core provider]
+    Polish -. local .-> Local
+    Polish -. provider .-> Cloud
+    Polish --> Sink[Sink: dito-platform insertion]
+    Controller --> Store[(Store: history)]
+    Controller -- HudState watch --> App[dito-app: HUD]
+```
+
+The controller owns the run: it starts the recorder, hands the clip to the pipeline, delivers the text through `Sink` and records the result in `Store`. Polish failure skips the polish step and delivers the transcript. The app only observes `HudState` and sends commands.
 
 ## Invariants
 
