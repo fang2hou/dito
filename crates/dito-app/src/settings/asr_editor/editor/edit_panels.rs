@@ -33,7 +33,21 @@ impl AsrEditor {
     }
 
     fn templates(&self, c: &Ctx, cx: &mut Context<Self>) -> Div {
-        let names = AsrProfiles::NAMES.iter().map(|s| SharedString::from(*s)).collect::<Vec<_>>();
+        let cfg = self.st.cfg.get();
+        let defaults;
+        let profiles = match &cfg.asr.cloud_asr {
+            Some(profiles) => profiles,
+            None => {
+                defaults = AsrProfiles::default();
+                &defaults
+            }
+        };
+        let names = profiles
+            .profiles
+            .iter()
+            .take(self.sources.len())
+            .map(|profile| SharedString::from(profile.name.clone()))
+            .collect::<Vec<_>>();
         div()
             .w_full()
             .flex()

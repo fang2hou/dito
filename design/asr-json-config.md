@@ -155,4 +155,4 @@ The editor stays plain: the title is just 接続設定, with no template instruc
 
 ## Storage
 
-Settings are TOML. Each preset's config is stored as a JSON string in `cloud_asr.profiles` and parsed back on load, which keeps `null`, nested arrays and custom fields exactly. Keys are stored separately in the Keychain and never in this JSON.
+Settings are TOML. `cloud_asr.profiles` is a list of presets, each with a stable `id`, a display `name` and its `config`; `cloud_asr.selected` holds the id of the active one. Each `config` is stored as a JSON string and parsed back on load, which keeps `null`, nested arrays and custom fields exactly. Keys are stored separately in the Keychain, under an account named after the preset's id, and never in this JSON.

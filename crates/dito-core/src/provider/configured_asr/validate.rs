@@ -320,7 +320,8 @@ mod tests {
 
     #[test]
     fn templates_require_model() {
-        for mut v in AsrProfiles::default().profiles {
+        for profile in AsrProfiles::default().profiles {
+            let mut v = profile.config;
             assert!(validate(&v).is_err());
             v["connection"]["model"] = "user-model".into();
             assert!(validate(&v).is_ok());
