@@ -102,7 +102,7 @@ impl HudView {
     /// Hidden capture windows have no native display-link signal.
     fn start_hidden_preview_clock(&mut self, cx: &mut Context<Self>) {
         self.frame_clock_started = true;
-        cx.spawn(async move |view, cx| {
+        self.preview_clock = Some(cx.spawn(async move |view, cx| {
             loop {
                 cx.background_executor().timer(Duration::from_millis(16)).await;
                 if view
@@ -116,7 +116,6 @@ impl HudView {
                     break;
                 }
             }
-        })
-        .detach();
+        }));
     }
 }

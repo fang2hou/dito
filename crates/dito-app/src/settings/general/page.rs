@@ -23,8 +23,11 @@ pub struct GeneralPage {
     /// Filled when the microphone list is opened; enumerating devices at launch touches the audio
     /// system (and any nearby iPhone) before the user has asked for a microphone.
     pub(super) devices: Vec<InputDevice>,
-    /// Bumped each time the microphone list opens; ends the previous refresh loop.
-    pub(super) mic_poll: ui::Requests,
+    /// The microphone refresh loop; present only while the list is open. Opening the list again
+    /// replaces it, and dropping it ends the loop.
+    _mic_poll: Option<Task<()>>,
+    /// Polls the Accessibility permission for as long as the page exists.
+    _permission_poll: Task<()>,
     pub(super) capturing: bool,
     pub(super) accessibility_ok: bool,
     pub(super) hud_preview: Option<Entity<StylePreview>>,
@@ -45,7 +48,7 @@ impl GeneralPage {
         ui::notify_on_change(st.hotkeys.unavailable.subscribe(), cx);
 
         // Permissions change outside the app; poll lightly while the window exists.
-        cx.spawn(async move |this, cx| {
+        let permission_poll = cx.spawn(async move |this, cx| {
             loop {
                 let ok = permissions::status(Permission::Accessibility) == Status::Granted;
                 if this
@@ -61,8 +64,7 @@ impl GeneralPage {
                 }
                 cx.background_executor().timer(Duration::from_secs(2)).await;
             }
-        })
-        .detach();
+        });
 
         ui::observe(st.dictation.hud(), cx, |page, state, cx| {
             if state != HudState::Hidden {
@@ -76,7 +78,8 @@ impl GeneralPage {
             hud_preview: None,
             hud_height,
             devices: Vec::new(),
-            mic_poll: ui::Requests::default(),
+            _mic_poll: None,
+            _permission_poll: permission_poll,
             st,
             open: None,
             capturing: false,
@@ -89,14 +92,13 @@ impl GeneralPage {
             this.open = if this.open == Some(id) { None } else { Some(id) };
             if this.open == Some("mic") && (!this.st.opts.mock || this.st.opts.real_mic) {
                 this.devices = dito_audio::list_input_devices();
-                let poll = this.mic_poll.begin();
                 // Headsets connect a few seconds after they are put on: keep the list current while it is shown.
-                cx.spawn(async move |this, cx| {
+                this._mic_poll = Some(cx.spawn(async move |this, cx| {
                     loop {
                         cx.background_executor().timer(MIC_POLL).await;
                         let devices = cx.background_executor().spawn(async { dito_audio::list_input_devices() }).await;
                         let keep = this.update(cx, |t, cx| {
-                            if t.open != Some("mic") || !t.mic_poll.is_current(poll) {
+                            if t.open != Some("mic") {
                                 return false;
                             }
                             if t.devices != devices {
@@ -109,8 +111,9 @@ impl GeneralPage {
                             break;
                         }
                     }
-                })
-                .detach();
+                }));
+            } else {
+                this._mic_poll = None;
             }
             cx.notify();
         })
