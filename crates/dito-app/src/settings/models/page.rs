@@ -173,8 +173,7 @@ impl ModelsPage {
         let key = if field == Field::CompatBase { "base_url" } else { "model" };
         services::save_config(&self.st, |c| {
             let profiles = c.asr.cloud_asr.get_or_insert_with(AsrProfiles::default);
-            let selected = profiles.selected;
-            if let Some(config) = profiles.profiles.get_mut(selected) {
+            if let Some(config) = profiles.active_mut() {
                 config["connection"][key] = value.into();
             }
         });

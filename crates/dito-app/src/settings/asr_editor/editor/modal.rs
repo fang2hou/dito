@@ -137,9 +137,16 @@ impl AsrEditor {
             BtnKind::Primary,
             None,
             cbk(cx, |this: &mut Self, _, cx| {
-                let language = this.st.cfg.get().general.lang();
+                let cfg = this.st.cfg.get();
+                let language = cfg.general.lang();
+                let id = cfg
+                    .asr
+                    .cloud_asr
+                    .as_ref()
+                    .and_then(|profiles| profiles.profiles.get(this.selected))
+                    .map_or("", |profile| profile.id.as_str());
                 cx.write_to_clipboard(ClipboardItem::new_string(
-                    dito_core::provider::configured_asr::configuration_spec(language, this.selected),
+                    dito_core::provider::configured_asr::configuration_spec(language, id),
                 ));
             }),
         ))

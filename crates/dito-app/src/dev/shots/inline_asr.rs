@@ -47,9 +47,10 @@ fn draft(cx: &mut AsyncApp) -> String {
 
 pub async fn run(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     let server = st._mock_server.as_ref().expect("inline ASR verification requires --mock");
-    let mut profiles = AsrProfiles { selected: 1, ..Default::default() };
-    profiles.profiles[1]["connection"]["base_url"] = format!("{}/v1", server.url).into();
-    profiles.profiles[1]["connection"]["model"] = "inline-before".into();
+    let mut profiles = AsrProfiles::default();
+    profiles.select_index(1);
+    profiles.profiles[1].config["connection"]["base_url"] = format!("{}/v1", server.url).into();
+    profiles.profiles[1].config["connection"]["model"] = "inline-before".into();
     st.secrets.set(&profiles.account(), "test-key").expect("isolated mock credentials");
     services::save_config(st, |config| {
         config.general.display_language = DisplayLanguage::Ja;

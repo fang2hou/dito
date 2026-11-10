@@ -70,11 +70,12 @@ impl AsrEditor {
         let defaults = AsrProfiles::default();
         let drafts = (0..3)
             .map(|i| {
-                serde_json::to_string_pretty(p.profiles.get(i).unwrap_or(&defaults.profiles[i]))
+                let profile = p.profiles.get(i).or_else(|| defaults.profiles.get(i));
+                serde_json::to_string_pretty(&profile.map_or(Value::Null, |profile| profile.config.clone()))
                     .expect("profiles are JSON")
             })
             .collect::<Vec<_>>();
-        let selected = p.selected.min(2);
+        let selected = p.selected_index().min(2);
         crate::services::watch_config(&st, cx);
         let sources = std::array::from_fn(|i| {
             let source = cx.new(|cx| {
@@ -93,9 +94,13 @@ impl AsrEditor {
             source
         });
         let source = sources[selected].clone();
-        let keys = std::array::from_fn(|selected| {
-            let profile = AsrProfiles { selected, ..p.clone() };
-            st.secrets.get(&profile.account()).unwrap_or_default()
+        let mut keyed = p.clone();
+        let keys = std::array::from_fn(|i| {
+            if i >= keyed.profiles.len() {
+                return String::new();
+            }
+            keyed.select_index(i);
+            st.secrets.get(&keyed.account()).unwrap_or_default()
         });
         let key = cx.new(|cx| InputState::new(window, cx).masked(true).default_value(keys[selected].clone()));
         cx.subscribe_in(&key, window, |this, _, event: &InputEvent, _, cx| {
@@ -246,7 +251,12 @@ impl AsrEditor {
             }
         };
         let selected = self.selected;
-        let profile = AsrProfiles { selected, ..Default::default() };
+        let mut profile = self.st.cfg.get().asr.cloud_asr.clone().unwrap_or_default();
+        if selected >= profile.profiles.len() {
+            return;
+        }
+        let selection_changed = profile.selected_index() != selected;
+        profile.select_index(selected);
         let account = profile.account();
         let key = self.keys[selected].clone();
         let key_changed = key != self.saved_keys[selected];
@@ -258,15 +268,13 @@ impl AsrEditor {
                 return;
             }
         }
-        let current = self.st.cfg.get().asr.cloud_asr.clone().unwrap_or_default();
-        if (current.selected != selected || current.profiles.get(selected) != Some(&value))
+        if (selection_changed || profile.profiles.get(selected).map(|p| &p.config) != Some(&value))
             && let Err(e) = self.st.cfg.update(|cfg| {
                 let profiles = cfg.asr.cloud_asr.get_or_insert_with(AsrProfiles::default);
-                while profiles.profiles.len() < 3 {
-                    profiles.profiles.push(AsrProfiles::default().profiles[profiles.profiles.len()].clone());
+                if let Some(entry) = profiles.profiles.get_mut(selected) {
+                    entry.config = value;
                 }
-                profiles.profiles[selected] = value;
-                profiles.selected = selected;
+                profiles.select_index(selected);
             })
         {
             if key_changed {

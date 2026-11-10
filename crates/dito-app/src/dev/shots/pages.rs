@@ -432,9 +432,10 @@ fn apply_model_case(st: &AppState, appearance: Appearance, case: &ModelCase) {
         c.asr.source = if case.local { Source::Local } else { Source::Provider };
         c.polish.engine.source = c.asr.source;
         c.polish.engine.provider.kind = [ProviderKind::Azure, ProviderKind::Bedrock, ProviderKind::Compat][case.preset];
-        let mut profiles = AsrProfiles { selected: case.preset, ..Default::default() };
+        let mut profiles = AsrProfiles::default();
+        profiles.select_index(case.preset);
         for profile in &mut profiles.profiles {
-            profile["connection"]["model"] = "my-asr-model".into();
+            profile.config["connection"]["model"] = "my-asr-model".into();
         }
         c.asr.cloud_asr = Some(profiles);
     });

@@ -80,7 +80,7 @@ impl Onboarding {
         Self {
             mode: cfg.general.record_mode,
             local: cfg.asr.source == Source::Local,
-            provider: profiles.selected.min(2),
+            provider: profiles.selected_index(),
             editor: None,
             endpoint,
             deployment,

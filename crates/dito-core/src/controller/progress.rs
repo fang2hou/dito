@@ -44,7 +44,7 @@ fn engine_key(engine: &EngineConfig, asr: bool) -> u64 {
         Source::Local => ("local", &engine.local_model).hash(&mut key),
         Source::Provider => {
             if let Some(profiles) = engine.cloud_asr.as_ref().filter(|_| asr) {
-                ("profile", profiles.selected, profiles.active().to_string()).hash(&mut key);
+                ("profile", &profiles.selected, profiles.active().to_string()).hash(&mut key);
             } else {
                 let p = &engine.provider;
                 match p.kind {
