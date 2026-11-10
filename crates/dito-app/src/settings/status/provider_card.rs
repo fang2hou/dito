@@ -1,6 +1,5 @@
 use dito_core::config::{EngineConfig, ProviderKind, Source};
 use dito_core::i18n::Tr;
-use dito_core::provider::configured_asr::AsrProfiles;
 use dito_core::secrets::Role;
 use gpui_kit::*;
 
@@ -71,10 +70,10 @@ impl StatusPage {
     }
 }
 
-fn provider_name(c: &Ctx, e: &EngineConfig) -> &'static str {
+fn provider_name<'a>(c: &Ctx, e: &'a EngineConfig) -> &'a str {
     e.cloud_asr
         .as_ref()
-        .and_then(|profiles| AsrProfiles::NAMES.get(profiles.selected).copied())
+        .and_then(|profiles| profiles.active_name())
         .unwrap_or_else(|| c.lang.tr(e.provider.kind.label()))
 }
 

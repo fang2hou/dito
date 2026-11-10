@@ -30,7 +30,7 @@ impl Onboarding {
         self.apply_provider(cx);
         self.provider = k;
         let mut p = self.st.cfg.get().asr.cloud_asr.clone().unwrap_or_default();
-        p.selected = k;
+        p.select_index(k);
         self.endpoint
             .update(cx, |s, cx| s.set_value(p.active()["connection"]["base_url"].as_str().unwrap_or(""), window, cx));
         self.deployment
@@ -47,7 +47,7 @@ impl Onboarding {
         cx.subscribe_in(&editor, window, |this, _, event: &crate::settings::asr_editor::Closed, window, cx| {
             if event.0 {
                 let p = this.st.cfg.get().asr.cloud_asr.clone().unwrap_or_default();
-                this.provider = p.selected.min(2);
+                this.provider = p.selected_index();
                 this.endpoint.update(cx, |s, cx| {
                     s.set_value(p.active()["connection"]["base_url"].as_str().unwrap_or(""), window, cx)
                 });
@@ -71,8 +71,8 @@ impl Onboarding {
             (self.provider, self.endpoint.read(cx).value().to_string(), self.deployment.read(cx).value().to_string());
         services::save_config(&self.st, |c| {
             let p = c.asr.cloud_asr.get_or_insert_with(dito_core::provider::configured_asr::AsrProfiles::default);
-            p.selected = selected;
-            if let Some(v) = p.profiles.get_mut(selected) {
+            p.select_index(selected);
+            if let Some(v) = p.active_mut() {
                 v["connection"]["base_url"] = base.into();
                 v["connection"]["model"] = model.into();
             }

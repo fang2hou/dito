@@ -168,9 +168,10 @@ mod tests {
     #[test]
     fn profile_nulls_and_custom_requests_survive_toml_storage() {
         let mut config = Config::default();
-        let mut profiles = AsrProfiles { selected: 2, ..Default::default() };
-        profiles.profiles[2]["connection"]["model"] = "my-model".into();
-        profiles.profiles[2]["language_map"]["ja"] = "JP".into();
+        let mut profiles = AsrProfiles::default();
+        profiles.select_index(2);
+        profiles.profiles[2].config["connection"]["model"] = "my-model".into();
+        profiles.profiles[2].config["language_map"]["ja"] = "JP".into();
         config.asr.cloud_asr = Some(profiles);
         let encoded = toml::to_string(&config).unwrap();
         let decoded: Config = toml::from_str(&encoded).unwrap();
@@ -234,6 +235,37 @@ instruction = "my herdr rule"
         assert_eq!(prompts.ja.herdr, default_set(Lang::Ja).herdr);
         assert_eq!(prompts.en.herdr.instruction, "my herdr rule");
         assert_eq!(prompts.zh.herdr, default_set(Lang::Zh).herdr);
+    }
+
+    #[test]
+    fn legacy_cloud_asr_profiles_keep_their_selection_edits_and_keychain_account() {
+        let edited = r#"{"connection":{"model":"my-model"},"language_map":{"auto":null,"ja":"JP"}}"#;
+        let untouched = "{}";
+        let (dir, path) = config_file(&format!(
+            r#"
+schema_version = 1
+
+[asr]
+source = "provider"
+
+[asr.cloud_asr]
+selected = 2
+profiles = ['{untouched}', '{untouched}', '{edited}']
+"#
+        ));
+
+        let cfg = ConfigStore::open(&path).unwrap().get();
+        let profiles = cfg.asr.cloud_asr.as_ref().unwrap();
+        assert_eq!(profiles.selected, "openrouter");
+        assert_eq!(profiles.selected_index(), 2);
+        assert_eq!(profiles.account(), "asr.openrouter", "the Keychain account is the one the position had");
+        assert_eq!(profiles.active_name(), Some("OpenRouter"));
+        let expected: serde_json::Value = serde_json::from_str(edited).unwrap();
+        assert_eq!(profiles.active(), &expected, "edits and nulls stay");
+        assert!(dir.path().join("config.toml.v1.bak").exists(), "the original is kept");
+
+        // The rewritten file is in the new shape and loads back unchanged.
+        assert_eq!(ConfigStore::open(&path).unwrap().get(), cfg);
     }
 
     #[test]
