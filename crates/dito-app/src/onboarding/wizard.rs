@@ -12,7 +12,7 @@ use crate::settings::{self, Page};
 use crate::state::AppState;
 use crate::ui::{self, Motion, TestState};
 
-use super::step::Step;
+use super::step::{Step, can_continue};
 use super::transition::Slide;
 use super::window::WizardWindow;
 
@@ -167,15 +167,13 @@ impl Onboarding {
         if self.slide.is_some() {
             return;
         }
+        let target = self.step.next();
         match self.step {
-            Step::Welcome => self.go(Step::Permissions, cx),
-            Step::Permissions => self.go(Step::Usage, cx),
+            Step::Welcome | Step::Permissions | Step::Shortcut => {}
             Step::Usage => {
                 let mode = self.mode;
                 services::save_config(&self.st, |c| c.general.record_mode = mode);
-                self.go(Step::Shortcut, cx);
             }
-            Step::Shortcut => self.go(Step::Engine, cx),
             Step::Engine => {
                 let src = if self.local { Source::Local } else { Source::Provider };
                 services::save_config(&self.st, |c| {
@@ -184,13 +182,11 @@ impl Onboarding {
                         c.polish.engine.source = Source::Local;
                     }
                 });
-                self.go(Step::Prepare, cx);
             }
             Step::Prepare => {
                 if !self.local {
                     self.apply_provider(cx);
                 }
-                self.go(Step::Try, cx);
             }
             Step::Try => {
                 services::save_config(&self.st, |c| c.onboarded = true);
@@ -210,34 +206,25 @@ impl Onboarding {
                 });
             }
         }
+        if let Some(target) = target {
+            self.go(target, cx);
+        }
     }
 
     pub(super) fn back(&mut self, cx: &mut Context<Self>) {
         if self.slide.is_some() {
             return;
         }
-        let prev = match self.step {
-            Step::Welcome => return,
-            Step::Permissions => Step::Welcome,
-            Step::Usage => Step::Permissions,
-            Step::Shortcut => Step::Usage,
-            Step::Engine => Step::Shortcut,
-            Step::Prepare => Step::Engine,
-            Step::Try => Step::Prepare,
-        };
-        self.go(prev, cx);
+        if let Some(prev) = self.step.prev() {
+            self.go(prev, cx);
+        }
     }
 
     /// 続ける / 完了 stays disabled until the step's work is done.
     pub(super) fn can_next(&self, _cx: &App) -> bool {
         let cfg = self.st.cfg.get();
-        match self.step {
-            Step::Prepare if self.local => {
-                [&cfg.asr.local_model, &cfg.polish.engine.local_model].iter().all(|id| self.st.models.is_installed(id))
-            }
-            Step::Prepare => matches!(self.test, TestState::Ok(_)),
-            Step::Try => self.tried_ok,
-            _ => true,
-        }
+        let models_installed =
+            [&cfg.asr.local_model, &cfg.polish.engine.local_model].iter().all(|id| self.st.models.is_installed(id));
+        can_continue(self.step, self.local, models_installed, matches!(self.test, TestState::Ok(_)), self.tried_ok)
     }
 }
