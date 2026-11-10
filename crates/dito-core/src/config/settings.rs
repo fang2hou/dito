@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use super::{EngineConfig, EngineLabels, General, PolishConfig, ProviderKind, ReasoningEffort, Source};
+use super::{EngineConfig, General, PolishConfig, ProviderKind, ReasoningEffort, Source};
 use crate::prompts::Prompts;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
@@ -47,8 +47,9 @@ impl Config {
     }
 
     /// Labels of the engines the current settings would run: `asr` always, `polish` only when polishing is enabled.
-    pub fn engine_labels(&self) -> EngineLabels {
-        EngineLabels { asr: Some(self.asr.label()), polish: self.polish.enabled.then(|| self.polish.engine.label()) }
+    pub fn engine_labels(&self) -> super::EngineLabels {
+        let polish = self.polish.enabled.then(|| self.polish.engine.label());
+        super::EngineLabels { asr: Some(self.asr.label()), polish }
     }
 }
 
