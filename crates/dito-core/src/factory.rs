@@ -1,6 +1,6 @@
 //! Turns the current [`Config`] into concrete engines.
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use async_trait::async_trait;
 
@@ -29,15 +29,41 @@ pub trait Engines: Send + Sync {
     async fn polisher(&self, cfg: &Config) -> ProviderResult<Option<Arc<dyn Polisher>>>;
 }
 
+/// An engine together with the config it was built from.
+type Slot<T> = Option<(EngineConfig, Arc<T>)>;
+
+/// Provider engines reused across dictations so HTTP connections and cloud credentials survive between them.
+/// The API key is not part of the key; `invalidate_engines` must run whenever a secret changes.
+#[derive(Default)]
+struct EngineCache {
+    /// Bumped by every invalidation so a build that raced with one is not stored.
+    epoch: u64,
+    asr: Slot<dyn Transcriber>,
+    polish: Slot<dyn Polisher>,
+}
+
 pub struct EngineFactory {
     secrets: Arc<dyn SecretStore>,
     local: Option<Arc<dyn LocalBackend>>,
     bedrock_endpoint: Option<String>,
+    cache: Mutex<EngineCache>,
 }
 
 impl EngineFactory {
     pub fn new(secrets: Arc<dyn SecretStore>) -> Self {
-        Self { secrets, local: None, bedrock_endpoint: None }
+        Self { secrets, local: None, bedrock_endpoint: None, cache: Mutex::default() }
+    }
+
+    /// Drop the cached engines; the next dictation builds them again from the current config and secrets.
+    pub fn invalidate_engines(&self) {
+        let mut cache = self.lock_cache();
+        cache.epoch += 1;
+        cache.asr = None;
+        cache.polish = None;
+    }
+
+    fn lock_cache(&self) -> MutexGuard<'_, EngineCache> {
+        self.cache.lock().expect("engine cache mutex poisoned")
     }
 
     pub fn with_local(mut self, local: Arc<dyn LocalBackend>) -> Self {
@@ -118,14 +144,52 @@ impl EngineFactory {
 #[async_trait]
 impl Engines for EngineFactory {
     async fn transcriber(&self, cfg: &Config) -> ProviderResult<Arc<dyn Transcriber>> {
-        self.transcriber_for(&cfg.asr).await
+        let e = &cfg.asr;
+        let cacheable = e.source == Source::Provider;
+        let epoch = {
+            let cache = self.lock_cache();
+            if cacheable
+                && let Some((built_from, engine)) = &cache.asr
+                && built_from == e
+            {
+                return Ok(engine.clone());
+            }
+            cache.epoch
+        };
+        let engine = self.transcriber_for(e).await?;
+        if cacheable {
+            let mut cache = self.lock_cache();
+            if cache.epoch == epoch {
+                cache.asr = Some((e.clone(), engine.clone()));
+            }
+        }
+        Ok(engine)
     }
 
     async fn polisher(&self, cfg: &Config) -> ProviderResult<Option<Arc<dyn Polisher>>> {
         if !cfg.polish.enabled {
             return Ok(None);
         }
-        Ok(Some(self.polisher_for(&cfg.polish.engine).await?))
+        let e = &cfg.polish.engine;
+        let cacheable = e.source == Source::Provider;
+        let epoch = {
+            let cache = self.lock_cache();
+            if cacheable
+                && let Some((built_from, engine)) = &cache.polish
+                && built_from == e
+            {
+                return Ok(Some(engine.clone()));
+            }
+            cache.epoch
+        };
+        let engine = self.polisher_for(e).await?;
+        if cacheable {
+            let mut cache = self.lock_cache();
+            if cache.epoch == epoch {
+                cache.polish = Some((e.clone(), engine.clone()));
+            }
+        }
+        Ok(Some(engine))
     }
 }
 
@@ -158,5 +222,72 @@ impl Engines for FixedEngines {
 
     async fn polisher(&self, cfg: &Config) -> ProviderResult<Option<Arc<dyn Polisher>>> {
         Ok(cfg.polish.enabled.then(|| self.polish.clone()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::secrets::MemorySecrets;
+
+    fn factory() -> EngineFactory {
+        EngineFactory::new(Arc::new(MemorySecrets::default()))
+    }
+
+    fn compat_config(model: &str) -> Config {
+        let mut cfg = Config::default();
+        cfg.polish.enabled = true;
+        let engine = &mut cfg.polish.engine;
+        engine.source = Source::Provider;
+        engine.provider.kind = ProviderKind::Compat;
+        engine.provider.compat.base_url = "http://127.0.0.1:1/v1".into();
+        engine.provider.compat.model = model.into();
+        cfg
+    }
+
+    async fn polisher(factory: &EngineFactory, cfg: &Config) -> Arc<dyn Polisher> {
+        factory.polisher(cfg).await.expect("compat engine builds offline").expect("polish is enabled")
+    }
+
+    #[tokio::test]
+    async fn unchanged_provider_config_reuses_the_polish_engine() {
+        let factory = factory();
+        let cfg = compat_config("model-a");
+        let first = polisher(&factory, &cfg).await;
+        let second = polisher(&factory, &cfg).await;
+        assert!(Arc::ptr_eq(&first, &second));
+    }
+
+    #[tokio::test]
+    async fn a_changed_engine_config_builds_a_new_engine() {
+        let factory = factory();
+        let first = polisher(&factory, &compat_config("model-a")).await;
+        let second = polisher(&factory, &compat_config("model-b")).await;
+        assert!(!Arc::ptr_eq(&first, &second));
+        let third = polisher(&factory, &compat_config("model-b")).await;
+        assert!(Arc::ptr_eq(&second, &third));
+    }
+
+    #[tokio::test]
+    async fn invalidating_forces_a_rebuild() {
+        let factory = factory();
+        let cfg = compat_config("model-a");
+        let first = polisher(&factory, &cfg).await;
+        factory.invalidate_engines();
+        let second = polisher(&factory, &cfg).await;
+        assert!(!Arc::ptr_eq(&first, &second));
+    }
+
+    #[tokio::test]
+    async fn the_asr_engine_is_cached_the_same_way() {
+        let factory = factory();
+        let mut cfg = compat_config("model-a");
+        cfg.asr = cfg.polish.engine.clone();
+        let first = factory.transcriber(&cfg).await.expect("compat engine builds offline");
+        let second = factory.transcriber(&cfg).await.expect("compat engine builds offline");
+        assert!(Arc::ptr_eq(&first, &second));
+        factory.invalidate_engines();
+        let third = factory.transcriber(&cfg).await.expect("compat engine builds offline");
+        assert!(!Arc::ptr_eq(&first, &third));
     }
 }
