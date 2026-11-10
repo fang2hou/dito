@@ -3,6 +3,7 @@ use std::time::Instant;
 use tokio::sync::{mpsc, watch};
 
 use super::command::Command;
+use super::env::Delivery;
 use super::hud::HudState;
 use super::progress::ProcessingEstimate;
 use crate::pipeline::{Output, Phase, PipelineError};
@@ -11,6 +12,8 @@ pub(super) enum Msg {
     Cmd(Command),
     Phase(u64, Phase),
     Done(u64, Result<Output, PipelineError>),
+    /// The insertion that `Done` started on the blocking pool has finished.
+    Delivered(u64, Delivery),
     Hide(u64, u64),
     RecordingLimit(u64),
 }
