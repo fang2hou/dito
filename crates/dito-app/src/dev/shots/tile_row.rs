@@ -1,5 +1,5 @@
 //! The configuration tile row on a card of its own, drawn as `20.05.13` shows it, and a scripted run of the row's
-//! interactions with simulated pointer events. Opt-in: `DITO_SHOTS_ONLY=tilerow`.
+//! interactions with simulated wheel and pointer events. Opt-in: `DITO_SHOTS_ONLY=tilerow`.
 
 use std::path::Path;
 use std::time::Duration;
@@ -18,7 +18,7 @@ const HEIGHT: f32 = 280.;
 /// Where the row sits in the window: the card's 1 px border and its padding (26 and 20) in.
 const ROW_LEFT: f32 = 27.;
 const ROW_CENTRE: f32 = 53.;
-/// The tiles' area is 672 wide: 720, less the 12 gap and the 36 plus button.
+/// The scrolling area is 672 wide: 720, less the 12 gap and the 36 plus button.
 const VIEW_W: f32 = 672.;
 const PLUS_CENTRE: f32 = ROW_LEFT + VIEW_W + 12. + 18.;
 const TEMPLATES: [Tr; 3] = [Tr::ModelsOpenaiCompatible, Tr::ModelsProviderAzure, Tr::ModelsProviderBedrock];
@@ -74,13 +74,14 @@ impl TileRowShot {
         }
     }
 
-    /// What the Models page does for a template: a new tile named for it joins the end and is selected.
+    /// What the Models page does for a template: a new tile named for it joins the end, is selected and is shown.
     fn add(&mut self, template: &str, cx: &mut Context<Self>) {
         self.added += 1;
         let id = SharedString::from(format!("new-{}", self.added));
         let (name, detail) = (Lang::Ja.tr(Tr::ModelsNewConfiguration), Lang::Ja.tr(Tr::ModelsNoModel));
         self.items.push(item(&id, name, detail));
-        self.selected = id;
+        self.selected = id.clone();
+        self.state.reveal(id);
         self.menu = false;
         self.log.push(format!("add from {template}"));
         cx.notify();
@@ -173,7 +174,7 @@ pub async fn tile_row_shots(dir: &Path, cx: &mut AsyncApp) {
     }
 }
 
-/// The row's window, with the pointer driven by simulated events.
+/// The row's window, with the pointer and wheel driven by simulated events.
 struct Rig<'a> {
     cx: &'a mut AsyncApp,
     dir: &'a Path,
@@ -194,8 +195,9 @@ impl<'a> Rig<'a> {
         self.cx.background_executor().timer(Duration::from_millis(ms)).await;
     }
 
+    /// Capture the window once what was just done has settled: a hover takes 160 ms to fade out.
     async fn shot(&mut self, name: &str) {
-        self.wait(60).await;
+        self.wait(250).await;
         if let Some(img) = render(self.cx, self.window) {
             save(self.dir, &format!("{name}-{}.png", self.tag), img);
         }
@@ -218,9 +220,23 @@ impl<'a> Rig<'a> {
         self.input(|w, cx| hover(w, cx, point(px(8.), px(HEIGHT - 8.))));
     }
 
+    fn scroll(&mut self, dx: f32, dy: f32) {
+        self.input(|w, cx| {
+            let at = point(px(ROW_LEFT + VIEW_W / 2.), px(ROW_CENTRE));
+            hover(w, cx, at);
+            let delta = ScrollDelta::Pixels(point(px(dx), px(dy)));
+            w.dispatch_event(PlatformInput::Scroll(ScrollEvent { position: at, delta, ..Default::default() }), cx);
+        });
+    }
+
     fn model<R>(&mut self, f: impl FnOnce(&mut TileRowShot, &mut Context<TileRowShot>) -> R) -> R {
         let view = self.view.clone();
         self.cx.update(|cx| view.update(cx, f))
+    }
+
+    /// Scroll offset and the furthest offset.
+    fn probe(&mut self) -> (f32, f32) {
+        self.model(|v, _| v.state.probe())
     }
 
     fn log(&mut self) -> Vec<String> {
@@ -239,29 +255,48 @@ impl<'a> Rig<'a> {
         let tag = self.tag.to_string();
         self.park();
         self.shot("tile-row-3").await;
-
-        // A tile lights up under the pointer.
-        let second = point(px(ROW_LEFT + 216. + 12. + 100.), px(ROW_CENTRE));
-        self.input(|w, cx| hover(w, cx, second));
-        self.wait(250).await;
-        self.shot("tile-row-3-hover").await;
-
-        // A click selects.
-        self.input(|w, cx| click(w, cx, second));
-        assert_eq!((self.log().last().cloned(), self.selected()), (Some("select azure".into()), "azure".into()));
-        self.park();
-        self.wait(250).await;
-        self.shot("tile-row-3-selected").await;
-
-        // Four and more tiles keep their width.
+        assert_eq!(self.probe().1, 0., "three tiles share the row and never scroll");
         self.model(|v, cx| {
             v.items = samples();
             cx.notify();
         });
         self.wait(300).await;
         self.shot("tile-row-5-start").await;
+        assert_eq!(self.probe(), (0., 376.), "five tiles: 200 wide, 376 to scroll");
 
-        // The plus button hangs its menu under itself; a template adds a tile that is selected.
+        // A tile lights up under the pointer.
+        self.input(|w, cx| hover(w, cx, point(px(ROW_LEFT + 212. * 2. + 100.), px(ROW_CENTRE))));
+        self.wait(250).await;
+        self.shot("tile-row-5-hover").await;
+
+        // Wheel and trackpad.
+        self.scroll(0., -188.);
+        self.park();
+        self.shot("tile-row-5-middle").await;
+        assert_eq!(self.probe().0, 188., "a vertical wheel scrolls the row sideways");
+        self.scroll(0., -1000.);
+        self.park();
+        self.shot("tile-row-5-end").await;
+        assert_eq!(self.probe().0, 376., "the row stops at its end");
+        self.scroll(200., -15.);
+        assert_eq!(self.probe().0, 176., "a sideways swipe scrolls by its stronger axis");
+        self.scroll(0., 1000.);
+        assert_eq!(self.probe().0, 0.);
+
+        // Clicks select; a tile that is only half there is brought fully into view.
+        self.input(|w, cx| click(w, cx, point(px(ROW_LEFT + 212. + 100.), px(ROW_CENTRE))));
+        assert_eq!((self.log().last().cloned(), self.selected()), (Some("select azure".into()), "azure".into()));
+        self.input(|w, cx| click(w, cx, point(px(ROW_LEFT + VIEW_W - 16.), px(ROW_CENTRE))));
+        self.wait(400).await;
+        assert_eq!(self.selected(), "long", "the sliver under the fade is clickable");
+        self.park();
+        self.shot("tile-row-5-reveal").await;
+        assert_eq!(self.probe().0, 212., "the fourth tile is shown whole, clear of the fade");
+        self.scroll(0., 1000.);
+        self.input(|w, cx| click(w, cx, point(px(ROW_LEFT + 100.), px(ROW_CENTRE))));
+        assert_eq!(self.selected(), "compat");
+
+        // The plus button hangs its menu under itself; a template adds a tile that is selected and shown.
         let plus = point(px(PLUS_CENTRE), px(ROW_CENTRE));
         self.input(|w, cx| click(w, cx, plus));
         self.wait(250).await;
@@ -274,10 +309,13 @@ impl<'a> Rig<'a> {
         // Panel: 224 wide, right-aligned with the button, 44 under its top; first row 6 in, 34 high.
         let first_row = point(px(PLUS_CENTRE + 18. - 112.), px(ROW_CENTRE - 18. + 44. + 6. + 17.));
         self.input(|w, cx| click(w, cx, first_row));
+        self.park();
+        self.wait(500).await;
+        self.shot("tile-row-added").await;
         let template = Lang::Ja.tr(Tr::ModelsOpenaiCompatible);
         assert_eq!(self.log().last().cloned(), Some(format!("add from {template}")));
-        assert_eq!(self.selected(), "new-1");
-        println!("verified tile row hover, click and plus menu ({tag})");
+        assert_eq!(self.probe().0, 376. + 212., "the new tile is scrolled fully into view");
+        println!("verified tile row wheel, trackpad, click, reveal and plus menu ({tag})");
         let window = self.window;
         close_window(self.cx, window);
     }

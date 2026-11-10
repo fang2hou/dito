@@ -1,27 +1,32 @@
 //! The row of configuration tiles above a cloud form (`20.05.13`).
 //!
-//! Up to three tiles share the width; from the fourth every tile is 200 wide. The plus button sits outside the
-//! tiles' area. A press that stays put selects.
+//! Up to three tiles share the width; from the fourth every tile is 200 wide and the row scrolls sideways, without a
+//! scrollbar, fading into the card where tiles continue past an edge. The plus button sits outside the scrolling
+//! area. A press that stays put selects.
 //!
 //! The row knows nothing about configurations: it takes plain tiles and reports ids. Its owner keeps one
-//! [`TileRowState`] next to the data and passes the same one every frame.
+//! [`TileRowState`] next to the data, passes the same one every frame and, after selecting or adding a tile,
+//! calls [`TileRowState::reveal`].
 
 mod geometry;
 mod state;
 mod tile;
 
 use std::rc::Rc;
+use std::time::Instant;
 
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
-use self::geometry::{GAP, TILE_H, TILE_W, content, shares_width};
+use self::geometry::{FADE_W, GAP, TILE_H};
 use self::state::Outcome;
 pub use self::state::TileRowState;
 use self::tile::tile;
 use super::button::{CONTROL_H, CircleAppearance, CircleSize, circle_control};
 use super::callbacks::Cb;
 use super::menu_button::{press_mark, press_toggle};
+use super::motion::Motion;
+use super::primitives::hex_alpha;
 use super::scope::{ScopeHandle, motion_scope, with_motion_scope};
 use crate::assets::Ic;
 use crate::theme::Palette;
@@ -48,7 +53,7 @@ pub struct ConfigTile {
     pub selected: bool,
 }
 
-/// The plus button that ends the row, outside the tiles' area.
+/// The plus button that ends the row, outside the scrolling area.
 pub struct TilePlus {
     /// Whether the menu the press opens is showing; the button stays lit and a press then closes it.
     pub open: bool,
@@ -90,12 +95,18 @@ impl TileRow {
 }
 
 impl RenderOnce for TileRow {
-    fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
+    fn render(self, window: &mut Window, _cx: &mut App) -> impl IntoElement {
         let Self { id, p, scope, state, tiles, on_select, plus } = self;
         with_motion_scope(scope, move || {
-            let shares = shares_width(tiles.len());
-            let mut track = div().h(px(TILE_H)).flex().gap(px(GAP));
-            track = if shares { track.w_full() } else { track.w(px(content(tiles.len()))).flex_none() };
+            let ids: Vec<SharedString> = tiles.iter().map(|t| t.id.clone()).collect();
+            let frame = state.frame(Instant::now(), &ids, Motion::system().is_reduced());
+            if frame.animating {
+                window.request_animation_frame();
+            }
+            let layout = frame.layout;
+
+            let mut track = div().relative().left(px(-frame.offset)).h(px(TILE_H)).flex().gap(px(GAP));
+            track = if layout.shares_width() { track.w_full() } else { track.w(px(layout.content())).flex_none() };
             for spec in &tiles {
                 let press = {
                     let (state, tile_id) = (state.clone(), spec.id.clone());
@@ -105,7 +116,11 @@ impl RenderOnce for TileRow {
                 };
                 let one = tile(&p, ElementId::from((id.clone(), spec.id.clone())), spec, true)
                     .on_mouse_down(MouseButton::Left, press);
-                track = track.child(if shares { one.flex_1().min_w(px(0.)) } else { one.w(px(TILE_W)).flex_none() });
+                track = track.child(if layout.shares_width() {
+                    one.flex_1().min_w(px(0.))
+                } else {
+                    one.w(px(layout.w)).flex_none()
+                });
             }
 
             let scroller = div()
@@ -114,8 +129,20 @@ impl RenderOnce for TileRow {
                 .min_w(px(0.))
                 .h(px(TILE_H))
                 .overflow_hidden()
+                .on_scroll({
+                    let state = state.clone();
+                    move |e: &ScrollEvent, window, cx| {
+                        let delta = e.delta.pixel_delta(window.line_height());
+                        if state.wheel(f32::from(delta.x), f32::from(delta.y)) {
+                            cx.stop_propagation();
+                            window.refresh();
+                        }
+                    }
+                })
                 .child(gestures(&state, on_select).absolute().inset_0())
-                .child(track);
+                .child(track)
+                .when(frame.fades.0 > 0., |d| d.child(fade(&p, frame.fades.0, true)))
+                .when(frame.fades.1 > 0., |d| d.child(fade(&p, frame.fades.1, false)));
 
             div()
                 .relative()
@@ -151,12 +178,28 @@ fn plus_button(p: &Palette, id: ElementId, plus: TilePlus) -> Div {
     div().relative().flex_none().size(px(CONTROL_H)).child(button).children(menu)
 }
 
-/// Listens to the pointer wherever it goes while the row is painted: a press is only a click if the pointer stays
-/// close to where it went down and is let go.
+/// An edge of the row fading into the card: opaque at the edge, clear `FADE_W` in.
+fn fade(p: &Palette, strength: f32, left: bool) -> Div {
+    let (solid, clear) = (hex_alpha(p.card, p.card.a * strength), hex_alpha(p.card, 0.));
+    let strip = div().absolute().top_0().h(px(TILE_H)).w(px(FADE_W));
+    if left {
+        strip.left_0().bg(linear_gradient(90., linear_color_stop(solid, 0.), linear_color_stop(clear, 1.)))
+    } else {
+        strip.right_0().bg(linear_gradient(90., linear_color_stop(clear, 0.), linear_color_stop(solid, 1.)))
+    }
+}
+
+/// Measures the scrolling area and, while it is painted, listens to the pointer wherever it goes: a press is only a
+/// click if the pointer stays close to where it went down and is let go.
 fn gestures(state: &TileRowState, on_select: Option<IdCb>) -> Canvas<()> {
+    let measure = state.clone();
     let state = state.clone();
     canvas(
-        |_, _, _| (),
+        move |bounds, window, _| {
+            if measure.measure(f32::from(bounds.origin.x), f32::from(bounds.size.width)) {
+                window.request_animation_frame();
+            }
+        },
         move |_, (), window, _| {
             let moves = state.clone();
             window.on_mouse_event(move |e: &MouseMoveEvent, phase, _, _| {
@@ -169,7 +212,7 @@ fn gestures(state: &TileRowState, on_select: Option<IdCb>) -> Canvas<()> {
                 if phase != DispatchPhase::Capture || e.button != MouseButton::Left {
                     return;
                 }
-                if let Outcome::Click(id) = state.released()
+                if let Outcome::Click(id) = state.released(Instant::now())
                     && let Some(on_select) = &on_select
                 {
                     on_select(&id, window, cx);
