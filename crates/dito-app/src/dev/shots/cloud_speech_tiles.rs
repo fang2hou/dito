@@ -28,15 +28,18 @@ const WIDTH: f32 = 1118.;
 const HEIGHT: f32 = 1100.;
 /// The compact window of `20.05.5`: 900 wide is the smallest the settings window gets. Below 1024 its sidebar is the
 /// icon rail, which the design's compact window does not show, so the card is wider than the design's 554 and the row
-/// overflows by 14 instead of 172.
+/// overflows by 62 instead of 220.
 const COMPACT: (f32, f32) = (900., 818.);
-/// The narrowest window that still has the full sidebar, as the design's compact window has: the row overflows by 46.
+/// The narrowest window that still has the full sidebar, as the design's compact window has: the row overflows by 94.
 const COMPACT_WITH_SIDEBAR: (f32, f32) = (1024., 818.);
 
 /// Left edge of the card's content: 232 sidebar, 56 page padding, 1 border and 26 padding.
 const LEFT: f32 = 315.;
 /// The tile row's scrolling area; the 36 pt plus button follows after a 12 pt gap.
 const VIEW: f32 = 672.;
+/// Every tile is 216 wide, left-aligned, and the next one starts a 12 gap later, whatever the number of tiles.
+const TILE_W: f32 = 216.;
+const TILE_PITCH: f32 = TILE_W + 12.;
 /// Top of the tile row.
 const ROW_TOP: f32 = 277.;
 const ROW_CENTRE: f32 = ROW_TOP + 32.;
@@ -73,15 +76,9 @@ fn dialog_cancel() -> Point<Pixels> {
     point(px(WIDTH / 2. + 131.), px(HEIGHT / 2. + 42.))
 }
 
-/// Where the tile `index` of `count` is centred in the row scrolled to `offset`.
-fn tile(count: usize, index: usize, offset: f32) -> Point<Pixels> {
-    let (width, pitch) = if count <= 3 {
-        let width = (VIEW - 12. * (count - 1) as f32) / count as f32;
-        (width, width + 12.)
-    } else {
-        (200., 212.)
-    };
-    point(px(LEFT + index as f32 * pitch + width / 2. - offset), px(ROW_CENTRE))
+/// Where the tile `index` is centred in the row scrolled to `offset`.
+fn tile(index: usize, offset: f32) -> Point<Pixels> {
+    point(px(LEFT + index as f32 * TILE_PITCH + TILE_W / 2. - offset), px(ROW_CENTRE))
 }
 
 fn read<R>(cx: &mut AsyncApp, f: impl FnOnce(&AsrEditor, &Window, &App) -> R) -> R {
@@ -283,11 +280,15 @@ async fn scene(rig: &mut Rig<'_>, appearance: Appearance) {
     rig.shot(&format!("speech-tiles-{tag}.png")).await;
 
     // The sidebar folds into the rail below 1024 and only unfolds again from 1088: go down the widths, not up.
-    for (size, name, overflow) in [(COMPACT_WITH_SIDEBAR, "compact-sidebar", 46.), (COMPACT, "compact", 14.)] {
+    for (size, name, overflow) in [(COMPACT_WITH_SIDEBAR, "compact-sidebar", 94.), (COMPACT, "compact", 62.)] {
         rig.resize(size);
         rig.shot(&format!("speech-tiles-{name}-{tag}.png")).await;
-        let furthest = read(rig.cx, |editor, _, _| editor.probe_tiles()).1;
-        assert_eq!(furthest, overflow, "three tiles of 200 in the {name} window overflow their row");
+        let (offset, furthest, _) = read(rig.cx, |editor, _, _| editor.probe_tiles());
+        assert_eq!(
+            (offset, furthest),
+            (0., overflow),
+            "three tiles of 216 in the {name} window overflow their row, scrolled to its start (right fade only)"
+        );
     }
     rig.resize((WIDTH, HEIGHT));
     rig.wait(300).await;
@@ -323,7 +324,7 @@ async fn behavior(rig: &mut Rig<'_>, server: &str) {
     assert_eq!(rig.drafts().iter().map(|d| d.id.as_str()).collect::<Vec<_>>(), ["qwen_asr"]);
 
     // A click on a tile selects it at once; its form shows its own name and key.
-    rig.click(tile(3, 0, 0.));
+    rig.click(tile(0, 0.));
     rig.wait(200).await;
     assert_eq!(saved(rig.st).1, "funasr");
     let form = rig.form();
@@ -336,11 +337,11 @@ async fn behavior(rig: &mut Rig<'_>, server: &str) {
     settle(rig.cx).await;
     assert_eq!(model_of(&config_of(rig.st, "funasr")), "fun-edited", "an edit saves by itself");
     assert_eq!(rig.st.secrets.get(&asr_account("funasr")).as_deref(), Some("fun-key"));
-    rig.click(tile(3, 1, 0.));
+    rig.click(tile(1, 0.));
     rig.wait(200).await;
     rig.replace(|config| config["connection"]["model"] = "qwen-edited".into());
     settle(rig.cx).await;
-    rig.click(tile(3, 0, 0.));
+    rig.click(tile(0, 0.));
     rig.wait(200).await;
     let funasr = rig.draft("funasr");
     assert_eq!(
@@ -359,7 +360,7 @@ async fn behavior(rig: &mut Rig<'_>, server: &str) {
         "qwen-edited",
         "the other history was not touched"
     );
-    rig.click(tile(3, 1, 0.));
+    rig.click(tile(1, 0.));
     rig.wait(200).await;
     rig.command(EditorCommand::Undo);
     settle(rig.cx).await;
@@ -383,21 +384,21 @@ async fn behavior(rig: &mut Rig<'_>, server: &str) {
         "the mock endpoint answers: {:?}",
         rig.draft("qwen_asr").test
     );
-    rig.click(tile(3, 0, 0.));
+    rig.click(tile(0, 0.));
     rig.wait(200).await;
     assert_eq!(rig.draft("funasr").test, TestState::Idle);
     assert!(matches!(rig.draft("qwen_asr").test, TestState::Ok(_)), "the result waits for its configuration");
 
     // Reordering saves the order on the drop and keeps every draft and key with its configuration.
     let before = saved(rig.st).1;
-    rig.drag(tile(3, 2, 0.), tile(3, 0, 0.)).await;
+    rig.drag(tile(2, 0.), tile(0, 0.)).await;
     assert_eq!(ids(rig.st), ["openrouter", "funasr", "qwen_asr"]);
     assert_eq!(saved(rig.st).1, before, "dragging does not select");
     assert_eq!(rig.draft("funasr").key, "fun-key");
     assert_eq!(rig.st.secrets.get(&asr_account("funasr")).as_deref(), Some("fun-key"));
     assert!(matches!(rig.draft("qwen_asr").test, TestState::Ok(_)), "the result moved with its tile");
     assert_eq!(rig.form().shown, "funasr");
-    rig.click(tile(3, 1, 0.));
+    rig.click(tile(1, 0.));
     rig.wait(200).await;
     assert_eq!(saved(rig.st).1, "funasr", "a plain click still selects after a drag");
 
@@ -444,7 +445,7 @@ async fn behavior(rig: &mut Rig<'_>, server: &str) {
     assert!(new_draft.error.is_some() && !new_draft.pending, "a template without a model does not validate");
     rig.scroll(0., 1000.);
     rig.wait(200).await;
-    rig.click(tile(6, 2, 0.));
+    rig.click(tile(2, 0.));
     rig.wait(300).await;
     assert_eq!(saved(rig.st).1, "qwen_asr");
     assert_eq!(rig.draft("qwen_asr").error, None);
@@ -452,7 +453,7 @@ async fn behavior(rig: &mut Rig<'_>, server: &str) {
     rig.scroll(0., -1000.);
     rig.wait(200).await;
     let offset = rig.offset();
-    rig.click(tile(6, 5, offset));
+    rig.click(tile(5, offset));
     rig.wait(300).await;
     assert_eq!(saved(rig.st).1, added);
 
@@ -487,7 +488,7 @@ async fn behavior(rig: &mut Rig<'_>, server: &str) {
     let (rows, _) = saved(rig.st);
     let at = rows.iter().position(|(id, ..)| *id == added).expect("listed");
     let offset = rig.offset();
-    rig.click(tile(rows.len(), at, offset));
+    rig.click(tile(at, offset));
     rig.wait(300).await;
     assert_eq!(saved(rig.st).1, added);
     assert_eq!(rig.form().key, "mine-key");

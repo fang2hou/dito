@@ -1,9 +1,9 @@
 //! The row of configuration tiles above a cloud form (`20.05.13`).
 //!
-//! Up to three tiles share the width; from the fourth every tile is 200 wide and the row scrolls sideways, without a
-//! scrollbar, fading into the card where tiles continue past an edge. Three tiles in a window too narrow to give each
-//! 200 do the same. The plus button sits outside the scrolling area. A press that stays put selects, a press that moves
-//! lifts the tile and reorders by dragging.
+//! Every tile is 216 wide and 64 high, whatever the window and the number of tiles; tiles sit at the left. A row that
+//! does not fit scrolls sideways, without a scrollbar, fading into the card where tiles continue past an edge; a
+//! wider one leaves the rest empty. The plus button sits outside the scrolling area. A press that stays put selects, a
+//! press that moves lifts the tile and reorders by dragging.
 //!
 //! The row knows nothing about configurations: it takes plain tiles and reports ids. Its owner keeps one
 //! [`TileRowState`] next to the data, passes the same one every frame and, after selecting or adding a tile,
@@ -19,7 +19,7 @@ use std::time::Instant;
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
-use self::geometry::{FADE_W, GAP, LIFT, TILE_H};
+use self::geometry::{FADE_W, GAP, LIFT, TILE_H, TILE_W};
 use self::state::Outcome;
 pub use self::state::TileRowState;
 use self::tile::tile;
@@ -136,8 +136,14 @@ impl RenderOnce for TileRow {
             let layout = frame.layout;
             let dragging = state.dragging() || frame.overlay.is_some();
 
-            let mut track = div().relative().left(px(-frame.offset)).h(px(TILE_H)).flex().gap(px(GAP));
-            track = if layout.shares_width() { track.w_full() } else { track.w(px(layout.content())).flex_none() };
+            let mut track = div()
+                .relative()
+                .left(px(-frame.offset))
+                .w(px(layout.content()))
+                .flex_none()
+                .h(px(TILE_H))
+                .flex()
+                .gap(px(GAP));
             for (index, spec) in tiles.iter().enumerate() {
                 let press = {
                     let (state, tile_id) = (state.clone(), spec.id.clone());
@@ -147,8 +153,9 @@ impl RenderOnce for TileRow {
                 };
                 let mut one = tile(&p, ElementId::from((id.clone(), spec.id.clone())), spec, !dragging)
                     .left(px(frame.shifts[index]))
+                    .w(px(TILE_W))
+                    .flex_none()
                     .on_mouse_down(MouseButton::Left, press);
-                one = if layout.shares_width() { one.flex_1().min_w(px(0.)) } else { one.w(px(layout.w)).flex_none() };
                 if frame.hidden == Some(index) {
                     one = one.opacity(0.);
                 }
@@ -190,7 +197,7 @@ impl RenderOnce for TileRow {
                         .absolute()
                         .left(px(o.left))
                         .top(px(-LIFT * o.lift))
-                        .w(px(layout.w))
+                        .w(px(TILE_W))
                         .shadow(vec![shadow]),
                 )
             });

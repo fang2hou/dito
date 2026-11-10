@@ -9,7 +9,7 @@ use std::time::{Duration, Instant};
 
 use gpui_kit::SharedString;
 
-use super::geometry::{Layout, edge_speed, slots_moved, wheel_delta};
+use super::geometry::{Layout, PITCH, TILE_W, edge_speed, slots_moved, wheel_delta};
 use crate::ui::tween::{RING_MS, ease};
 
 /// Tiles sliding aside, the lift and the drop settle on the focus-ring clock (`motion/ring`).
@@ -293,7 +293,7 @@ impl Inner {
 
     /// Keep the lifted tile inside the scrolling area.
     fn lifted_left(&self, left: f32) -> f32 {
-        left.clamp(0., (self.layout.view - self.layout.w).max(0.))
+        left.clamp(0., (self.layout.view - TILE_W).max(0.))
     }
 
     fn frame(&mut self, now: Instant, ids: &[SharedString], reduced: bool) -> Frame {
@@ -342,14 +342,14 @@ impl Inner {
         self.offset = self.offset.clamp(0., layout.max_offset());
         if let Some(d) = &mut self.drag {
             d.left = d.pointer - d.grab;
-            d.left = d.left.clamp(0., (layout.view - layout.w).max(0.));
+            d.left = d.left.clamp(0., (layout.view - TILE_W).max(0.));
             d.landing = layout.landing(d.left, self.offset);
         }
 
         let mut shifts = Vec::with_capacity(ids.len());
         for (index, id) in ids.iter().enumerate() {
             let target = match &self.drag {
-                Some(d) if index != d.from => slots_moved(index, d.from, d.landing) * layout.pitch,
+                Some(d) if index != d.from => slots_moved(index, d.from, d.landing) * PITCH,
                 _ => 0.,
             };
             if target != 0. {
@@ -394,18 +394,15 @@ impl Inner {
     /// The tiles changed order, number or identity. Every tile that was already there keeps the place it was drawn at
     /// and slides from it to its new one, so a drop, an addition or a removal never makes the row jump.
     fn reorder(&mut self, now: Instant, ids: &[SharedString], layout: &Layout, ms: u64) {
-        let old = self.layout;
         let mut slides = HashMap::new();
-        if (old.w - layout.w).abs() < 0.5 {
-            for (now_index, id) in ids.iter().enumerate() {
-                let floating = self.drag.as_ref().is_some_and(|d| d.id == *id)
-                    || self.settle.as_ref().is_some_and(|s| s.id == *id);
-                let Some(was) = self.ids.iter().position(|x| x == id).filter(|_| !floating) else { continue };
-                let drawn = old.left(was) + self.slides.get(id).map_or(0., |t| t.value(now));
-                let shift = drawn - layout.left(now_index);
-                if shift.abs() > 0.5 {
-                    slides.insert(id.clone(), Tween { from: shift, to: 0., start: now, ms });
-                }
+        for (now_index, id) in ids.iter().enumerate() {
+            let floating =
+                self.drag.as_ref().is_some_and(|d| d.id == *id) || self.settle.as_ref().is_some_and(|s| s.id == *id);
+            let Some(was) = self.ids.iter().position(|x| x == id).filter(|_| !floating) else { continue };
+            let drawn = layout.left(was) + self.slides.get(id).map_or(0., |t| t.value(now));
+            let shift = drawn - layout.left(now_index);
+            if shift.abs() > 0.5 {
+                slides.insert(id.clone(), Tween { from: shift, to: 0., start: now, ms });
             }
         }
         self.slides = slides;
@@ -462,7 +459,7 @@ mod tests {
     #[test]
     fn a_press_that_barely_moves_is_a_click() {
         let (state, t0) = row();
-        let x = pointer(212., 50.);
+        let x = pointer(228., 50.);
         state.press(1, "b".into(), x, 30.);
         assert!(!state.moved(x + 2., 31., true, at(t0, 10)), "inside the threshold nothing lifts");
         assert_eq!(state.released(x + 2., at(t0, 20)), Outcome::Click("b".into()));
@@ -472,7 +469,7 @@ mod tests {
     #[test]
     fn a_drag_reports_the_slot_it_was_dropped_in() {
         let (state, t0) = row();
-        state.press(1, "b".into(), pointer(212., 50.), 30.);
+        state.press(1, "b".into(), pointer(228., 50.), 30.);
         assert!(state.moved(pointer(300., 50.), 30., true, at(t0, 10)), "past the threshold the tile lifts");
         // The design's drag specimen: the tile 446 from the left edge of the row, so its centre is over slot 2.
         let x = pointer(446., 50.);
@@ -486,22 +483,22 @@ mod tests {
     #[test]
     fn letting_go_over_the_old_slot_moves_nothing() {
         let (state, t0) = row();
-        state.press(1, "b".into(), pointer(212., 50.), 30.);
-        state.moved(pointer(230., 50.), 30., true, at(t0, 10));
+        state.press(1, "b".into(), pointer(228., 50.), 30.);
+        state.moved(pointer(246., 50.), 30., true, at(t0, 10));
         state.frame(at(t0, 20), &ids(5), false);
-        assert_eq!(state.released(pointer(230., 50.), at(t0, 30)), Outcome::Back);
+        assert_eq!(state.released(pointer(246., 50.), at(t0, 30)), Outcome::Back);
     }
 
     #[test]
     fn the_tiles_in_between_slide_aside_and_stay_where_they_are_after_the_drop() {
         let (state, t0) = row();
-        state.press(1, "b".into(), pointer(212., 50.), 30.);
+        state.press(1, "b".into(), pointer(228., 50.), 30.);
         let x = pointer(446., 50.);
         state.moved(x, 30., true, at(t0, 10));
         state.frame(at(t0, 20), &ids(5), false);
         // Long enough for the slide to finish: tile c (index 2) made room by moving one pitch left.
         let frame = state.frame(at(t0, 400), &ids(5), false);
-        assert_eq!(frame.shifts, [0., 0., -212., 0., 0.]);
+        assert_eq!(frame.shifts, [0., 0., -228., 0., 0.]);
         assert_eq!(state.released(x, at(t0, 410)), Outcome::Drop { id: "b".into(), to: 2 });
         // The owner applies the move; the tiles keep the places they were drawn at, so nothing jumps.
         let order: Vec<SharedString> = ["a", "c", "b", "d", "e"].iter().map(|s| SharedString::from(*s)).collect();
@@ -525,13 +522,13 @@ mod tests {
         for n in 3..200 {
             end = state.frame(at(t0, 16 * n), &ids(5), false);
         }
-        assert_eq!(end.offset, 376., "it stops at the end");
+        assert_eq!(end.offset, 456., "it stops at the end");
     }
 
     #[test]
     fn letting_go_where_nothing_listened_ends_the_gesture_quietly() {
         let (state, t0) = row();
-        state.press(1, "b".into(), pointer(212., 50.), 30.);
+        state.press(1, "b".into(), pointer(228., 50.), 30.);
         state.moved(pointer(300., 50.), 30., true, at(t0, 10));
         assert!(state.moved(pointer(300., 50.), 30., false, at(t0, 20)), "the next move without the button ends it");
         assert!(!state.dragging());
@@ -546,7 +543,7 @@ mod tests {
         assert_eq!(state.frame(t0, &ids(5), false).offset, 0., "not measured yet: nothing to scroll");
         state.measure(LEFT, 672.);
         let frame = state.frame(at(t0, 16), &ids(5), false);
-        assert_eq!(frame.offset, 376., "the first reveal needs no animation");
+        assert_eq!(frame.offset, 456., "the first reveal needs no animation");
         assert!(!frame.animating);
     }
 
@@ -555,9 +552,9 @@ mod tests {
         let (state, t0) = row();
         state.reveal("e");
         let start = state.frame(at(t0, 16), &ids(5), false);
-        assert!(start.animating && start.offset < 376.);
+        assert!(start.animating && start.offset < 456.);
         let end = state.frame(at(t0, 16 + 400), &ids(5), false);
-        assert_eq!((end.offset, end.animating), (376., false));
+        assert_eq!((end.offset, end.animating), (456., false));
     }
 
     #[test]

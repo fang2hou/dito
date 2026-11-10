@@ -2,13 +2,14 @@
 //! Everything here is plain arithmetic on points; the numbers are the design's (`20.05.13`).
 
 pub(super) const TILE_H: f32 = 64.;
-pub(super) const TILE_W: f32 = 200.;
+/// Every tile is this wide, whatever the window or the number of tiles.
+pub(super) const TILE_W: f32 = 216.;
 pub(super) const GAP: f32 = 12.;
 pub(super) const FADE_W: f32 = 48.;
 /// How far the dragged tile floats above the row.
 pub(super) const LIFT: f32 = 8.;
-/// Up to this many tiles share the row equally; from the next one every tile keeps [`TILE_W`] and the row scrolls.
-const EQUAL_MAX: usize = 3;
+/// Distance between the left edges of neighbouring tiles.
+pub(super) const PITCH: f32 = TILE_W + GAP;
 /// A fade shows as much as there is hidden behind its edge: it grows over this distance, so reaching an end
 /// never makes it pop out.
 const FADE_RAMP: f32 = 24.;
@@ -16,45 +17,26 @@ const FADE_RAMP: f32 = 24.;
 const EDGE_ZONE: f32 = 48.;
 const EDGE_SPEED: f32 = 600.;
 
-/// The solved geometry of a row of `n` tiles in a scrolling area `view` wide.
+/// The geometry of a row of `n` tiles in a scrolling area `view` wide. Tiles keep [`TILE_W`] and sit at the left; a
+/// row that does not fit scrolls.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(super) struct Layout {
     pub view: f32,
     pub n: usize,
-    /// Width of every tile.
-    pub w: f32,
-    /// Distance between the left edges of neighbouring tiles.
-    pub pitch: f32,
-    shares: bool,
 }
 
 impl Layout {
     pub fn new(view: f32, n: usize) -> Self {
-        let share = (1..=EQUAL_MAX).contains(&n).then(|| ((view - GAP * (n - 1) as f32) / n as f32).max(0.));
-        // Tiles that would get less than their own width (a narrow window with three of them) keep that width and the
-        // row scrolls, like it does from the fourth tile on (`20.05.5`). A row that is not measured yet shares: its
-        // first frame must not flash wide tiles.
-        let shares = n <= EQUAL_MAX && share.is_none_or(|share| view <= 0. || share >= TILE_W);
-        let w = match share {
-            Some(share) if shares => share,
-            _ => TILE_W,
-        };
-        Self { view, n, w, pitch: w + GAP, shares }
-    }
-
-    /// Whether the tiles divide the row between them (up to three, when each gets its own width at least) instead of
-    /// keeping their own width.
-    pub fn shares_width(&self) -> bool {
-        self.shares
+        Self { view, n }
     }
 
     /// Left edge of tile `index` in the scrolled content.
     pub fn left(&self, index: usize) -> f32 {
-        index as f32 * self.pitch
+        index as f32 * PITCH
     }
 
     pub fn content(&self) -> f32 {
-        if self.n == 0 { 0. } else { self.n as f32 * self.w + (self.n - 1) as f32 * GAP }
+        if self.n == 0 { 0. } else { self.n as f32 * TILE_W + (self.n - 1) as f32 * GAP }
     }
 
     /// The farthest the content scrolls; zero while everything fits, and before the row has been measured.
@@ -64,14 +46,14 @@ impl Layout {
 
     /// The slot a tile whose left edge is `left` from the left edge of the scrolling area lands in.
     pub fn landing(&self, left: f32, offset: f32) -> usize {
-        let centre = left + offset + self.w / 2.;
-        ((centre / self.pitch).floor().max(0.) as usize).min(self.n.saturating_sub(1))
+        let centre = left + offset + TILE_W / 2.;
+        ((centre / PITCH).floor().max(0.) as usize).min(self.n.saturating_sub(1))
     }
 
     /// The offset that shows tile `index` completely: the nearest scroll that keeps it clear of the fade on every
     /// side that has more tiles beyond it. An offset that already does is returned unchanged.
     pub fn reveal(&self, index: usize, offset: f32) -> f32 {
-        let (left, right) = (self.left(index), self.left(index) + self.w);
+        let (left, right) = (self.left(index), self.left(index) + TILE_W);
         let before = if index > 0 { FADE_W } else { 0. };
         let after = if index + 1 < self.n { FADE_W } else { 0. };
         let target = if left - before < offset {
@@ -131,47 +113,46 @@ mod tests {
     fn fades_follow_what_is_hidden_behind_each_edge() {
         let l = Layout::new(VIEW, 5);
         assert_eq!(l.fades(0.), (0., 1.), "start: only the right edge has more");
-        assert_eq!(l.fades(188.), (1., 1.));
-        assert_eq!(l.fades(376.), (1., 0.), "end: only the left edge has more");
+        assert_eq!(l.fades(228.), (1., 1.));
+        assert_eq!(l.fades(456.), (1., 0.), "end: only the left edge has more");
         assert_eq!(l.fades(6.).0, 0.25, "a fade grows with the distance, so it never pops");
         assert_eq!(Layout::new(VIEW, 3).fades(0.), (0., 0.));
     }
 
     #[test]
-    fn three_tiles_that_would_be_narrower_than_a_tile_scroll_instead() {
+    fn tiles_keep_their_width_and_the_row_scrolls_only_when_they_do_not_fit() {
+        // Three tiles fill the default window exactly.
+        assert_eq!(Layout::new(VIEW, 3).max_offset(), 0.);
         // The compact window (`20.05.5`): 500 wide, less the plus button and its gap.
         let narrow = Layout::new(452., 3);
-        assert!(!narrow.shares_width());
-        assert_eq!((narrow.w, narrow.max_offset()), (TILE_W, 624. - 452.));
+        assert_eq!(narrow.max_offset(), 672. - 452.);
         assert_eq!(narrow.fades(0.), (0., 1.), "the third tile shows under the fade at the right edge");
-        // The full window: 216 each, the row fits.
-        let wide = Layout::new(VIEW, 3);
-        assert!(wide.shares_width());
-        assert_eq!((wide.w, wide.max_offset()), (216., 0.));
-        // Not measured yet: share, so the first frame does not flash wide tiles.
-        assert!(Layout::new(0., 3).shares_width());
-        assert!(Layout::new(452., 2).shares_width(), "two tiles still have 220 each");
+        // A wide row with few tiles: they stay at the left and nothing scrolls.
+        let wide = Layout::new(1000., 2);
+        assert_eq!((wide.content(), wide.max_offset(), wide.fades(0.)), (444., 0., (0., 0.)));
+        // Not measured yet: nothing to scroll.
+        assert_eq!(Layout::new(0., 5).max_offset(), 0.);
     }
 
     #[test]
     fn revealing_a_tile_scrolls_the_least_and_keeps_it_clear_of_the_fades() {
         let l = Layout::new(VIEW, 5);
-        assert_eq!(l.reveal(0, 188.), 0., "the first tile has nothing before it");
-        assert_eq!(l.reveal(4, 0.), 376., "the last tile ends flush with the row");
-        assert_eq!(l.reveal(3, 0.), 212., "a tile in the middle keeps 48 pt clear of the fade behind it");
-        assert_eq!(l.reveal(1, 188.), 164., "the offset that shows it with 48 pt before it");
-        assert_eq!(l.reveal(2, 188.), 188., "already clear: nothing moves");
+        assert_eq!(l.reveal(0, 228.), 0., "the first tile has nothing before it");
+        assert_eq!(l.reveal(4, 0.), 456., "the last tile ends flush with the row");
+        assert_eq!(l.reveal(3, 0.), 276., "a tile in the middle keeps 48 pt clear of the fade behind it");
+        assert_eq!(l.reveal(1, 228.), 180., "the offset that shows it with 48 pt before it");
+        assert_eq!(l.reveal(2, 228.), 228., "already clear: nothing moves");
         assert_eq!(Layout::new(VIEW, 3).reveal(2, 0.), 0., "a row that fits never scrolls");
     }
 
     #[test]
     fn a_dragged_tile_lands_in_the_slot_under_its_centre() {
         let l = Layout::new(VIEW, 5);
-        // The design's drag specimen: the tile is 446 from the left edge of the row, centre 546, slot 2 spans 424..636.
+        // The design's drag specimen: the tile is 446 from the left edge of the row, centre 554, slot 2 spans 456..684.
         assert_eq!(l.landing(446., 0.), 2);
         assert_eq!(l.landing(-40., 0.), 0, "past the start");
         assert_eq!(l.landing(1000., 0.), 4, "past the end");
-        assert_eq!(l.landing(0., 376.), 2, "the same spot over scrolled content");
+        assert_eq!(l.landing(0., 456.), 2, "the same spot over scrolled content");
     }
 
     #[test]
