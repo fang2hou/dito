@@ -35,11 +35,13 @@ pub(crate) struct StylePreview {
     appearance: Appearance,
     language: Lang,
     opened: Instant,
+    /// The frame loop; dropping the view cancels it.
+    _frames: Task<()>,
 }
 
 impl StylePreview {
     pub(crate) fn new(appearance: Appearance, language: Lang, cx: &mut Context<Self>) -> Self {
-        cx.spawn(async move |this, cx| {
+        let frames = cx.spawn(async move |this, cx| {
             loop {
                 cx.background_executor().timer(Duration::from_millis(16)).await;
                 let active = this.update(cx, |view, cx| {
@@ -50,9 +52,8 @@ impl StylePreview {
                     break;
                 }
             }
-        })
-        .detach();
-        Self { appearance, language, opened: Instant::now() }
+        });
+        Self { appearance, language, opened: Instant::now(), _frames: frames }
     }
 
     pub(crate) fn active(&self) -> bool {

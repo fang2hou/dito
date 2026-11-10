@@ -24,6 +24,8 @@ struct HudWindow {
     /// Held while the HUD is on screen (dropped when the window closes): keeps macOS from
     /// App-Napping this background app mid-dictation, which throttled the HUD's frame commits.
     _nap: NapGuard,
+    /// The placement loop; dropping it with the window cancels it.
+    _placement: Task<()>,
 }
 
 impl Global for HudWindow {}
@@ -68,15 +70,19 @@ fn open_window(st: Arc<AppState>, cx: &mut App) {
         cx.new(|cx| HudView::new(st, cx))
     }) {
         Ok(handle) => {
-            cx.set_global(HudWindow { window: handle.into(), _nap: NapGuard::new("dictation-hud") });
-            spawn_placement_loop(handle, settings, cx);
+            let placement = spawn_placement_loop(handle, settings, cx);
+            cx.set_global(HudWindow {
+                window: handle.into(),
+                _nap: NapGuard::new("dictation-hud"),
+                _placement: placement,
+            });
         }
         Err(e) => tracing::error!("could not open the HUD: {e}"),
     }
 }
 
 /// Poll near the display cadence so a non-key panel can track hover and click-through.
-fn spawn_placement_loop(handle: WindowHandle<HudView>, settings: Arc<AppState>, cx: &mut App) {
+fn spawn_placement_loop(handle: WindowHandle<HudView>, settings: Arc<AppState>, cx: &mut App) -> Task<()> {
     cx.spawn(async move |cx| {
         let mut placement = Placement::default();
         loop {
@@ -91,7 +97,6 @@ fn spawn_placement_loop(handle: WindowHandle<HudView>, settings: Arc<AppState>, 
             cx.background_executor().timer(interval).await;
         }
     })
-    .detach();
 }
 
 #[derive(Default)]
