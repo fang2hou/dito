@@ -105,7 +105,7 @@ impl EngineConfig {
     }
 
     /// The parameters set for the local model `model`; all unset when there are none.
-    pub fn local_params(&self, model: &str) -> LocalParams {
+    pub fn local_params_for(&self, model: &str) -> LocalParams {
         self.local_params.get(model).copied().unwrap_or_default()
     }
 

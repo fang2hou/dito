@@ -6,15 +6,20 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::Duration;
 
 use dito_core::audio::AudioClip;
-use dito_core::config::ConfigStore;
+use dito_core::config::{ConfigStore, LocalParams};
 use dito_core::error::ErrorKind;
 use dito_core::factory::LocalBackend;
 use dito_core::health::EngineStatus;
 use dito_core::provider::{AsrRequest, PolishRequest};
-use dito_local::catalog::{FileSpec, ModelFormat, ModelKind, ModelSpec};
+use dito_local::catalog::{FileSpec, ModelFormat, ModelKind, ModelSpec, Sampling};
 use dito_local::{
     AsrOutput, AsrRuntime, LlmRuntime, LocalEngines, ModelManager, NoRuntime, RuntimeError, RuntimeLoader,
 };
+
+/// What the user's parameters are not set for: the recommendation of the fixture's language model.
+const RECOMMENDED: Sampling = Sampling { temperature: 0.2, top_p: Some(0.9), top_k: None, max_tokens: None };
+
+const NO_PARAMS: LocalParams = LocalParams { temperature: None, top_p: None, top_k: None, max_tokens: None };
 
 struct Fake {
     loads: AtomicUsize,
@@ -35,7 +40,7 @@ impl AsrRuntime for FakeAsr {
 }
 struct FakeLlm;
 impl LlmRuntime for FakeLlm {
-    fn generate(&self, _: &str, user: &str, _: &AtomicBool) -> Result<String, RuntimeError> {
+    fn generate(&self, _: &str, user: &str, _: &Sampling, _: &AtomicBool) -> Result<String, RuntimeError> {
         Ok(user.to_uppercase())
     }
 }
@@ -61,7 +66,10 @@ fn installed_manager() -> (ModelManager, tempfile::TempDir) {
         kind,
         files: vec![FileSpec { name: "f".into(), url: String::new(), size: 3, sha256: None }],
         memory_mb: 1,
-        format: ModelFormat::SenseVoice { model: "f", tokens: "f" },
+        format: match kind {
+            ModelKind::Asr => ModelFormat::SenseVoice { model: "f", tokens: "f" },
+            ModelKind::Polish => ModelFormat::Chat { model: "f", disable_thinking: false, sampling: RECOMMENDED },
+        },
         language_focus: None,
     };
     let mgr = ModelManager::with_catalog(
@@ -93,8 +101,45 @@ async fn loads_lazily_once_and_runs_inference_off_the_async_thread() {
     assert_eq!(fake.loads.load(Ordering::SeqCst), 1, "second call reuses the loaded runtime");
     assert_eq!(eng.status("asr"), EngineStatus::Running);
 
-    let p = eng.polisher("llm").await.unwrap();
+    let p = eng.polisher("llm", &NO_PARAMS).await.unwrap();
     assert_eq!(p.polish(&PolishRequest { system: "s", text: "hi" }).await.unwrap(), "HI");
+}
+
+/// A language model that remembers the sampling of its last call.
+struct Probe(Arc<std::sync::Mutex<Option<Sampling>>>);
+impl LlmRuntime for Probe {
+    fn generate(&self, _: &str, user: &str, sampling: &Sampling, _: &AtomicBool) -> Result<String, RuntimeError> {
+        *self.0.lock().unwrap() = Some(*sampling);
+        Ok(user.into())
+    }
+}
+struct ProbeLoader(Arc<std::sync::Mutex<Option<Sampling>>>);
+impl RuntimeLoader for ProbeLoader {
+    fn load_asr(&self, _: &ModelSpec, _: &Path) -> Result<Arc<dyn AsrRuntime>, RuntimeError> {
+        Err(RuntimeError::engine("speech is not under test"))
+    }
+    fn load_llm(&self, _: &ModelSpec, _: &Path) -> Result<Arc<dyn LlmRuntime>, RuntimeError> {
+        Ok(Arc::new(Probe(self.0.clone())))
+    }
+}
+
+#[tokio::test]
+async fn a_polisher_samples_with_the_recommendation_under_the_parameters_of_its_model() {
+    let (manager, _dir) = installed_manager();
+    let seen = Arc::new(std::sync::Mutex::new(None));
+    let engine = LocalEngines::new(manager, Arc::new(ProbeLoader(seen.clone())));
+    let request = PolishRequest { system: "s", text: "hi" };
+
+    engine.polisher("llm", &NO_PARAMS).await.unwrap().polish(&request).await.unwrap();
+    assert_eq!(*seen.lock().unwrap(), Some(RECOMMENDED), "nothing set: the catalog's recommendation");
+
+    let params = LocalParams { temperature: Some(0.7), top_k: Some(40), max_tokens: Some(64), ..NO_PARAMS };
+    engine.polisher("llm", &params).await.unwrap().polish(&request).await.unwrap();
+    let expected = Sampling { temperature: 0.7, top_p: Some(0.9), top_k: Some(40), max_tokens: Some(64) };
+    assert_eq!(*seen.lock().unwrap(), Some(expected), "what is set wins, what is not keeps its recommendation");
+
+    engine.polisher("llm", &NO_PARAMS).await.unwrap().polish(&request).await.unwrap();
+    assert_eq!(*seen.lock().unwrap(), Some(RECOMMENDED), "parameters belong to one polisher, not to the loaded model");
 }
 
 #[tokio::test]
@@ -244,7 +289,7 @@ impl AsrRuntime for Spinning {
     }
 }
 impl LlmRuntime for Spinning {
-    fn generate(&self, _: &str, _: &str, stop: &AtomicBool) -> Result<String, RuntimeError> {
+    fn generate(&self, _: &str, _: &str, _: &Sampling, stop: &AtomicBool) -> Result<String, RuntimeError> {
         Err(self.spin(stop))
     }
 }
@@ -263,7 +308,7 @@ async fn abort_and_expect_stop<T>(call: tokio::task::JoinHandle<T>, events: &std
 async fn dropping_a_polish_call_raises_the_stop_flag_for_the_runtime() {
     let (events, observed) = std::sync::mpsc::channel();
     let (engine, _dir) = engine_with(Spinning(events));
-    let polisher = engine.polisher("llm").await.unwrap();
+    let polisher = engine.polisher("llm", &NO_PARAMS).await.unwrap();
     let call = tokio::spawn(async move { polisher.polish(&PolishRequest { system: "s", text: "hi" }).await });
     abort_and_expect_stop(call, &observed).await;
 }
@@ -288,7 +333,7 @@ impl AsrRuntime for CutOff {
     }
 }
 impl LlmRuntime for CutOff {
-    fn generate(&self, _: &str, _: &str, _: &AtomicBool) -> Result<String, RuntimeError> {
+    fn generate(&self, _: &str, _: &str, _: &Sampling, _: &AtomicBool) -> Result<String, RuntimeError> {
         Err(RuntimeError::Truncated)
     }
 }
@@ -296,7 +341,7 @@ impl LlmRuntime for CutOff {
 #[tokio::test]
 async fn output_cut_off_at_the_token_limit_is_a_bad_response_not_a_result() {
     let (engine, _dir) = engine_with(CutOff);
-    let polisher = engine.polisher("llm").await.unwrap();
+    let polisher = engine.polisher("llm", &NO_PARAMS).await.unwrap();
     let polished = polisher.polish(&PolishRequest { system: "s", text: "hi" }).await;
     assert_eq!(polished.err().unwrap().kind, ErrorKind::BadResponse);
 

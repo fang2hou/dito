@@ -370,8 +370,8 @@ reasoning_effort = "minimal"
             1,
             "parameters that set nothing are not kept"
         );
-        assert_eq!(config.polish.engine.local_params("qwen3.5-9b-instruct"), params);
-        assert_eq!(config.polish.engine.local_params("other"), LocalParams::default());
+        assert_eq!(config.polish.engine.local_params_for("qwen3.5-9b-instruct"), params);
+        assert_eq!(config.polish.engine.local_params_for("other"), LocalParams::default());
     }
 
     #[test]

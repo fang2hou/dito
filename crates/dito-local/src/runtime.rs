@@ -7,7 +7,7 @@ use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 
-use crate::catalog::ModelSpec;
+use crate::catalog::{ModelSpec, Sampling};
 use crate::runtime_error::RuntimeError;
 
 /// Recognized text and, when the engine reports it, the detected language code.
@@ -31,9 +31,17 @@ pub trait AsrRuntime: Send + Sync {
 }
 
 pub trait LlmRuntime: Send + Sync {
-    /// `stop` works as in [`AsrRuntime::transcribe`]. When the token budget runs out before the model ends its turn,
-    /// return [`RuntimeError::Truncated`], never the cut-off text.
-    fn generate(&self, system: &str, user: &str, stop: &AtomicBool) -> Result<String, RuntimeError>;
+    /// `sampling` is the model's recommended sampling with the user's parameters laid over it. Its `max_tokens` caps
+    /// the output budget the runtime computes from the input, and a runtime must not run past the cap. `stop` works as
+    /// in [`AsrRuntime::transcribe`]. When the token budget runs out before the model ends its turn, return
+    /// [`RuntimeError::Truncated`], never the cut-off text.
+    fn generate(
+        &self,
+        system: &str,
+        user: &str,
+        sampling: &Sampling,
+        stop: &AtomicBool,
+    ) -> Result<String, RuntimeError>;
 }
 
 pub trait RuntimeLoader: Send + Sync {

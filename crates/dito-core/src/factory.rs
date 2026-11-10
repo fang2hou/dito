@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex, MutexGuard};
 
 use async_trait::async_trait;
 
-use crate::config::{AsrProfiles, Config, EngineConfig, PolishConfiguration, PolishTarget, Source};
+use crate::config::{AsrProfiles, Config, EngineConfig, LocalParams, PolishConfiguration, PolishTarget, Source};
 use crate::error::{ErrorKind, ProviderError, ProviderResult};
 use crate::health::EngineStatus;
 use crate::provider::bedrock::{BedrockEngine, BedrockParams};
@@ -17,8 +17,11 @@ use crate::secrets::SecretStore;
 /// On-device engines, implemented by `dito-local`.
 #[async_trait]
 pub trait LocalBackend: Send + Sync {
+    /// Local speech models decode greedily and take no parameters.
     async fn transcriber(&self, model_id: &str) -> ProviderResult<Arc<dyn Transcriber>>;
-    async fn polisher(&self, model_id: &str) -> ProviderResult<Arc<dyn Polisher>>;
+    /// `params` are the user's sampling settings for this model; a field they leave unset takes the value the model's
+    /// catalog entry recommends.
+    async fn polisher(&self, model_id: &str, params: &LocalParams) -> ProviderResult<Arc<dyn Polisher>>;
     fn status(&self, model_id: &str) -> EngineStatus;
 }
 
@@ -144,7 +147,8 @@ impl EngineFactory {
 
     pub async fn polisher_for(&self, e: &EngineConfig) -> ProviderResult<Arc<dyn Polisher>> {
         match e.source {
-            Source::Local => self.require_local()?.polisher(&e.local_model).await,
+            // Local engines are not cached here, so a changed parameter applies to the next dictation.
+            Source::Local => self.require_local()?.polisher(&e.local_model, &e.local_params_for(&e.local_model)).await,
             Source::Provider => {
                 // `cloud_polish` stays `None` until a list is first saved; the templates stand in.
                 let configurations = e.polish_configurations();
@@ -302,6 +306,42 @@ mod tests {
         assert_eq!(other.polish.engine.polish_configurations().selected, copy);
         let third = polisher(&factory, &other).await;
         assert!(!Arc::ptr_eq(&second, &third), "another configuration is another engine");
+    }
+
+    /// A local backend that remembers which model it was asked to polish with, and under which parameters.
+    #[derive(Default)]
+    struct Recorder(Mutex<Vec<(String, LocalParams)>>);
+
+    #[async_trait]
+    impl LocalBackend for Recorder {
+        async fn transcriber(&self, _: &str) -> ProviderResult<Arc<dyn Transcriber>> {
+            Err(ProviderError::new(ErrorKind::Unavailable, "speech is not under test"))
+        }
+        async fn polisher(&self, model_id: &str, params: &LocalParams) -> ProviderResult<Arc<dyn Polisher>> {
+            self.0.lock().unwrap().push((model_id.into(), *params));
+            Ok(Arc::new(MockPolisher::default()))
+        }
+        fn status(&self, _: &str) -> EngineStatus {
+            EngineStatus::Running
+        }
+    }
+
+    #[tokio::test]
+    async fn a_local_polisher_gets_the_parameters_saved_for_its_model_and_for_no_other() {
+        let backend = Arc::new(Recorder::default());
+        let factory = factory().with_local(backend.clone());
+        let mut cfg = Config::default();
+        let model = cfg.polish.engine.local_model.clone();
+        let params = LocalParams { temperature: Some(0.5), top_k: Some(20), ..LocalParams::default() };
+        cfg.polish.engine.set_local_params(&model, params);
+        cfg.polish.engine.set_local_params("another-model", LocalParams { max_tokens: Some(9), ..Default::default() });
+
+        factory.polisher(&cfg).await.unwrap().expect("polish is enabled");
+        cfg.polish.engine.set_local_params(&model, LocalParams::default());
+        factory.polisher(&cfg).await.unwrap().expect("polish is enabled");
+
+        let asked = backend.0.lock().unwrap().clone();
+        assert_eq!(asked, [(model.clone(), params), (model, LocalParams::default())], "nothing is cached for local");
     }
 
     #[tokio::test]
