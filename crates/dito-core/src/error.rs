@@ -36,16 +36,33 @@ impl ErrorKind {
         Self::Other,
     ];
 
+    /// The name of this kind in a stored error line. Written out by hand because history rows keep these strings:
+    /// renaming a variant must not change what is stored.
+    pub fn code(self) -> &'static str {
+        match self {
+            Self::Auth => "Auth",
+            Self::Network => "Network",
+            Self::Timeout => "Timeout",
+            Self::RateLimit => "RateLimit",
+            Self::ModelNotFound => "ModelNotFound",
+            Self::BadResponse => "BadResponse",
+            Self::NoSpeech => "NoSpeech",
+            Self::Mic => "Mic",
+            Self::Unavailable => "Unavailable",
+            Self::Other => "Other",
+        }
+    }
+
     /// Split a stored `Kind: detail` error line (the `Display` of [`ProviderError`]) back into its parts, so the
     /// UI can show the kind in the user's language and keep the technical detail as is.
     pub fn decode(line: &str) -> Option<(ErrorKind, &str)> {
         let (head, detail) = line.split_once(": ")?;
-        Self::ALL.into_iter().find(|k| format!("{k:?}") == head).map(|k| (k, detail))
+        Self::ALL.into_iter().find(|k| k.code() == head).map(|k| (k, detail))
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
-#[error("{kind:?}: {message}")]
+#[error("{}: {message}", .kind.code())]
 pub struct ProviderError {
     pub kind: ErrorKind,
     pub message: String,
@@ -94,5 +111,29 @@ mod tests {
         assert_eq!(ErrorKind::decode(&e.to_string()), Some((ErrorKind::RateLimit, "HTTP 429: slow down")));
         assert_eq!(ErrorKind::decode("plain text"), None);
         assert_eq!(ErrorKind::decode("Nope: x"), None);
+    }
+
+    #[test]
+    fn codes_are_the_stored_format_of_every_kind() {
+        // History rows store these strings: a variant may be renamed, its code may not.
+        let pinned = [
+            (ErrorKind::Auth, "Auth"),
+            (ErrorKind::Network, "Network"),
+            (ErrorKind::Timeout, "Timeout"),
+            (ErrorKind::RateLimit, "RateLimit"),
+            (ErrorKind::ModelNotFound, "ModelNotFound"),
+            (ErrorKind::BadResponse, "BadResponse"),
+            (ErrorKind::NoSpeech, "NoSpeech"),
+            (ErrorKind::Mic, "Mic"),
+            (ErrorKind::Unavailable, "Unavailable"),
+            (ErrorKind::Other, "Other"),
+        ];
+        assert_eq!(pinned.len(), ErrorKind::ALL.len(), "every kind needs a pinned code");
+        for (kind, code) in pinned {
+            assert_eq!(kind.code(), code);
+            let line = ProviderError::new(kind, "detail").to_string();
+            assert_eq!(line, format!("{code}: detail"));
+            assert_eq!(ErrorKind::decode(&line), Some((kind, "detail")));
+        }
     }
 }
