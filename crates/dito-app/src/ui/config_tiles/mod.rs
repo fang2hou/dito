@@ -2,7 +2,7 @@
 //!
 //! Up to three tiles share the width; from the fourth every tile is 200 wide and the row scrolls sideways, without a
 //! scrollbar, fading into the card where tiles continue past an edge. The plus button sits outside the scrolling
-//! area. A press that stays put selects.
+//! area. A press that stays put selects, a press that moves lifts the tile and reorders by dragging.
 //!
 //! The row knows nothing about configurations: it takes plain tiles and reports ids. Its owner keeps one
 //! [`TileRowState`] next to the data, passes the same one every frame and, after selecting or adding a tile,
@@ -18,7 +18,7 @@ use std::time::Instant;
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
-use self::geometry::{FADE_W, GAP, TILE_H};
+use self::geometry::{FADE_W, GAP, LIFT, TILE_H};
 use self::state::Outcome;
 pub use self::state::TileRowState;
 use self::tile::tile;
@@ -33,6 +33,8 @@ use crate::theme::Palette;
 
 /// Called with the id of the tile that was clicked.
 pub type IdCb = Rc<dyn Fn(&str, &mut Window, &mut App)>;
+/// Called with the id of the tile that was dropped and the index it now has.
+pub type MoveCb = Rc<dyn Fn(&str, usize, &mut Window, &mut App)>;
 
 /// [`IdCb`] that updates the view `V`.
 pub fn cbk_id<V: 'static>(
@@ -42,6 +44,17 @@ pub fn cbk_id<V: 'static>(
     let weak = cx.entity().downgrade();
     Rc::new(move |id, window, app| {
         weak.update(app, |v, cx| f(v, id, window, cx)).ok();
+    })
+}
+
+/// [`MoveCb`] that updates the view `V`.
+pub fn cbk_move<V: 'static>(
+    cx: &mut Context<V>,
+    f: impl Fn(&mut V, &str, usize, &mut Window, &mut Context<V>) + 'static,
+) -> MoveCb {
+    let weak = cx.entity().downgrade();
+    Rc::new(move |id, to, window, app| {
+        weak.update(app, |v, cx| f(v, id, to, window, cx)).ok();
     })
 }
 
@@ -66,7 +79,16 @@ pub struct TilePlus {
 
 /// The row of `tiles`, in order. `state` is the owner's, the same one every frame.
 pub fn tile_row(id: impl Into<ElementId>, p: &Palette, state: &TileRowState, tiles: Vec<ConfigTile>) -> TileRow {
-    TileRow { id: id.into(), p: *p, scope: motion_scope(), state: state.clone(), tiles, on_select: None, plus: None }
+    TileRow {
+        id: id.into(),
+        p: *p,
+        scope: motion_scope(),
+        state: state.clone(),
+        tiles,
+        on_select: None,
+        on_move: None,
+        plus: None,
+    }
 }
 
 #[derive(IntoElement)]
@@ -78,6 +100,7 @@ pub struct TileRow {
     state: TileRowState,
     tiles: Vec<ConfigTile>,
     on_select: Option<IdCb>,
+    on_move: Option<MoveCb>,
     plus: Option<TilePlus>,
 }
 
@@ -85,6 +108,12 @@ impl TileRow {
     /// A click on a tile.
     pub fn on_select(mut self, on_select: IdCb) -> Self {
         self.on_select = Some(on_select);
+        self
+    }
+
+    /// A tile dropped in a new place; the owner reorders its data and draws again.
+    pub fn on_move(mut self, on_move: MoveCb) -> Self {
+        self.on_move = Some(on_move);
         self
     }
 
@@ -96,7 +125,7 @@ impl TileRow {
 
 impl RenderOnce for TileRow {
     fn render(self, window: &mut Window, _cx: &mut App) -> impl IntoElement {
-        let Self { id, p, scope, state, tiles, on_select, plus } = self;
+        let Self { id, p, scope, state, tiles, on_select, on_move, plus } = self;
         with_motion_scope(scope, move || {
             let ids: Vec<SharedString> = tiles.iter().map(|t| t.id.clone()).collect();
             let frame = state.frame(Instant::now(), &ids, Motion::system().is_reduced());
@@ -104,23 +133,25 @@ impl RenderOnce for TileRow {
                 window.request_animation_frame();
             }
             let layout = frame.layout;
+            let dragging = state.dragging() || frame.overlay.is_some();
 
             let mut track = div().relative().left(px(-frame.offset)).h(px(TILE_H)).flex().gap(px(GAP));
             track = if layout.shares_width() { track.w_full() } else { track.w(px(layout.content())).flex_none() };
-            for spec in &tiles {
+            for (index, spec) in tiles.iter().enumerate() {
                 let press = {
                     let (state, tile_id) = (state.clone(), spec.id.clone());
                     move |e: &MouseDownEvent, _: &mut Window, _: &mut App| {
-                        state.press(tile_id.clone(), f32::from(e.position.x), f32::from(e.position.y));
+                        state.press(index, tile_id.clone(), f32::from(e.position.x), f32::from(e.position.y));
                     }
                 };
-                let one = tile(&p, ElementId::from((id.clone(), spec.id.clone())), spec, true)
+                let mut one = tile(&p, ElementId::from((id.clone(), spec.id.clone())), spec, !dragging)
+                    .left(px(frame.shifts[index]))
                     .on_mouse_down(MouseButton::Left, press);
-                track = track.child(if layout.shares_width() {
-                    one.flex_1().min_w(px(0.))
-                } else {
-                    one.w(px(layout.w)).flex_none()
-                });
+                one = if layout.shares_width() { one.flex_1().min_w(px(0.)) } else { one.w(px(layout.w)).flex_none() };
+                if frame.hidden == Some(index) {
+                    one = one.opacity(0.);
+                }
+                track = track.child(one);
             }
 
             let scroller = div()
@@ -139,10 +170,29 @@ impl RenderOnce for TileRow {
                         }
                     }
                 })
-                .child(gestures(&state, on_select).absolute().inset_0())
+                .child(gestures(&state, on_select, on_move).absolute().inset_0())
                 .child(track)
                 .when(frame.fades.0 > 0., |d| d.child(fade(&p, frame.fades.0, true)))
                 .when(frame.fades.1 > 0., |d| d.child(fade(&p, frame.fades.1, false)));
+
+            let overlay = frame.overlay.as_ref().map(|o| {
+                let lifted = ElementId::from((ElementId::from((id.clone(), tiles[o.index].id.clone())), "lifted"));
+                let shadow = BoxShadow {
+                    color: hex_alpha(p.shadow, p.shadow.a * o.lift),
+                    offset: point(px(0.), px(10.)),
+                    blur_radius: px(28.),
+                    spread_radius: px(0.),
+                    inset: false,
+                };
+                deferred(
+                    tile(&p, lifted, &tiles[o.index], false)
+                        .absolute()
+                        .left(px(o.left))
+                        .top(px(-LIFT * o.lift))
+                        .w(px(layout.w))
+                        .shadow(vec![shadow]),
+                )
+            });
 
             div()
                 .relative()
@@ -153,6 +203,7 @@ impl RenderOnce for TileRow {
                 .gap(px(GAP))
                 .child(scroller)
                 .children(plus.map(|plus| plus_button(&p, ElementId::from((id.clone(), "plus")), plus)))
+                .children(overlay)
         })
     }
 }
@@ -189,9 +240,9 @@ fn fade(p: &Palette, strength: f32, left: bool) -> Div {
     }
 }
 
-/// Measures the scrolling area and, while it is painted, listens to the pointer wherever it goes: a press is only a
-/// click if the pointer stays close to where it went down and is let go.
-fn gestures(state: &TileRowState, on_select: Option<IdCb>) -> Canvas<()> {
+/// Measures the scrolling area and, while it is painted, listens to the pointer wherever it goes: a drag keeps
+/// going when the pointer leaves the row.
+fn gestures(state: &TileRowState, on_select: Option<IdCb>, on_move: Option<MoveCb>) -> Canvas<()> {
     let measure = state.clone();
     let state = state.clone();
     canvas(
@@ -201,23 +252,38 @@ fn gestures(state: &TileRowState, on_select: Option<IdCb>) -> Canvas<()> {
             }
         },
         move |_, (), window, _| {
+            if state.dragging() {
+                window.set_window_cursor_style(CursorStyle::ClosedHand);
+            }
             let moves = state.clone();
-            window.on_mouse_event(move |e: &MouseMoveEvent, phase, _, _| {
-                if phase == DispatchPhase::Capture {
-                    let held = e.pressed_button == Some(MouseButton::Left);
-                    moves.moved(f32::from(e.position.x), f32::from(e.position.y), held);
+            window.on_mouse_event(move |e: &MouseMoveEvent, phase, window, _| {
+                if phase != DispatchPhase::Capture {
+                    return;
+                }
+                let held = e.pressed_button == Some(MouseButton::Left);
+                if moves.moved(f32::from(e.position.x), f32::from(e.position.y), held, Instant::now()) {
+                    window.refresh();
                 }
             });
             window.on_mouse_event(move |e: &MouseUpEvent, phase, window, cx| {
                 if phase != DispatchPhase::Capture || e.button != MouseButton::Left {
                     return;
                 }
-                if let Outcome::Click(id) = state.released(Instant::now())
-                    && let Some(on_select) = &on_select
-                {
-                    on_select(&id, window, cx);
-                    window.refresh();
+                match state.released(f32::from(e.position.x), Instant::now()) {
+                    Outcome::Ignored => return,
+                    Outcome::Back => {}
+                    Outcome::Click(id) => {
+                        if let Some(on_select) = &on_select {
+                            on_select(&id, window, cx);
+                        }
+                    }
+                    Outcome::Drop { id, to } => {
+                        if let Some(on_move) = &on_move {
+                            on_move(&id, to, window, cx);
+                        }
+                    }
                 }
+                window.refresh();
             });
         },
     )

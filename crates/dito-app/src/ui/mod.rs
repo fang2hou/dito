@@ -45,7 +45,7 @@ pub use callbacks::{Cb, cbk, cbk_idx, click_cb};
     not(feature = "screenshots"),
     expect(unused_imports, reason = "the Models page adopts the tile row later")
 )]
-pub use config_tiles::{ConfigTile, TilePlus, TileRowState, cbk_id, tile_row};
+pub use config_tiles::{ConfigTile, TilePlus, TileRowState, cbk_id, cbk_move, tile_row};
 pub use format::{error_line, error_summary, fmt_bytes, fmt_eta, history_style_label};
 pub use glass::{prepare as prepare_card_backdrop, wordmark as page_wordmark};
 pub use history_tip::history_tip;

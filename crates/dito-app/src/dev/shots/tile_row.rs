@@ -9,7 +9,7 @@ use dito_core::i18n::{Lang, Tr};
 use gpui_kit::*;
 
 use super::capture::{close_window, render, save, theme_tag};
-use super::input::{click, hover, redraw};
+use super::input::{click, drag_to, hover, press, redraw, release};
 use crate::theme::{self, Palette};
 use crate::ui::{self, Root};
 
@@ -125,6 +125,14 @@ impl TileRowShot {
                 this.selected = id.to_string().into();
                 cx.notify();
             }))
+            .on_move(ui::cbk_move(cx, |this: &mut Self, id, to, _, cx| {
+                this.log.push(format!("move {id} to {to}"));
+                if let Some(from) = this.items.iter().position(|i| i.id.as_ref() == id) {
+                    let moved = this.items.remove(from);
+                    this.items.insert(to, moved);
+                }
+                cx.notify();
+            }))
             .plus(ui::TilePlus {
                 open: self.menu,
                 on_press: ui::cbk(cx, |this: &mut Self, _, cx| {
@@ -234,8 +242,8 @@ impl<'a> Rig<'a> {
         self.cx.update(|cx| view.update(cx, f))
     }
 
-    /// Scroll offset and the furthest offset.
-    fn probe(&mut self) -> (f32, f32) {
+    /// Scroll offset, furthest offset and the slot a dragged tile is over.
+    fn probe(&mut self) -> (f32, f32, Option<usize>) {
         self.model(|v, _| v.state.probe())
     }
 
@@ -245,6 +253,10 @@ impl<'a> Rig<'a> {
 
     fn selected(&mut self) -> String {
         self.model(|v, _| v.selected.to_string())
+    }
+
+    fn order(&mut self) -> Vec<String> {
+        self.model(|v, _| v.items.iter().map(|i| i.id.to_string()).collect())
     }
 
     fn menu_open(&mut self) -> bool {
@@ -262,7 +274,7 @@ impl<'a> Rig<'a> {
         });
         self.wait(300).await;
         self.shot("tile-row-5-start").await;
-        assert_eq!(self.probe(), (0., 376.), "five tiles: 200 wide, 376 to scroll");
+        assert_eq!(self.probe(), (0., 376., None), "five tiles: 200 wide, 376 to scroll");
 
         // A tile lights up under the pointer.
         self.input(|w, cx| hover(w, cx, point(px(ROW_LEFT + 212. * 2. + 100.), px(ROW_CENTRE))));
@@ -296,8 +308,50 @@ impl<'a> Rig<'a> {
         self.input(|w, cx| click(w, cx, point(px(ROW_LEFT + 100.), px(ROW_CENTRE))));
         assert_eq!(self.selected(), "compat");
 
+        // Reorder: the design's drag specimen, then the drop.
+        let grab = 60.;
+        let tile_1 = point(px(ROW_LEFT + 212. + grab), px(ROW_CENTRE));
+        self.input(|w, cx| {
+            hover(w, cx, tile_1);
+            press(w, cx, tile_1);
+        });
+        for step in 1..=8 {
+            let x = ROW_LEFT + 212. + grab + (446. - 212.) * step as f32 / 8.;
+            self.input(|w, cx| drag_to(w, cx, point(px(x), px(ROW_CENTRE - 6.))));
+        }
+        self.wait(350).await;
+        self.shot("tile-row-5-drag").await;
+        assert_eq!(self.probe().2, Some(2), "the lifted tile is over the third slot");
+        let x = ROW_LEFT + 446. + grab;
+        self.input(|w, cx| release(w, cx, point(px(x), px(ROW_CENTRE - 6.))));
+        assert_eq!(self.log().last().cloned(), Some("move azure to 2".into()), "the drop reports the new index");
+        self.park();
+        self.wait(350).await;
+        self.shot("tile-row-5-dropped").await;
+        assert_eq!(self.order(), ["compat", "bedrock", "azure", "long", "lab"]);
+
+        // Dragging near an edge scrolls the row.
+        let tile_0 = point(px(ROW_LEFT + 60.), px(ROW_CENTRE));
+        self.input(|w, cx| {
+            hover(w, cx, tile_0);
+            press(w, cx, tile_0);
+        });
+        for step in 1..=8 {
+            let x = ROW_LEFT + 60. + (VIEW_W - 12. - 60.) * step as f32 / 8.;
+            self.input(|w, cx| drag_to(w, cx, point(px(x), px(ROW_CENTRE))));
+        }
+        self.wait(300).await;
+        let midway = self.probe();
+        assert!(midway.0 > 0. && midway.0 < 376., "held at the edge, the row is scrolling: {midway:?}");
+        self.wait(1500).await;
+        self.shot("tile-row-5-edge").await;
+        assert_eq!(self.probe(), (376., 376., Some(4)), "it scrolled to the end, over the last slot");
+        self.input(|w, cx| release(w, cx, point(px(ROW_LEFT + VIEW_W - 12.), px(ROW_CENTRE))));
+        assert_eq!(self.log().last().cloned(), Some("move compat to 4".into()));
+
         // The plus button hangs its menu under itself; a template adds a tile that is selected and shown.
         let plus = point(px(PLUS_CENTRE), px(ROW_CENTRE));
+        self.scroll(0., 1000.);
         self.input(|w, cx| click(w, cx, plus));
         self.wait(250).await;
         self.shot("tile-row-plus-menu").await;
@@ -315,7 +369,7 @@ impl<'a> Rig<'a> {
         let template = Lang::Ja.tr(Tr::ModelsOpenaiCompatible);
         assert_eq!(self.log().last().cloned(), Some(format!("add from {template}")));
         assert_eq!(self.probe().0, 376. + 212., "the new tile is scrolled fully into view");
-        println!("verified tile row wheel, trackpad, click, reveal and plus menu ({tag})");
+        println!("verified tile row wheel, trackpad, click, reveal, drag, edge scroll and plus menu ({tag})");
         let window = self.window;
         close_window(self.cx, window);
     }
