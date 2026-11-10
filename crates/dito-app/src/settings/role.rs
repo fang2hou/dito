@@ -1,5 +1,18 @@
+use std::borrow::Cow;
+
 use dito_core::config::{Config, EngineConfig};
+use dito_core::provider::configured_asr::AsrProfiles;
 use dito_core::secrets::Role;
+
+/// The cloud speech profiles in effect for `role`. Polish has none (it uses its provider settings). Speech uses the
+/// saved profiles or, before any are saved, the bundled defaults the pipeline falls back to.
+pub fn cloud_profiles(role: Role, engine: &EngineConfig) -> Option<Cow<'_, AsrProfiles>> {
+    match (role, &engine.cloud_asr) {
+        (Role::Polish, _) => None,
+        (Role::Asr, Some(profiles)) => Some(Cow::Borrowed(profiles)),
+        (Role::Asr, None) => Some(Cow::Owned(AsrProfiles::default())),
+    }
+}
 
 pub fn index(role: Role) -> usize {
     match role {
