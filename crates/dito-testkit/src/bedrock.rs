@@ -15,14 +15,12 @@ pub(crate) async fn converse(
     Json(body): Json<Value>,
 ) -> Response {
     let content = body["messages"][0]["content"].as_array();
-    let has_audio = content.is_some_and(|c| c.iter().any(|x| x.get("audio").is_some()));
     let user = content.and_then(|c| c.iter().find_map(|x| x["text"].as_str())).map(str::to_string);
     s.record(Recorded {
         path: "converse".into(),
         model: Some(model),
         system: body["system"][0]["text"].as_str().map(str::to_string),
         user: user.clone(),
-        audio_bytes: usize::from(has_audio),
         headers: header_pairs(&headers),
         ..Default::default()
     });
@@ -33,7 +31,7 @@ pub(crate) async fn converse(
     if let Some(code) = b.fail_status {
         return service_error(code);
     }
-    let text = if has_audio { b.transcript } else { mock::rule_polish(&user.unwrap_or_default()) };
+    let text = mock::rule_polish(&user.unwrap_or_default());
     Json(json!({
         "output": { "message": { "role": "assistant", "content": [{ "text": text }] } },
         "stopReason": "end_turn",

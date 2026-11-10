@@ -13,15 +13,13 @@ use gpui_kit::component::input::InputEvent;
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
-use super::inputs::{Field, RoleInputs};
+use super::inputs::{Field, ProviderInputs};
 use crate::assets::Ic;
 use crate::services;
 use crate::settings::asr_editor::{self, AsrEditor};
 use crate::settings::{self, Ctx, Page, global_state, page, role};
 use crate::state::AppState;
 use crate::ui::{self, BtnKind, Cb, TestState, cbk, cbk_idx, text};
-
-const ROLES: [Role; 2] = [Role::Asr, Role::Polish];
 
 pub struct ModalChanged;
 
@@ -31,10 +29,11 @@ pub struct ModelsPage {
     pub(super) tab: Role,
     pub(super) menu: Option<String>,
     pub(super) select: Option<&'static str>,
-    pub(super) inputs: [RoleInputs; 2],
-    pub(super) tests: [TestState; 2],
-    pub(super) test_requests: [ui::Requests; 2],
-    pub(super) test_configs: [Option<(EngineConfig, dito_core::config::PreferredLanguage)>; 2],
+    /// Provider fields, tests and test results exist for polish only; speech has its own editor.
+    pub(super) inputs: ProviderInputs,
+    pub(super) test: TestState,
+    pub(super) test_requests: ui::Requests,
+    pub(super) test_config: Option<EngineConfig>,
     pub(super) profiles: Vec<String>,
     pub(super) last_status: String,
     #[cfg(feature = "screenshots")]
@@ -51,19 +50,17 @@ impl ModelsPage {
         ui::notify_on_change(st.models.subscribe(), cx);
         Self::poll_engine_state(cx);
 
-        let inputs = ROLES.map(|role| RoleInputs::new(role, &st, window, cx));
-        for (role, inputs) in ROLES.into_iter().zip(&inputs) {
-            for field in Field::ALL {
-                cx.subscribe_in(&inputs[field], window, move |this: &mut Self, state, ev: &InputEvent, _, cx| {
-                    if matches!(ev, InputEvent::Change) {
-                        let value = state.read(cx).value().to_string();
-                        this.field_changed(role, field, value, cx);
-                    }
-                })
-                .detach();
-            }
+        let inputs = ProviderInputs::new(&st, window, cx);
+        for field in Field::ALL {
+            cx.subscribe_in(&inputs[field], window, move |this: &mut Self, state, ev: &InputEvent, _, cx| {
+                if matches!(ev, InputEvent::Change) {
+                    let value = state.read(cx).value().to_string();
+                    this.field_changed(field, value, cx);
+                }
+            })
+            .detach();
         }
-        let bedrock_profile = st.cfg.get().asr.provider.bedrock.profile.clone();
+        let bedrock_profile = st.cfg.get().polish.engine.provider.bedrock.profile.clone();
         let mut profiles = services::aws_profiles();
         if !profiles.contains(&bedrock_profile) && !bedrock_profile.is_empty() {
             profiles.push(bedrock_profile);
@@ -77,9 +74,9 @@ impl ModelsPage {
             menu: None,
             select: None,
             inputs,
-            tests: [TestState::Idle, TestState::Idle],
+            test: TestState::Idle,
             test_requests: Default::default(),
-            test_configs: [None, None],
+            test_config: None,
             profiles,
             last_status: String::new(),
             #[cfg(feature = "screenshots")]
@@ -111,16 +108,10 @@ impl ModelsPage {
     /// A test result belongs to the engine settings it ran against; any later change clears it.
     fn reset_stale_tests(&mut self, cx: &mut Context<Self>) {
         let cfg = self.st.cfg.get();
-        for role in ROLES {
-            let i = role::index(role);
-            let stale = self.test_configs[i].as_ref().is_some_and(|(engine, lang)| {
-                engine != role::engine(&cfg, role) || (role == Role::Asr && *lang != cfg.general.preferred_language)
-            });
-            if stale {
-                self.tests[i] = TestState::Idle;
-                self.test_configs[i] = None;
-                cx.notify();
-            }
+        if self.test_config.as_ref().is_some_and(|engine| engine != &cfg.polish.engine) {
+            self.test = TestState::Idle;
+            self.test_config = None;
+            cx.notify();
         }
     }
 
@@ -151,69 +142,41 @@ impl ModelsPage {
         k
     }
 
-    fn field_changed(&mut self, role: Role, field: Field, value: String, cx: &mut Context<Self>) {
+    fn field_changed(&mut self, field: Field, value: String, cx: &mut Context<Self>) {
         // A changed setting invalidates the previous test result.
-        self.tests[role::index(role)] = TestState::Idle;
-        if role == Role::Asr && field.is_cloud_asr_connection() {
-            self.cloud_asr_field_changed(field, value);
-        } else if let Some(kind) = field.key_provider() {
-            services::store_secret(&self.st, &account(role, kind), &value);
+        self.test = TestState::Idle;
+        if let Some(kind) = field.key_provider() {
+            services::store_secret(&self.st, &account(Role::Polish, kind), &value);
         } else {
-            services::save_config(&self.st, |c| field.write(&mut role::engine_mut(c, role).provider, value));
+            services::save_config(&self.st, |c| field.write(&mut c.polish.engine.provider, value));
         }
         cx.notify();
-    }
-
-    fn cloud_asr_field_changed(&self, field: Field, value: String) {
-        if field == Field::KeyCompat {
-            let profiles = self.st.cfg.get().asr.cloud_asr.clone().unwrap_or_default();
-            services::store_secret(&self.st, &profiles.account(), &value);
-            return;
-        }
-        let key = if field == Field::CompatBase { "base_url" } else { "model" };
-        services::save_config(&self.st, |c| {
-            let profiles = c.asr.cloud_asr.get_or_insert_with(AsrProfiles::default);
-            if let Some(config) = profiles.active_mut() {
-                config["connection"][key] = value.into();
-            }
-        });
     }
 
     pub(super) fn update_engine(&self, role: Role, f: impl FnOnce(&mut EngineConfig)) {
         services::save_config(&self.st, |c| f(role::engine_mut(c, role)));
     }
 
-    pub(super) fn run_test(&mut self, role: Role, cx: &mut Context<Self>) {
-        if self.tests[role::index(role)] == TestState::Running {
+    pub(super) fn run_test(&mut self, cx: &mut Context<Self>) {
+        if self.test == TestState::Running {
             return;
         }
-        if role == Role::Asr {
-            let profiles = self.st.cfg.get().asr.cloud_asr.clone().unwrap_or_default();
-            if dito_core::provider::configured_asr::validate(profiles.active()).is_err() {
-                return;
-            }
-            services::save_config(&self.st, |c| c.asr.cloud_asr = Some(profiles));
-        }
-        let cfg = self.st.cfg.get();
-        self.test_configs[role::index(role)] = Some((role::engine(&cfg, role).clone(), cfg.general.preferred_language));
-        let request = self.test_requests[role::index(role)].begin();
-        self.tests[role::index(role)] = TestState::Running;
+        let tested_engine = self.st.cfg.get().polish.engine.clone();
+        self.test_config = Some(tested_engine.clone());
+        let request = self.test_requests.begin();
+        self.test = TestState::Running;
         cx.notify();
         let st = self.st.clone();
-        let tested_config = st.cfg.get();
-        let tested_engine = role::engine(&tested_config, role).clone();
         cx.spawn(async move |this, cx| {
-            let outcome = services::test_connection(st, role).await;
+            let outcome = services::test_connection(st, Role::Polish).await;
             let _ = this.update(cx, |t, cx| {
-                if !t.test_requests[role::index(role)].is_current(request)
-                    || (role == Role::Asr
-                        && t.st.cfg.get().general.preferred_language != tested_config.general.preferred_language)
-                    || role::engine(&t.st.cfg.get(), role) != &tested_engine
-                    || t.tests[role::index(role)] != TestState::Running
+                if !t.test_requests.is_current(request)
+                    || t.st.cfg.get().polish.engine != tested_engine
+                    || t.test != TestState::Running
                 {
                     return;
                 }
-                t.tests[role::index(role)] = outcome.into();
+                t.test = outcome.into();
                 cx.notify();
             });
         })

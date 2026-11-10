@@ -4,10 +4,11 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 
-use crate::config::{Config, EngineConfig, ProviderKind, Source};
+use crate::config::{AsrProfiles, Config, EngineConfig, ProviderKind, Source};
 use crate::error::{ErrorKind, ProviderError, ProviderResult};
 use crate::health::EngineStatus;
 use crate::provider::bedrock::{BedrockEngine, BedrockParams};
+use crate::provider::configured_asr::ConfiguredAsr;
 use crate::provider::mock::{MockPolisher, MockTranscriber};
 use crate::provider::openai::{Flavor, OpenAiEngine};
 use crate::provider::{Polisher, Transcriber};
@@ -50,21 +51,21 @@ impl EngineFactory {
         self
     }
 
-    fn key(&self, role: Role, kind: ProviderKind) -> String {
-        self.secrets.get(&account(role, kind)).unwrap_or_default()
+    fn polish_key(&self, kind: ProviderKind) -> String {
+        self.secrets.get(&account(Role::Polish, kind)).unwrap_or_default()
     }
 
-    fn openai(&self, role: Role, e: &EngineConfig) -> ProviderResult<OpenAiEngine> {
+    fn openai(&self, e: &EngineConfig) -> ProviderResult<OpenAiEngine> {
         let p = &e.provider;
         match p.kind {
             ProviderKind::Azure => OpenAiEngine::new(
                 Flavor::Azure { endpoint: p.azure.endpoint.clone(), deployment: p.azure.deployment.clone() },
-                self.key(role, ProviderKind::Azure),
+                self.polish_key(ProviderKind::Azure),
                 p.azure.reasoning_effort.clone(),
             ),
             ProviderKind::Compat => OpenAiEngine::new(
                 Flavor::Compat { base_url: p.compat.base_url.clone(), model: p.compat.model.clone() },
-                self.key(role, ProviderKind::Compat),
+                self.polish_key(ProviderKind::Compat),
                 p.compat.reasoning_effort.clone(),
             ),
             ProviderKind::Bedrock => unreachable!("handled by caller"),
@@ -91,18 +92,21 @@ impl EngineFactory {
 
     /// Build the ASR engine for an explicit engine config (used by the connection test too).
     pub async fn transcriber_for(&self, e: &EngineConfig) -> ProviderResult<Arc<dyn Transcriber>> {
-        if e.source == Source::Provider
-            && let Some(profiles) = &e.cloud_asr
-        {
-            return Ok(Arc::new(crate::provider::configured_asr::ConfiguredAsr::new(
-                profiles.active().clone(),
-                self.secrets.get(&profiles.account()).unwrap_or_default(),
-            )?));
-        }
-        match (e.source, e.provider.kind) {
-            (Source::Local, _) => self.require_local()?.transcriber(&e.local_model).await,
-            (Source::Provider, ProviderKind::Bedrock) => Ok(Arc::new(self.bedrock(e).await?)),
-            (Source::Provider, _) => Ok(Arc::new(self.openai(Role::Asr, e)?)),
+        match e.source {
+            Source::Local => self.require_local()?.transcriber(&e.local_model).await,
+            Source::Provider => {
+                // `cloud_asr` stays `None` until a profile list is first saved; the bundled profiles stand in.
+                let bundled;
+                let profiles = match &e.cloud_asr {
+                    Some(profiles) => profiles,
+                    None => {
+                        bundled = AsrProfiles::default();
+                        &bundled
+                    }
+                };
+                let key = self.secrets.get(&profiles.account()).unwrap_or_default();
+                Ok(Arc::new(ConfiguredAsr::new(profiles.active().clone(), key)?))
+            }
         }
     }
 
@@ -110,7 +114,7 @@ impl EngineFactory {
         match (e.source, e.provider.kind) {
             (Source::Local, _) => self.require_local()?.polisher(&e.local_model).await,
             (Source::Provider, ProviderKind::Bedrock) => Ok(Arc::new(self.bedrock(e).await?)),
-            (Source::Provider, _) => Ok(Arc::new(self.openai(Role::Polish, e)?)),
+            (Source::Provider, _) => Ok(Arc::new(self.openai(e)?)),
         }
     }
 }

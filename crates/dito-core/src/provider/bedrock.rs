@@ -1,19 +1,14 @@
 //! Amazon Bedrock through the Converse API. Credentials come from the user's AWS profile.
-//!
-//! ASR works only with models that accept audio content blocks in Converse; this is unverified against
-//! a real account (see docs/IMPLEMENTATION.md, Known Limitations).
 
 use async_trait::async_trait;
 use aws_config::{BehaviorVersion, Region};
 use aws_sdk_bedrockruntime::Client;
 use aws_sdk_bedrockruntime::error::{ProvideErrorMetadata, SdkError};
 use aws_sdk_bedrockruntime::types::{
-    AudioBlock, AudioFormat, AudioSource, ContentBlock, ConversationRole, InferenceConfiguration, Message,
-    SystemContentBlock,
+    ContentBlock, ConversationRole, InferenceConfiguration, Message, SystemContentBlock,
 };
-use aws_smithy_types::Blob;
 
-use super::{AsrRequest, PolishRequest, Polisher, Transcriber, Transcript};
+use super::{PolishRequest, Polisher};
 use crate::error::{ErrorKind, ProviderError, ProviderResult};
 
 #[derive(Clone)]
@@ -147,51 +142,5 @@ impl BedrockEngine {
 impl Polisher for BedrockEngine {
     async fn polish(&self, req: &PolishRequest<'_>) -> ProviderResult<String> {
         self.converse(Some(req.system), ContentBlock::Text(req.text.to_string())).await
-    }
-}
-
-#[async_trait]
-impl Transcriber for BedrockEngine {
-    async fn transcribe(&self, req: &AsrRequest<'_>) -> ProviderResult<Transcript> {
-        let audio = AudioBlock::builder()
-            .format(AudioFormat::Wav)
-            .source(AudioSource::Bytes(Blob::new(req.clip.to_wav())))
-            .build()
-            .map_err(|e| ProviderError::new(ErrorKind::Other, e.to_string()))?;
-        let mut instruction = String::from("Transcribe this audio verbatim. Return only the transcript.");
-        if let Some(l) = req.language {
-            instruction.push_str(&format!(" The language is {l}."));
-        }
-        if !req.hotwords.is_empty() {
-            instruction.push_str(&format!(" Vocabulary: {}.", req.hotwords.join(", ")));
-        }
-        // Audio and the instruction travel in one user turn.
-        let msg = Message::builder()
-            .role(ConversationRole::User)
-            .content(ContentBlock::Text(instruction))
-            .content(ContentBlock::Audio(audio))
-            .build()
-            .map_err(|e| ProviderError::new(ErrorKind::Other, e.to_string()))?;
-        let out = self
-            .client
-            .converse()
-            .model_id(&self.model_id)
-            .messages(msg)
-            .inference_config(InferenceConfiguration::builder().max_tokens(2048).temperature(0.0).build())
-            .send()
-            .await
-            .map_err(classify)?;
-        let text: String = out
-            .output()
-            .and_then(|o| o.as_message().ok())
-            .map(|m| {
-                m.content().iter().filter_map(|c| c.as_text().ok().map(String::as_str)).collect::<Vec<_>>().join("")
-            })
-            .unwrap_or_default();
-        let text = text.trim().to_string();
-        if text.is_empty() {
-            return Err(ProviderError::new(ErrorKind::NoSpeech, "empty transcription"));
-        }
-        Ok(Transcript { text, language: None })
     }
 }

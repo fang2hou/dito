@@ -1,10 +1,9 @@
-//! Azure OpenAI and OpenAI-compatible HTTP engines (one wire format, two URL/auth schemes).
+//! Azure OpenAI and OpenAI-compatible chat engines for polishing (one wire format, two URL/auth schemes).
 
 use async_trait::async_trait;
-use reqwest::multipart::{Form, Part};
 use serde_json::{Value, json};
 
-use super::{AsrRequest, PolishRequest, Polisher, Transcriber, Transcript, default_timeout};
+use super::{PolishRequest, Polisher, default_timeout};
 use crate::config::ReasoningEffort;
 use crate::error::{ErrorKind, ProviderError, ProviderResult};
 
@@ -25,13 +24,8 @@ pub struct OpenAiEngine {
 }
 
 fn trim_known_suffix(url: &str) -> &str {
-    let mut u = url.trim().trim_end_matches('/');
-    for suffix in ["/chat/completions", "/audio/transcriptions"] {
-        if let Some(stripped) = u.strip_suffix(suffix) {
-            u = stripped;
-        }
-    }
-    u
+    let u = url.trim().trim_end_matches('/');
+    u.strip_suffix("/chat/completions").unwrap_or(u)
 }
 
 impl OpenAiEngine {
@@ -92,30 +86,6 @@ impl OpenAiEngine {
 }
 
 #[async_trait]
-impl Transcriber for OpenAiEngine {
-    async fn transcribe(&self, req: &AsrRequest<'_>) -> ProviderResult<Transcript> {
-        let file = Part::bytes(req.clip.to_wav())
-            .file_name("audio.wav")
-            .mime_str("audio/wav")
-            .map_err(|e| ProviderError::new(ErrorKind::Other, e.to_string()))?;
-        let mut form =
-            Form::new().part("file", file).text("model", self.model().to_string()).text("response_format", "json");
-        if let Some(lang) = req.language {
-            form = form.text("language", lang.to_string());
-        }
-        if !req.hotwords.is_empty() {
-            form = form.text("prompt", format!("Vocabulary: {}", req.hotwords.join(", ")));
-        }
-        let v = self.send_json(self.auth(self.client.post(self.url("audio/transcriptions"))).multipart(form)).await?;
-        let text = v.get("text").and_then(Value::as_str).unwrap_or_default().trim().to_string();
-        if text.is_empty() {
-            return Err(ProviderError::new(ErrorKind::NoSpeech, "empty transcription"));
-        }
-        Ok(Transcript { text, language: v.get("language").and_then(Value::as_str).map(str::to_string) })
-    }
-}
-
-#[async_trait]
 impl Polisher for OpenAiEngine {
     async fn polish(&self, req: &PolishRequest<'_>) -> ProviderResult<String> {
         let mut body = json!({
@@ -157,8 +127,7 @@ mod tests {
 
     #[test]
     fn compat_urls_tolerate_pasted_full_paths() {
-        for base in ["http://h/v1", "http://h/v1/", "http://h/v1/chat/completions", "http://h/v1/audio/transcriptions/"]
-        {
+        for base in ["http://h/v1", "http://h/v1/", "http://h/v1/chat/completions", "http://h/v1/chat/completions/"] {
             assert_eq!(compat(base).url("chat/completions"), "http://h/v1/chat/completions", "{base}");
         }
     }
@@ -171,7 +140,7 @@ mod tests {
             ReasoningEffort::Low,
         )
         .unwrap();
-        assert_eq!(e.url("audio/transcriptions"), "https://x.openai.azure.com/openai/v1/audio/transcriptions");
+        assert_eq!(e.url("chat/completions"), "https://x.openai.azure.com/openai/v1/chat/completions");
         assert_eq!(e.model(), "gpt-6.1-terra");
     }
 }

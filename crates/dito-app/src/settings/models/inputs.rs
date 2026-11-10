@@ -2,7 +2,6 @@ use std::ops::Index;
 
 use dito_core::config::{EngineConfig, ProviderKind, ProviderSettings};
 use dito_core::i18n::{Lang, Tr};
-use dito_core::provider::configured_asr::AsrProfiles;
 use dito_core::secrets::{Role, account};
 use gpui_kit::component::input::InputState;
 use gpui_kit::*;
@@ -54,11 +53,6 @@ impl Field {
         }
     }
 
-    /// Fields the cloud ASR presets own: they live in the selected preset, not in the provider settings.
-    pub(super) fn is_cloud_asr_connection(self) -> bool {
-        matches!(self, Self::CompatBase | Self::CompatModel | Self::KeyCompat)
-    }
-
     fn placeholder(self, lang: Lang) -> &'static str {
         match self {
             Self::AzureEndpoint => "https://…openai.azure.com/",
@@ -72,25 +66,20 @@ impl Field {
         }
     }
 
-    fn initial_value(self, role: Role, engine: &EngineConfig, asr: &AsrProfiles, st: &AppState) -> String {
+    fn initial_value(self, engine: &EngineConfig, st: &AppState) -> String {
         let provider = &engine.provider;
-        let key = |kind| st.secrets.get(&account(role, kind)).unwrap_or_default();
-        let cloud = |field: &str| asr.active()["connection"][field].as_str().unwrap_or("").to_string();
-        let asr_role = role == Role::Asr;
+        let key = |kind| st.secrets.get(&account(Role::Polish, kind)).unwrap_or_default();
         match self {
             Self::AzureEndpoint => provider.azure.endpoint.clone(),
             Self::AzureDeployment => provider.azure.deployment.clone(),
             Self::BedrockRegion => provider.bedrock.region.clone(),
             Self::BedrockModel => provider.bedrock.model_id.clone(),
-            Self::CompatBase if asr_role => cloud("base_url"),
             Self::CompatBase => provider.compat.base_url.clone(),
-            Self::CompatModel if asr_role => cloud("model"),
             Self::CompatModel => provider.compat.model.clone(),
             Self::EffortAzure => provider.azure.reasoning_effort.as_str().to_string(),
             Self::EffortBedrock => provider.bedrock.reasoning_effort.as_str().to_string(),
             Self::EffortCompat => provider.compat.reasoning_effort.as_str().to_string(),
             Self::KeyAzure => key(ProviderKind::Azure),
-            Self::KeyCompat if asr_role => st.secrets.get(&asr.account()).unwrap_or_default(),
             Self::KeyCompat => key(ProviderKind::Compat),
         }
     }
@@ -116,28 +105,21 @@ impl Field {
     }
 }
 
-/// One text input per provider field, for one role.
-pub(super) struct RoleInputs([Entity<InputState>; 11]);
+/// One text input per provider field of the polish engine; speech is edited in the cloud ASR editor instead.
+pub(super) struct ProviderInputs([Entity<InputState>; 11]);
 
-impl RoleInputs {
-    pub(super) fn new(role: Role, st: &AppState, window: &mut Window, cx: &mut Context<ModelsPage>) -> Self {
+impl ProviderInputs {
+    pub(super) fn new(st: &AppState, window: &mut Window, cx: &mut Context<ModelsPage>) -> Self {
         let cfg = st.cfg.get();
-        let engine = role::engine(&cfg, role);
+        let engine = role::engine(&cfg, Role::Polish);
         let lang = cfg.general.lang();
-        let asr = engine.cloud_asr.clone().unwrap_or_default();
         Self(Field::ALL.map(|field| {
-            make_input(
-                window,
-                cx,
-                field.placeholder(lang),
-                &field.initial_value(role, engine, &asr, st),
-                field.masked(),
-            )
+            make_input(window, cx, field.placeholder(lang), &field.initial_value(engine, st), field.masked())
         }))
     }
 }
 
-impl Index<Field> for RoleInputs {
+impl Index<Field> for ProviderInputs {
     type Output = Entity<InputState>;
 
     fn index(&self, field: Field) -> &Self::Output {
