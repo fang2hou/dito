@@ -54,7 +54,7 @@ mod tests {
             row(Style::General, "Dia"),
             row(Style::Application("com.apple.AppStore".into()), "App Store"),
             row(Style::Application("example.gone".into()), "Old App"),
-            row(Style::Slack, "Slack"),
+            row(Style::builtin("slack").expect("built-in style"), "Slack"),
             row(Style::General, "App Store"),
         ];
         let csv = history_csv(&rows, &prompts, Lang::En, 0);

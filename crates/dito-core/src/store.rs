@@ -262,8 +262,7 @@ impl Store {
                 // of the configured app names. The name check keeps entries recorded before the app was configured
                 // (or under another bundle id) with their app.
                 Style::General => {
-                    let active: Vec<_> = [Style::Slack, Style::Teams, Style::Herdr]
-                        .into_iter()
+                    let active: Vec<_> = Style::builtins()
                         .filter(|style| {
                             !f.disabled_builtin_styles.contains(style)
                                 || f.configured_apps.iter().any(|(_, id)| Style::for_bundle_id(id) == *style)
@@ -299,7 +298,7 @@ impl Store {
                     sql.push_str(&format!(" AND ({clause})"));
                 }
                 // Built-in styles are fixed and are matched by style alone.
-                Style::Slack | Style::Teams | Style::Herdr => {
+                Style::Builtin(_) => {
                     sql.push_str(&format!(" AND style = ?{}", args.len() + 1));
                     args.push(encode(style.clone()).into());
                 }
@@ -316,10 +315,14 @@ impl Store {
                             Some(name) => {
                                 args.push(encode(style.clone()).into());
                                 args.push(name.into());
+                                let ids: Vec<_> = Style::builtins().map(encode).collect();
+                                let marks: Vec<_> = (0..ids.len()).map(|i| format!("?{}", first + 2 + i)).collect();
+                                args.extend(ids.into_iter().map(Into::into));
                                 sql.push_str(&format!(
-                                " AND (style = ?{first} OR (app = ?{} AND style NOT IN ('slack', 'teams', 'herdr')))",
-                                first + 1
-                            ));
+                                    " AND (style = ?{first} OR (app = ?{} AND style NOT IN ({})))",
+                                    first + 1,
+                                    marks.join(", ")
+                                ));
                             }
                             None => {
                                 sql.push_str(&format!(" AND style = ?{first}"));
@@ -451,6 +454,10 @@ fn row_to_entry(r: &rusqlite::Row<'_>) -> rusqlite::Result<HistoryEntry> {
 mod tests {
     use super::*;
 
+    fn builtin(id: &str) -> Style {
+        Style::builtin(id).expect("a built-in style")
+    }
+
     fn entry(ts: i64, app: &str, lang: &str, raw: &str, polished: Option<&str>) -> NewHistory {
         NewHistory {
             ts,
@@ -493,13 +500,13 @@ mod tests {
         let s = Store::open_in_memory().unwrap();
         s.add_history(&entry(10, "A", "ja", "old", None)).unwrap();
         let mut slack = entry(30, "B", "ja", "new", None);
-        slack.style = Style::Slack;
+        slack.style = builtin("slack");
         s.add_history(&slack).unwrap();
         let all = s.list_history(&HistoryFilter::default()).unwrap();
         assert_eq!(all.iter().map(|e| e.raw.as_str()).collect::<Vec<_>>(), ["new", "old"]);
         let recent = s.list_history(&HistoryFilter { since_ts: Some(20), ..Default::default() }).unwrap();
         assert_eq!(recent.len(), 1);
-        let styled = s.list_history(&HistoryFilter { style: Some(Style::Slack), ..Default::default() }).unwrap();
+        let styled = s.list_history(&HistoryFilter { style: Some(builtin("slack")), ..Default::default() }).unwrap();
         assert_eq!(styled[0].raw, "new");
     }
 
@@ -507,11 +514,11 @@ mod tests {
     fn removing_and_readding_builtin_profiles_reclassifies_history_without_deleting_it() {
         let store = Store::open_in_memory().unwrap();
         let mut recorded = entry(10, "Herdr", "ja", "preserved", None);
-        recorded.style = Style::Herdr;
+        recorded.style = builtin("herdr");
         store.add_history(&recorded).unwrap();
         let mut filter = HistoryFilter {
             style: Some(Style::General),
-            disabled_builtin_styles: vec![Style::Herdr],
+            disabled_builtin_styles: vec![builtin("herdr")],
             ..Default::default()
         };
         assert_eq!(store.list_history(&filter).unwrap().len(), 1);
@@ -529,7 +536,7 @@ mod tests {
         legacy.style = Style::General;
         s.add_history(&legacy).unwrap();
         let mut slack = entry(20, "Slack", "ja", "slack", None);
-        slack.style = Style::Slack;
+        slack.style = builtin("slack");
         s.add_history(&slack).unwrap();
         let mut kept = entry(30, "App Store", "ja", "kept", None);
         kept.style = Style::Application("com.apple.AppStore".into());
@@ -578,11 +585,11 @@ mod tests {
             "with no configured apps every recording outside the built-in styles is Other"
         );
         assert!(
-            s.list_history(&HistoryFilter { style: Some(Style::Slack), ..Default::default() }).unwrap()[0].raw
+            s.list_history(&HistoryFilter { style: Some(builtin("slack")), ..Default::default() }).unwrap()[0].raw
                 == "slack"
         );
         assert!(
-            !s.list_history(&none_configured).unwrap().iter().any(|e| e.style == Style::Slack),
+            !s.list_history(&none_configured).unwrap().iter().any(|e| e.style == builtin("slack")),
             "a built-in style never joins Other"
         );
     }
