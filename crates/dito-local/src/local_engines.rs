@@ -1,7 +1,7 @@
 //! Loading and running local models behind the core `Transcriber` / `Polisher` traits.
 
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
@@ -14,6 +14,7 @@ use dito_core::provider::{AsrRequest, PolishRequest, Polisher, Transcriber, Tran
 use crate::catalog::ModelKind;
 use crate::manager::ModelManager;
 use crate::runtime::{AsrRuntime, LlmRuntime, RuntimeLoader};
+use crate::runtime_error::RuntimeError;
 
 #[derive(Clone)]
 enum Slot {
@@ -184,16 +185,36 @@ impl Drop for InflightGuard<'_> {
     }
 }
 
+/// Raises the stop flag of a blocking inference call when the call's future is dropped, so a cancelled dictation frees
+/// the model for the next one instead of letting it finish for nobody. After a normal finish nothing reads the flag.
+struct StopOnDrop(Arc<AtomicBool>);
+impl Drop for StopOnDrop {
+    fn drop(&mut self) {
+        self.0.store(true, Ordering::Relaxed);
+    }
+}
+
+/// Output that used the whole token budget is cut off mid-text; returning it as a result would type it as if it were
+/// complete.
+fn runtime_failure(error: RuntimeError) -> ProviderError {
+    match error {
+        RuntimeError::Truncated => ProviderError::new(ErrorKind::BadResponse, "output was cut off at the token limit"),
+        other => ProviderError::new(ErrorKind::Other, other.to_string()),
+    }
+}
+
 #[async_trait]
 impl Transcriber for LocalAsr {
     async fn transcribe(&self, req: &AsrRequest<'_>) -> ProviderResult<Transcript> {
         let _g = InflightGuard::new(&self.metrics);
         let (rt, samples) = (self.rt.clone(), req.clip.samples.clone());
         let (lang, words) = (req.language.map(str::to_string), req.hotwords.to_vec());
-        let text = tokio::task::spawn_blocking(move || rt.transcribe(&samples, lang.as_deref(), &words))
+        let stop = Arc::new(AtomicBool::new(false));
+        let _cancel = StopOnDrop(stop.clone());
+        let text = tokio::task::spawn_blocking(move || rt.transcribe(&samples, lang.as_deref(), &words, &stop))
             .await
             .map_err(|e| ProviderError::new(ErrorKind::Other, e.to_string()))?
-            .map_err(|e| ProviderError::new(ErrorKind::Other, e.to_string()))?;
+            .map_err(runtime_failure)?;
         let lang_out = text.language.clone();
         let text = text.text.trim().to_string();
         if text.is_empty() {
@@ -208,10 +229,12 @@ impl Polisher for LocalLlm {
     async fn polish(&self, req: &PolishRequest<'_>) -> ProviderResult<String> {
         let _g = InflightGuard::new(&self.metrics);
         let (rt, system, user) = (self.rt.clone(), req.system.to_string(), req.text.to_string());
-        let text = tokio::task::spawn_blocking(move || rt.generate(&system, &user))
+        let stop = Arc::new(AtomicBool::new(false));
+        let _cancel = StopOnDrop(stop.clone());
+        let text = tokio::task::spawn_blocking(move || rt.generate(&system, &user, &stop))
             .await
             .map_err(|e| ProviderError::new(ErrorKind::Other, e.to_string()))?
-            .map_err(|e| ProviderError::new(ErrorKind::Other, e.to_string()))?;
+            .map_err(runtime_failure)?;
         let text = text.trim().to_string();
         if text.is_empty() {
             return Err(ProviderError::new(ErrorKind::BadResponse, "empty model output"));
