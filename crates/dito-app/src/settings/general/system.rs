@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use dito_core::config::{Appearance, DisplayLanguage, HudPosition};
+use dito_core::config::{Appearance, DisplayLanguage, HudPosition, PreferredLanguage};
 use dito_core::controller::HudState;
 use dito_core::i18n::{Lang, Tr};
 use dito_platform::system;
@@ -37,6 +37,7 @@ impl GeneralPage {
             &p,
             c.t(Tr::GeneralHud),
             vec![
+                ui::row(&p, c.t(Tr::GeneralHudLanguageShortcuts), self.hud_language_select(c, cx), false),
                 ui::row(&p, c.t(Tr::GeneralHudAppearance), self.hud_appearance_control(c, cx), false),
                 ui::row(
                     &p,
@@ -46,6 +47,32 @@ impl GeneralPage {
                 ),
                 self.hud_height_row(c),
             ],
+        )
+    }
+
+    fn hud_language_select(&self, c: &Ctx, cx: &mut Context<Self>) -> Div {
+        let st = self.st.clone();
+        let cfg = st.cfg.get();
+        let selected = PreferredLanguage::ALL.map(|language| cfg.general.hud_languages.contains(&language));
+        let label = match selected.iter().filter(|&&on| on).count() {
+            0 => c.t(Tr::GeneralHudLanguageHidden),
+            count if count == selected.len() => c.t(Tr::GeneralHudLanguageAll),
+            _ => {
+                cfg.general.hud_languages().map(|language| language.name(c.lang)).collect::<Vec<_>>().join(", ").into()
+            }
+        };
+        ui::select_multi(
+            "hud-languages",
+            &c.p,
+            &PreferredLanguage::ALL.map(|language| language.name(c.lang).into()),
+            &selected,
+            label,
+            self.open == Some("hud-languages"),
+            240.,
+            self.toggle(cx, "hud-languages"),
+            Rc::new(move |i, _, _| {
+                services::save_config(&st, |c| c.general.toggle_hud_language(PreferredLanguage::ALL[i]));
+            }),
         )
     }
 

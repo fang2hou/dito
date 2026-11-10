@@ -110,8 +110,8 @@ general.preferred_language = { ja = "優先言語", en = "Preferred language", z
 general.simplified_chinese = { ja = "簡体字中国語", en = "Simplified Chinese", zh = "简体中文" }
 general.japanese = { ja = "日本語", en = "Japanese", zh = "日语" }
 general.english = { ja = "英語", en = "English", zh = "英语" }
-general.hud_language_shortcuts = { ja = "HUD の言語切替", en = "HUD language shortcuts", zh = "HUD 语言快捷切换" }
-general.hud_language_all = { ja = "すべての言語", en = "All languages", zh = "所有语言" }
+general.hud_language_shortcuts = { ja = "言語切替", en = "Language shortcuts", zh = "语言切换" }
+general.hud_language_all = { ja = "すべて", en = "All", zh = "全部" }
 general.hud_language_hidden = { ja = "表示しない", en = "Hidden", zh = "不显示" }
 general.auto = { ja = "自動", en = "Auto", zh = "自动" }
 general.system = { ja = "システム", en = "System", zh = "系统" }
@@ -119,11 +119,11 @@ general.launch_at_login = { ja = "ログイン時に起動", en = "Launch at log
 general.show_dock_icon = { ja = "Dock にアイコンを表示", en = "Show icon in Dock", zh = "在 Dock 中显示图标" }
 general.appearance = { ja = "外観", en = "Appearance", zh = "外观" }
 general.hud = { ja = "HUD", en = "HUD", zh = "HUD" }
-general.hud_appearance = { ja = "HUD の外観", en = "HUD appearance", zh = "HUD 外观" }
-general.hud_position = { ja = "HUD の位置", en = "HUD position", zh = "HUD 位置" }
+general.hud_appearance = { ja = "外観", en = "Appearance", zh = "外观" }
+general.hud_position = { ja = "位置", en = "Position", zh = "位置" }
 general.hud_centered = { ja = "中央", en = "Centered", zh = "屏幕居中" }
 general.hud_pointer = { ja = "マウスに追従", en = "Follow pointer", zh = "跟随鼠标" }
-general.hud_height = { ja = "HUD の高さ", en = "HUD height", zh = "HUD 高度" }
+general.hud_height = { ja = "高さ", en = "Height", zh = "高度" }
 general.hud_lower = { ja = "低い", en = "Lower", zh = "低" }
 general.hud_higher = { ja = "高い", en = "Higher", zh = "高" }
 general.light = { ja = "ライト", en = "Light", zh = "浅色" }
