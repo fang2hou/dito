@@ -31,7 +31,8 @@ pub struct Onboarding {
     pub(super) step: Step,
     pub(super) mode: RecordMode,
     pub(super) local: bool,
-    pub(super) provider: usize,
+    /// Id of the cloud speech configuration the connection step edits.
+    pub(super) cloud_asr_id: String,
     pub(super) editor: Option<Entity<crate::settings::asr_editor::AsrEditor>>,
     pub(super) endpoint: Entity<InputState>,
     pub(super) deployment: Entity<InputState>,
@@ -79,7 +80,7 @@ impl Onboarding {
         Self {
             mode: cfg.general.record_mode,
             local: cfg.asr.source == Source::Local,
-            provider: profiles.selected_index(),
+            cloud_asr_id: profiles.selected_id().to_owned(),
             editor: None,
             endpoint,
             deployment,
@@ -184,7 +185,7 @@ impl Onboarding {
             }
             Step::Prepare => {
                 if !self.local {
-                    self.apply_provider(cx);
+                    self.apply_cloud_asr(cx);
                 }
             }
             Step::Try => {

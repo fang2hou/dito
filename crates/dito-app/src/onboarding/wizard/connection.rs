@@ -7,7 +7,7 @@ use crate::ui::TestState;
 use super::Onboarding;
 
 impl Onboarding {
-    /// The tested configuration changed (endpoint, key or provider edit): the recorded result no longer
+    /// The tested configuration changed (endpoint, key or configuration edit): the recorded result no longer
     /// describes it, and any in-flight request must be superseded so its success cannot later overwrite
     /// the fresh idle state for the obsolete configuration.
     pub(in crate::onboarding) fn invalidate_test(&mut self) {
@@ -25,12 +25,13 @@ impl Onboarding {
         }
     }
 
-    /// Switch the cloud ASR profile: keep the edits of the old one, then show the new profile's endpoint, model and key.
-    pub(in crate::onboarding) fn select_provider(&mut self, k: usize, window: &mut Window, cx: &mut Context<Self>) {
-        self.apply_provider(cx);
-        self.provider = k;
+    /// Switch the cloud speech configuration the step edits to `id`: keep the edits of the old one, then show the new
+    /// configuration's endpoint, model and key.
+    pub(in crate::onboarding) fn select_cloud_asr(&mut self, id: &str, window: &mut Window, cx: &mut Context<Self>) {
+        self.apply_cloud_asr(cx);
+        self.cloud_asr_id = id.to_owned();
         let mut p = self.st.cfg.get().asr.cloud_asr.clone().unwrap_or_default();
-        p.select_index(k);
+        p.select(id);
         self.endpoint
             .update(cx, |s, cx| s.set_value(p.active()["connection"]["base_url"].as_str().unwrap_or(""), window, cx));
         self.deployment
@@ -42,12 +43,12 @@ impl Onboarding {
     }
 
     pub(in crate::onboarding) fn open_connection_settings(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.apply_provider(cx);
+        self.apply_cloud_asr(cx);
         let editor = cx.new(|cx| crate::settings::asr_editor::AsrEditor::new_dialog(self.st.clone(), window, cx));
         cx.subscribe_in(&editor, window, |this, _, event: &crate::settings::asr_editor::Closed, window, cx| {
             if event.0 {
                 let p = this.st.cfg.get().asr.cloud_asr.clone().unwrap_or_default();
-                this.provider = p.selected_index();
+                this.cloud_asr_id = p.selected_id().to_owned();
                 this.endpoint.update(cx, |s, cx| {
                     s.set_value(p.active()["connection"]["base_url"].as_str().unwrap_or(""), window, cx)
                 });
@@ -66,12 +67,16 @@ impl Onboarding {
         cx.notify();
     }
 
-    pub(in crate::onboarding) fn apply_provider(&self, cx: &App) {
-        let (selected, base, model) =
-            (self.provider, self.endpoint.read(cx).value().to_string(), self.deployment.read(cx).value().to_string());
+    /// Save what the step shows into the configuration it edits, and make that configuration the one in use.
+    pub(in crate::onboarding) fn apply_cloud_asr(&self, cx: &App) {
+        let (id, base, model) = (
+            self.cloud_asr_id.clone(),
+            self.endpoint.read(cx).value().to_string(),
+            self.deployment.read(cx).value().to_string(),
+        );
         services::save_config(&self.st, |c| {
             let p = c.asr.cloud_asr.get_or_insert_with(dito_core::provider::configured_asr::AsrProfiles::default);
-            p.select_index(selected);
+            p.select(&id);
             if let Some(v) = p.active_mut() {
                 v["connection"]["base_url"] = base.into();
                 v["connection"]["model"] = model.into();
@@ -84,7 +89,7 @@ impl Onboarding {
 
     pub(in crate::onboarding) fn run_test(&mut self, cx: &mut Context<Self>) {
         let req = self.reqs.begin();
-        self.apply_provider(cx);
+        self.apply_cloud_asr(cx);
         let profiles = self.st.cfg.get().asr.cloud_asr.clone().unwrap_or_default();
         if dito_core::provider::configured_asr::validate(profiles.active()).is_err() {
             return;

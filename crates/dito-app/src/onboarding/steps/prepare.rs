@@ -154,7 +154,7 @@ fn prepare_footer(w: &Onboarding, c: &Ctx, cx: &mut Context<Onboarding>, phase: 
 pub(super) fn provider(w: &Onboarding, c: &Ctx, cx: &mut Context<Onboarding>) -> StepPage {
     let p = &c.p;
     let (l1, l2) = (c.t(Tr::ModelsBaseUrl), c.t(Tr::ModelsModelId));
-    let mut form = ui::card(p).p(px(22.)).gap(px(16.)).child(provider_tiles(w, c, cx)).child(ui::field(
+    let mut form = ui::card(p).p(px(22.)).gap(px(16.)).child(cloud_asr_tiles(w, c, cx)).child(ui::field(
         p,
         l1,
         ui::text_input(p, &w.endpoint, None),
@@ -197,13 +197,15 @@ pub(super) fn provider(w: &Onboarding, c: &Ctx, cx: &mut Context<Onboarding>) ->
     StepPage { title: c.t(Tr::OnboardingConnectProvider), desc: "".into(), body: form }
 }
 
-fn provider_tiles(w: &Onboarding, c: &Ctx, cx: &mut Context<Onboarding>) -> Div {
+fn cloud_asr_tiles(w: &Onboarding, c: &Ctx, cx: &mut Context<Onboarding>) -> Div {
     let p = &c.p;
     let mut row = div().w_full().flex().gap(px(10.));
     let profiles = w.st.cfg.get().asr.cloud_asr.clone().unwrap_or_default().profiles;
-    for (k, profile) in profiles.iter().enumerate() {
-        let on = k == w.provider;
-        let card_id = ElementId::from(("wizard-prov", k));
+    for profile in &profiles {
+        let on = profile.id == w.cloud_asr_id;
+        let id = SharedString::from(profile.id.clone());
+        let card_id = ElementId::from((ElementId::from("wizard-cloud-asr"), id.clone()));
+        let ring_id = ElementId::from((ElementId::from("wizard-cloud-asr-ring"), id.clone()));
         row = row.child(
             div()
                 .id(card_id.clone())
@@ -220,8 +222,8 @@ fn provider_tiles(w: &Onboarding, c: &Ctx, cx: &mut Context<Onboarding>) -> Div 
                 .border_color(ui::transparent())
                 .on_hover(ui::hover_tracker(card_id.clone()))
                 .child(ui::hover_fill_if(&card_id, Some(14.), ui::hex_alpha(p.seg, 0.6), !on))
-                .child(ui::ring_overlay(("wizard-ring", k), on, 14., p.border_strong, p.accent))
-                .on_click(cx.listener(move |this, _, window, cx| this.select_provider(k, window, cx)))
+                .child(ui::ring_overlay(ring_id, on, 14., p.border_strong, p.accent))
+                .on_click(cx.listener(move |this, _, window, cx| this.select_cloud_asr(&id, window, cx)))
                 .child(ui::choice_label(&card_id, p, profile.name.clone().into(), 13., on)),
         );
     }

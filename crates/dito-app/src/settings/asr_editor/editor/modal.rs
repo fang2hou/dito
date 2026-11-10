@@ -6,6 +6,7 @@ use gpui_kit::*;
 
 use super::AsrEditor;
 use crate::settings::Ctx;
+use crate::settings::asr_editor::configuration_list;
 use crate::settings::asr_editor::help::help_body;
 use crate::settings::asr_highlight::JsonHighlight;
 use crate::settings::edge_fade::{Edge, edge_fade};
@@ -139,9 +140,13 @@ impl AsrEditor {
             BtnKind::Primary,
             None,
             cbk(cx, |this: &mut Self, _, cx| {
-                let language = this.st.cfg.get().general.lang();
+                let config = this.st.cfg.get();
+                let list = configuration_list::of(&config);
+                let name =
+                    list.profiles.iter().find(|profile| profile.id == this.shown).map_or("", |p| p.name.as_str());
+                let request = this.draft().source.read(cx).value().to_string();
                 cx.write_to_clipboard(ClipboardItem::new_string(
-                    dito_core::provider::configured_asr::configuration_spec(language, &this.shown),
+                    dito_core::provider::configured_asr::configuration_spec(config.general.lang(), name, &request),
                 ));
             }),
         ))
