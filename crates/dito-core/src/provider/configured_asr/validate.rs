@@ -1,8 +1,10 @@
+use std::fmt;
+
 use reqwest::Url;
 use reqwest::header::HeaderName;
 use serde_json::{Map, Value};
 
-use crate::error::{ErrorKind, ProviderError, ProviderResult};
+use crate::error::{ErrorKind, ProviderError};
 
 const VARIABLES: [&str; 6] = ["model", "language", "api_key", "audio.base64", "audio.data_uri", "audio.file"];
 
@@ -13,15 +15,111 @@ const ALLOWED_KEYS: [(&str, &[&str]); 4] = [
     ("/response", &["text_pointer", "language_pointer"]),
 ];
 
+/// A profile that breaks the connection config contract, and where.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ValidationError {
+    /// Path of the offending value: a JSON Pointer such as `/connection/model` or a dotted path such as
+    /// `request.path`. Empty when the rule concerns no single field.
+    pub field: String,
+    pub reason: ValidationReason,
+}
+
+/// What is wrong with a profile. The `Display` text is English technical detail for logs and [`ProviderError`]; the
+/// UI words each reason in the user's language.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum ValidationReason {
+    /// A required string is missing, blank or not a string.
+    #[error("a value is required")]
+    Required,
+    /// `version` is not 1.
+    #[error("must be 1")]
+    UnsupportedVersion,
+    /// `connection.base_url` does not parse as a URL.
+    #[error("not a valid URL")]
+    InvalidUrl,
+    /// `connection.base_url` is not a plain HTTP(S) URL: another scheme, no host, a query, a fragment or credentials.
+    #[error("must be an http or https URL without query, fragment or credentials")]
+    NotHttpUrl,
+    /// A section that must be a JSON object is not.
+    #[error("must be an object")]
+    ObjectRequired,
+    /// `language_map` has an invalid or duplicate key, or a blank value.
+    #[error("invalid language code or value")]
+    InvalidLanguageMap,
+    /// `request.method` is neither POST nor PUT.
+    #[error("must be POST or PUT")]
+    InvalidMethod,
+    /// `request.path` is not a relative path starting with `/`.
+    #[error("must be a relative path starting with /")]
+    PathNotRelative,
+    /// `request.encoding` does not match `body` and `fields`.
+    #[error("encoding does not match body and fields")]
+    EncodingMismatch,
+    /// A response pointer is not a JSON Pointer.
+    #[error("not a valid JSON Pointer")]
+    InvalidJsonPointer,
+    /// A key the contract does not define.
+    #[error("unknown key")]
+    UnknownKey,
+    /// A header has an invalid name, or a value that is not a single-line string.
+    #[error("invalid header name or value")]
+    InvalidHeaders,
+    /// A `query` or `fields` value is an array or an object.
+    #[error("values must be strings, numbers, booleans or null")]
+    NonScalarValue,
+    /// `{{audio.file}}` outside `fields` in a multipart request.
+    #[error("audio.file is only allowed in fields")]
+    AudioFileOutsideFields,
+    /// `{{language}}` as an array element.
+    #[error("language cannot be an array element")]
+    LanguageInArray,
+    /// A `{{` without its `}}`.
+    #[error("variable is missing its closing braces")]
+    UnclosedVariable,
+    /// A variable the contract does not define.
+    #[error("unknown variable: {name}")]
+    UnknownVariable { name: String },
+    /// `{{audio.file}}` that is not the whole value of a multipart field.
+    #[error("audio.file must be the whole value of a multipart field")]
+    AudioFileNotWholeValue,
+    /// `{{language}}` inside a longer string.
+    #[error("language must be the whole value")]
+    LanguageNotWholeValue,
+}
+
+impl ValidationError {
+    fn new(field: impl Into<String>, reason: ValidationReason) -> Self {
+        Self { field: field.into(), reason }
+    }
+
+    fn unlocated(reason: ValidationReason) -> Self {
+        Self::new("", reason)
+    }
+}
+
+impl fmt::Display for ValidationError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.field.is_empty() { write!(f, "{}", self.reason) } else { write!(f, "{}: {}", self.field, self.reason) }
+    }
+}
+
+impl std::error::Error for ValidationError {}
+
+impl From<ValidationError> for ProviderError {
+    fn from(error: ValidationError) -> Self {
+        invalid(error.to_string())
+    }
+}
+
 pub(super) fn invalid(message: impl Into<String>) -> ProviderError {
     ProviderError::new(ErrorKind::Unavailable, message)
 }
 
-pub(super) fn string<'a>(v: &'a Value, path: &str) -> ProviderResult<&'a str> {
+pub(super) fn string<'a>(v: &'a Value, path: &str) -> Result<&'a str, ValidationError> {
     v.pointer(path)
         .and_then(Value::as_str)
         .filter(|s| !s.trim().is_empty())
-        .ok_or_else(|| invalid(format!("{path}: 値を入力してください。")))
+        .ok_or_else(|| ValidationError::new(path, ValidationReason::Required))
 }
 
 pub(super) fn is_relative_path(path: &str) -> bool {
@@ -33,9 +131,9 @@ fn is_json_pointer(s: &str) -> bool {
 }
 
 /// Checks a profile against the connection config contract (`design/asr-json-config.md`).
-pub fn validate(v: &Value) -> ProviderResult<()> {
+pub fn validate(v: &Value) -> Result<(), ValidationError> {
     if v["version"] != 1 {
-        return Err(invalid("version: 1 を指定してください。"));
+        return Err(ValidationError::new("version", ValidationReason::UnsupportedVersion));
     }
     check_connection(v)?;
     check_language_map(v)?;
@@ -47,14 +145,14 @@ pub fn validate(v: &Value) -> ProviderResult<()> {
     check_scalar_values(v)?;
     check_language_pointer(v)?;
     if encoding == "multipart" && audio_file_outside_fields(v) {
-        return Err(invalid("audio.file は fields 内に指定してください。"));
+        return Err(ValidationError::unlocated(ValidationReason::AudioFileOutsideFields));
     }
     check_variables(&v["request"], encoding)
 }
 
-fn check_connection(v: &Value) -> ProviderResult<()> {
+fn check_connection(v: &Value) -> Result<(), ValidationError> {
     let url = Url::parse(string(v, "/connection/base_url")?)
-        .map_err(|_| invalid("connection.base_url: URL を確認してください。"))?;
+        .map_err(|_| ValidationError::new("connection.base_url", ValidationReason::InvalidUrl))?;
     let plain_http_url = ["http", "https"].contains(&url.scheme())
         && url.host_str().is_some()
         && url.query().is_none()
@@ -62,7 +160,7 @@ fn check_connection(v: &Value) -> ProviderResult<()> {
         && url.username().is_empty()
         && url.password().is_none();
     if !plain_http_url {
-        return Err(invalid("connection.base_url: HTTP URL を指定してください。"));
+        return Err(ValidationError::new("connection.base_url", ValidationReason::NotHttpUrl));
     }
     string(v, "/connection/model")?;
     Ok(())
@@ -75,43 +173,47 @@ fn is_language_tag(key: &str) -> bool {
         && parts[1..].iter().all(|p| (2..=8).contains(&p.len()) && p.bytes().all(|b| b.is_ascii_alphanumeric()))
 }
 
-fn check_language_map(v: &Value) -> ProviderResult<()> {
+fn check_language_map(v: &Value) -> Result<(), ValidationError> {
     string(v, "/language_map/other")?;
-    let map = v["language_map"].as_object().ok_or_else(|| invalid("language_map: オブジェクトを指定してください。"))?;
+    let map = v["language_map"]
+        .as_object()
+        .ok_or_else(|| ValidationError::new("language_map", ValidationReason::ObjectRequired))?;
     let mut seen = std::collections::BTreeSet::new();
     for (key, value) in map {
         let valid_key = key == "other" || key == "auto" || is_language_tag(key);
         let valid_value = value.is_null() || value.as_str().is_some_and(|s| !s.trim().is_empty());
         if !valid_key || !seen.insert(key.to_ascii_lowercase()) || !valid_value {
-            return Err(invalid("language_map: 言語コードと値を確認してください。"));
+            return Err(ValidationError::new("language_map", ValidationReason::InvalidLanguageMap));
         }
     }
     Ok(())
 }
 
 /// Validates method, path and the body shape, and returns the request encoding.
-fn check_request_head(v: &Value) -> ProviderResult<&str> {
+fn check_request_head(v: &Value) -> Result<&str, ValidationError> {
     if !["POST", "PUT"].contains(&string(v, "/request/method")?) {
-        return Err(invalid("request.method: POST または PUT を指定してください。"));
+        return Err(ValidationError::new("request.method", ValidationReason::InvalidMethod));
     }
     if !is_relative_path(string(v, "/request/path")?) {
-        return Err(invalid("request.path: 相対パスを指定してください。"));
+        return Err(ValidationError::new("request.path", ValidationReason::PathNotRelative));
     }
     let request = &v["request"];
     let encoding = string(v, "/request/encoding")?;
     match encoding {
         "json" if request["body"].is_object() && request.get("fields").is_none() => {}
         "multipart" if request["fields"].is_object() && request.get("body").is_none() => {}
-        _ => return Err(invalid("request: encoding と body / fields を確認してください。")),
+        _ => return Err(ValidationError::new("request", ValidationReason::EncodingMismatch)),
     }
     Ok(encoding)
 }
 
-fn request_object<'a>(v: &'a Value, field: &str) -> ProviderResult<&'a Map<String, Value>> {
-    v["request"][field].as_object().ok_or_else(|| invalid(format!("request.{field}: オブジェクトを指定してください。")))
+fn request_object<'a>(v: &'a Value, field: &str) -> Result<&'a Map<String, Value>, ValidationError> {
+    v["request"][field]
+        .as_object()
+        .ok_or_else(|| ValidationError::new(format!("request.{field}"), ValidationReason::ObjectRequired))
 }
 
-fn check_request_sections(v: &Value) -> ProviderResult<()> {
+fn check_request_sections(v: &Value) -> Result<(), ValidationError> {
     if v["request"].get("query").is_some() {
         request_object(v, "query")?;
     }
@@ -119,53 +221,53 @@ fn check_request_sections(v: &Value) -> ProviderResult<()> {
     Ok(())
 }
 
-fn check_text_pointer(v: &Value) -> ProviderResult<()> {
+fn check_text_pointer(v: &Value) -> Result<(), ValidationError> {
     if is_json_pointer(string(v, "/response/text_pointer")?) {
         Ok(())
     } else {
-        Err(invalid("response.text_pointer: JSON Pointer を確認してください。"))
+        Err(ValidationError::new("response.text_pointer", ValidationReason::InvalidJsonPointer))
     }
 }
 
-fn check_known_keys(v: &Value) -> ProviderResult<()> {
+fn check_known_keys(v: &Value) -> Result<(), ValidationError> {
     for (path, allowed) in ALLOWED_KEYS {
         let object = v
             .pointer(path)
             .and_then(Value::as_object)
-            .ok_or_else(|| invalid(format!("{path}: オブジェクトを指定してください。")))?;
+            .ok_or_else(|| ValidationError::new(path, ValidationReason::ObjectRequired))?;
         if let Some(key) = object.keys().find(|k| !allowed.contains(&k.as_str())) {
-            return Err(invalid(format!("{path}/{key}: 未定義の項目です。")));
+            return Err(ValidationError::new(format!("{path}/{key}"), ValidationReason::UnknownKey));
         }
     }
     Ok(())
 }
 
-fn check_headers(v: &Value) -> ProviderResult<()> {
+fn check_headers(v: &Value) -> Result<(), ValidationError> {
     for (name, value) in request_object(v, "headers")? {
         let valid = value.as_str().is_some_and(|s| !s.contains(['\r', '\n']))
             && HeaderName::from_bytes(name.as_bytes()).is_ok();
         if !valid {
-            return Err(invalid("request.headers: ヘッダーを確認してください。"));
+            return Err(ValidationError::new("request.headers", ValidationReason::InvalidHeaders));
         }
     }
     Ok(())
 }
 
-fn check_scalar_values(v: &Value) -> ProviderResult<()> {
+fn check_scalar_values(v: &Value) -> Result<(), ValidationError> {
     for field in ["query", "fields"] {
         if let Some(object) = v["request"][field].as_object()
             && object.values().any(|v| v.is_array() || v.is_object())
         {
-            return Err(invalid(format!("request.{field}: 値には文字列、数値、真偽値、null を指定してください。")));
+            return Err(ValidationError::new(format!("request.{field}"), ValidationReason::NonScalarValue));
         }
     }
     Ok(())
 }
 
-fn check_language_pointer(v: &Value) -> ProviderResult<()> {
+fn check_language_pointer(v: &Value) -> Result<(), ValidationError> {
     match v["response"].get("language_pointer") {
         Some(pointer) if !pointer.as_str().is_some_and(is_json_pointer) => {
-            Err(invalid("response.language_pointer: JSON Pointer を確認してください。"))
+            Err(ValidationError::new("response.language_pointer", ValidationReason::InvalidJsonPointer))
         }
         _ => Ok(()),
     }
@@ -175,13 +277,13 @@ fn audio_file_outside_fields(v: &Value) -> bool {
     ["headers", "query"].iter().any(|field| v["request"][field].to_string().contains("{{audio.file}}"))
 }
 
-fn check_variables(v: &Value, encoding: &str) -> ProviderResult<()> {
+fn check_variables(v: &Value, encoding: &str) -> Result<(), ValidationError> {
     match v {
         Value::String(s) => check_placeholders(s, encoding),
         Value::Array(items) => {
             for item in items {
                 if item == "{{language}}" {
-                    return Err(invalid("language を配列の要素に指定できません。"));
+                    return Err(ValidationError::unlocated(ValidationReason::LanguageInArray));
                 }
                 check_variables(item, encoding)?;
             }
@@ -192,18 +294,19 @@ fn check_variables(v: &Value, encoding: &str) -> ProviderResult<()> {
     }
 }
 
-fn check_placeholders(s: &str, encoding: &str) -> ProviderResult<()> {
+fn check_placeholders(s: &str, encoding: &str) -> Result<(), ValidationError> {
     let mut rest = s;
     while let Some((_, tail)) = rest.split_once("{{") {
-        let (name, next) = tail.split_once("}}").ok_or_else(|| invalid("変数の閉じ括弧がありません。"))?;
+        let (name, next) =
+            tail.split_once("}}").ok_or_else(|| ValidationError::unlocated(ValidationReason::UnclosedVariable))?;
         if !VARIABLES.contains(&name) {
-            return Err(invalid(format!("未定義の変数: {name}")));
+            return Err(ValidationError::unlocated(ValidationReason::UnknownVariable { name: name.to_owned() }));
         }
         if name == "audio.file" && (encoding != "multipart" || s != "{{audio.file}}") {
-            return Err(invalid("audio.file は multipart の完全な値に指定してください。"));
+            return Err(ValidationError::unlocated(ValidationReason::AudioFileNotWholeValue));
         }
         if name == "language" && s != "{{language}}" {
-            return Err(invalid("language は完全な値に指定してください。"));
+            return Err(ValidationError::unlocated(ValidationReason::LanguageNotWholeValue));
         }
         rest = next;
     }
@@ -224,5 +327,22 @@ mod tests {
             v["language_map"].as_object_mut().unwrap().remove("other");
             assert!(validate(&v).is_err());
         }
+    }
+
+    #[test]
+    fn failures_name_their_field_and_reason() {
+        let mut v = AsrProfiles::default().profiles.remove(0);
+        assert_eq!(validate(&v), Err(ValidationError::new("/connection/model", ValidationReason::Required)));
+
+        v["connection"]["model"] = "user-model".into();
+        v["request"]["path"] = "services".into();
+        assert_eq!(validate(&v), Err(ValidationError::new("request.path", ValidationReason::PathNotRelative)));
+
+        v["request"]["path"] = "/services".into();
+        v["request"]["headers"]["X-Trace"] = "{{lang}}".into();
+        assert_eq!(
+            validate(&v),
+            Err(ValidationError::unlocated(ValidationReason::UnknownVariable { name: "lang".into() }))
+        );
     }
 }
