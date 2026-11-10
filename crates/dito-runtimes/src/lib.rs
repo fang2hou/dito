@@ -3,7 +3,8 @@
 //! | model files | runtime | feature |
 //! | --- | --- | --- |
 //! | SenseVoice, NeMo TDT (ONNX) | sherpa-onnx | `sherpa` |
-//! | Qwen3 / Qwen3-ASR (GGUF + mmproj) | llama.cpp (Metal) | `llama` |
+//! | Qwen3-ASR (GGUF + mmproj) | llama.cpp (Metal) | `llama` |
+//! | Chat models (GGUF, prompt from its chat template, `disable_thinking` is the Qwen think prefill) | llama.cpp (Metal) | `llama` |
 
 use std::path::Path;
 use std::sync::Arc;
