@@ -8,9 +8,10 @@ use super::shell::Settings;
 use crate::state::{AppGlobal, AppState};
 #[cfg(feature = "screenshots")]
 use crate::ui;
+use crate::ui::Root;
 
 struct SettingsHandle {
-    window: WindowHandle<gpui_kit::component::Root>,
+    window: WindowHandle<Root>,
     view: Entity<Settings>,
 }
 
@@ -26,7 +27,7 @@ struct SettingsCloseWatch {
 impl Global for SettingsCloseWatch {}
 
 #[cfg(feature = "screenshots")]
-pub fn handle(cx: &App) -> Option<(WindowHandle<gpui_kit::component::Root>, Entity<Settings>)> {
+pub fn handle(cx: &App) -> Option<(WindowHandle<Root>, Entity<Settings>)> {
     cx.try_global::<SettingsHandle>().map(|h| (h.window, h.view.clone()))
 }
 
@@ -110,7 +111,7 @@ fn open_new_window(st: Arc<AppState>, page: Page, cx: &mut App) {
     let res = cx.open_window(opts, |window, cx| {
         let view = cx.new(|cx| Settings::new(st, page, window, cx));
         view_slot = Some(view.clone());
-        cx.new(|cx| gpui_kit::component::Root::new(view, window, cx))
+        cx.new(|cx| Root::new(view, window, cx))
     });
     match (res, view_slot) {
         (Ok(window), Some(view)) => {

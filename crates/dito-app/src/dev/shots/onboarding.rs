@@ -3,7 +3,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use dito_core::config::{Appearance, RecordMode};
-use gpui_kit::component::Root;
 use gpui_kit::*;
 
 use super::capture::{close_window, render, save, theme_tag};
@@ -12,6 +11,7 @@ use crate::onboarding::demo::{self, Frozen};
 use crate::onboarding::{self, Onboarding};
 use crate::services;
 use crate::state::AppState;
+use crate::ui::Root;
 
 const CUSTOM_SHORTCUT: &str = "Control+Option+Space";
 const STEP_COUNT: usize = 7;

@@ -4,13 +4,12 @@ use std::time::Instant;
 use dito_core::config::{RecordMode, Source};
 use dito_core::i18n::Tr;
 use dito_platform::{Permission, Status, permissions};
-use gpui_kit::component::input::{InputEvent, InputState};
 use gpui_kit::*;
 
 use crate::services;
 use crate::settings::{self, Page};
 use crate::state::AppState;
-use crate::ui::{self, Motion, TestState};
+use crate::ui::{self, InputEvent, InputState, Motion, TestState};
 
 use super::step::{Step, can_continue};
 use super::transition::Slide;

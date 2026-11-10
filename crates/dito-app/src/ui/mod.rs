@@ -74,4 +74,9 @@ pub use typography::{
 };
 pub use watch::{notify_on_change, observe};
 
+// gpui-kit component types the app uses; other modules import them from `ui`, not from gpui-kit.
+pub use gpui_kit::component::input::{Editor, EditorState, InputEvent, InputState, Textarea, TextareaState};
+pub use gpui_kit::component::scroll::{Scrollbar, ScrollbarHandle, ScrollbarMode};
+pub use gpui_kit::component::{Root, Theme};
+
 pub(crate) use menu_panel::{float as float_menu, menu_panel, menu_row, menu_separator};
