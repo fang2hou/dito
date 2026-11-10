@@ -123,6 +123,9 @@ impl BedrockEngine {
             call = call.additional_model_request_fields(fields);
         }
         let out = call.send().await.map_err(classify)?;
+        if matches!(out.stop_reason(), aws_sdk_bedrockruntime::types::StopReason::MaxTokens) {
+            return Err(ProviderError::new(ErrorKind::BadResponse, "output was cut off at the token limit"));
+        }
         let text = out
             .output()
             .and_then(|o| o.as_message().ok())

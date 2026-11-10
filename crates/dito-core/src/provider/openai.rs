@@ -106,6 +106,9 @@ impl Polisher for OpenAiEngine {
             }
             other => other?,
         };
+        if v.pointer("/choices/0/finish_reason").and_then(Value::as_str) == Some("length") {
+            return Err(ProviderError::new(ErrorKind::BadResponse, "output was cut off at the token limit"));
+        }
         let text = v
             .pointer("/choices/0/message/content")
             .and_then(Value::as_str)

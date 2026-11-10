@@ -160,6 +160,16 @@ async fn reasoning_effort_is_dropped_and_retried_for_models_that_reject_it() {
 }
 
 #[tokio::test]
+async fn a_polish_reply_cut_off_at_the_token_limit_is_a_bad_response() {
+    let srv = MockServer::start().await.unwrap();
+    srv.behavior(|b| b.truncate_chat = true);
+    let cfg = mock_cfg(&srv.url);
+    let p = factory(None).polisher(&cfg).await.unwrap().unwrap();
+    let err = p.polish(&PolishRequest { system: "s", text: "ok" }).await.unwrap_err();
+    assert_eq!(err.kind, ErrorKind::BadResponse);
+}
+
+#[tokio::test]
 async fn a_blank_base_url_or_model_fails_before_any_request() {
     let srv = MockServer::start().await.unwrap();
     for field in ["base_url", "model"] {

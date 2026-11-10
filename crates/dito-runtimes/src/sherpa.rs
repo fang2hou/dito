@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use dito_local::{AsrOutput, AsrRuntime, RuntimeError};
 use std::ffi::{CStr, CString};
@@ -40,7 +41,12 @@ impl Recognizer {
             .ok_or_else(|| RuntimeError::engine("could not create sherpa-onnx recognizer"))
     }
 
-    fn transcribe(&mut self, samples: &[f32]) -> Result<AsrOutput, RuntimeError> {
+    /// A native decode call cannot be interrupted, so `stop` is checked before each call: once for a short clip,
+    /// and at every seam between the chunks of a long one.
+    fn transcribe(&mut self, samples: &[f32], stop: &AtomicBool) -> Result<AsrOutput, RuntimeError> {
+        if stop.load(Ordering::Relaxed) {
+            return Err(RuntimeError::Cancelled);
+        }
         let length = i32::try_from(samples.len()).map_err(RuntimeError::engine)?;
         // SAFETY: self is a live recognizer, exclusively borrowed for the entire call.
         let ptr = unsafe { ffi::SherpaOnnxCreateOfflineStream(self.0.as_ptr()) };
@@ -159,9 +165,14 @@ impl AsrRuntime for SenseVoice {
         samples: &[f32],
         language: Option<&str>,
         _hotwords: &[String],
+        stop: &AtomicBool,
     ) -> Result<AsrOutput, RuntimeError> {
         let key = key_for(language);
         let mut map = self.recognizers.lock().map_err(|_| RuntimeError::LockPoisoned("recognizer"))?;
+        // A call cancelled while it waited for the lock must not load a recognizer.
+        if stop.load(Ordering::Relaxed) {
+            return Err(RuntimeError::Cancelled);
+        }
         if !map.contains_key(key) {
             map.insert(key, self.create(key)?);
         }
@@ -169,7 +180,7 @@ impl AsrRuntime for SenseVoice {
         let mut texts: Vec<String> = Vec::new();
         let mut lang = String::new();
         for chunk in split_at_pauses(samples) {
-            let out = r.transcribe(chunk)?;
+            let out = r.transcribe(chunk, stop)?;
             if lang.is_empty() {
                 // sherpa reports the language as a tag such as "<|ja|>".
                 lang = out.language.unwrap_or_default();
@@ -220,6 +231,7 @@ impl AsrRuntime for NemoTdt {
         samples: &[f32],
         _language: Option<&str>,
         _hotwords: &[String],
+        stop: &AtomicBool,
     ) -> Result<AsrOutput, RuntimeError> {
         // Language hints are not supported by this layout. Do not block other languages
         // or label every output Japanese: this decoder does not detect language.
@@ -229,7 +241,7 @@ impl AsrRuntime for NemoTdt {
         let mut recognizer = self.recognizer.lock().map_err(|_| RuntimeError::LockPoisoned("recognizer"))?;
         let texts = split_at_pauses(samples)
             .into_iter()
-            .map(|chunk| recognizer.transcribe(chunk).map(|out| out.text))
+            .map(|chunk| recognizer.transcribe(chunk, stop).map(|out| out.text))
             .collect::<Result<Vec<_>, _>>()?;
         Ok(AsrOutput { text: join_chunks(texts), language: None })
     }
