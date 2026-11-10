@@ -11,7 +11,6 @@ fmt.asr_field_error = { ja = "{line} 行目：{detail}", en = "Line {line}: {det
 models.download_available = { ja = "ダウンロードして利用できます", en = "Available to download", zh = "下载后即可使用" }
 asr_editor.title = { ja = "接続設定", en = "Connection settings", zh = "连接设置" }
 asr_editor.help_title = { ja = "設定の書き方", en = "Configuration help", zh = "配置帮助" }
-asr_editor.template = { ja = "テンプレート", en = "Template", zh = "模板" }
 asr_editor.edit = { ja = "編集", en = "Edit", zh = "编辑" }
 asr_editor.check = { ja = "自動チェック", en = "Automatic check", zh = "自动检查" }
 asr_editor.save = { ja = "保存", en = "Save", zh = "保存" }
@@ -214,6 +213,9 @@ models.api_key = { ja = "API キー", en = "API key", zh = "API 密钥" }
 models.reasoning_effort = { ja = "思考強度", en = "Reasoning effort", zh = "推理强度" }
 models.new_configuration = { ja = "新しい設定", en = "New configuration", zh = "新设置" }
 models.no_model = { ja = "モデル未設定", en = "No model set", zh = "未设置模型" }
+models.name = { ja = "名前", en = "Name", zh = "名称" }
+models.create_from_template = { ja = "テンプレートから作成", en = "Create from template", zh = "从模板创建" }
+models.duplicate_configuration = { ja = "選択中の設定を複製", en = "Duplicate the selected one", zh = "复制当前设置" }
 models.aws_profile = { ja = "AWS プロファイル", en = "AWS profile", zh = "AWS 配置文件" }
 models.region = { ja = "リージョン", en = "Region", zh = "区域" }
 models.model_id = { ja = "モデル ID", en = "Model ID", zh = "模型 ID" }

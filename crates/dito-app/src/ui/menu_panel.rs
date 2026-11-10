@@ -7,6 +7,7 @@ use super::callbacks::Cb;
 use super::hover::{hover_fill, hover_tracker, reset_hover_in};
 use super::scope::motion_scope;
 use super::tween::RING_MS;
+use super::typography::text;
 use crate::theme::Palette;
 
 /// The bordered card that holds menu rows; it closes itself on any press outside it.
@@ -82,4 +83,16 @@ pub fn float<E: IntoElement + Styled + 'static>(id: ElementId, top: f32, panel: 
 /// Separators occupy layout space independently of option rows.
 pub fn menu_separator(p: &Palette) -> Div {
     div().h(px(9.)).w_full().flex_none().py(px(4.)).child(div().h(px(1.)).w_full().bg(p.border))
+}
+
+/// A caption inside a menu panel, naming what the rows under it are (`20.05.11`). It is not a row: it takes no hover
+/// and no click. 12 Medium `muted`, in a 28 pt slot (6 above the 18 pt line, 4 below) and set in like the rows.
+pub fn menu_label(p: &Palette, label: impl Into<SharedString>) -> Div {
+    div()
+        .h(px(28.))
+        .flex_none()
+        .px(px(12.))
+        .pt(px(6.))
+        .pb(px(4.))
+        .child(text(label, 12., FontWeight::MEDIUM, p.muted).line_height(px(18.)))
 }

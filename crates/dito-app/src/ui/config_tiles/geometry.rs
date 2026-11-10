@@ -25,20 +25,27 @@ pub(super) struct Layout {
     pub w: f32,
     /// Distance between the left edges of neighbouring tiles.
     pub pitch: f32,
+    shares: bool,
 }
 
 impl Layout {
     pub fn new(view: f32, n: usize) -> Self {
-        let w = match n {
-            1..=EQUAL_MAX => ((view - GAP * (n - 1) as f32) / n as f32).max(0.),
+        let share = (1..=EQUAL_MAX).contains(&n).then(|| ((view - GAP * (n - 1) as f32) / n as f32).max(0.));
+        // Tiles that would get less than their own width (a narrow window with three of them) keep that width and the
+        // row scrolls, like it does from the fourth tile on (`20.05.5`). A row that is not measured yet shares: its
+        // first frame must not flash wide tiles.
+        let shares = n <= EQUAL_MAX && share.is_none_or(|share| view <= 0. || share >= TILE_W);
+        let w = match share {
+            Some(share) if shares => share,
             _ => TILE_W,
         };
-        Self { view, n, w, pitch: w + GAP }
+        Self { view, n, w, pitch: w + GAP, shares }
     }
 
-    /// Whether the tiles divide the row between them (up to three) instead of keeping their own width.
+    /// Whether the tiles divide the row between them (up to three, when each gets its own width at least) instead of
+    /// keeping their own width.
     pub fn shares_width(&self) -> bool {
-        self.n <= EQUAL_MAX
+        self.shares
     }
 
     /// Left edge of tile `index` in the scrolled content.
@@ -128,6 +135,22 @@ mod tests {
         assert_eq!(l.fades(376.), (1., 0.), "end: only the left edge has more");
         assert_eq!(l.fades(6.).0, 0.25, "a fade grows with the distance, so it never pops");
         assert_eq!(Layout::new(VIEW, 3).fades(0.), (0., 0.));
+    }
+
+    #[test]
+    fn three_tiles_that_would_be_narrower_than_a_tile_scroll_instead() {
+        // The compact window (`20.05.5`): 500 wide, less the plus button and its gap.
+        let narrow = Layout::new(452., 3);
+        assert!(!narrow.shares_width());
+        assert_eq!((narrow.w, narrow.max_offset()), (TILE_W, 624. - 452.));
+        assert_eq!(narrow.fades(0.), (0., 1.), "the third tile shows under the fade at the right edge");
+        // The full window: 216 each, the row fits.
+        let wide = Layout::new(VIEW, 3);
+        assert!(wide.shares_width());
+        assert_eq!((wide.w, wide.max_offset()), (216., 0.));
+        // Not measured yet: share, so the first frame does not flash wide tiles.
+        assert!(Layout::new(0., 3).shares_width());
+        assert!(Layout::new(452., 2).shares_width(), "two tiles still have 220 each");
     }
 
     #[test]

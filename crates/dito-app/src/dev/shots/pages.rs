@@ -435,7 +435,7 @@ fn apply_model_case(st: &AppState, appearance: Appearance, case: &ModelCase) {
         c.polish.engine.source = c.asr.source;
         c.polish.engine.polish_configurations_mut().select(["azure", "bedrock", "compat"][case.preset]);
         let mut profiles = AsrProfiles::default();
-        profiles.select_index(case.preset);
+        profiles.select(["funasr", "qwen_asr", "openrouter"][case.preset]);
         for profile in &mut profiles.profiles {
             profile.config["connection"]["model"] = "my-asr-model".into();
         }

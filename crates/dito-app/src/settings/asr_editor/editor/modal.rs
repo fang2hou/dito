@@ -58,15 +58,18 @@ impl AsrEditor {
             )
     }
 
+    /// Dress the editor of the configuration the form shows. Every configuration has an editor of its own, so each one
+    /// is dressed the first time it is shown and whenever the palette changed since.
     pub(super) fn style_source(&mut self, p: &Palette, cx: &mut Context<Self>) {
         let p = *p;
-        if self.highlighter_dark != Some(p.dark) {
-            self.highlighter_dark = Some(p.dark);
-            self.source.update(cx, |source, cx| {
+        let Some(draft) = self.drafts.get_mut(&self.shown) else { return };
+        if draft.styled_dark != Some(p.dark) {
+            draft.styled_dark = Some(p.dark);
+            draft.source.update(cx, |source, cx| {
                 source.set_highlighter_factory(Rc::new(move |_| Some(Box::new(JsonHighlight::new(p.dark)))), cx)
             });
         }
-        self.source.update(cx, |source, _| {
+        draft.source.update(cx, |source, _| {
             source.set_scrollbar_renderer(Some(Rc::new(move |geometry, _, _| {
                 let offset = -f32::from(geometry.offset().y);
                 let remaining =
@@ -136,16 +139,9 @@ impl AsrEditor {
             BtnKind::Primary,
             None,
             cbk(cx, |this: &mut Self, _, cx| {
-                let cfg = this.st.cfg.get();
-                let language = cfg.general.lang();
-                let id = cfg
-                    .asr
-                    .cloud_asr
-                    .as_ref()
-                    .and_then(|profiles| profiles.profiles.get(this.selected))
-                    .map_or("", |profile| profile.id.as_str());
+                let language = this.st.cfg.get().general.lang();
                 cx.write_to_clipboard(ClipboardItem::new_string(
-                    dito_core::provider::configured_asr::configuration_spec(language, id),
+                    dito_core::provider::configured_asr::configuration_spec(language, &this.shown),
                 ));
             }),
         ))
