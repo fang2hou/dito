@@ -63,11 +63,14 @@ impl AppState {
         }
     }
 
-    pub fn build(opts: Opts, rt: &tokio::runtime::Runtime) -> Result<Arc<Self>> {
+    /// Start every service. A data file this build cannot use as it is fails the build with its `ConfigError` or
+    /// `StoreError` untouched inside the returned error; the caller decides which of those get a window of their own
+    /// (see `startup_failure`).
+    pub fn build(opts: Opts, rt: &tokio::runtime::Handle) -> Result<Arc<Self>> {
         let _guard = rt.enter();
         let data_dir = data_dir(&opts);
         std::fs::create_dir_all(&data_dir)?;
-        let cfg = Arc::new(ConfigStore::open(data_dir.join("config.toml"))?);
+        let cfg = Arc::new(ConfigStore::open(data_dir.join(CONFIG_FILE))?);
 
         #[cfg(feature = "mock")]
         let mock_server = start_mock_server(&opts, &cfg, rt)?;
@@ -117,12 +120,15 @@ impl AppState {
             capture,
             player: Player::default(),
             hotkeys: Arc::new(Hotkeys::new()),
-            rt: rt.handle().clone(),
+            rt: rt.clone(),
             #[cfg(feature = "mock")]
             _mock_server: mock_server,
         }))
     }
 }
+
+const CONFIG_FILE: &str = "config.toml";
+const DB_FILE: &str = "dito.db";
 
 fn data_dir(opts: &Opts) -> PathBuf {
     match &opts.data_dir {
@@ -132,12 +138,17 @@ fn data_dir(opts: &Opts) -> PathBuf {
     }
 }
 
+/// The history database of this run, for errors that do not name their file.
+pub(crate) fn database_path(opts: &Opts) -> PathBuf {
+    data_dir(opts).join(DB_FILE)
+}
+
 /// With `--mock`: start the in-process cloud endpoints and point both cloud stages at them.
 #[cfg(feature = "mock")]
 fn start_mock_server(
     opts: &Opts,
     cfg: &ConfigStore,
-    rt: &tokio::runtime::Runtime,
+    rt: &tokio::runtime::Handle,
 ) -> Result<Option<dito_testkit::MockServer>> {
     if !opts.mock {
         return Ok(None);
@@ -154,7 +165,7 @@ fn start_mock_server(
 }
 
 fn open_store(opts: &Opts, data_dir: &std::path::Path) -> Result<Arc<Store>> {
-    let store = Arc::new(Store::open(data_dir.join("dito.db"), dito_platform::local_utc_offset_secs())?);
+    let store = Arc::new(Store::open(data_dir.join(DB_FILE), dito_platform::local_utc_offset_secs())?);
     #[cfg(feature = "mock")]
     if opts.mock {
         seed::demo(&store, crate::timefmt::now())?;

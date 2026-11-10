@@ -23,6 +23,7 @@ mod scope;
 mod segmented;
 mod select;
 mod select_badge;
+mod selectable;
 mod switch;
 mod test_state;
 mod tip_bubble;
@@ -63,14 +64,15 @@ pub use scope::{MotionScope, ScopeHandle, motion_scope, with_motion_scope};
 pub use segmented::{SegContent, SegOption, SegStyle, seg, seg_with};
 pub use select::{SelectItem, select, select_disabled, select_items, select_multi, select_trigger};
 pub use select_badge::SelectBadge;
+pub use selectable::selectable_text;
 pub use switch::switch;
 pub use test_state::TestState;
 pub use tip_bubble::TIP_BUBBLE_H;
 pub use tooltip::{dismiss_tips, tip_above, tip_label, tip_pop, tip_pop_with, tooltip_root};
 pub use tween::{spring, tweened, tweened_at};
 pub use typography::{
-    cjk_family, init_text_system, is_cjk, muted12, set_ui_language, text, text_tracked, text_width, tracked,
-    tracking_for,
+    cjk_family, family_for, init_text_system, is_cjk, muted12, set_ui_language, text, text_lines, text_tracked,
+    text_width, tracked, tracking_for,
 };
 pub use watch::{notify_on_change, observe};
 

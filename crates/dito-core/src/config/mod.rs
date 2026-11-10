@@ -7,6 +7,7 @@ mod error;
 mod general;
 mod hud;
 mod migrate;
+mod restore;
 mod settings;
 mod store;
 
@@ -22,5 +23,6 @@ pub use general::{
 };
 pub use hud::HudPosition;
 pub use migrate::SCHEMA_VERSION;
+pub use restore::{ParseProblem, parse_problem, restore_defaults};
 pub use settings::Config;
 pub use store::ConfigStore;
