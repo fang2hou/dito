@@ -27,6 +27,7 @@ pub(super) fn history_csv(rows: &[HistoryEntry], prompts: &Prompts, lang: Lang, 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use dito_core::config::EngineLabels;
     use dito_core::prompts::Style;
     use dito_core::store::{HistoryEntry, HistoryKind};
 
@@ -43,6 +44,7 @@ mod tests {
             polished: None,
             error: None,
             audio_path: None,
+            engines: EngineLabels::default(),
         }
     }
 

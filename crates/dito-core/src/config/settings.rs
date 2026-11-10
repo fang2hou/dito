@@ -62,6 +62,12 @@ impl Config {
         }
         ids
     }
+
+    /// Labels of the engines the current settings would run: `asr` always, `polish` only when polishing is enabled.
+    pub fn engine_labels(&self) -> super::EngineLabels {
+        let polish = self.polish.enabled.then(|| self.polish.engine.label());
+        super::EngineLabels { asr: Some(self.asr.label()), polish }
+    }
 }
 
 #[cfg(test)]
