@@ -1,4 +1,5 @@
 use anyhow::Result;
+use dito_core::config::EngineLabels;
 use dito_core::prompts::Style;
 use dito_core::store::{HistoryKind, NewHistory, Store};
 
@@ -32,6 +33,7 @@ fn entry(ts: i64, kind: HistoryKind, style: Style, app: &str, lang: &str, durati
         polished: None,
         error: None,
         audio_path: None,
+        engines: EngineLabels::default(),
     }
 }
 

@@ -72,9 +72,10 @@ pub async fn recognize_again(st: Arc<AppState>, entry: HistoryEntry) -> Result<(
                 PipelineError::Failed(e) => e.to_string(),
             })?;
             let (id, raw, polished, lang) = (entry.id, out.raw, out.polished, out.lang.code().to_string());
+            let labels = cfg.engine_labels();
             let store = st2.store.clone();
             st2.rt
-                .spawn_blocking(move || store.complete_history(id, &raw, polished.as_deref(), &lang))
+                .spawn_blocking(move || store.complete_history(id, &raw, polished.as_deref(), &lang, &labels))
                 .await
                 .map_err(|e| e.to_string())?
                 .map_err(|e| e.to_string())
@@ -108,9 +109,10 @@ pub async fn polish_again(st: Arc<AppState>, entry: HistoryEntry) -> Result<(), 
             };
             let text = pipeline::polish_text(polisher.as_ref(), polish_job).await.map_err(|e| e.to_string())?;
             let (id, text) = (entry.id, text);
+            let polish_engine = cfg.polish.engine.label();
             let store = st2.store.clone();
             st2.rt
-                .spawn_blocking(move || store.set_polished(id, &text))
+                .spawn_blocking(move || store.set_polished(id, &text, &polish_engine))
                 .await
                 .map_err(|e| e.to_string())?
                 .map_err(|e| e.to_string())
