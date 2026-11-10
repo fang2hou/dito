@@ -106,7 +106,7 @@ Things that look removable or simplifiable but exist for a reason. Product-level
 - **Identifiers.** `com.fang2hou.dito` is the bundle id, signing identifier, Keychain service and login item label, and the data directory is `com.fang2hou.Dito`. Changing any of them resets permissions and orphans data and keys; change all of them together, with a migration plan, or not at all. They live in `dito-core/src/identity.rs` (and `scripts/bundle.sh`); debug builds take the `-dev` variants from there, and `scripts/dev-runner.sh` signs `DitoDev.app` with the same `com.fang2hou.dito-dev`.
 - **Background frame rate.** The HUD is never key and Dito runs in the background, so macOS throttles it. While the HUD is open a `NapGuard` holds a user-interactive activity, and `HudView` drives its own 16 ms timer. Don't replace either with frame callbacks without measuring an unfocused HUD.
 - **Unload models on quit.** `LocalEngines::unload_all()` runs on quit because llama.cpp's Metal backend crashes at exit when a model is still loaded.
-- **Cancel means stop waiting.** The pipeline's cancellation stops waiting for local inference; the computation in `spawn_blocking` runs to completion and its result is dropped.
+- **Cancel reaches local inference through a stop flag.** The pipeline cancels by dropping the future; the local engine wrappers then set the `stop` flag their runtime call was given. A runtime that ignores the flag keeps computing in `spawn_blocking` and holds the model's lock, so every new runtime loop must check it.
 - **Outcome timing lives in two crates.** The controller's `SUCCESS_FLASH` and `COPIED_FLASH` must keep the window alive through the HUD's processing catch-up, feedback and exit in `hud/timing.rs`; synchronize them when changing either clock. Include the longest catch-up when calculating the window lifetime.
 - **Compiled-in design files.** `design/asr-templates/*.json` and `crates/dito-core/src/provider/asr-help/*.md` are compiled into `dito-core`. Moving or deleting them breaks the build. `design/asr-config.schema.json` is documentation only.
 - **App icon.** `assets/icon/Dito.icon` is an Icon Composer document. `scripts/icon.sh compile` builds `Assets.car` and a flat `Dito.icns`; `preview` renders the appearances. Never call `setApplicationIconImage` in a bundled run (it flattens the Liquid Glass icon); only bare binaries set a PNG. Declare `features: ["refractivity", "specular-location"]` whenever those keys are used, and use `blur-material`, not `blur`, or Icon Composer won't open the file.
@@ -115,7 +115,7 @@ Things that look removable or simplifiable but exist for a reason. Product-level
 
 ## Known Limitations
 
-- Cancelling local inference stops waiting, not the computation.
+- Cancelling local inference takes effect at the next llama.cpp token or the next sherpa-onnx chunk. A prompt evaluation, an audio encode or one sherpa-onnx decode that has already started runs to its end first.
 - Bedrock and the legacy cloud ASR paths are covered only by the mock server, not by a real account.
 - GitHub Actions enforces only the pull request rules and the release tag; tests and clippy run in the local commit hooks, which `--no-verify` skips.
 - The display language defaults to the system language; the design calls for Japanese by default.

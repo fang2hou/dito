@@ -57,10 +57,15 @@ pub(crate) async fn chat(State(s): SharedState, headers: HeaderMap, Json(body): 
             .into_response();
     }
     let polished = mock::rule_polish(msg("user").as_deref().unwrap_or_default());
+    let finish_reason = if s.behavior().truncate_chat { "length" } else { "stop" };
     Json(json!({
         "id": "chatcmpl-mock",
         "object": "chat.completion",
-        "choices": [{ "index": 0, "finish_reason": "stop", "message": { "role": "assistant", "content": polished } }]
+        "choices": [{
+            "index": 0,
+            "finish_reason": finish_reason,
+            "message": { "role": "assistant", "content": polished }
+        }]
     }))
     .into_response()
 }

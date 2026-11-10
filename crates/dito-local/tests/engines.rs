@@ -1,8 +1,9 @@
-//! LocalEngines with a fake runtime: lazy load, status, restart, failure reasons.
+//! LocalEngines with a fake runtime: lazy load, status, restart, failure reasons, cancellation, truncation.
 
 use std::path::Path;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::time::Duration;
 
 use dito_core::audio::AudioClip;
 use dito_core::config::ConfigStore;
@@ -22,13 +23,19 @@ struct Fake {
 
 struct FakeAsr;
 impl AsrRuntime for FakeAsr {
-    fn transcribe(&self, samples: &[f32], _: Option<&str>, _: &[String]) -> Result<AsrOutput, RuntimeError> {
+    fn transcribe(
+        &self,
+        samples: &[f32],
+        _: Option<&str>,
+        _: &[String],
+        _: &AtomicBool,
+    ) -> Result<AsrOutput, RuntimeError> {
         Ok(AsrOutput { text: format!("{} samples", samples.len()), language: Some("ja".into()) })
     }
 }
 struct FakeLlm;
 impl LlmRuntime for FakeLlm {
-    fn generate(&self, _: &str, user: &str) -> Result<String, RuntimeError> {
+    fn generate(&self, _: &str, user: &str, _: &AtomicBool) -> Result<String, RuntimeError> {
         Ok(user.to_uppercase())
     }
 }
@@ -129,7 +136,7 @@ struct ControlledAsr {
     gate: Arc<ControlledLoader>,
 }
 impl AsrRuntime for ControlledAsr {
-    fn transcribe(&self, _: &[f32], _: Option<&str>, _: &[String]) -> Result<AsrOutput, RuntimeError> {
+    fn transcribe(&self, _: &[f32], _: Option<&str>, _: &[String], _: &AtomicBool) -> Result<AsrOutput, RuntimeError> {
         Ok(AsrOutput { text: "test".into(), language: None })
     }
 }
@@ -189,4 +196,112 @@ async fn stopping_during_load_does_not_publish_the_finished_runtime() {
     release.send(()).unwrap();
     task.await.unwrap();
     assert_eq!(engine.status("asr"), EngineStatus::Stopped);
+}
+
+const WAIT: Duration = Duration::from_secs(5);
+
+/// One runtime serving as both the speech and the language model, so a test decides how every inference call ends.
+struct Shared<R>(Arc<R>);
+impl<R: AsrRuntime + LlmRuntime + 'static> RuntimeLoader for Shared<R> {
+    fn load_asr(&self, _: &ModelSpec, _: &Path) -> Result<Arc<dyn AsrRuntime>, RuntimeError> {
+        Ok(self.0.clone())
+    }
+    fn load_llm(&self, _: &ModelSpec, _: &Path) -> Result<Arc<dyn LlmRuntime>, RuntimeError> {
+        Ok(self.0.clone())
+    }
+}
+fn engine_with<R: AsrRuntime + LlmRuntime + 'static>(runtime: R) -> (Arc<LocalEngines>, tempfile::TempDir) {
+    let (manager, dir) = installed_manager();
+    (LocalEngines::new(manager, Arc::new(Shared(Arc::new(runtime)))), dir)
+}
+
+/// Keeps decoding until the stop flag is raised, like a model still generating when its dictation is cancelled.
+/// It reports "started" when a call is under way and "saw stop" when it observes the flag.
+struct Spinning(std::sync::mpsc::Sender<&'static str>);
+impl Spinning {
+    fn spin(&self, stop: &AtomicBool) -> RuntimeError {
+        let _ = self.0.send("started");
+        // Bounded, so a flag that never arrives fails the test instead of hanging the Tokio runtime's shutdown.
+        for _ in 0..10_000 {
+            if stop.load(Ordering::Relaxed) {
+                let _ = self.0.send("saw stop");
+                return RuntimeError::Cancelled;
+            }
+            std::thread::sleep(Duration::from_millis(1));
+        }
+        RuntimeError::engine("the stop flag was never raised")
+    }
+}
+impl AsrRuntime for Spinning {
+    fn transcribe(
+        &self,
+        _: &[f32],
+        _: Option<&str>,
+        _: &[String],
+        stop: &AtomicBool,
+    ) -> Result<AsrOutput, RuntimeError> {
+        Err(self.spin(stop))
+    }
+}
+impl LlmRuntime for Spinning {
+    fn generate(&self, _: &str, _: &str, stop: &AtomicBool) -> Result<String, RuntimeError> {
+        Err(self.spin(stop))
+    }
+}
+
+/// Aborts `call` once the runtime is mid-generation, then waits for the runtime to see the stop flag.
+async fn abort_and_expect_stop<T>(call: tokio::task::JoinHandle<T>, events: &std::sync::mpsc::Receiver<&'static str>) {
+    // Let the task reach its blocking call before waiting on the runtime's signal.
+    tokio::task::yield_now().await;
+    assert_eq!(events.recv_timeout(WAIT), Ok("started"));
+    call.abort();
+    assert!(call.await.is_err_and(|e| e.is_cancelled()), "the call finished instead of being dropped");
+    assert_eq!(events.recv_timeout(WAIT), Ok("saw stop"), "the runtime kept generating for a dropped call");
+}
+
+#[tokio::test]
+async fn dropping_a_polish_call_raises_the_stop_flag_for_the_runtime() {
+    let (events, observed) = std::sync::mpsc::channel();
+    let (engine, _dir) = engine_with(Spinning(events));
+    let polisher = engine.polisher("llm").await.unwrap();
+    let call = tokio::spawn(async move { polisher.polish(&PolishRequest { system: "s", text: "hi" }).await });
+    abort_and_expect_stop(call, &observed).await;
+}
+
+#[tokio::test]
+async fn dropping_a_transcription_call_raises_the_stop_flag_for_the_runtime() {
+    let (events, observed) = std::sync::mpsc::channel();
+    let (engine, _dir) = engine_with(Spinning(events));
+    let transcriber = engine.transcriber("asr").await.unwrap();
+    let call = tokio::spawn(async move {
+        let clip = AudioClip::new(vec![0.1; 1600]);
+        transcriber.transcribe(&AsrRequest { clip: &clip, language: None, hotwords: &[] }).await
+    });
+    abort_and_expect_stop(call, &observed).await;
+}
+
+/// Every call uses its whole token budget, so its output is cut off mid-text.
+struct CutOff;
+impl AsrRuntime for CutOff {
+    fn transcribe(&self, _: &[f32], _: Option<&str>, _: &[String], _: &AtomicBool) -> Result<AsrOutput, RuntimeError> {
+        Err(RuntimeError::Truncated)
+    }
+}
+impl LlmRuntime for CutOff {
+    fn generate(&self, _: &str, _: &str, _: &AtomicBool) -> Result<String, RuntimeError> {
+        Err(RuntimeError::Truncated)
+    }
+}
+
+#[tokio::test]
+async fn output_cut_off_at_the_token_limit_is_a_bad_response_not_a_result() {
+    let (engine, _dir) = engine_with(CutOff);
+    let polisher = engine.polisher("llm").await.unwrap();
+    let polished = polisher.polish(&PolishRequest { system: "s", text: "hi" }).await;
+    assert_eq!(polished.err().unwrap().kind, ErrorKind::BadResponse);
+
+    let clip = AudioClip::new(vec![0.1; 1600]);
+    let transcriber = engine.transcriber("asr").await.unwrap();
+    let heard = transcriber.transcribe(&AsrRequest { clip: &clip, language: None, hotwords: &[] }).await;
+    assert_eq!(heard.err().unwrap().kind, ErrorKind::BadResponse);
 }
