@@ -1,11 +1,10 @@
-//! Bedrock Converse engine against the mock: polish, audio ASR, error classes.
+//! Bedrock Converse engine against the mock: polish and error classes.
 
 use std::sync::Once;
 
-use dito_core::audio::AudioClip;
 use dito_core::error::ErrorKind;
 use dito_core::provider::bedrock::{BedrockEngine, BedrockParams};
-use dito_core::provider::{AsrRequest, PolishRequest, Polisher, Transcriber};
+use dito_core::provider::{PolishRequest, Polisher};
 use dito_testkit::MockServer;
 
 fn creds() {
@@ -35,16 +34,12 @@ async fn engine(url: &str, model: &str) -> BedrockEngine {
 }
 
 #[tokio::test]
-async fn polish_and_asr_use_converse_with_system_prompt_and_audio_block() {
+async fn polish_uses_converse_with_the_system_prompt() {
     let srv = MockServer::start().await.unwrap();
     let e = engine(&srv.url, "apac.anthropic.claude-sonnet-4-20250514-v1:0").await;
 
     let out = e.polish(&PolishRequest { system: "be brief", text: "えーと 会議です" }).await.unwrap();
     assert_eq!(out, "会議です。");
-
-    let clip = AudioClip::new(vec![0.3; 16_000]);
-    let t = e.transcribe(&AsrRequest { clip: &clip, language: Some("ja"), hotwords: &["Acme".into()] }).await.unwrap();
-    assert_eq!(t.text, "えーと 明日の3時に会議があります");
 
     let reqs = srv.requests();
     assert_eq!(reqs[0].system.as_deref(), Some("be brief"));
@@ -53,8 +48,6 @@ async fn polish_and_asr_use_converse_with_system_prompt_and_audio_block() {
         "model id reaches the URL: {:?}",
         reqs[0].model
     );
-    assert_eq!(reqs[1].audio_bytes, 1, "audio content block present");
-    assert!(reqs[1].user.as_deref().unwrap().contains("Acme"));
 }
 
 #[tokio::test]

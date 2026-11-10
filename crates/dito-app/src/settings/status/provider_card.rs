@@ -1,5 +1,6 @@
 use dito_core::config::{EngineConfig, ProviderKind, Source};
 use dito_core::i18n::Tr;
+use dito_core::provider::configured_asr::AsrProfiles;
 use dito_core::secrets::Role;
 use gpui_kit::*;
 
@@ -33,7 +34,9 @@ impl StatusPage {
     pub(super) fn provider_engine_card(&self, c: &Ctx, role: Role, e: &EngineConfig) -> EngineParts {
         let p = &c.p;
         let idx = role::index(role);
-        let name = provider_name(c, e);
+        let profiles = role::cloud_profiles(role, e);
+        let profiles = profiles.as_deref();
+        let name = provider_name(c, e, profiles);
         let (label, tone) = match &self.checks[idx] {
             TestState::Ok(_) => (c.t(Tr::ModelsConnected), StatusTone::Success),
             TestState::Failed(_) => (c.t(Tr::ModelsConnectionError), StatusTone::Danger),
@@ -41,9 +44,9 @@ impl StatusPage {
         };
         let chip = ui::status_chip(p, label, tone);
         let mut body: Vec<AnyElement> =
-            vec![model_line(c, provider_model(e).to_owned(), Source::Provider).into_any_element()];
+            vec![model_line(c, provider_model(e, profiles).to_owned(), Source::Provider).into_any_element()];
         let mut error = None;
-        let mut cells = vec![(c.t(Tr::StatusProvider), name.to_string()), endpoint_cell(c, e)];
+        let mut cells = vec![(c.t(Tr::StatusProvider), name.to_string()), endpoint_cell(c, e, profiles)];
         match &self.checks[idx] {
             TestState::Ok(ms) => {
                 cells.push((c.t(Tr::ModelsLatency), format!("{ms} ms")));
@@ -70,15 +73,12 @@ impl StatusPage {
     }
 }
 
-fn provider_name<'a>(c: &Ctx, e: &'a EngineConfig) -> &'a str {
-    e.cloud_asr
-        .as_ref()
-        .and_then(|profiles| profiles.active_name())
-        .unwrap_or_else(|| c.lang.tr(e.provider.kind.label()))
+fn provider_name<'a>(c: &Ctx, e: &EngineConfig, profiles: Option<&'a AsrProfiles>) -> &'a str {
+    profiles.and_then(AsrProfiles::active_name).unwrap_or_else(|| c.lang.tr(e.provider.kind.label()))
 }
 
-fn provider_model(e: &EngineConfig) -> &str {
-    if let Some(profiles) = &e.cloud_asr {
+fn provider_model<'a>(e: &'a EngineConfig, profiles: Option<&'a AsrProfiles>) -> &'a str {
+    if let Some(profiles) = profiles {
         return profiles.active()["connection"]["model"].as_str().unwrap_or("");
     }
     match e.provider.kind {
@@ -89,8 +89,8 @@ fn provider_model(e: &EngineConfig) -> &str {
 }
 
 /// The card's second fact: where the provider is reached.
-fn endpoint_cell(c: &Ctx, e: &EngineConfig) -> (SharedString, String) {
-    if let Some(profiles) = &e.cloud_asr {
+fn endpoint_cell(c: &Ctx, e: &EngineConfig, profiles: Option<&AsrProfiles>) -> (SharedString, String) {
+    if let Some(profiles) = profiles {
         return (c.t(Tr::ModelsEndpoint), url_host(profiles.active()["connection"]["base_url"].as_str().unwrap_or("")));
     }
     match e.provider.kind {

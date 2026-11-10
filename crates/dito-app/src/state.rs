@@ -142,7 +142,10 @@ fn start_mock_server(
         let fresh = dito_core::config::Config::dev_azure();
         c.asr = fresh.asr;
         c.polish.engine = fresh.polish.engine;
-        c.asr.provider.azure.endpoint = server.url.clone();
+        let profiles = c.asr.cloud_asr.get_or_insert_with(dito_core::provider::configured_asr::AsrProfiles::default);
+        if let Some(config) = profiles.active_mut() {
+            *config = dito_testkit::mock_asr_profile(&server.url);
+        }
         c.polish.engine.provider.azure.endpoint = server.url.clone();
         c.onboarded = true;
     })?;

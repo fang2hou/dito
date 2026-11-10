@@ -43,7 +43,9 @@ fn engine_key(engine: &EngineConfig, asr: bool) -> u64 {
     match engine.source {
         Source::Local => ("local", &engine.local_model).hash(&mut key),
         Source::Provider => {
-            if let Some(profiles) = engine.cloud_asr.as_ref().filter(|_| asr) {
+            if asr {
+                // Provider speech always runs the active cloud profile, the default set when none is saved.
+                let profiles = engine.cloud_asr.clone().unwrap_or_default();
                 ("profile", &profiles.selected, profiles.active().to_string()).hash(&mut key);
             } else {
                 let p = &engine.provider;
