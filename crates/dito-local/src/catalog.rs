@@ -47,6 +47,9 @@ pub enum ModelFormat {
         model: &'static str,
         projector: &'static str,
     },
+    /// A chat GGUF served by llama.cpp. The prompt comes from the chat template embedded in the file, so a file
+    /// without one fails to load. `disable_thinking` is the Qwen hybrid-thinking prefill (an empty think block after
+    /// the generation prompt); set it to `false` for other families.
     Chat {
         model: &'static str,
         disable_thinking: bool,
