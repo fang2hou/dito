@@ -29,7 +29,7 @@ Dito is a macOS dictation app. A global shortcut starts a recording; the audio i
 - **Threading**:
   - AppKit and window calls run on the main thread.
   - The controller, pipeline, providers and downloads run on the Tokio runtime.
-  - Model loading, inference and store queries run in `spawn_blocking`.
+  - Model loading, inference, store queries and text insertion run in `spawn_blocking`.
   - The event tap and its dispatcher have their own threads.
 - **Behavior that must hold**:
   - A polish failure never loses the recognized text.

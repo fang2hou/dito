@@ -28,7 +28,7 @@ pub fn run(st: Arc<AppState>, cx: &mut App) {
             }
         };
         println!("HUD states: {}", seen.join(" -> "));
-        // The controller writes history on a blocking thread after reporting the outcome.
+        // The controller writes history on a blocking thread, so the row can land after the outcome is reported.
         let mut latest = None;
         for _ in 0..20 {
             latest = latest_history_entry(&st).filter(|entry| Some(entry.id) != newest_before);
