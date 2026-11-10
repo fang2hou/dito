@@ -61,7 +61,8 @@ impl ModelsPage {
         }
         // A saved profile stays in the list even when the AWS files no longer name it.
         let mut profiles = services::aws_profiles();
-        for configuration in &st.cfg.get().polish.engine.polish_configurations().items {
+        let cfg = st.cfg.get();
+        for configuration in &cfg.polish.engine.polish_configurations(cfg.general.lang()).items {
             if let PolishTarget::Bedrock { profile, .. } = &configuration.target
                 && !profile.is_empty()
                 && !profiles.contains(profile)
@@ -151,13 +152,15 @@ impl ModelsPage {
         // A changed setting invalidates the previous test result.
         self.test = TestState::Idle;
         if field.is_key() {
-            let account = self.st.cfg.get().polish.engine.polish_configurations().active().map(|c| c.account());
+            let cfg = self.st.cfg.get();
+            let account = cfg.polish.engine.polish_configurations(cfg.general.lang()).active().map(|c| c.account());
             if let Some(account) = account {
                 services::store_secret(&self.st, &account, &value);
             }
         } else {
             services::save_config(&self.st, |c| {
-                if let Some(config) = c.polish.engine.polish_configurations_mut().active_mut() {
+                let lang = c.general.lang();
+                if let Some(config) = c.polish.engine.polish_configurations_mut(lang).active_mut() {
                     field.write(config, value);
                 }
             });
@@ -167,11 +170,12 @@ impl ModelsPage {
 
     /// Make `id` the configuration in use and show it in the form.
     pub(super) fn select_configuration(&mut self, id: &str, window: &mut Window, cx: &mut Context<Self>) {
+        let lang = self.st.cfg.get().general.lang();
         self.update_engine(Role::Polish, |e| {
-            e.polish_configurations_mut().select(id);
+            e.polish_configurations_mut(lang).select(id);
         });
         let cfg = self.st.cfg.get();
-        let configurations = cfg.polish.engine.polish_configurations();
+        let configurations = cfg.polish.engine.polish_configurations(lang);
         self.inputs.show(configurations.active(), &self.st, window, cx);
         self.test = TestState::Idle;
         cx.notify();

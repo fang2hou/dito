@@ -381,7 +381,7 @@ reasoning_effort = ""
 
         // The typed load sees the same fields the forms had.
         let config: Config = legacy.try_into().unwrap();
-        let configurations = config.polish.engine.polish_configurations();
+        let configurations = config.polish.engine.polish_configurations(config.general.lang());
         let target = |id: &str| configurations.get(id).unwrap().target.clone();
         assert_eq!(
             target("azure"),

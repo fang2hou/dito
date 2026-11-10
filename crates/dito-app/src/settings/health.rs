@@ -36,7 +36,7 @@ impl Settings {
         match e.source {
             Source::Provider => {
                 let profiles = role::cloud_profiles(role, e);
-                let configurations = e.polish_configurations();
+                let configurations = e.polish_configurations(lang);
                 let name = match profiles.as_deref() {
                     Some(profiles) => profiles.active_name(),
                     None => configurations.active().map(|configuration| configuration.name.as_str()),

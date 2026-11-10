@@ -63,7 +63,7 @@ impl ConfigStore {
     /// configuration and its key together. The last configuration stays, and so does its key: `false`.
     pub fn remove_polish_configuration(&self, id: &str, secrets: &dyn SecretStore) -> Result<bool> {
         let mut removed = None;
-        self.update(|c| removed = c.polish.engine.polish_configurations_mut().remove(id))?;
+        self.update(|c| removed = c.polish.engine.polish_configurations_mut(c.general.lang()).remove(id))?;
         Ok(forget_key(removed.map(|configuration| configuration.account()), secrets))
     }
 
@@ -342,7 +342,7 @@ reasoning_effort = "minimal"
         let (dir, path) = config_file(original);
 
         let cfg = ConfigStore::open(&path).unwrap().get();
-        let configurations = cfg.polish.engine.polish_configurations();
+        let configurations = cfg.polish.engine.polish_configurations(cfg.general.lang());
         assert_eq!(configurations.selected, "compat", "the selected form stays selected");
         let compat = configurations.active().unwrap();
         assert_eq!(
@@ -414,13 +414,13 @@ reasoning_effort = "minimal"
         // The configuration in use goes, its neighbour takes over, the other keys stay.
         assert!(store.remove_polish_configuration("azure", &secrets).unwrap());
         let config = store.get();
-        let list = config.polish.engine.polish_configurations();
+        let list = config.polish.engine.polish_configurations(config.general.lang());
         assert_eq!(list.items.iter().map(|c| c.id.as_str()).collect::<Vec<_>>(), ["bedrock", "compat"]);
         assert_eq!(list.selected, "bedrock");
         assert_eq!(secrets.get("polish.azure"), None);
         assert_eq!(secrets.get("polish.compat").as_deref(), Some("key"));
         let reopened = ConfigStore::open(&path).unwrap().get();
-        assert_eq!(reopened.polish.engine.polish_configurations().items.len(), 2, "the list is on disk");
+        assert_eq!(reopened.polish.engine.polish_configurations(reopened.general.lang()).items.len(), 2, "on disk");
 
         // The last one stays with its key; an unknown id is not a removal.
         assert!(store.remove_polish_configuration("bedrock", &secrets).unwrap());

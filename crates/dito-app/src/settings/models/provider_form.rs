@@ -20,7 +20,7 @@ impl ModelsPage {
         let mut row = div().w_full().flex().gap(px(12.));
         let role_index = role::index(role);
         let cfg = self.st.cfg.get();
-        let configurations = role::engine(&cfg, role).polish_configurations();
+        let configurations = role::engine(&cfg, role).polish_configurations(c.lang);
         for item in &configurations.items {
             let id = item.id.clone();
             row = row.child(choice_tile(
@@ -39,7 +39,7 @@ impl ModelsPage {
         let col = div().w_full().flex().flex_col().gap(px(18.));
         let inputs = &self.inputs;
         let cfg = self.st.cfg.get();
-        let configurations = role::engine(&cfg, role).polish_configurations();
+        let configurations = role::engine(&cfg, role).polish_configurations(c.lang);
         match configurations.active().map(|config| &config.target) {
             Some(PolishTarget::Azure { .. }) => azure_fields(c, inputs, col),
             Some(PolishTarget::Bedrock { profile, .. }) => {
@@ -71,7 +71,8 @@ impl ModelsPage {
             Rc::new(move |i, _, _| {
                 if let Some(name) = profiles.get(i).cloned() {
                     services::save_config(&st, |cfg| {
-                        let configurations = role::engine_mut(cfg, role).polish_configurations_mut();
+                        let lang = cfg.general.lang();
+                        let configurations = role::engine_mut(cfg, role).polish_configurations_mut(lang);
                         if let Some(PolishConfiguration { target: PolishTarget::Bedrock { profile, .. }, .. }) =
                             configurations.active_mut()
                         {

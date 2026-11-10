@@ -215,7 +215,7 @@ pub async fn status_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
                     c.asr.source = Source::Local;
                     c.polish.enabled = case != "disabled";
                     c.polish.engine.source = if case == "local" { Source::Local } else { Source::Provider };
-                    let configurations = c.polish.engine.polish_configurations_mut();
+                    let configurations = c.polish.engine.polish_configurations_mut(c.general.lang());
                     configurations.select("compat");
                     let compat = configurations.active_mut().expect("the templates include a compat configuration");
                     *compat.target.address_mut() =
@@ -433,7 +433,7 @@ fn apply_model_case(st: &AppState, appearance: Appearance, case: &ModelCase) {
         c.general.appearance = appearance;
         c.asr.source = if case.local { Source::Local } else { Source::Provider };
         c.polish.engine.source = c.asr.source;
-        c.polish.engine.polish_configurations_mut().select(["azure", "bedrock", "compat"][case.preset]);
+        c.polish.engine.polish_configurations_mut(c.general.lang()).select(["azure", "bedrock", "compat"][case.preset]);
         let mut profiles = AsrProfiles::default();
         profiles.select_index(case.preset);
         for profile in &mut profiles.profiles {

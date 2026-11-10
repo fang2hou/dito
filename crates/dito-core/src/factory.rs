@@ -152,11 +152,10 @@ impl EngineFactory {
             Source::Local => self.require_local()?.polisher(&e.local_model, &e.local_params_for(&e.local_model)).await,
             Source::Provider => {
                 // `cloud_polish` stays `None` until a list is first saved; the templates stand in.
-                let configurations = e.polish_configurations();
-                let active = configurations.active().ok_or_else(|| {
+                let active = e.active_polish().ok_or_else(|| {
                     ProviderError::new(ErrorKind::Unavailable, "no cloud polish configuration is selected")
                 })?;
-                self.cloud_polisher(active).await
+                self.cloud_polisher(&active).await
             }
         }
     }
@@ -258,9 +257,10 @@ mod tests {
     fn compat_config(model: &str) -> Config {
         let mut cfg = Config::default();
         cfg.polish.enabled = true;
+        let lang = cfg.general.lang();
         let engine = &mut cfg.polish.engine;
         engine.source = Source::Provider;
-        let configurations = engine.polish_configurations_mut();
+        let configurations = engine.polish_configurations_mut(lang);
         configurations.select("compat");
         let compat = configurations.active_mut().expect("the templates include a compat configuration");
         *compat.target.address_mut() = "http://127.0.0.1:1/v1".into();
@@ -297,14 +297,15 @@ mod tests {
         let base = compat_config("model-a");
         let first = polisher(&factory, &base).await;
 
+        let lang = base.general.lang();
         let mut warmer = base.clone();
-        warmer.polish.engine.polish_configurations_mut().active_mut().unwrap().params.temperature = Some(0.9);
+        warmer.polish.engine.polish_configurations_mut(lang).active_mut().unwrap().params.temperature = Some(0.9);
         let second = polisher(&factory, &warmer).await;
         assert!(!Arc::ptr_eq(&first, &second), "a parameter is part of the engine");
 
         let mut other = warmer.clone();
-        let copy = other.polish.engine.polish_configurations_mut().duplicate("compat", "Copy").unwrap();
-        assert_eq!(other.polish.engine.polish_configurations().selected, copy);
+        let copy = other.polish.engine.polish_configurations_mut(lang).duplicate("compat", "Copy").unwrap();
+        assert_eq!(other.polish.engine.polish_configurations(lang).selected, copy);
         let third = polisher(&factory, &other).await;
         assert!(!Arc::ptr_eq(&second, &third), "another configuration is another engine");
     }
@@ -348,7 +349,7 @@ mod tests {
     #[tokio::test]
     async fn a_selection_that_points_nowhere_is_a_reported_problem_not_a_default() {
         let mut cfg = compat_config("model-a");
-        cfg.polish.engine.polish_configurations_mut().selected = "gone".into();
+        cfg.polish.engine.polish_configurations_mut(cfg.general.lang()).selected = "gone".into();
         let error = factory().polisher(&cfg).await.err().expect("nothing is selected");
         assert_eq!(error.kind, ErrorKind::Unavailable);
     }

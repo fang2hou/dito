@@ -124,9 +124,9 @@ impl ProviderInputs {
     pub(super) fn new(st: &AppState, window: &mut Window, cx: &mut Context<ModelsPage>) -> Self {
         let cfg = st.cfg.get();
         let engine = role::engine(&cfg, Role::Polish);
-        let configurations = engine.polish_configurations();
-        let active = configurations.active();
         let lang = cfg.general.lang();
+        let configurations = engine.polish_configurations(lang);
+        let active = configurations.active();
         Self(Field::ALL.map(|field| {
             let value = active.map(|config| field.value(config, st)).unwrap_or_default();
             make_input(window, cx, field.placeholder(lang), &value, field.is_key())

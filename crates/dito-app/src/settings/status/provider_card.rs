@@ -36,7 +36,7 @@ impl StatusPage {
         let idx = role::index(role);
         let profiles = role::cloud_profiles(role, e);
         let profiles = profiles.as_deref();
-        let configurations = e.polish_configurations();
+        let configurations = e.polish_configurations(c.lang);
         let configuration = configurations.active();
         let name = provider_name(profiles, configuration);
         let (label, tone) = match &self.checks[idx] {
