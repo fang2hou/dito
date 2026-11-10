@@ -45,7 +45,7 @@ impl ConfiguredAsr {
 
         let path = validate::string(&r, "/path")?;
         if !validate::is_relative_path(path) {
-            return Err(validate::invalid("request.path: 相対パスを確認してください。"));
+            return Err(validate::invalid("request.path: must be a relative path after expansion"));
         }
         let url = format!("{}{}", validate::string(c, "/connection/base_url")?.trim_end_matches('/'), path);
         let mut url = Url::parse(&url).map_err(|_| validate::invalid("URL"))?;
@@ -74,11 +74,11 @@ impl ConfiguredAsr {
         let text = response
             .pointer(validate::string(c, "/response/text_pointer")?)
             .and_then(Value::as_str)
-            .ok_or_else(|| ProviderError::new(ErrorKind::BadResponse, "認識結果を取得できません。"))?
+            .ok_or_else(|| ProviderError::new(ErrorKind::BadResponse, "no text at response.text_pointer"))?
             .trim()
             .to_owned();
         if text.is_empty() {
-            return Err(ProviderError::new(ErrorKind::NoSpeech, "音声を認識できませんでした。"));
+            return Err(ProviderError::new(ErrorKind::NoSpeech, "empty transcription"));
         }
         let language = c["response"]["language_pointer"]
             .as_str()

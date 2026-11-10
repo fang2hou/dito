@@ -44,6 +44,26 @@ asr_editor.valid = { ja = "エラーはありません", en = "No errors", zh = 
 asr_editor.validation = { ja = "入力内容の確認", en = "Validation", zh = "内容校验" }
 asr_editor.help = { ja = "ヘルプ", en = "Help", zh = "帮助" }
 asr_editor.cancel = { ja = "キャンセル", en = "Cancel", zh = "取消" }
+# ASR config validation reasons (`ValidationReason` in dito-core), shown after the field path under the editor.
+asr_validation.required = { ja = "値を入力してください。", en = "Enter a value.", zh = "不能为空。" }
+asr_validation.unsupported_version = { ja = "1 を指定してください。", en = "Must be 1.", zh = "必须为 1。" }
+asr_validation.invalid_url = { ja = "URL を確認してください。", en = "Enter a valid URL.", zh = "URL 格式不正确。" }
+asr_validation.not_http_url = { ja = "HTTP URL を指定してください。", en = "Use an HTTP or HTTPS URL without a query or fragment.", zh = "请使用不含查询参数和片段的 HTTP 或 HTTPS URL。" }
+asr_validation.object_required = { ja = "オブジェクトを指定してください。", en = "Must be a JSON object.", zh = "必须是 JSON 对象。" }
+asr_validation.invalid_language_map = { ja = "言語コードと値を確認してください。", en = "Check the language codes and values.", zh = "请检查语言代码和对应的值。" }
+asr_validation.invalid_method = { ja = "POST または PUT を指定してください。", en = "Use POST or PUT.", zh = "必须是 POST 或 PUT。" }
+asr_validation.path_not_relative = { ja = "相対パスを指定してください。", en = "Use a relative path that starts with a slash.", zh = "必须是以 / 开头的相对路径。" }
+asr_validation.encoding_mismatch = { ja = "encoding と body / fields を確認してください。", en = "encoding must be json with body, or multipart with fields.", zh = "encoding 为 json 时应使用 body，为 multipart 时应使用 fields。" }
+asr_validation.invalid_json_pointer = { ja = "JSON Pointer を確認してください。", en = "Enter a valid JSON Pointer, such as /text.", zh = "请填写有效的 JSON Pointer，例如 /text。" }
+asr_validation.unknown_key = { ja = "未定義の項目です。", en = "Unknown key.", zh = "未知的配置项。" }
+asr_validation.invalid_headers = { ja = "ヘッダーを確認してください。", en = "Check the header names and values.", zh = "请检查请求头的名称和值。" }
+asr_validation.non_scalar_value = { ja = "値には文字列、数値、真偽値、null を指定してください。", en = "Values must be strings, numbers, booleans, or null.", zh = "值只能是字符串、数值、布尔值或 null。" }
+asr_validation.audio_file_outside_fields = { ja = "audio.file は fields 内に指定してください。", en = "audio.file can only be used in fields.", zh = "audio.file 只能用在 fields 中。" }
+asr_validation.language_in_array = { ja = "language を配列の要素に指定できません。", en = "language can't be an array element.", zh = "language 不能用作数组元素。" }
+asr_validation.unclosed_variable = { ja = "変数の閉じ括弧がありません。", en = "A variable is missing its closing braces.", zh = "变量缺少闭合的花括号。" }
+fmt.asr_unknown_variable = { ja = "未定義の変数: {name}", en = "Unknown variable: {name}", zh = "未知变量：{name}" }
+asr_validation.audio_file_not_whole_value = { ja = "audio.file は multipart の完全な値に指定してください。", en = "audio.file must be the entire value of a multipart field.", zh = "audio.file 只能作为 multipart 字段的完整值。" }
+asr_validation.language_not_whole_value = { ja = "language は完全な値に指定してください。", en = "language can't be part of a longer string.", zh = "language 不能用作字符串的一部分。" }
 
 models.unchecked = { ja = "未確認", en = "Not checked", zh = "未检查" }
 models.use = { ja = "使用する", en = "Use", zh = "使用" }
