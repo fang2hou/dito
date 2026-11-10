@@ -75,10 +75,15 @@ impl AppState {
         let local = LocalEngines::new(models.clone(), runtime_loader());
         let secrets: Arc<dyn SecretStore> =
             if opts.mock { Arc::new(MemorySecrets::default()) } else { Arc::new(KeychainSecrets::new()) };
+        #[cfg(feature = "mock")]
+        let mock_speech = mock_server.as_ref().map(|server| dito_testkit::mock_asr_profile(&server.url));
+        #[cfg(not(feature = "mock"))]
+        let mock_speech = None;
         let factory = Arc::new(
             EngineFactory::new(secrets.clone())
                 .with_local(local.clone())
-                .with_bedrock_endpoint(std::env::var("DITO_BEDROCK_ENDPOINT").ok()),
+                .with_bedrock_endpoint(std::env::var("DITO_BEDROCK_ENDPOINT").ok())
+                .with_speech_profile(mock_speech),
         );
         let capture = open_capture(&opts, &cfg);
         let recorder = pick_recorder(&opts, capture.as_ref())?;
@@ -140,10 +145,6 @@ fn start_mock_server(
         let fresh = dito_core::config::Config::dev_azure();
         c.asr = fresh.asr;
         c.polish.engine = fresh.polish.engine;
-        let profiles = c.asr.cloud_asr.get_or_insert_with(dito_core::provider::configured_asr::AsrProfiles::default);
-        if let Some(config) = profiles.active_mut() {
-            *config = dito_testkit::mock_asr_profile(&server.url);
-        }
         c.polish.engine.provider.azure.endpoint = server.url.clone();
         c.onboarded = true;
     })?;
