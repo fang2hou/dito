@@ -1,5 +1,6 @@
 use std::num::NonZeroU32;
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, OnceLock};
 
 use dito_local::{AsrOutput, AsrRuntime, LlmRuntime, RuntimeError};
@@ -39,8 +40,12 @@ impl Chat {
 }
 
 impl LlmRuntime for Chat {
-    fn generate(&self, system: &str, user: &str) -> Result<String, RuntimeError> {
+    fn generate(&self, system: &str, user: &str, stop: &AtomicBool) -> Result<String, RuntimeError> {
         let _one_at_a_time = self.gate.lock().map_err(|_| RuntimeError::LockPoisoned("model lock"))?;
+        // A call cancelled while it waited for the gate must not start decoding.
+        if stop.load(Ordering::Relaxed) {
+            return Err(RuntimeError::Cancelled);
+        }
         let backend = backend()?;
         // Special tokens (<|im_start|> ...) must be parsed; Qwen adds no BOS.
         let tokens =
@@ -64,12 +69,24 @@ impl LlmRuntime for Chat {
 
         let mut sampler = LlamaSampler::chain_simple([LlamaSampler::temp(0.2), LlamaSampler::dist(1234)]);
         let prompt_len = batch.n_tokens();
-        let out = generate_text(&self.model, &mut ctx, &mut sampler, &mut batch, prompt_len, budget as usize)?;
-        Ok(strip_think(&out))
+        let generated =
+            generate_text(&self.model, &mut ctx, &mut sampler, &mut batch, prompt_len, budget as usize, stop)?;
+        // Cut-off text must not pass for a finished rewrite.
+        if generated.truncated {
+            return Err(RuntimeError::Truncated);
+        }
+        Ok(strip_think(&generated.text))
     }
 }
 
+struct Generated {
+    text: String,
+    /// `max_tokens` ran out before the model emitted an end-of-generation token.
+    truncated: bool,
+}
+
 /// Samples and decodes one token at a time until the model ends its turn or `max_tokens` are produced.
+/// `stop` is checked before every token, so a cancel takes effect within one token's decode time.
 /// `batch` holds the tokens decoded last, and the next token is sampled from the logits of its final entry
 /// (an empty batch means the context's most recent output).
 fn generate_text(
@@ -79,14 +96,18 @@ fn generate_text(
     batch: &mut LlamaBatch,
     first_position: i32,
     max_tokens: usize,
-) -> Result<String, RuntimeError> {
+    stop: &AtomicBool,
+) -> Result<Generated, RuntimeError> {
     let mut decoder = encoding_rs::UTF_8.new_decoder();
     let mut out = String::new();
     for position in (first_position..).take(max_tokens) {
+        if stop.load(Ordering::Relaxed) {
+            return Err(RuntimeError::Cancelled);
+        }
         let token = sampler.sample(ctx, batch.n_tokens() - 1);
         sampler.accept(token);
         if model.vocab().is_eog(token) {
-            break;
+            return Ok(Generated { text: out, truncated: false });
         }
         let bytes = model.vocab().token_to_piece(token, true, None);
         // encoding_rs never grows the destination: reserve the worst case for this piece.
@@ -98,7 +119,7 @@ fn generate_text(
         batch.add(token, position, &[0], true).map_err(RuntimeError::engine)?;
         ctx.decode(batch).map_err(RuntimeError::engine)?;
     }
-    Ok(out)
+    Ok(Generated { text: out, truncated: true })
 }
 
 /// Qwen3-ASR (LLM GGUF + mmproj audio tower) through llama.cpp mtmd. The model and audio tower
@@ -137,6 +158,7 @@ impl AsrRuntime for Asr {
         samples: &[f32],
         language: Option<&str>,
         hotwords: &[String],
+        stop: &AtomicBool,
     ) -> Result<AsrOutput, RuntimeError> {
         let (prompt, forced_language) = asr_prompt(language, hotwords);
         // Do not run autoregressive decoding on digital silence: it can invent a fluent answer.
@@ -144,11 +166,11 @@ impl AsrRuntime for Asr {
         if samples.iter().all(|s| s.abs() <= f32::EPSILON) {
             return Ok(AsrOutput { text: String::new(), language: forced_language.map(str::to_string) });
         }
-        let output = self.transcribe_prompt(samples, prompt, forced_language)?;
+        let output = self.transcribe_prompt(samples, prompt, forced_language, stop)?;
         if is_vocabulary_echo(&output.text, hotwords) {
             tracing::debug!("ASR returned a vocabulary list; confirming without context");
             let (prompt, forced_language) = asr_prompt(language, &[]);
-            return self.transcribe_prompt(samples, prompt, forced_language);
+            return self.transcribe_prompt(samples, prompt, forced_language, stop);
         }
         Ok(output)
     }
@@ -160,8 +182,13 @@ impl Asr {
         samples: &[f32],
         prompt: String,
         forced_language: Option<&str>,
+        stop: &AtomicBool,
     ) -> Result<AsrOutput, RuntimeError> {
         let mut mtmd = self.mtmd.lock().map_err(|_| RuntimeError::LockPoisoned("model lock"))?;
+        // A call cancelled while it waited for the lock must not start encoding audio.
+        if stop.load(Ordering::Relaxed) {
+            return Err(RuntimeError::Cancelled);
+        }
         let samples = &samples[..samples.len().min(MAX_SAMPLES)];
         let bitmap = MtmdBitmap::from_audio_data(samples).map_err(RuntimeError::engine)?;
 
@@ -189,8 +216,9 @@ impl Asr {
         // Greedy decode: dictation wants the literal best guess, not variety.
         let mut sampler = LlamaSampler::chain_simple([LlamaSampler::temp(0.0), LlamaSampler::dist(0)]);
         let mut batch = LlamaBatch::new(1, 1);
-        let out = generate_text(&self.model, &mut ctx, &mut sampler, &mut batch, n_past, max_out as usize)?;
-        let mut result = parse_output(&out);
+        // A transcript that used its whole budget is still returned: partial text beats none.
+        let generated = generate_text(&self.model, &mut ctx, &mut sampler, &mut batch, n_past, max_out as usize, stop)?;
+        let mut result = parse_output(&generated.text);
         if let Some(language) = forced_language {
             result.language = Some(language.into());
         }
@@ -205,12 +233,14 @@ mod tests {
     fn polish_reference_vocabulary_regression() {
         use dito_core::prompts::{PromptInput, Prompts, Style, build_system_prompt};
         use dito_local::LlmRuntime;
+        use std::sync::atomic::AtomicBool;
         let spec = dito_local::catalog::default_catalog().into_iter().find(|s| s.id == "qwen3.5-4b-instruct").unwrap();
         let dito_local::catalog::ModelFormat::Chat { model, disable_thinking } = spec.format else { unreachable!() };
         let path = std::path::PathBuf::from(std::env::var("DITO_POLISH_MODEL_DIR").unwrap()).join(model);
         let model = super::Chat::load(&path, disable_thinking).unwrap();
         let terms = vec!["NebulaBanana".into(), "银河量子仓库".into()];
         let prompts = Prompts::default();
+        let stop = AtomicBool::new(false);
         for text in
             ["嗯，明天下午三点开会。", "えーと、明日の午後三時に会議をします。", "Um, let's meet tomorrow at three."]
         {
@@ -220,7 +250,7 @@ mod tests {
                 text,
                 dictionary: &terms,
             });
-            let out = model.generate(&system, text).unwrap();
+            let out = model.generate(&system, text, &stop).unwrap();
             eprintln!("POLISH_REGRESSION {text}: {out}");
             assert!(!out.is_empty());
             for term in &terms {
@@ -235,6 +265,7 @@ mod tests {
     #[ignore = "requires DITO_ASR_MODEL_DIR and the local bench audio clips (`mise run bench clips`)"]
     fn asr_reference_vocabulary_audio_regression() {
         use dito_local::AsrRuntime;
+        use std::sync::atomic::AtomicBool;
         let directory = std::path::PathBuf::from(std::env::var("DITO_ASR_MODEL_DIR").unwrap());
         let spec = dito_local::catalog::default_catalog()
             .into_iter()
@@ -245,6 +276,7 @@ mod tests {
         let model = super::Asr::load(&directory.join(model), &directory.join(projector)).unwrap();
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../bench/audio");
         let unrelated = vec!["星际菠萝研究所".into(), "银河量子仓库".into(), "NebulaBanana".into()];
+        let stop = AtomicBool::new(false);
         for (file, lang, relevant) in
             [("zh_01.wav", "zh", "会议室"), ("ja_01.wav", "ja", "新機能"), ("en_01.wav", "en", "QA")]
         {
@@ -252,7 +284,7 @@ mod tests {
             for (name, words) in
                 [("none", vec![]), ("relevant", vec![relevant.into()]), ("unrelated", unrelated.clone())]
             {
-                let result = model.transcribe(&clip.samples, Some(lang), &words).unwrap();
+                let result = model.transcribe(&clip.samples, Some(lang), &words, &stop).unwrap();
                 eprintln!("ASR_REGRESSION {file} {name}: {}", result.text);
                 assert!(!result.text.trim().is_empty());
                 assert_eq!(result.language.as_deref(), Some(lang));
@@ -263,7 +295,7 @@ mod tests {
             }
         }
         let silence = dito_core::audio::AudioClip::silence(2.);
-        let result = model.transcribe(&silence.samples, Some("zh"), &unrelated).unwrap();
+        let result = model.transcribe(&silence.samples, Some("zh"), &unrelated, &stop).unwrap();
         eprintln!("ASR_REGRESSION silence: {}", result.text);
         assert!(result.text.trim().is_empty(), "silence must not become reference words");
         // Deterministic non-speech above the pipeline's energy gate. Tags alone made this
@@ -271,7 +303,7 @@ mod tests {
         let noise: Vec<f32> = (0..32000)
             .map(|i| (((i as u32).wrapping_mul(1664525).wrapping_add(1013904223) >> 8) as f32 / 16777216. - 0.5) * 0.03)
             .collect();
-        let result = model.transcribe(&noise, Some("zh"), &unrelated).unwrap();
+        let result = model.transcribe(&noise, Some("zh"), &unrelated, &stop).unwrap();
         eprintln!("ASR_REGRESSION noise: {}", result.text);
         for word in &unrelated {
             assert!(!result.text.contains(word));

@@ -18,6 +18,12 @@ pub enum RuntimeError {
     LockPoisoned(&'static str),
     #[error("mmproj file does not support audio")]
     AudioUnsupported,
+    /// The stop flag was observed: the caller no longer wants the result.
+    #[error("inference was cancelled")]
+    Cancelled,
+    /// Text generation used its whole token budget before the model ended its turn.
+    #[error("output was cut off at the token limit")]
+    Truncated,
     #[error("{0}")]
     Engine(String),
 }
