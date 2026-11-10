@@ -24,18 +24,19 @@ use crate::{
     ui::TestState,
 };
 
-fn with_editor(cx: &mut AsyncApp, action: impl FnOnce(&Entity<AsrEditor>, &mut Window, &mut App)) {
+pub(super) fn with_editor(cx: &mut AsyncApp, action: impl FnOnce(&Entity<AsrEditor>, &mut Window, &mut App)) {
     on_settings_window(cx, |window, cx, view| {
         let editor = view.read(cx).asr_config_editor(cx);
         action(&editor, window, cx);
     });
 }
 
-async fn settle(cx: &mut AsyncApp) {
+/// Long enough for the editor's 200 ms pause before it checks and saves a draft.
+pub(super) async fn settle(cx: &mut AsyncApp) {
     cx.background_executor().timer(Duration::from_millis(450)).await;
 }
 
-fn command(cx: &mut AsyncApp, command: EditorCommand) {
+pub(super) fn command(cx: &mut AsyncApp, command: EditorCommand) {
     with_editor(cx, |editor, window, cx| editor.update(cx, |editor, cx| editor.probe_command(command, window, cx)));
 }
 
@@ -48,9 +49,10 @@ fn draft(cx: &mut AsyncApp) -> String {
 pub async fn run(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     let server = st._mock_server.as_ref().expect("inline ASR verification requires --mock");
     let mut profiles = AsrProfiles::default();
-    profiles.select_index(1);
-    profiles.profiles[1].config["connection"]["base_url"] = format!("{}/v1", server.url).into();
-    profiles.profiles[1].config["connection"]["model"] = "inline-before".into();
+    profiles.select("qwen_asr");
+    let config = profiles.active_mut().expect("the bundled templates include qwen_asr");
+    config["connection"]["base_url"] = format!("{}/v1", server.url).into();
+    config["connection"]["model"] = "inline-before".into();
     st.secrets.set(&profiles.account(), "test-key").expect("isolated mock credentials");
     st.factory.invalidate_engines();
     services::save_config(st, |config| {

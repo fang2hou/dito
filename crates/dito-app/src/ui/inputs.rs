@@ -136,9 +136,15 @@ pub fn field(p: &Palette, label: impl Into<SharedString>, control: impl IntoElem
     div().flex().flex_col().gap(px(8.)).child(text(label, 13., FontWeight::MEDIUM, p.text)).child(control)
 }
 
-/// A connection-form field: a quieter caption above a [`TextInput::form`] control.
+/// A connection-form field: a quieter caption above a [`TextInput::form`] control. The caption is a 20 pt line, so a
+/// captioned field is 68 high (`20.05.1`).
 pub fn form_field(p: &Palette, label: impl Into<SharedString>, control: impl IntoElement) -> Div {
-    div().flex().flex_col().gap(px(8.)).child(text(label, 13., FontWeight::NORMAL, p.muted)).child(control)
+    div()
+        .flex()
+        .flex_col()
+        .gap(px(8.))
+        .child(text(label, 13., FontWeight::NORMAL, p.muted).line_height(px(20.)))
+        .child(control)
 }
 
 /// Clicking outside a focused field dismisses editing without intercepting the next control's click.

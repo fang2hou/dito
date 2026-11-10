@@ -1,8 +1,9 @@
 //! The row of configuration tiles above a cloud form (`20.05.13`).
 //!
 //! Up to three tiles share the width; from the fourth every tile is 200 wide and the row scrolls sideways, without a
-//! scrollbar, fading into the card where tiles continue past an edge. The plus button sits outside the scrolling
-//! area. A press that stays put selects, a press that moves lifts the tile and reorders by dragging.
+//! scrollbar, fading into the card where tiles continue past an edge. Three tiles in a window too narrow to give each
+//! 200 do the same. The plus button sits outside the scrolling area. A press that stays put selects, a press that moves
+//! lifts the tile and reorders by dragging.
 //!
 //! The row knows nothing about configurations: it takes plain tiles and reports ids. Its owner keeps one
 //! [`TileRowState`] next to the data, passes the same one every frame and, after selecting or adding a tile,

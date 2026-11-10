@@ -1,5 +1,4 @@
 use dito_core::i18n::Tr;
-use dito_core::provider::configured_asr::AsrProfiles;
 use gpui_kit::base::input::{Redo, Undo};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
@@ -7,66 +6,53 @@ use gpui_kit::*;
 use super::{AsrEditor, ISO_CODES, LOCALE_CODES};
 use crate::assets::Ic;
 use crate::settings::Ctx;
+use crate::settings::asr_editor::configuration_list;
 use crate::theme::Palette;
-use crate::ui::{self, BtnKind, Editor, cbk, cbk_idx, text};
+use crate::ui::{self, BtnKind, Editor, cbk, text};
 
 impl AsrEditor {
-    pub(super) fn inline(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> Div {
+    pub(super) fn inline(&mut self, window: &mut Window, cx: &mut Context<Self>) -> Div {
+        self.sync(window, cx);
         let c = Ctx::new(&self.st, cx);
         let p = c.p;
         self.style_source(&p, cx);
-        if self.tested_language.is_some_and(|language| language != self.st.cfg.get().general.preferred_language) {
-            self.test = ui::TestState::Idle;
-            self.tested_language = None;
+        let language = self.st.cfg.get().general.preferred_language;
+        if let Some(draft) = self.drafts.get_mut(&self.shown)
+            && draft.tested_language.is_some_and(|tested| tested != language)
+        {
+            draft.test = ui::TestState::Idle;
+            draft.tested_language = None;
         }
         div()
             .w_full()
             .flex()
             .flex_col()
             .gap(px(20.))
-            .child(self.templates(&c, cx))
-            .child(ui::form_field(&p, c.t(Tr::ModelsApiKey), ui::text_input(&p, &self.key, None).form()))
+            .child(self.tile_row(&c, cx))
+            .child(self.name_and_key(&c))
             .child(self.toolbar(&c, cx))
             .child(self.code_box(&c, cx))
             .child(self.validation_card(&c))
             .child(self.connection_footer(&c, cx))
     }
 
-    fn templates(&self, c: &Ctx, cx: &mut Context<Self>) -> Div {
-        let cfg = self.st.cfg.get();
-        let defaults;
-        let profiles = match &cfg.asr.cloud_asr {
-            Some(profiles) => profiles,
-            None => {
-                defaults = AsrProfiles::default();
-                &defaults
-            }
-        };
-        let names = profiles
-            .profiles
-            .iter()
-            .take(self.sources.len())
-            .map(|profile| SharedString::from(profile.name.clone()))
-            .collect::<Vec<_>>();
+    /// The name of the configuration, 216 wide, beside its API key.
+    fn name_and_key(&self, c: &Ctx) -> Div {
+        let p = &c.p;
         div()
             .w_full()
             .flex()
-            .items_center()
-            .gap(px(12.))
-            .child(text(c.t(Tr::AsrEditorTemplate), 13., FontWeight::MEDIUM, c.p.muted))
-            .child(ui::select(
-                "asr-template",
-                &c.p,
-                &names,
-                self.selected,
-                self.template_open,
-                Some(200.),
-                cbk(cx, |this: &mut Self, _, cx| {
-                    this.template_open = !this.template_open;
-                    cx.notify();
-                }),
-                cbk_idx(cx, |this: &mut Self, i, w, cx| this.switch(i, w, cx)),
-            ))
+            .gap(px(16.))
+            .child(
+                ui::form_field(p, c.t(Tr::ModelsName), ui::text_input(p, &self.name, None).form())
+                    .w(px(216.))
+                    .flex_none(),
+            )
+            .child(
+                ui::form_field(p, c.t(Tr::ModelsApiKey), ui::text_input(p, &self.key, None).form())
+                    .flex_1()
+                    .min_w(px(0.)),
+            )
     }
 
     fn toolbar(&self, c: &Ctx, cx: &mut Context<Self>) -> Div {
@@ -81,7 +67,7 @@ impl AsrEditor {
                 c.t(Tr::AsrEditorUndo),
                 Ic::Undo,
                 cbk(cx, |this: &mut Self, w, cx| {
-                    this.source.read(cx).focus_handle(cx).focus(w, cx);
+                    this.focus_source(w, cx);
                     w.dispatch_action(Box::new(Undo), cx);
                 }),
             ))
@@ -91,7 +77,7 @@ impl AsrEditor {
                 c.t(Tr::AsrEditorRedo),
                 Ic::Redo,
                 cbk(cx, |this: &mut Self, w, cx| {
-                    this.source.read(cx).focus_handle(cx).focus(w, cx);
+                    this.focus_source(w, cx);
                     w.dispatch_action(Box::new(Redo), cx);
                 }),
             ))
@@ -101,7 +87,7 @@ impl AsrEditor {
                 c.t(Tr::AsrEditorCopy),
                 Ic::Copy,
                 cbk(cx, |this: &mut Self, _, cx| {
-                    cx.write_to_clipboard(ClipboardItem::new_string(this.source.read(cx).value().to_string()));
+                    cx.write_to_clipboard(ClipboardItem::new_string(this.draft().source.read(cx).value().to_string()));
                 }),
             ));
         div()
@@ -139,12 +125,13 @@ impl AsrEditor {
 
     fn code_box(&self, c: &Ctx, cx: &App) -> Stateful<Div> {
         let p = &c.p;
-        let source = self.source.read(cx).value().to_string();
+        let source = &self.draft().source;
+        let text_now = source.read(cx).value().to_string();
         div()
             .w_full()
             .id("asr-source-field")
-            .on_mouse_down_out(ui::blur_on_outside(self.source.read(cx).focus_handle(cx)))
-            .on_mouse_down(MouseButton::Left, ui::focus_on_click(self.source.read(cx).focus_handle(cx)))
+            .on_mouse_down_out(ui::blur_on_outside(source.read(cx).focus_handle(cx)))
+            .on_mouse_down(MouseButton::Left, ui::focus_on_click(source.read(cx).focus_handle(cx)))
             .h(px(360.))
             .flex_none()
             .flex()
@@ -156,7 +143,7 @@ impl AsrEditor {
             .overflow_hidden()
             .child(
                 div().flex_1().min_h(px(0.)).child(
-                    Editor::new(&self.source)
+                    Editor::new(source)
                         .appearance(false)
                         .bordered(false)
                         .h_full()
@@ -175,7 +162,7 @@ impl AsrEditor {
                     .border_t_1()
                     .border_color(p.border)
                     .child(text(
-                        c.t(Tr::FmtAsrLineCount).replace("{count}", &source.lines().count().max(1).to_string()),
+                        c.t(Tr::FmtAsrLineCount).replace("{count}", &text_now.lines().count().max(1).to_string()),
                         12.,
                         FontWeight::NORMAL,
                         p.muted,
@@ -185,14 +172,15 @@ impl AsrEditor {
 
     fn validation_card(&self, c: &Ctx) -> Div {
         let p = &c.p;
-        let status = if self.pending {
+        let draft = self.draft();
+        let status = if draft.pending {
             c.t(Tr::AsrEditorPending).to_string()
         } else {
-            self.error.clone().unwrap_or_else(|| c.t(Tr::AsrEditorValid).to_string())
+            draft.error.clone().unwrap_or_else(|| c.t(Tr::AsrEditorValid).to_string())
         };
-        let dot = if self.error.is_some() {
+        let dot = if draft.error.is_some() {
             p.danger
-        } else if self.pending {
+        } else if draft.pending {
             p.muted
         } else {
             p.success
@@ -207,23 +195,40 @@ impl AsrEditor {
             .flex()
             .items_start()
             .gap(px(8.))
-            .child(div().size(px(7.)).mt(px(6.)).flex_none().rounded_full().bg(dot))
-            .child(text(status, 13., FontWeight::NORMAL, p.text).line_height(px(20.)))
+            .child(div().size(px(7.)).mt(px(7.)).flex_none().rounded_full().bg(dot))
+            .child(text(status, 13., FontWeight::NORMAL, p.text).line_height(px(21.)))
     }
 
+    /// The test status on the left; on the right the trash, the test and the help. The trash deletes the configuration
+    /// the form shows and is disabled while it is the only one.
     fn connection_footer(&self, c: &Ctx, cx: &mut Context<Self>) -> Div {
         let p = &c.p;
+        let test = &self.draft().test;
         let mut status = div()
             .flex_1()
             .min_w(px(0.))
             .flex()
             .flex_col()
             .gap(px(6.))
-            .child(crate::settings::models::test_status(c, &self.test));
-        if let ui::TestState::Failed(message) = &self.test {
+            .child(crate::settings::models::test_status(c, test));
+        if let ui::TestState::Failed(message) = test {
             status = status.child(text(ui::error_line(c.lang, message), 12., FontWeight::NORMAL, p.text));
         }
-        let ready = self.can_test(cx);
+        let ready = self.can_test(&self.shown, cx);
+        let trash = if configuration_list::of(&self.st.cfg.get()).profiles.len() > 1 {
+            editor_icon(
+                "asr-delete",
+                p,
+                c.t(Tr::ModelsDelete),
+                Ic::Trash,
+                cbk(cx, |this: &mut Self, window, cx| {
+                    let id = this.shown.clone();
+                    this.delete_configuration(&id, window, cx);
+                }),
+            )
+        } else {
+            ui::disabled_icon_button("asr-delete", p, Ic::Trash)
+        };
         div()
             .w_full()
             .pt(px(16.))
@@ -238,6 +243,7 @@ impl AsrEditor {
                     .flex()
                     .items_center()
                     .gap(px(10.))
+                    .child(trash)
                     .child(
                         ui::button(
                             "asr-test",

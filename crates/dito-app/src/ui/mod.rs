@@ -4,7 +4,6 @@ mod appearance_seg;
 mod banner;
 mod button;
 mod callbacks;
-#[cfg_attr(not(feature = "screenshots"), expect(dead_code, reason = "the Models page adopts the tile row later"))]
 mod config_tiles;
 mod format;
 mod glass;
@@ -39,13 +38,9 @@ pub use appearance_seg::appearance_seg;
 pub use banner::{BannerAction, banner};
 pub use button::{
     BtnKind, BtnSize, CONTROL_H, CircleAppearance, CircleSize, bare_icon_button, button, button_with, circle_control,
-    close_button, disabled_button, icon_button, icon_button_with,
+    close_button, disabled_button, disabled_icon_button, icon_button, icon_button_with,
 };
 pub use callbacks::{Cb, cbk, cbk_idx, click_cb};
-#[cfg_attr(
-    not(feature = "screenshots"),
-    expect(unused_imports, reason = "the Models page adopts the tile row later")
-)]
 pub use config_tiles::{ConfigTile, TilePlus, TileRowState, cbk_id, cbk_move, tile_row};
 pub use format::{error_line, error_summary, fmt_bytes, fmt_eta, history_style_label};
 pub use glass::{prepare as prepare_card_backdrop, wordmark as page_wordmark};
@@ -64,7 +59,7 @@ pub use menu_button::menu_button;
 pub use modal::modal_layer;
 pub use motion::Motion;
 pub use plate::{GLASS_MS, coverage, plate_state};
-pub use popup_menu::{MenuItem, MenuTone, popup_menu, popup_menu_grouped};
+pub use popup_menu::{AddEntry, MenuItem, MenuTone, add_menu, popup_menu, popup_menu_grouped};
 pub use primitives::{hex_alpha, icon, mix, mix_rgb, transparent, white};
 pub use progress_bar::progress_bar;
 pub use radio::radio;
