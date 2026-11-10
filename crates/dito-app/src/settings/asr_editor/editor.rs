@@ -253,6 +253,7 @@ impl AsrEditor {
         if key_changed {
             let result =
                 if key.is_empty() { self.st.secrets.delete(&account) } else { self.st.secrets.set(&account, &key) };
+            self.st.factory.invalidate_engines();
             if let Err(e) = result {
                 self.error = Some(e.to_string());
                 return;
@@ -276,6 +277,7 @@ impl AsrEditor {
                 } else {
                     self.st.secrets.set(&account, previous)
                 };
+                self.st.factory.invalidate_engines();
                 if let Err(error) = rollback {
                     tracing::warn!(%error, "could not restore the previous ASR key");
                 }
