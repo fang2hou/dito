@@ -44,6 +44,12 @@ enum State {
         cancel: CancellationToken,
         models: Models,
     },
+    /// The text is being typed on the blocking pool and only `Msg::Delivered` leaves this state. Insertion cannot be
+    /// cancelled, so commands are ignored except a key press, which waits for the outcome.
+    Delivering {
+        /// The shortcut went down meanwhile; in hold mode, releasing it again clears this.
+        key_down: bool,
+    },
     /// Terminal HUD state being shown (success flash or error). `clip` allows retry.
     Showing {
         clip: Option<(Arc<AudioClip>, Meta)>,
@@ -152,6 +158,7 @@ impl Actor {
                 }
             }
             Msg::Done(g, r) if g == self.epoch => self.done(r),
+            Msg::Delivered(g, delivery) if g == self.epoch => self.delivered(delivery),
             Msg::Hide(g, generation)
                 if g == self.epoch
                     && generation == self.hide_generation
@@ -183,6 +190,15 @@ impl Actor {
             }
             (State::Showing { .. }, Command::Retry) => self.retry(),
             (State::Showing { .. }, Command::Dismiss | Command::Cancel) => self.go_idle(),
+            // Insertion cannot be cancelled and a partial one is never retried, so every command but a key press is
+            // ignored. One press is kept and starts listening once the outcome is shown.
+            (State::Delivering { .. }, Command::KeyDown) => self.state = State::Delivering { key_down: true },
+            // Hold mode ends a recording on release, so a press that is already over must not start one.
+            (State::Delivering { .. }, Command::KeyUp) if mode == RecordMode::Hold => {
+                self.state = State::Delivering { key_down: false }
+            }
+            // A cancel cannot stop the insertion, but it withdraws a press made during it.
+            (State::Delivering { .. }, Command::Cancel) => self.state = State::Delivering { key_down: false },
             _ => {}
         }
     }
@@ -309,15 +325,38 @@ impl Actor {
         }
     }
 
+    /// Saves the dictation, then types it on the blocking pool: the platform sink sleeps while it polls focus and
+    /// restores the clipboard, and the actor must keep serving commands meanwhile. History is queued before the
+    /// insertion starts, so a crash while typing does not lose the text.
     fn deliver(&mut self, meta: &Meta, clip: &Arc<AudioClip>, out: &Output) {
-        let method = self.deps.config.get().general.insert_method;
-        let delivery = self.deps.env.sink.deliver(out.text(), method);
         let polish_error = out.polish_error.as_ref().map(ToString::to_string);
         self.record_history(meta, clip, HistoryKind::Dictation, Some(out), polish_error);
+        let method = self.deps.config.get().general.insert_method;
+        let (sink, text) = (self.deps.env.sink.clone(), out.text().to_owned());
+        let inserting = tokio::task::spawn_blocking(move || sink.deliver(&text, method));
+        let (tx, epoch) = (self.tx.clone(), self.epoch);
+        tokio::spawn(async move {
+            // A panicking sink must not leave the actor waiting for a result that never comes.
+            let delivery = inserting.await.unwrap_or_else(|error| {
+                tracing::warn!(operation = "deliver text", %error, "insertion task failed");
+                Delivery::Failed(error.to_string())
+            });
+            let _ = tx.send(Msg::Delivered(epoch, delivery));
+        });
+        self.state = State::Delivering { key_down: false };
+    }
+
+    /// The insertion is over: show how it went, then start the recording whose key press was held back meanwhile.
+    fn delivered(&mut self, delivery: Delivery) {
+        let State::Delivering { key_down } = self.state else { return };
         match delivery {
             Delivery::Inserted => self.show_outcome(HudState::Inserted, SUCCESS_FLASH),
             Delivery::Copied => self.show_outcome(HudState::Copied, COPIED_FLASH),
             Delivery::Failed(detail) => self.show_error(ErrorKind::Other, detail, ErrorAction::Retry, None),
+        }
+        if key_down {
+            let mode = self.deps.config.get().general.record_mode;
+            self.start_listening(mode);
         }
     }
 
