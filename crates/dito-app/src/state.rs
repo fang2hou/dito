@@ -81,14 +81,14 @@ impl AppState {
         let secrets: Arc<dyn SecretStore> =
             if opts.mock { Arc::new(MemorySecrets::default()) } else { Arc::new(KeychainSecrets::new()) };
         #[cfg(feature = "mock")]
-        let mock_speech = mock_server.as_ref().map(|server| dito_testkit::mock_asr_profile(&server.url));
+        let mock_speech = mock_server.as_ref().map(|server| dito_testkit::mock_cloud_asr_config(&server.url));
         #[cfg(not(feature = "mock"))]
         let mock_speech = None;
         let factory = Arc::new(
             EngineFactory::new(secrets.clone())
                 .with_local(local.clone())
                 .with_bedrock_endpoint(std::env::var("DITO_BEDROCK_ENDPOINT").ok())
-                .with_speech_profile(mock_speech),
+                .with_speech_config(mock_speech),
         );
         let capture = open_capture(&opts, &cfg);
         let recorder = pick_recorder(&opts, capture.as_ref())?;

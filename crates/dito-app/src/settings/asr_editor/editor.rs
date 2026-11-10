@@ -154,7 +154,7 @@ impl AsrEditor {
     fn sync(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let config = self.st.cfg.get();
         let list = configuration_list::of(&config);
-        self.drafts.retain(|id, _| list.profiles.iter().any(|profile| profile.id == *id));
+        self.drafts.retain(|id, _| list.items.iter().any(|configuration| configuration.id == *id));
         let id = list.selected_id();
         if self.shown != id {
             self.show(id, window, cx);
@@ -165,9 +165,9 @@ impl AsrEditor {
     fn show(&mut self, id: &str, window: &mut Window, cx: &mut Context<Self>) {
         let config = self.st.cfg.get();
         let list = configuration_list::of(&config);
-        let Some(profile) = list.profiles.iter().find(|profile| profile.id == id) else { return };
-        self.start_draft(profile, window, cx);
-        self.name.update(cx, |input, cx| input.set_value(profile.name.clone(), window, cx));
+        let Some(configuration) = list.items.iter().find(|configuration| configuration.id == id) else { return };
+        self.start_draft(configuration, window, cx);
+        self.name.update(cx, |input, cx| input.set_value(configuration.name.clone(), window, cx));
         let key = self.drafts[id].key.clone();
         self.key.update(cx, |input, cx| input.set_value(key, window, cx));
         self.shown = id.to_owned();
@@ -175,12 +175,12 @@ impl AsrEditor {
         cx.notify();
     }
 
-    /// The draft of `profile`, from what is saved: its request JSON in an editor of its own, and its key.
-    fn start_draft(&mut self, profile: &CloudAsrConfiguration, window: &mut Window, cx: &mut Context<Self>) {
-        if self.drafts.contains_key(&profile.id) {
+    /// The draft of `configuration`, from what is saved: its request JSON in an editor of its own, and its key.
+    fn start_draft(&mut self, configuration: &CloudAsrConfiguration, window: &mut Window, cx: &mut Context<Self>) {
+        if self.drafts.contains_key(&configuration.id) {
             return;
         }
-        let text = serde_json::to_string_pretty(&profile.config).expect("profiles are JSON");
+        let text = serde_json::to_string_pretty(&configuration.config).expect("configurations are JSON");
         let source = cx.new(|cx| {
             EditorState::new(window, cx)
                 .language("json")
@@ -188,17 +188,17 @@ impl AsrEditor {
                 .scroll_beyond_last_line(Some(0))
                 .default_value(text.clone())
         });
-        let owner = profile.id.clone();
+        let owner = configuration.id.clone();
         cx.subscribe_in(&source, window, move |this, _, event: &InputEvent, _, cx| {
             if matches!(event, InputEvent::Change) {
                 this.edited(&owner, cx);
             }
         })
         .detach();
-        let key = self.st.secrets.get(&profile.account()).unwrap_or_default();
+        let key = self.st.secrets.get(&configuration.account()).unwrap_or_default();
         let error = check(&text, self.st.cfg.get().general.lang()).err();
         self.drafts.insert(
-            profile.id.clone(),
+            configuration.id.clone(),
             Draft {
                 source,
                 saved_key: key.clone(),
@@ -228,7 +228,11 @@ impl AsrEditor {
         }
         let config = self.st.cfg.get();
         let list = configuration_list::of(&config);
-        let saved = list.profiles.iter().find(|profile| profile.id == self.shown).map(|profile| profile.name.clone());
+        let saved = list
+            .items
+            .iter()
+            .find(|configuration| configuration.id == self.shown)
+            .map(|configuration| configuration.name.clone());
         self.name.update(cx, |input, cx| input.set_value(saved.unwrap_or_default(), window, cx));
     }
 
@@ -375,14 +379,14 @@ impl AsrEditor {
         let lang = self.st.cfg.get().general.lang();
         let language = self.st.cfg.get().general.preferred_language;
         let Some(draft) = self.drafts.get_mut(&id) else { return };
-        let Ok(profile) = check(draft.source.read(cx).value().as_ref(), lang) else { return };
+        let Ok(config) = check(draft.source.read(cx).value().as_ref(), lang) else { return };
         let (key, revision) = (draft.key.clone(), draft.revision);
         draft.tested_language = Some(language);
         draft.test = ui::TestState::Running;
         cx.notify();
         let st = self.st.clone();
         cx.spawn(async move |this, cx| {
-            let outcome = crate::services::test_asr_draft(st, profile, key, language).await;
+            let outcome = crate::services::test_asr_draft(st, config, key, language).await;
             let _ = this.update(cx, |this, cx| {
                 let same_language = this.st.cfg.get().general.preferred_language == language;
                 if let Some(draft) = this.drafts.get_mut(&id)

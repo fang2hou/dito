@@ -4,10 +4,10 @@ use serde_json::Value;
 use super::list::{Entry, List};
 use crate::secrets::asr_account;
 
-/// A bundled request JSON a cloud speech profile can start from.
+/// A bundled request JSON a cloud speech configuration can start from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CloudAsrTemplate {
-    /// Saved in the settings as the id of the profile made first from it, and part of that profile's Keychain account,
+    /// Saved in the settings as the id of the configuration made first from it, and part of that configuration's Keychain account,
     /// so it never changes once shipped; a new template is a new row.
     pub id: &'static str,
     pub name: &'static str,
@@ -39,15 +39,15 @@ impl CloudAsrTemplate {
         serde_json::from_str(self.config).expect("bundled ASR template")
     }
 
-    fn profile(self, id: &str, name: &str) -> CloudAsrConfiguration {
+    fn configuration(self, id: &str, name: &str) -> CloudAsrConfiguration {
         CloudAsrConfiguration { id: id.into(), name: name.into(), config: self.config() }
     }
 }
 
-/// One cloud speech connection the user can pick.
+/// One saved cloud speech configuration the user can pick: a name, the request JSON and, outside it, a Keychain key.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CloudAsrConfiguration {
-    /// Stable identity; also the suffix of the profile's Keychain account.
+    /// Stable identity; also the suffix of the configuration's Keychain account.
     pub id: String,
     pub name: String,
     #[serde(with = "config_json")]
@@ -55,7 +55,7 @@ pub struct CloudAsrConfiguration {
 }
 
 impl CloudAsrConfiguration {
-    /// Keychain account of this profile's API key.
+    /// Keychain account of this configuration's API key.
     pub fn account(&self) -> String {
         asr_account(&self.id)
     }
@@ -74,71 +74,74 @@ impl Entry for CloudAsrConfiguration {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct CloudAsrConfigurations {
-    /// Id of the active profile.
+    /// Id of the active configuration.
     pub selected: String,
-    pub profiles: Vec<CloudAsrConfiguration>,
+    pub items: Vec<CloudAsrConfiguration>,
 }
 
 impl Default for CloudAsrConfigurations {
     fn default() -> Self {
-        let profiles: Vec<CloudAsrConfiguration> =
-            CloudAsrTemplate::ALL.iter().map(|template| template.profile(template.id, template.name)).collect();
-        Self { selected: profiles[0].id.clone(), profiles }
+        let items: Vec<CloudAsrConfiguration> =
+            CloudAsrTemplate::ALL.iter().map(|template| template.configuration(template.id, template.name)).collect();
+        Self { selected: items[0].id.clone(), items }
     }
 }
 
 impl CloudAsrConfigurations {
-    fn selected_profile(&self) -> Option<&CloudAsrConfiguration> {
-        self.profiles.iter().find(|profile| profile.id == self.selected)
+    fn selected_configuration(&self) -> Option<&CloudAsrConfiguration> {
+        self.items.iter().find(|configuration| configuration.id == self.selected)
     }
 
     fn list(&mut self) -> List<'_, CloudAsrConfiguration> {
-        List::new(&mut self.selected, &mut self.profiles)
+        List::new(&mut self.selected, &mut self.items)
     }
 
-    /// Config of the selected profile, `Null` when no profile has the selected id; validation rejects that before a
+    /// Config of the selected configuration, `Null` when no configuration has the selected id; validation rejects that before a
     /// request is made.
     pub fn active(&self) -> &Value {
-        self.selected_profile().map_or(&Value::Null, |profile| &profile.config)
+        self.selected_configuration().map_or(&Value::Null, |configuration| &configuration.config)
     }
 
     pub fn active_mut(&mut self) -> Option<&mut Value> {
         let selected = &self.selected;
-        self.profiles.iter_mut().find(|profile| profile.id == *selected).map(|profile| &mut profile.config)
+        self.items
+            .iter_mut()
+            .find(|configuration| configuration.id == *selected)
+            .map(|configuration| &mut configuration.config)
     }
 
     pub fn active_name(&self) -> Option<&str> {
-        self.selected_profile().map(|profile| profile.name.as_str())
+        self.selected_configuration().map(|configuration| configuration.name.as_str())
     }
 
-    /// Keychain account of the selected profile's key: its id behind a fixed prefix, which for the bundled profiles is
-    /// the account name they had while profiles were identified by position.
+    /// Keychain account of the selected configuration's key: its id behind a fixed prefix, which for the bundled configurations is
+    /// the account name they had while configurations were identified by position.
     pub fn account(&self) -> String {
         asr_account(&self.selected)
     }
 
-    /// Id of the selected profile, or of the first one when no profile has the selected id.
+    /// Id of the selected configuration, or of the first one when no configuration has the selected id.
     pub fn selected_id(&self) -> &str {
-        self.selected_profile().or(self.profiles.first()).map_or("", |profile| profile.id.as_str())
+        self.selected_configuration().or(self.items.first()).map_or("", |configuration| configuration.id.as_str())
     }
 
-    /// Make `id` the profile in use. An unknown id changes nothing.
+    /// Make `id` the configuration in use. An unknown id changes nothing.
     pub fn select(&mut self, id: &str) -> bool {
         self.list().select(id)
     }
 
-    /// Append a profile that starts from `template`, select it and return its id.
+    /// Append a configuration that starts from `template`, select it and return its id.
     pub fn add_from_template(&mut self, template: CloudAsrTemplate, name: &str) -> String {
         let id = self.list().fresh_id(template.id);
-        self.list().push(template.profile(&id, name));
+        self.list().push(template.configuration(&id, name));
         id
     }
 
     /// Append a copy of `id` under a new id, select it and return that id. The key is not copied: it belongs to the
     /// source's Keychain account.
     pub fn duplicate(&mut self, id: &str, name: &str) -> Option<String> {
-        let mut copy = self.profiles.iter().find(|profile| profile.id == id)?.clone();
-        // A profile made earlier carries a random suffix after the id of its template: a copy starts from the template.
+        let mut copy = self.items.iter().find(|configuration| configuration.id == id)?.clone();
+        // A configuration made earlier carries a random suffix after the id of its template: a copy starts from the template.
         let base = copy.id.split('-').next().unwrap_or(&copy.id);
         copy.id = self.list().fresh_id(base);
         copy.name = name.to_owned();
@@ -147,9 +150,9 @@ impl CloudAsrConfigurations {
         Some(id)
     }
 
-    /// Take a profile out of the list and return it. Its key is still under its `account()`:
-    /// `ConfigStore::remove_cloud_asr_configuration` removes both, deleting the key only once the list is saved. The last profile
-    /// stays, so this returns `None` for it. When the profile in use goes, its neighbour is selected.
+    /// Take a configuration out of the list and return it. Its key is still under its `account()`:
+    /// `ConfigStore::remove_cloud_asr_configuration` removes both, deleting the key only once the list is saved. The last configuration
+    /// stays, so this returns `None` for it. When the configuration in use goes, its neighbour is selected.
     pub fn remove(&mut self, id: &str) -> Option<CloudAsrConfiguration> {
         self.list().remove(id)
     }
@@ -188,13 +191,16 @@ mod tests {
 
     impl Editable for CloudAsrConfigurations {
         fn ids(&self) -> Vec<String> {
-            self.profiles.iter().map(|profile| profile.id.clone()).collect()
+            self.items.iter().map(|configuration| configuration.id.clone()).collect()
         }
         fn selected(&self) -> String {
             self.selected.clone()
         }
         fn name_of(&self, id: &str) -> Option<String> {
-            self.profiles.iter().find(|profile| profile.id == id).map(|profile| profile.name.clone())
+            self.items
+                .iter()
+                .find(|configuration| configuration.id == id)
+                .map(|configuration| configuration.name.clone())
         }
         fn select(&mut self, id: &str) -> bool {
             CloudAsrConfigurations::select(self, id)
@@ -223,26 +229,26 @@ mod tests {
 
     #[test]
     fn the_defaults_are_the_bundled_templates_with_their_ids_as_accounts() {
-        let profiles = CloudAsrConfigurations::default();
-        let identities: Vec<_> = profiles.profiles.iter().map(|p| (p.id.as_str(), p.name.as_str())).collect();
+        let configurations = CloudAsrConfigurations::default();
+        let identities: Vec<_> = configurations.items.iter().map(|p| (p.id.as_str(), p.name.as_str())).collect();
         assert_eq!(identities, [("funasr", "FunASR"), ("qwen_asr", "Qwen ASR"), ("openrouter", "OpenRouter")]);
-        assert_eq!(profiles.selected, "funasr");
-        assert_eq!(profiles.account(), "asr.funasr");
-        assert_eq!(profiles.profiles[2].account(), "asr.openrouter");
+        assert_eq!(configurations.selected, "funasr");
+        assert_eq!(configurations.account(), "asr.funasr");
+        assert_eq!(configurations.items[2].account(), "asr.openrouter");
     }
 
     #[test]
-    fn a_new_profile_starts_from_its_template_and_a_duplicate_copies_the_edited_config() {
-        let mut profiles = CloudAsrConfigurations::default();
+    fn a_new_configuration_starts_from_its_template_and_a_duplicate_copies_the_edited_config() {
+        let mut configurations = CloudAsrConfigurations::default();
         let template = CloudAsrTemplate::ALL[1];
-        let added = profiles.add_from_template(template, "Mine");
+        let added = configurations.add_from_template(template, "Mine");
         assert!(added.starts_with("qwen_asr-"), "{added}");
-        assert_eq!(profiles.active(), &template.config());
+        assert_eq!(configurations.active(), &template.config());
 
-        profiles.active_mut().unwrap()["connection"]["model"] = "edited".into();
-        let copy = profiles.duplicate(&added, "Mine too").unwrap();
+        configurations.active_mut().unwrap()["connection"]["model"] = "edited".into();
+        let copy = configurations.duplicate(&added, "Mine too").unwrap();
         assert!(copy.starts_with("qwen_asr-") && copy != added, "a copy of a copy starts from the template id: {copy}");
-        assert_eq!(profiles.active()["connection"]["model"], "edited");
-        assert_ne!(profiles.account(), format!("asr.{added}"), "the copy has a key of its own");
+        assert_eq!(configurations.active()["connection"]["model"], "edited");
+        assert_ne!(configurations.account(), format!("asr.{added}"), "the copy has a key of its own");
     }
 }

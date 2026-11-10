@@ -44,11 +44,11 @@ fn engine_key(engine: &EngineConfig, asr: bool) -> u64 {
         Source::Local => ("local", &engine.local_model).hash(&mut key),
         Source::Provider => {
             if asr {
-                // Provider speech always runs the active cloud profile, the default set when none is saved.
-                let profiles = engine.cloud_asr.clone().unwrap_or_default();
-                ("profile", &profiles.selected, profiles.active().to_string()).hash(&mut key);
+                // Cloud speech always runs the active configuration, the bundled set when none is saved.
+                let configurations = engine.cloud_asr.clone().unwrap_or_default();
+                ("configuration", &configurations.selected, configurations.active().to_string()).hash(&mut key);
             } else {
-                // Provider polish always runs the active configuration, the templates' when none is saved. A new
+                // Cloud polish always runs the active configuration, the templates' when none is saved. A new
                 // model or other parameters start a new estimate; the name does not.
                 let active = engine.active_polish().map(|c| (c.id.clone(), format!("{:?}{:?}", c.target, c.params)));
                 ("configuration", active).hash(&mut key);

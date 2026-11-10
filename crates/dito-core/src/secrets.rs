@@ -26,7 +26,7 @@ pub fn polish_account(id: &str) -> String {
     format!("polish.{id}")
 }
 
-/// Keychain account of the key of the cloud speech profile `id`.
+/// Keychain account of the key of the cloud speech configuration `id`.
 pub fn asr_account(id: &str) -> String {
     format!("asr.{id}")
 }

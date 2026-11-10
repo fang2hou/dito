@@ -35,11 +35,11 @@ impl Settings {
     ) -> SharedString {
         match e.source {
             Source::Provider => {
-                let profiles = role::cloud_profiles(role, e);
-                let configurations = e.polish_configurations(lang);
-                let name = match profiles.as_deref() {
-                    Some(profiles) => profiles.active_name(),
-                    None => configurations.active().map(|configuration| configuration.name.as_str()),
+                let asr_configurations = role::cloud_asr_configurations(role, e);
+                let polish_configurations = e.polish_configurations(lang);
+                let name = match asr_configurations.as_deref() {
+                    Some(configurations) => configurations.active_name(),
+                    None => polish_configurations.active().map(|configuration| configuration.name.as_str()),
                 };
                 SharedString::from(name.unwrap_or_else(|| lang.tr(Tr::ModelsProvider)).to_owned())
             }

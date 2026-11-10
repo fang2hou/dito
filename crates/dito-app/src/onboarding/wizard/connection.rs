@@ -85,16 +85,16 @@ impl Onboarding {
                 v["connection"]["model"] = model.into();
             }
         });
-        let profiles = self.st.cfg.get().asr.cloud_asr.clone().unwrap_or_default();
+        let configurations = self.st.cfg.get().asr.cloud_asr.clone().unwrap_or_default();
         let key = self.key.read(cx).value().to_string();
-        services::store_secret(&self.st, &profiles.account(), &key);
+        services::store_secret(&self.st, &configurations.account(), &key);
     }
 
     pub(in crate::onboarding) fn run_test(&mut self, cx: &mut Context<Self>) {
         let req = self.reqs.begin();
         self.apply_cloud_asr(cx);
-        let profiles = self.st.cfg.get().asr.cloud_asr.clone().unwrap_or_default();
-        if dito_core::provider::configured_asr::validate(profiles.active()).is_err() {
+        let configurations = self.st.cfg.get().asr.cloud_asr.clone().unwrap_or_default();
+        if dito_core::provider::configured_asr::validate(configurations.active()).is_err() {
             return;
         }
         self.test = TestState::Running;

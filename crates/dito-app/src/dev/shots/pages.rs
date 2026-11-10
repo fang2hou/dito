@@ -445,12 +445,12 @@ fn apply_model_case(st: &AppState, appearance: Appearance, case: &ModelCase) {
         c.asr.source = if case.local { Source::Local } else { Source::Provider };
         c.polish.engine.source = c.asr.source;
         c.polish.engine.polish_configurations_mut(c.general.lang()).select(["azure", "bedrock", "compat"][case.preset]);
-        let mut profiles = CloudAsrConfigurations::default();
-        profiles.select(["funasr", "qwen_asr", "openrouter"][case.preset]);
-        for profile in &mut profiles.profiles {
-            profile.config["connection"]["model"] = "my-asr-model".into();
+        let mut configurations = CloudAsrConfigurations::default();
+        configurations.select(["funasr", "qwen_asr", "openrouter"][case.preset]);
+        for configuration in &mut configurations.items {
+            configuration.config["connection"]["model"] = "my-asr-model".into();
         }
-        c.asr.cloud_asr = Some(profiles);
+        c.asr.cloud_asr = Some(configurations);
     });
 }
 

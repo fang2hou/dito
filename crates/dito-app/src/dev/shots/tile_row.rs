@@ -21,7 +21,7 @@ const ROW_CENTRE: f32 = 53.;
 /// The scrolling area is 672 wide: 720, less the 12 gap and the 36 plus button.
 const VIEW_W: f32 = 672.;
 const PLUS_CENTRE: f32 = ROW_LEFT + VIEW_W + 12. + 18.;
-const TEMPLATES: [Tr; 3] = [Tr::ModelsOpenaiCompatible, Tr::ModelsProviderAzure, Tr::ModelsProviderBedrock];
+const TEMPLATES: [Tr; 3] = [Tr::ModelsOpenaiCompatible, Tr::ModelsAzureOpenai, Tr::ModelsAmazonBedrock];
 
 struct Item {
     id: SharedString,
@@ -38,8 +38,8 @@ fn samples() -> Vec<Item> {
     let name = |tr: Tr| Lang::Ja.tr(tr);
     vec![
         item("compat", name(Tr::ModelsOpenaiCompatible), "openai/gpt-4o-mini"),
-        item("azure", name(Tr::ModelsProviderAzure), "gpt-6.1-terra"),
-        item("bedrock", name(Tr::ModelsProviderBedrock), "apac.anthropic.claude-sonnet-4-20250514-v1:0"),
+        item("azure", name(Tr::ModelsAzureOpenai), "gpt-6.1-terra"),
+        item("bedrock", name(Tr::ModelsAmazonBedrock), "apac.anthropic.claude-sonnet-4-20250514-v1:0"),
         item("long", "Long input", "openai/gpt-4.1"),
         item("lab", "Experiment", "openai/gpt-4.1-nano"),
     ]

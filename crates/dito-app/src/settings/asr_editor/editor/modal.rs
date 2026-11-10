@@ -146,8 +146,11 @@ impl AsrEditor {
             cbk(cx, |this: &mut Self, _, cx| {
                 let config = this.st.cfg.get();
                 let list = configuration_list::of(&config);
-                let name =
-                    list.profiles.iter().find(|profile| profile.id == this.shown).map_or("", |p| p.name.as_str());
+                let name = list
+                    .items
+                    .iter()
+                    .find(|configuration| configuration.id == this.shown)
+                    .map_or("", |p| p.name.as_str());
                 let request = this.draft().source.read(cx).value().to_string();
                 cx.write_to_clipboard(ClipboardItem::new_string(
                     dito_core::provider::configured_asr::configuration_spec(config.general.lang(), name, &request),

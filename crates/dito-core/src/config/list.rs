@@ -1,4 +1,4 @@
-//! The editing behavior the polish configurations and the cloud speech profiles share: an ordered list of entries with
+//! The editing behavior the polish configurations and the cloud speech configurations share: an ordered list of entries with
 //! stable ids, and the id of the one in use.
 
 use std::hash::{BuildHasher, RandomState};

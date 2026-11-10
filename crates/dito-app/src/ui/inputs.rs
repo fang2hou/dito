@@ -87,7 +87,7 @@ fn field_chrome_with(id: impl Into<ElementId>, p: &Palette, focused: bool, inval
     with_ring(base, id, focused, 12., rest, on)
 }
 
-/// The taller connection-form field, on the form field surface.
+/// The taller configuration-form field, on the form field surface.
 pub(super) fn form_chrome(id: impl Into<ElementId>, p: &Palette, focused: bool, invalid: bool) -> Div {
     let base = div().h(px(40.)).px(px(14.)).flex().items_center().gap(px(8.)).rounded(px(8.)).bg(p.field_bg);
     let (rest, on) = ring_colors(p, p.field_border, invalid);
@@ -112,7 +112,7 @@ pub struct TextInput {
 }
 
 impl TextInput {
-    /// Use the connection-form look (see [`form_field`]).
+    /// Use the configuration-form look (see [`form_field`]).
     pub fn form(mut self) -> Self {
         self.form = true;
         self
@@ -170,7 +170,7 @@ pub fn field(p: &Palette, label: impl Into<SharedString>, control: impl IntoElem
     div().flex().flex_col().gap(px(8.)).child(text(label, 13., FontWeight::MEDIUM, p.text)).child(control)
 }
 
-/// A connection-form field: a quieter caption on a 20 pt line above a [`TextInput::form`] control, 8 pt below it.
+/// A configuration-form field: a quieter caption on a 20 pt line above a [`TextInput::form`] control, 8 pt below it.
 pub fn form_field(p: &Palette, label: impl Into<SharedString>, control: impl IntoElement) -> Div {
     div()
         .flex()

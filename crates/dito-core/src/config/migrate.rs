@@ -15,7 +15,7 @@ const VERSION_KEY: &str = "schema_version";
 
 /// `MIGRATIONS[n]` upgrades a table from version `n` to version `n + 1`. The array length is tied to `SCHEMA_VERSION`,
 /// so the compiler rejects a version bump that comes without its migration.
-const MIGRATIONS: [fn(&mut Table); SCHEMA_VERSION as usize] = [herdr_defaults, asr_profile_ids, polish_configurations];
+const MIGRATIONS: [fn(&mut Table); SCHEMA_VERSION as usize] = [herdr_defaults, asr_profile_ids, cloud_configurations];
 
 /// Why a table was not upgraded. Either way the file must stay as it is.
 #[derive(Debug, PartialEq)]
@@ -122,7 +122,33 @@ fn identify_profiles(cloud: &mut Table) {
     }
 }
 
-/// 2 to 3: the three provider forms of the polish engine become cloud polish configurations that carry their own
+/// 2 to 3: cloud speech and cloud polish both keep their saved configurations as `items`. The two steps below do not
+/// depend on each other.
+fn cloud_configurations(table: &mut Table) {
+    speech_items(table);
+    polish_configurations(table);
+}
+
+/// In every `cloud_asr` table, the list version 2 wrote as `profiles` is renamed `items`, the key the polish
+/// configurations use. The entries are moved as they are, so every request JSON string stays byte for byte. A table
+/// that already has `items` is left alone.
+fn speech_items(table: &mut Table) {
+    for section in ["asr", "polish"] {
+        let cloud = table
+            .get_mut(section)
+            .and_then(Value::as_table_mut)
+            .and_then(|engine| engine.get_mut("cloud_asr"))
+            .and_then(Value::as_table_mut);
+        if let Some(cloud) = cloud
+            && !cloud.contains_key("items")
+            && let Some(list) = cloud.remove("profiles")
+        {
+            cloud.insert("items".into(), list);
+        }
+    }
+}
+
+/// The three provider forms of the polish engine become cloud polish configurations that carry their own
 /// request parameters, so several can be kept and the Bedrock sampling the engine hard-coded becomes a setting.
 /// `polish.provider` turns into `polish.cloud_polish`, holding `azure`, `bedrock` and `compat` in that order with `kind`
 /// as the selection; the ids keep the Keychain accounts `polish.azure` and `polish.compat` that hold the saved keys.
@@ -267,8 +293,8 @@ profiles = ['{first}', '{second}']
 "#
         ));
 
-        assert_eq!(upgrade(&mut legacy), Ok(1));
-        assert_eq!(legacy[VERSION_KEY].as_integer(), Some(i64::from(SCHEMA_VERSION)));
+        // Only this step: the later ones rename the list this one writes.
+        asr_profile_ids(&mut legacy);
         assert_eq!(legacy["onboarded"].as_bool(), Some(true), "unrelated settings are untouched");
         let cloud = &legacy["asr"]["cloud_asr"];
         assert_eq!(cloud["selected"].as_str(), Some("qwen_asr"), "position 1 becomes the id at position 1");
@@ -281,7 +307,7 @@ profiles = ['{first}', '{second}']
         let completed: serde_json::Value = serde_json::from_str(profiles[2]["config"].as_str().unwrap()).unwrap();
         assert_eq!(
             completed,
-            CloudAsrConfigurations::default().profiles[2].config,
+            CloudAsrConfigurations::default().items[2].config,
             "a missing profile starts from its template"
         );
     }
@@ -292,13 +318,86 @@ profiles = ['{first}', '{second}']
         for selected in ["3", "-1"] {
             let mut legacy =
                 parse(&format!("schema_version = 1\n[polish.cloud_asr]\nselected = {selected}\n{saved}\n"));
-            assert_eq!(upgrade(&mut legacy), Ok(1));
+            asr_profile_ids(&mut legacy);
             let cloud = &legacy["polish"]["cloud_asr"];
             assert_eq!(cloud["selected"].as_str(), Some("funasr"), "selected = {selected}");
             let configs: Vec<_> =
                 cloud["profiles"].as_array().unwrap().iter().map(|p| p["config"].as_str().unwrap()).collect();
             assert_eq!(configs, [r#"{"a":1}"#, r#"{"b":2}"#, r#"{"c":3}"#], "selected = {selected}");
         }
+    }
+
+    /// What version 2 wrote for cloud speech: a `profiles` list of `{ id, name, config }` tables, the config as the
+    /// compact JSON the app saves. The polish section can carry a list too, left over from before polishing had its own.
+    const V2_SPEECH: &str = r#"
+schema_version = 2
+onboarded = true
+
+[asr]
+source = "provider"
+
+[asr.cloud_asr]
+selected = "qwen_asr-3c9e"
+
+[[asr.cloud_asr.profiles]]
+id = "funasr"
+name = "FunASR"
+config = '{"connection":{"base_url":"https://a.example/v1","model":"paraformer-v2"},"version":1}'
+
+[[asr.cloud_asr.profiles]]
+id = "qwen_asr-3c9e"
+name = "Mine"
+config = '{"connection":{"model":"my-model"},"language_map":{"auto":null,"ja":"JP"},"version":1}'
+
+[polish.cloud_asr]
+selected = "openrouter"
+
+[[polish.cloud_asr.profiles]]
+id = "openrouter"
+name = "OpenRouter"
+config = '{"connection":{"model":"m3"},"version":1}'
+"#;
+
+    #[test]
+    fn version_two_cloud_speech_list_moves_to_items_with_every_entry_and_request_json_untouched() {
+        let mut legacy = parse(V2_SPEECH);
+        let before = [
+            ("asr", legacy["asr"]["cloud_asr"]["profiles"].clone()),
+            ("polish", legacy["polish"]["cloud_asr"]["profiles"].clone()),
+        ];
+        assert_eq!(upgrade(&mut legacy), Ok(2));
+        assert_eq!(legacy["onboarded"].as_bool(), Some(true), "unrelated settings are untouched");
+        for (section, entries) in before {
+            let cloud = legacy[section]["cloud_asr"].as_table().unwrap();
+            assert!(cloud.get("profiles").is_none(), "{section}");
+            assert_eq!(cloud["items"], entries, "{section}: the same entries, each request JSON byte for byte");
+        }
+        assert_eq!(legacy["asr"]["cloud_asr"]["selected"].as_str(), Some("qwen_asr-3c9e"));
+        assert_eq!(legacy["polish"]["cloud_asr"]["selected"].as_str(), Some("openrouter"));
+
+        // The typed load reads the same entries and selection, and saves them again under the new key unchanged.
+        let config: Config = legacy.clone().try_into().unwrap();
+        let speech = config.asr.cloud_asr.as_ref().unwrap();
+        let identities: Vec<_> = speech.items.iter().map(|c| (c.id.as_str(), c.name.as_str())).collect();
+        assert_eq!(identities, [("funasr", "FunASR"), ("qwen_asr-3c9e", "Mine")]);
+        assert_eq!(speech.selected, "qwen_asr-3c9e");
+        assert!(speech.active()["language_map"]["auto"].is_null(), "a null survives");
+        let saved: Table = toml::to_string(&config).unwrap().parse().unwrap();
+        assert_eq!(saved["asr"]["cloud_asr"]["items"], legacy["asr"]["cloud_asr"]["items"]);
+        assert_eq!(saved["polish"]["cloud_asr"]["items"], legacy["polish"]["cloud_asr"]["items"]);
+    }
+
+    #[test]
+    fn a_version_one_cloud_speech_list_ends_up_under_items_too() {
+        let mut legacy = parse("schema_version = 1\n[asr.cloud_asr]\nselected = 1\nprofiles = ['{\"a\":1}']\n");
+        assert_eq!(upgrade(&mut legacy), Ok(1));
+        let cloud = legacy["asr"]["cloud_asr"].as_table().unwrap();
+        assert!(cloud.get("profiles").is_none());
+        let configs: Vec<_> =
+            cloud["items"].as_array().unwrap().iter().map(|c| c["config"].as_str().unwrap()).collect();
+        assert_eq!(configs[0], r#"{"a":1}"#, "the saved text is the first entry, untouched");
+        assert_eq!(configs.len(), 3, "the missing bundled entries are completed");
+        assert_eq!(cloud["selected"].as_str(), Some("qwen_asr"));
     }
 
     /// What version 2 wrote for the polish engine of a user who filled in all three forms.

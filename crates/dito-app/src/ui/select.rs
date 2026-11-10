@@ -45,7 +45,7 @@ fn chevron(id: ElementId, color: Hsla, open: bool) -> AnyElement {
         .into_any_element()
 }
 
-/// How a select is drawn: the standard 36 pt control, or the 40 pt control of connection forms that sits beside the
+/// How a select is drawn: the standard 36 pt control, or the 40 pt control of configuration forms that sits beside the
 /// form fields (see `form_field`). Only the chrome and its text size differ; the menu and the motion are the same.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Look {
@@ -92,7 +92,7 @@ fn hover_border(id: &ElementId, radius: f32, color: Hsla, open: bool) -> AnyElem
     })
 }
 
-/// An inert select in the connection-form look: same chrome, muted content, no menu. For the "nothing to pick" case
+/// An inert select in the configuration-form look: same chrome, muted content, no menu. For the "nothing to pick" case
 /// (e.g. no AWS profiles configured) — the control must not look operable.
 pub fn select_form_disabled(p: &Palette, label: SharedString) -> Div {
     let look = Look::Form;
@@ -227,7 +227,7 @@ pub fn select_items(
     select_control(Look::Standard, id, p, options, |i| i == selected, label, open, width, on_toggle, on_pick, true)
 }
 
-/// [`select`] in the connection-form look: as wide as its parent and 40 pt high, beside the form fields.
+/// [`select`] in the configuration-form look: as wide as its parent and 40 pt high, beside the form fields.
 #[allow(clippy::too_many_arguments)]
 pub fn select_form(
     id: &'static str,

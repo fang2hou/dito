@@ -37,8 +37,8 @@ impl Default for Config {
 }
 
 impl Config {
-    /// Development defaults: speech through the bundled cloud profiles, polishing through the `azure` configuration
-    /// (gpt-6.1-terra, low). No endpoint is set; the caller points the active speech profile and the Azure polish
+    /// Development defaults: speech through the bundled cloud configurations, polishing through the `azure` configuration
+    /// (gpt-6.1-terra, low). No endpoint is set; the caller points the active speech configuration and the Azure polish
     /// endpoint at a server.
     pub fn dev_azure() -> Self {
         let mut c = Self::default();

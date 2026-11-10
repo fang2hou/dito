@@ -215,7 +215,7 @@ impl AsrEditor {
             status = status.child(text(ui::error_line(c.lang, message), 12., FontWeight::NORMAL, p.text));
         }
         let ready = self.can_test(&self.shown, cx);
-        let trash = if configuration_list::of(&self.st.cfg.get()).profiles.len() > 1 {
+        let trash = if configuration_list::of(&self.st.cfg.get()).items.len() > 1 {
             editor_icon(
                 "asr-delete",
                 p,

@@ -189,8 +189,8 @@ models.dictation_desc = { ja = "音声をテキストに変換します。", en 
 models.polish_desc = { ja = "フィラーの除去や句読点を整え、プロンプトを適用します。", en = "Removes fillers, fixes punctuation, and applies your prompt.", zh = "去除口头禅、整理标点，并应用你的提示词。" }
 models.local = { ja = "ローカル", en = "Local", zh = "本地" }
 models.provider = { ja = "クラウド", en = "Cloud", zh = "云端" }
-models.provider_azure = { ja = "Azure OpenAI", en = "Azure OpenAI", zh = "Azure OpenAI" }
-models.provider_bedrock = { ja = "Amazon Bedrock", en = "Amazon Bedrock", zh = "Amazon Bedrock" }
+models.azure_openai = { ja = "Azure OpenAI", en = "Azure OpenAI", zh = "Azure OpenAI" }
+models.amazon_bedrock = { ja = "Amazon Bedrock", en = "Amazon Bedrock", zh = "Amazon Bedrock" }
 models.openai_compatible = { ja = "OpenAI 互換 API", en = "OpenAI-compatible API", zh = "OpenAI 兼容 API" }
 models.system_permissions = { ja = "システム権限", en = "System permissions", zh = "系统权限" }
 models.not_installed = { ja = "未インストール", en = "Not installed", zh = "未安装" }

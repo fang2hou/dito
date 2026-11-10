@@ -67,11 +67,11 @@ impl ConfigStore {
         Ok(forget_key(removed.map(|configuration| configuration.account()), secrets))
     }
 
-    /// The same for a cloud speech profile.
+    /// The same for a cloud speech configuration.
     pub fn remove_cloud_asr_configuration(&self, id: &str, secrets: &dyn SecretStore) -> Result<bool> {
         let mut removed = None;
         self.update(|c| removed = c.asr.cloud_asr.get_or_insert_with(CloudAsrConfigurations::default).remove(id))?;
-        Ok(forget_key(removed.map(|profile| profile.account()), secrets))
+        Ok(forget_key(removed.map(|configuration| configuration.account()), secrets))
     }
 
     fn write(&self, cfg: &Config) -> Result<()> {
@@ -198,13 +198,13 @@ mod tests {
     }
 
     #[test]
-    fn profile_nulls_and_custom_requests_survive_toml_storage() {
+    fn cloud_speech_nulls_and_custom_requests_survive_toml_storage() {
         let mut config = Config::default();
-        let mut profiles = CloudAsrConfigurations::default();
-        profiles.select("openrouter");
-        profiles.profiles[2].config["connection"]["model"] = "my-model".into();
-        profiles.profiles[2].config["language_map"]["ja"] = "JP".into();
-        config.asr.cloud_asr = Some(profiles);
+        let mut configurations = CloudAsrConfigurations::default();
+        configurations.select("openrouter");
+        configurations.items[2].config["connection"]["model"] = "my-model".into();
+        configurations.items[2].config["language_map"]["ja"] = "JP".into();
+        config.asr.cloud_asr = Some(configurations);
         let encoded = toml::to_string(&config).unwrap();
         let decoded: Config = toml::from_str(&encoded).unwrap();
         assert_eq!(config, decoded);
@@ -271,7 +271,7 @@ instruction = "my herdr rule"
     }
 
     #[test]
-    fn legacy_cloud_asr_profiles_keep_their_selection_edits_and_keychain_account() {
+    fn a_version_one_cloud_speech_list_keeps_its_selection_edits_and_keychain_account() {
         let edited = r#"{"connection":{"model":"my-model"},"language_map":{"auto":null,"ja":"JP"}}"#;
         let untouched = "{}";
         let (dir, path) = config_file(&format!(
@@ -288,13 +288,13 @@ profiles = ['{untouched}', '{untouched}', '{edited}']
         ));
 
         let cfg = ConfigStore::open(&path).unwrap().get();
-        let profiles = cfg.asr.cloud_asr.as_ref().unwrap();
-        assert_eq!(profiles.selected, "openrouter");
-        assert_eq!(profiles.selected_id(), "openrouter");
-        assert_eq!(profiles.account(), "asr.openrouter", "the Keychain account is the one the position had");
-        assert_eq!(profiles.active_name(), Some("OpenRouter"));
+        let configurations = cfg.asr.cloud_asr.as_ref().unwrap();
+        assert_eq!(configurations.selected, "openrouter");
+        assert_eq!(configurations.selected_id(), "openrouter");
+        assert_eq!(configurations.account(), "asr.openrouter", "the Keychain account is the one the position had");
+        assert_eq!(configurations.active_name(), Some("OpenRouter"));
         let expected: serde_json::Value = serde_json::from_str(edited).unwrap();
-        assert_eq!(profiles.active(), &expected, "edits and nulls stay");
+        assert_eq!(configurations.active(), &expected, "edits and nulls stay");
         assert!(dir.path().join("config.toml.v1.bak").exists(), "the original is kept");
 
         // The rewritten file is in the new shape and loads back unchanged.
@@ -408,7 +408,7 @@ reasoning_effort = "minimal"
     }
 
     #[test]
-    fn removing_a_configuration_or_profile_saves_the_list_and_deletes_its_key() {
+    fn removing_a_polish_or_speech_configuration_saves_the_list_and_deletes_its_key() {
         use crate::secrets::{MemorySecrets, SecretError};
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("config.toml");
@@ -435,7 +435,7 @@ reasoning_effort = "minimal"
         assert!(!store.remove_cloud_polish_configuration("missing", &secrets).unwrap());
         assert_eq!(secrets.get("polish.compat").as_deref(), Some("key"));
 
-        // Speech profiles go the same way.
+        // Speech configurations go the same way.
         assert!(store.remove_cloud_asr_configuration("funasr", &secrets).unwrap());
         assert_eq!(secrets.get("asr.funasr"), None);
         assert_eq!(secrets.get("asr.openrouter").as_deref(), Some("key"));
@@ -455,7 +455,7 @@ reasoning_effort = "minimal"
             }
         }
         assert!(store.remove_cloud_asr_configuration("qwen_asr", &Locked).unwrap());
-        assert_eq!(store.get().asr.cloud_asr.as_ref().unwrap().profiles.len(), 1);
+        assert_eq!(store.get().asr.cloud_asr.as_ref().unwrap().items.len(), 1);
     }
 
     #[test]

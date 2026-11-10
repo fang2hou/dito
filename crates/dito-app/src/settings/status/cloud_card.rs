@@ -31,14 +31,14 @@ fn azure_resource(endpoint: &str) -> String {
     host.strip_suffix(".openai.azure.com").unwrap_or(&host).to_string()
 }
 impl StatusPage {
-    pub(super) fn provider_engine_card(&self, c: &Ctx, role: Role, e: &EngineConfig) -> EngineParts {
+    pub(super) fn cloud_engine_card(&self, c: &Ctx, role: Role, e: &EngineConfig) -> EngineParts {
         let p = &c.p;
         let idx = role::index(role);
-        let profiles = role::cloud_profiles(role, e);
-        let profiles = profiles.as_deref();
-        let configurations = e.polish_configurations(c.lang);
-        let configuration = configurations.active();
-        let name = provider_name(profiles, configuration);
+        let asr_configurations = role::cloud_asr_configurations(role, e);
+        let asr_configurations = asr_configurations.as_deref();
+        let polish_configurations = e.polish_configurations(c.lang);
+        let polish_configuration = polish_configurations.active();
+        let name = configuration_name(asr_configurations, polish_configuration);
         let (label, tone) = match &self.checks[idx] {
             TestState::Ok(_) => (c.t(Tr::ModelsConnected), StatusTone::Success),
             TestState::Failed(_) => (c.t(Tr::ModelsConnectionError), StatusTone::Danger),
@@ -46,10 +46,14 @@ impl StatusPage {
         };
         let chip = ui::status_chip(p, label, tone);
         let mut body: Vec<AnyElement> = vec![
-            model_line(c, provider_model(profiles, configuration).to_owned(), Source::Provider).into_any_element(),
+            model_line(c, configuration_model(asr_configurations, polish_configuration).to_owned(), Source::Provider)
+                .into_any_element(),
         ];
         let mut error = None;
-        let mut cells = vec![(c.t(Tr::StatusProvider), name.to_string()), endpoint_cell(c, profiles, configuration)];
+        let mut cells = vec![
+            (c.t(Tr::StatusProvider), name.to_string()),
+            endpoint_cell(c, asr_configurations, polish_configuration),
+        ];
         match &self.checks[idx] {
             TestState::Ok(ms) => {
                 cells.push((c.t(Tr::ModelsLatency), format!("{ms} ms")));
@@ -76,37 +80,40 @@ impl StatusPage {
     }
 }
 
-/// The speech profile or polish configuration the engine runs, by the name it was given.
-fn provider_name<'a>(
-    profiles: Option<&'a CloudAsrConfigurations>,
-    configuration: Option<&'a CloudPolishConfiguration>,
+/// The cloud speech or cloud polish configuration the engine runs, by the name it was given.
+fn configuration_name<'a>(
+    asr_configurations: Option<&'a CloudAsrConfigurations>,
+    polish_configuration: Option<&'a CloudPolishConfiguration>,
 ) -> &'a str {
-    match profiles {
-        Some(profiles) => profiles.active_name().unwrap_or("—"),
-        None => configuration.map_or("—", |c| c.name.as_str()),
+    match asr_configurations {
+        Some(asr_configurations) => asr_configurations.active_name().unwrap_or("—"),
+        None => polish_configuration.map_or("—", |c| c.name.as_str()),
     }
 }
 
-fn provider_model<'a>(
-    profiles: Option<&'a CloudAsrConfigurations>,
-    configuration: Option<&'a CloudPolishConfiguration>,
+fn configuration_model<'a>(
+    asr_configurations: Option<&'a CloudAsrConfigurations>,
+    polish_configuration: Option<&'a CloudPolishConfiguration>,
 ) -> &'a str {
-    if let Some(profiles) = profiles {
-        return profiles.active()["connection"]["model"].as_str().unwrap_or("");
+    if let Some(asr_configurations) = asr_configurations {
+        return asr_configurations.active()["connection"]["model"].as_str().unwrap_or("");
     }
-    configuration.map_or("", |c| c.target.model())
+    polish_configuration.map_or("", |c| c.target.model())
 }
 
-/// The card's second fact: where the provider is reached.
+/// The card's second fact: where the cloud engine is reached.
 fn endpoint_cell(
     c: &Ctx,
-    profiles: Option<&CloudAsrConfigurations>,
-    configuration: Option<&CloudPolishConfiguration>,
+    asr_configurations: Option<&CloudAsrConfigurations>,
+    polish_configuration: Option<&CloudPolishConfiguration>,
 ) -> (SharedString, String) {
-    if let Some(profiles) = profiles {
-        return (c.t(Tr::ModelsEndpoint), url_host(profiles.active()["connection"]["base_url"].as_str().unwrap_or("")));
+    if let Some(asr_configurations) = asr_configurations {
+        return (
+            c.t(Tr::ModelsEndpoint),
+            url_host(asr_configurations.active()["connection"]["base_url"].as_str().unwrap_or("")),
+        );
     }
-    match configuration.map(|c| &c.target) {
+    match polish_configuration.map(|c| &c.target) {
         Some(CloudPolishTarget::Azure { endpoint, .. }) => {
             let resource = azure_resource(endpoint);
             (c.t(Tr::ModelsResource), if resource.is_empty() { "—".into() } else { resource })

@@ -51,7 +51,7 @@ pub struct ModelsPage {
     pub(super) cloud_polish_test: TestState,
     pub(super) cloud_polish_test_requests: ui::Requests,
     pub(super) cloud_polish_test_config: Option<EngineConfig>,
-    pub(super) profiles: Vec<String>,
+    pub(super) aws_profiles: Vec<String>,
     pub(super) last_status: String,
     #[cfg(feature = "screenshots")]
     pub(super) preview_snapshot: Option<Snapshot>,
@@ -77,15 +77,15 @@ impl ModelsPage {
             })
             .detach();
         }
-        // A saved profile stays in the list even when the AWS files no longer name it.
-        let mut profiles = services::aws_profiles();
+        // A saved AWS profile stays in the list even when the AWS files no longer name it.
+        let mut aws_profiles = services::aws_profiles();
         let cfg = st.cfg.get();
         for configuration in &cfg.polish.engine.polish_configurations(cfg.general.lang()).items {
             if let CloudPolishTarget::Bedrock { profile, .. } = &configuration.target
                 && !profile.is_empty()
-                && !profiles.contains(profile)
+                && !aws_profiles.contains(profile)
             {
-                profiles.push(profile.clone());
+                aws_profiles.push(profile.clone());
             }
         }
         let editor = Self::make_editor(st.clone(), window, cx);
@@ -106,7 +106,7 @@ impl ModelsPage {
             cloud_polish_test: TestState::Idle,
             cloud_polish_test_requests: Default::default(),
             cloud_polish_test_config: None,
-            profiles,
+            aws_profiles,
             last_status: String::new(),
             #[cfg(feature = "screenshots")]
             preview_snapshot: None,

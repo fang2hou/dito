@@ -48,17 +48,17 @@ fn draft(cx: &mut AsyncApp) -> String {
 
 pub async fn run(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     let server = st._mock_server.as_ref().expect("inline ASR verification requires --mock");
-    let mut profiles = CloudAsrConfigurations::default();
-    profiles.select("qwen_asr");
-    let config = profiles.active_mut().expect("the bundled templates include qwen_asr");
+    let mut configurations = CloudAsrConfigurations::default();
+    configurations.select("qwen_asr");
+    let config = configurations.active_mut().expect("the bundled templates include qwen_asr");
     config["connection"]["base_url"] = format!("{}/v1", server.url).into();
     config["connection"]["model"] = "inline-before".into();
-    st.secrets.set(&profiles.account(), "test-key").expect("isolated mock credentials");
+    st.secrets.set(&configurations.account(), "test-key").expect("isolated mock credentials");
     st.factory.invalidate_engines();
     services::save_config(st, |config| {
         config.general.display_language = DisplayLanguage::Ja;
         config.asr.source = Source::Provider;
-        config.asr.cloud_asr = Some(profiles.clone());
+        config.asr.cloud_asr = Some(configurations.clone());
     });
     cx.update(|cx| {
         settings::open(st.clone(), Page::Models, cx);
@@ -69,7 +69,7 @@ pub async fn run(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
             .unwrap();
     });
     page_shot(cx, dir, "inline-asr-before.png").await;
-    let original = profiles.active().clone();
+    let original = configurations.active().clone();
     with_editor(cx, |editor, window, cx| editor.update(cx, |editor, cx| editor.probe_replace("{".into(), window, cx)));
     settle(cx).await;
     assert_eq!(

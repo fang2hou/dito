@@ -31,7 +31,7 @@ pub struct Onboarding {
     pub(super) step: Step,
     pub(super) mode: RecordMode,
     pub(super) local: bool,
-    /// Id of the cloud speech configuration the connection step edits.
+    /// Id of the cloud speech configuration the Prepare step edits.
     pub(super) cloud_asr_id: String,
     pub(super) editor: Option<Entity<crate::settings::asr_editor::AsrEditor>>,
     pub(super) endpoint: Entity<InputState>,
@@ -61,8 +61,8 @@ impl Onboarding {
     pub fn new(st: Arc<AppState>, window: &mut Window, cx: &mut Context<Self>) -> Self {
         services::watch_config(&st, cx);
         let cfg = st.cfg.get();
-        let profiles = cfg.asr.cloud_asr.clone().unwrap_or_default();
-        let [endpoint, deployment, key] = Self::connection_inputs(&st, &profiles, window, cx);
+        let configurations = cfg.asr.cloud_asr.clone().unwrap_or_default();
+        let [endpoint, deployment, key] = Self::connection_inputs(&st, &configurations, window, cx);
         for input in [&endpoint, &deployment, &key] {
             cx.subscribe_in(input, window, |this: &mut Self, _, ev: &InputEvent, _, cx| {
                 if matches!(ev, InputEvent::Change) {
@@ -80,7 +80,7 @@ impl Onboarding {
         Self {
             mode: cfg.general.record_mode,
             local: cfg.asr.source == Source::Local,
-            cloud_asr_id: profiles.selected_id().to_owned(),
+            cloud_asr_id: configurations.selected_id().to_owned(),
             editor: None,
             endpoint,
             deployment,
@@ -104,7 +104,7 @@ impl Onboarding {
 
     fn connection_inputs(
         st: &AppState,
-        profiles: &dito_core::provider::configured_asr::CloudAsrConfigurations,
+        configurations: &dito_core::provider::configured_asr::CloudAsrConfigurations,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> [Entity<InputState>; 3] {
@@ -118,11 +118,11 @@ impl Onboarding {
             ui::notify_on_focus(&state, window, cx);
             state
         };
-        let connection = |field: &str| profiles.active()["connection"][field].as_str().unwrap_or("").to_string();
+        let connection = |field: &str| configurations.active()["connection"][field].as_str().unwrap_or("").to_string();
         [
             input("https://…", &connection("base_url"), false),
             input(lang.tr(Tr::ModelsModelPlaceholder), &connection("model"), false),
-            input("••••••••", &st.secrets.get(&profiles.account()).unwrap_or_default(), true),
+            input("••••••••", &st.secrets.get(&configurations.account()).unwrap_or_default(), true),
         ]
     }
 

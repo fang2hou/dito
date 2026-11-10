@@ -33,8 +33,8 @@ impl CloudPolishTemplate {
     pub fn label(self) -> Tr {
         match self {
             Self::Compat => Tr::ModelsOpenaiCompatible,
-            Self::Azure => Tr::ModelsProviderAzure,
-            Self::Bedrock => Tr::ModelsProviderBedrock,
+            Self::Azure => Tr::ModelsAzureOpenai,
+            Self::Bedrock => Tr::ModelsAmazonBedrock,
         }
     }
 
@@ -189,7 +189,7 @@ impl Entry for CloudPolishConfiguration {
     }
 }
 
-/// The templates a fresh list starts from, in the order of the original provider tabs. The first one is in use.
+/// The templates a fresh list starts from, in the order of the tabs the form had before configurations existed. The first one is in use.
 const STARTING: [CloudPolishTemplate; 3] =
     [CloudPolishTemplate::Azure, CloudPolishTemplate::Bedrock, CloudPolishTemplate::Compat];
 

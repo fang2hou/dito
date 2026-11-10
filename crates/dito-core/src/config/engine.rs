@@ -74,7 +74,7 @@ pub struct LocalPolishParams {
 #[serde(default)]
 pub struct EngineConfig {
     pub cloud_asr: Option<CloudAsrConfigurations>,
-    /// Polish only. `None` until a list is first saved; the three templates stand in, as the bundled profiles do for
+    /// Polish only. `None` until a list is first saved; the three templates stand in, as the bundled configurations do for
     /// speech.
     pub cloud_polish: Option<CloudPolishConfigurations>,
     pub source: Source,
@@ -129,14 +129,14 @@ impl EngineConfig {
         }
     }
 
-    /// The engine's identity in history, see [`EngineLabels`]. A provider source with a configured cloud speech
-    /// profile is labelled by that profile, the same condition `EngineFactory::transcriber_for` uses to run it.
+    /// The engine's identity in history, see [`EngineLabels`]. A cloud source with a configured cloud speech
+    /// configuration is labelled by that configuration, the same condition `EngineFactory::transcriber_for` uses to run it.
     pub fn label(&self) -> String {
         match (self.source, &self.cloud_asr) {
             (Source::Local, _) => format!("local:{}", self.local_model),
-            (Source::Provider, Some(profiles)) => {
-                let model = profiles.active()["connection"]["model"].as_str().unwrap_or("");
-                format!("{}:{model}", profiles.account())
+            (Source::Provider, Some(configurations)) => {
+                let model = configurations.active()["connection"]["model"].as_str().unwrap_or("");
+                format!("{}:{model}", configurations.account())
             }
             (Source::Provider, None) => self.active_polish().map(|active| active.label()).unwrap_or_default(),
         }
@@ -151,7 +151,7 @@ impl Default for EngineConfig {
 
 /// Which engines produced a history entry: `local:<model id>` for an on-device model, `<template>:<model>` for a cloud
 /// polish configuration (`azure:<deployment>`, `bedrock:<model id>`, `compat:<model>`), and `<keychain account>:<model>`
-/// for a configured cloud speech profile (for example `asr.funasr:paraformer-v2`).
+/// for a configured cloud speech configuration (for example `asr.funasr:paraformer-v2`).
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct EngineLabels {
     /// Speech recognition. `None` for an entry from before labels were recorded, or one that never reached recognition.

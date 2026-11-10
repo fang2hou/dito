@@ -39,7 +39,7 @@ pub trait Engines: Send + Sync {
 /// An engine together with the config it was built from.
 type Slot<T> = Option<(EngineConfig, Arc<T>)>;
 
-/// Provider engines reused across dictations so HTTP connections and cloud credentials survive between them.
+/// Cloud engines reused across dictations so HTTP connections and cloud credentials survive between them.
 /// The API key is not part of the key; `invalidate_engines` must run whenever a secret changes.
 #[derive(Default)]
 struct EngineCache {
@@ -53,19 +53,19 @@ pub struct EngineFactory {
     secrets: Arc<dyn SecretStore>,
     local: Option<Arc<dyn LocalBackend>>,
     bedrock_endpoint: Option<String>,
-    speech_profile: Option<serde_json::Value>,
+    speech_config: Option<serde_json::Value>,
     cache: Mutex<EngineCache>,
 }
 
 impl EngineFactory {
     pub fn new(secrets: Arc<dyn SecretStore>) -> Self {
-        Self { secrets, local: None, bedrock_endpoint: None, speech_profile: None, cache: Mutex::default() }
+        Self { secrets, local: None, bedrock_endpoint: None, speech_config: None, cache: Mutex::default() }
     }
 
-    /// Test hook: provider speech uses this connection config, without a key, instead of the saved profile. `--mock`
+    /// Test hook: cloud speech uses this request JSON, without a key, instead of the saved configuration. `--mock`
     /// points speech at its in-process server this way, so the settings keep showing the bundled templates.
-    pub fn with_speech_profile(mut self, config: Option<serde_json::Value>) -> Self {
-        self.speech_profile = config;
+    pub fn with_speech_config(mut self, config: Option<serde_json::Value>) -> Self {
+        self.speech_config = config;
         self
     }
 
@@ -131,20 +131,20 @@ impl EngineFactory {
         match e.source {
             Source::Local => self.require_local()?.transcriber(&e.local_model).await,
             Source::Provider => {
-                if let Some(config) = &self.speech_profile {
+                if let Some(config) = &self.speech_config {
                     return Ok(Arc::new(ConfiguredAsr::new(config.clone(), String::new())?));
                 }
-                // `cloud_asr` stays `None` until a profile list is first saved; the bundled profiles stand in.
+                // `cloud_asr` stays `None` until a configuration list is first saved; the bundled configurations stand in.
                 let bundled;
-                let profiles = match &e.cloud_asr {
-                    Some(profiles) => profiles,
+                let configurations = match &e.cloud_asr {
+                    Some(configurations) => configurations,
                     None => {
                         bundled = CloudAsrConfigurations::default();
                         &bundled
                     }
                 };
-                let key = self.secrets.get(&profiles.account()).unwrap_or_default();
-                Ok(Arc::new(ConfiguredAsr::new(profiles.active().clone(), key)?))
+                let key = self.secrets.get(&configurations.account()).unwrap_or_default();
+                Ok(Arc::new(ConfiguredAsr::new(configurations.active().clone(), key)?))
             }
         }
     }
@@ -276,7 +276,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn unchanged_provider_config_reuses_the_polish_engine() {
+    async fn an_unchanged_cloud_polish_configuration_reuses_the_polish_engine() {
         let factory = factory();
         let cfg = compat_config("model-a");
         let first = polisher(&factory, &cfg).await;

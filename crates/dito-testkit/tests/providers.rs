@@ -14,7 +14,7 @@ use dito_core::pipeline::{self, Job, PipelineError};
 use dito_core::prompts::Style;
 use dito_core::provider::{AsrRequest, PolishRequest, TestOutcome, test_polisher, test_transcriber};
 use dito_core::secrets::{MemorySecrets, SecretStore, polish_account};
-use dito_testkit::{MockServer, mock_asr_profile};
+use dito_testkit::{MockServer, mock_cloud_asr_config};
 use serde_json::json;
 
 fn tone() -> AudioClip {
@@ -26,11 +26,11 @@ fn active(cfg: &mut Config) -> &mut CloudPolishConfiguration {
     cfg.polish.engine.polish_configurations_mut(cfg.general.lang()).active_mut().expect("a configuration is selected")
 }
 
-/// The dev defaults with the cloud speech profile and the Azure polish configuration both pointed at the mock at `url`.
+/// The dev defaults with the cloud speech configuration and the Azure polish configuration both pointed at the mock at `url`.
 fn mock_cfg(url: &str) -> Config {
     let mut c = Config::dev_azure();
-    let profiles = c.asr.cloud_asr.as_mut().expect("the dev defaults use a cloud speech profile");
-    *profiles.active_mut().expect("the selected profile is in the list") = mock_asr_profile(url);
+    let configurations = c.asr.cloud_asr.as_mut().expect("the dev defaults use a cloud speech configuration");
+    *configurations.active_mut().expect("the selected configuration is in the list") = mock_cloud_asr_config(url);
     *active(&mut c).target.address_mut() = url.into();
     c
 }
@@ -45,7 +45,7 @@ fn compat_cfg(base_url: &str) -> Config {
     cfg
 }
 
-/// A keychain holding `key` for the cloud speech profile `mock_cfg` selects and for the Azure and compatible polish
+/// A keychain holding `key` for the cloud speech configuration `mock_cfg` selects and for the Azure and compatible polish
 /// configurations the templates start with.
 fn factory(key: Option<&str>) -> EngineFactory {
     let secrets = Arc::new(MemorySecrets::default());
@@ -301,8 +301,8 @@ async fn a_blank_base_url_or_model_fails_before_any_request() {
     let srv = MockServer::start().await.unwrap();
     for field in ["base_url", "model"] {
         let mut cfg = mock_cfg(&srv.url);
-        let profile = cfg.asr.cloud_asr.as_mut().unwrap().active_mut().unwrap();
-        profile["connection"][field] = "".into();
+        let config = cfg.asr.cloud_asr.as_mut().unwrap().active_mut().unwrap();
+        config["connection"][field] = "".into();
         let err = factory(None).transcriber(&cfg).await.err().unwrap();
         assert_eq!(err.kind, ErrorKind::Unavailable, "blank {field}");
     }

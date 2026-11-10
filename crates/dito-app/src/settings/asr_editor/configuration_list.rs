@@ -13,7 +13,7 @@ use serde_json::Value;
 /// emptied by hand).
 pub(super) fn of(config: &Config) -> Cow<'_, CloudAsrConfigurations> {
     match &config.asr.cloud_asr {
-        Some(list) if !list.profiles.is_empty() => Cow::Borrowed(list),
+        Some(list) if !list.items.is_empty() => Cow::Borrowed(list),
         _ => Cow::Owned(CloudAsrConfigurations::default()),
     }
 }
@@ -21,7 +21,7 @@ pub(super) fn of(config: &Config) -> Cow<'_, CloudAsrConfigurations> {
 /// The list to change: the first change saves the bundled templates that stood in for it.
 fn of_mut(config: &mut Config) -> &mut CloudAsrConfigurations {
     let list = config.asr.cloud_asr.get_or_insert_with(CloudAsrConfigurations::default);
-    if list.profiles.is_empty() {
+    if list.items.is_empty() {
         *list = CloudAsrConfigurations::default();
     }
     list
@@ -89,7 +89,7 @@ pub(super) fn save_draft(
     config: Value,
     key: &KeyChange<'_>,
 ) -> Result<bool> {
-    if !of(&cfg.get()).profiles.iter().any(|profile| profile.id == id) {
+    if !of(&cfg.get()).items.iter().any(|configuration| configuration.id == id) {
         return Ok(false);
     }
     let account = dito_core::secrets::asr_account(id);
@@ -98,8 +98,8 @@ pub(super) fn save_draft(
         write_key(secrets, &account, key.typed)?;
     }
     let written = cfg.update(|current| {
-        if let Some(profile) = of_mut(current).profiles.iter_mut().find(|profile| profile.id == id) {
-            profile.config = config;
+        if let Some(configuration) = of_mut(current).items.iter_mut().find(|configuration| configuration.id == id) {
+            configuration.config = config;
         }
     });
     if let Err(error) = written {
@@ -131,13 +131,13 @@ mod tests {
     }
 
     fn ids(cfg: &ConfigStore) -> Vec<String> {
-        of(&cfg.get()).profiles.iter().map(|profile| profile.id.clone()).collect()
+        of(&cfg.get()).items.iter().map(|configuration| configuration.id.clone()).collect()
     }
 
     fn config_of(cfg: &ConfigStore, id: &str) -> Value {
         let saved = cfg.get();
-        let profile = of(&saved).profiles.iter().find(|profile| profile.id == id).cloned();
-        profile.unwrap().config
+        let configuration = of(&saved).items.iter().find(|configuration| configuration.id == id).cloned();
+        configuration.unwrap().config
     }
 
     #[test]
@@ -154,8 +154,8 @@ mod tests {
 
         // The file holds what the store holds: the first change saved the templates, the rest followed.
         let on_disk = ConfigStore::open(dir.path().join("config.toml")).unwrap().get();
-        let profiles = on_disk.asr.cloud_asr.as_ref().unwrap();
-        let named: Vec<_> = profiles.profiles.iter().map(|p| (p.id.as_str(), p.name.as_str())).collect();
+        let configurations = on_disk.asr.cloud_asr.as_ref().unwrap();
+        let named: Vec<_> = configurations.items.iter().map(|p| (p.id.as_str(), p.name.as_str())).collect();
         assert_eq!(
             named,
             [
@@ -167,7 +167,7 @@ mod tests {
             ],
             "a blank name was refused, the copy moved to the front"
         );
-        assert_eq!(profiles.selected, "qwen_asr");
+        assert_eq!(configurations.selected, "qwen_asr");
     }
 
     #[test]
@@ -187,9 +187,14 @@ mod tests {
         let after = cfg.get().asr.cloud_asr.clone().unwrap();
         assert_eq!(config_of(&cfg, "funasr"), draft);
         assert_eq!(after.selected, before.selected, "saving a draft never selects its configuration");
-        assert_eq!(ids(&cfg), before.profiles.iter().map(|p| p.id.clone()).collect::<Vec<_>>(), "nor reorders");
-        for profile in before.profiles.iter().filter(|p| p.id != "funasr") {
-            assert_eq!(config_of(&cfg, &profile.id), profile.config, "{} was not touched", profile.id);
+        assert_eq!(ids(&cfg), before.items.iter().map(|p| p.id.clone()).collect::<Vec<_>>(), "nor reorders");
+        for configuration in before.items.iter().filter(|p| p.id != "funasr") {
+            assert_eq!(
+                config_of(&cfg, &configuration.id),
+                configuration.config,
+                "{} was not touched",
+                configuration.id
+            );
         }
         assert_eq!(secrets.get("asr.funasr").as_deref(), Some("typed key"));
         assert_eq!(secrets.get("asr.qwen_asr").as_deref(), Some("other key"));

@@ -200,10 +200,10 @@ pub(super) fn provider(w: &Onboarding, c: &Ctx, cx: &mut Context<Onboarding>) ->
 fn cloud_asr_tiles(w: &Onboarding, c: &Ctx, cx: &mut Context<Onboarding>) -> Div {
     let p = &c.p;
     let mut row = div().w_full().flex().gap(px(10.));
-    let profiles = w.st.cfg.get().asr.cloud_asr.clone().unwrap_or_default().profiles;
-    for profile in &profiles {
-        let on = profile.id == w.cloud_asr_id;
-        let id = SharedString::from(profile.id.clone());
+    let configurations = w.st.cfg.get().asr.cloud_asr.clone().unwrap_or_default().items;
+    for configuration in &configurations {
+        let on = configuration.id == w.cloud_asr_id;
+        let id = SharedString::from(configuration.id.clone());
         let card_id = ElementId::from((ElementId::from("wizard-cloud-asr"), id.clone()));
         let ring_id = ElementId::from((ElementId::from("wizard-cloud-asr-ring"), id.clone()));
         row = row.child(
@@ -224,7 +224,7 @@ fn cloud_asr_tiles(w: &Onboarding, c: &Ctx, cx: &mut Context<Onboarding>) -> Div
                 .child(ui::hover_fill_if(&card_id, Some(14.), ui::hex_alpha(p.seg, 0.6), !on))
                 .child(ui::ring_overlay(ring_id, on, 14., p.border_strong, p.accent))
                 .on_click(cx.listener(move |this, _, window, cx| this.select_cloud_asr(&id, window, cx)))
-                .child(ui::choice_label(&card_id, p, profile.name.clone().into(), 13., on)),
+                .child(ui::choice_label(&card_id, p, configuration.name.clone().into(), 13., on)),
         );
     }
     row

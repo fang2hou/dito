@@ -39,7 +39,7 @@ The settings window opens and a menu bar icon appears. Put the cursor in a text 
 ## ✨ Features
 
 - **Works in any app**: verified typing or paste with automatic fallback, and the clipboard restored afterwards.
-- **Local or cloud, per stage**: on-device Qwen3-ASR, SenseVoice and Qwen3.5, or cloud presets through an editable JSON connection config.
+- **Local or cloud, per stage**: on-device Qwen3-ASR, SenseVoice and Qwen3.5, or cloud configurations through an editable request JSON.
 - **Polishing that follows the app**: prompts per language, with General, Slack and Teams styles.
 - **A HUD that never steals focus**: a small capsule with a live waveform, progress and clear errors.
 - **Never loses a dictation**: polish failures insert the raw text, and every result stays in History.

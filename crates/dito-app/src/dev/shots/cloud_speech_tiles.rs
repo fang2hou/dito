@@ -98,7 +98,7 @@ fn model_of(config: &Value) -> &str {
 fn saved(st: &AppState) -> (Vec<(String, String, String)>, String) {
     let config = st.cfg.get();
     let list = config.asr.cloud_asr.clone().unwrap_or_default();
-    let rows = list.profiles.iter().map(|p| (p.id.clone(), p.name.clone(), model_of(&p.config).to_owned())).collect();
+    let rows = list.items.iter().map(|p| (p.id.clone(), p.name.clone(), model_of(&p.config).to_owned())).collect();
     (rows, list.selected)
 }
 
@@ -108,7 +108,7 @@ fn ids(st: &AppState) -> Vec<String> {
 
 fn config_of(st: &AppState, id: &str) -> Value {
     let list = st.cfg.get().asr.cloud_asr.clone().unwrap_or_default();
-    list.profiles.iter().find(|p| p.id == id).map(|p| p.config.clone()).unwrap_or_else(|| panic!("no profile {id}"))
+    list.items.iter().find(|p| p.id == id).map(|p| p.config.clone()).unwrap_or_else(|| panic!("no configuration {id}"))
 }
 
 struct Rig<'a> {
@@ -193,14 +193,14 @@ impl Rig<'_> {
     /// Start from three configurations: the bundled templates with the models of the design's `20.05.1`, Qwen ASR
     /// selected and holding a key. Rebuilds the editor so that it starts from them.
     async fn start(&mut self, appearance: Appearance, width: f32, height: f32) {
-        let mut profiles = CloudAsrConfigurations::default();
+        let mut configurations = CloudAsrConfigurations::default();
         for (id, model) in
             [("funasr", "paraformer-v2"), ("qwen_asr", "my-asr-model"), ("openrouter", "openai/whisper-large-v3")]
         {
-            let profile = profiles.profiles.iter_mut().find(|p| p.id == id).expect("a bundled template");
-            profile.config["connection"]["model"] = model.into();
+            let configuration = configurations.items.iter_mut().find(|p| p.id == id).expect("a bundled template");
+            configuration.config["connection"]["model"] = model.into();
         }
-        profiles.select("qwen_asr");
+        configurations.select("qwen_asr");
         for account in ["funasr", "qwen_asr", "openrouter"].map(asr_account) {
             self.st.secrets.delete(&account).expect("isolated mock credentials");
         }
@@ -210,7 +210,7 @@ impl Rig<'_> {
             config.general.appearance = appearance;
             config.general.display_language = DisplayLanguage::Ja;
             config.asr.source = Source::Provider;
-            config.asr.cloud_asr = Some(profiles);
+            config.asr.cloud_asr = Some(configurations);
         });
         self.cx.update(|cx| {
             settings::open(self.st.clone(), Page::Models, cx);

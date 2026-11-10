@@ -34,13 +34,13 @@ impl AsrEditor {
         let list = configuration_list::of(&config);
         let shown = list.selected_id();
         let tiles = list
-            .profiles
+            .items
             .iter()
-            .map(|profile| ui::ConfigTile {
-                id: profile.id.clone().into(),
-                name: profile.name.clone().into(),
-                detail: model_label(&profile.config, c),
-                selected: profile.id == shown,
+            .map(|configuration| ui::ConfigTile {
+                id: configuration.id.clone().into(),
+                name: configuration.name.clone().into(),
+                detail: model_label(&configuration.config, c),
+                selected: configuration.id == shown,
             })
             .collect();
         ui::tile_row("asr-tiles", &c.p, &self.tiles, tiles)
@@ -127,10 +127,10 @@ impl AsrEditor {
     pub(super) fn ask_delete_configuration(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let config = self.st.cfg.get();
         let list = configuration_list::of(&config);
-        if list.profiles.len() < 2 {
+        if list.items.len() < 2 {
             return;
         }
-        let Some(shown) = list.profiles.iter().find(|profile| profile.id == self.shown) else { return };
+        let Some(shown) = list.items.iter().find(|configuration| configuration.id == self.shown) else { return };
         self.deleting = Some(ConfigurationDeletion { id: shown.id.clone(), name: shown.name.clone() });
         self.delete_focus.focus(window, cx);
         cx.emit(super::Changed);

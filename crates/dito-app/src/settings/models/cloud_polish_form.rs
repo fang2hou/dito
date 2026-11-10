@@ -251,12 +251,12 @@ impl ModelsPage {
 
     fn cloud_polish_aws_profile_select(&self, c: &Ctx, cx: &mut Context<Self>, current: &str) -> AnyElement {
         let p = &c.p;
-        if self.profiles.is_empty() {
+        if self.aws_profiles.is_empty() {
             // Nothing to pick: the control stays visible but inert.
             return ui::select_form_disabled(p, c.t(Tr::ModelsNoProfiles)).into_any_element();
         }
-        let options: Vec<SharedString> = self.profiles.iter().map(|s| SharedString::from(s.clone())).collect();
-        let selected = self.profiles.iter().position(|n| n == current).unwrap_or(0);
+        let options: Vec<SharedString> = self.aws_profiles.iter().map(|s| SharedString::from(s.clone())).collect();
+        let selected = self.aws_profiles.iter().position(|n| n == current).unwrap_or(0);
         ui::select_form(
             "cloud-polish-aws-profile",
             p,
@@ -333,7 +333,8 @@ impl ModelsPage {
 
     /// Choosing an AWS profile saves it into the Bedrock configuration the form shows.
     fn pick_cloud_polish_aws_profile(&mut self, index: usize, cx: &mut Context<Self>) {
-        let (Some(name), Some(id)) = (self.profiles.get(index).cloned(), self.cloud_polish.shown().map(str::to_owned))
+        let (Some(name), Some(id)) =
+            (self.aws_profiles.get(index).cloned(), self.cloud_polish.shown().map(str::to_owned))
         else {
             return;
         };

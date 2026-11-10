@@ -38,13 +38,13 @@ pub async fn test_connection(st: Arc<AppState>, role: Role) -> TestOutcome {
 /// Test the validated ASR draft with its transient key, without changing saved settings.
 pub async fn test_asr_draft(
     st: Arc<AppState>,
-    profile: serde_json::Value,
+    config: serde_json::Value,
     key: String,
     language: dito_core::config::PreferredLanguage,
 ) -> TestOutcome {
     st.rt
         .spawn(async move {
-            match dito_core::provider::configured_asr::ConfiguredAsr::new(profile, key) {
+            match dito_core::provider::configured_asr::ConfiguredAsr::new(config, key) {
                 Ok(engine) => test_transcriber_with_language(&engine, language.code()).await,
                 Err(error) => TestOutcome::Failed { kind: error.kind, message: error.message },
             }

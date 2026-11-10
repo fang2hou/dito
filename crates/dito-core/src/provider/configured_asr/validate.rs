@@ -15,7 +15,7 @@ const ALLOWED_KEYS: [(&str, &[&str]); 4] = [
     ("/response", &["text_pointer", "language_pointer"]),
 ];
 
-/// A profile that breaks the connection config contract, and where.
+/// A request JSON that breaks its contract, and where.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidationError {
     /// Path of the offending value: a JSON Pointer such as `/connection/model` or a dotted path such as
@@ -24,7 +24,7 @@ pub struct ValidationError {
     pub reason: ValidationReason,
 }
 
-/// What is wrong with a profile. The `Display` text is English technical detail for logs and [`ProviderError`]; the
+/// What is wrong with a request JSON. The `Display` text is English technical detail for logs and [`ProviderError`]; the
 /// UI words each reason in the user's language.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum ValidationReason {
@@ -130,7 +130,7 @@ fn is_json_pointer(s: &str) -> bool {
     s.starts_with('/') && !s.ends_with('~') && !s.as_bytes().windows(2).any(|x| x[0] == b'~' && !b"01".contains(&x[1]))
 }
 
-/// Checks a profile against the connection config contract (`design/asr-json-config.md`).
+/// Checks a request JSON against its contract (`design/asr-json-config.md`).
 pub fn validate(v: &Value) -> Result<(), ValidationError> {
     if v["version"] != 1 {
         return Err(ValidationError::new("version", ValidationReason::UnsupportedVersion));
@@ -320,8 +320,8 @@ mod tests {
 
     #[test]
     fn templates_require_model() {
-        for profile in CloudAsrConfigurations::default().profiles {
-            let mut v = profile.config;
+        for configuration in CloudAsrConfigurations::default().items {
+            let mut v = configuration.config;
             assert!(validate(&v).is_err());
             v["connection"]["model"] = "user-model".into();
             assert!(validate(&v).is_ok());
