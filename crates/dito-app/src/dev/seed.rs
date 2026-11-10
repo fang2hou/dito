@@ -49,7 +49,7 @@ fn recent_entries(now: i64) -> [NewHistory; 6] {
     [
         dictation(
             now - 600,
-            Style::Slack,
+            Style::builtin("slack").expect("built-in style"),
             "Slack",
             "ja",
             9_000,
@@ -77,7 +77,7 @@ fn recent_entries(now: i64) -> [NewHistory; 6] {
         ),
         dictation(
             now - 2_300,
-            Style::Teams,
+            Style::builtin("teams").expect("built-in style"),
             "Teams",
             "ja",
             6_000,
