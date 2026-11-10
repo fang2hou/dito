@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use dito_core::config::ProviderKind;
+use dito_core::config::{PolishConfiguration, PolishTarget};
 use dito_core::i18n::Tr;
 use dito_core::secrets::Role;
 use gpui_kit::prelude::*;
@@ -14,22 +14,22 @@ use crate::theme::Palette;
 use crate::ui::{self, BtnKind, InputState, TestState, cbk, text};
 
 impl ModelsPage {
-    pub(super) fn provider_tiles(&self, c: &Ctx, cx: &mut Context<Self>, role: Role, kind: ProviderKind) -> Div {
+    /// One tile per saved configuration, named as the user named it.
+    pub(super) fn provider_tiles(&self, c: &Ctx, cx: &mut Context<Self>, role: Role) -> Div {
         let p = &c.p;
         let mut row = div().w_full().flex().gap(px(12.));
         let role_index = role::index(role);
-        for k in ProviderKind::ALL {
+        let cfg = self.st.cfg.get();
+        let configurations = role::engine(&cfg, role).polish_configurations();
+        for item in &configurations.items {
+            let id = item.id.clone();
             row = row.child(choice_tile(
                 p,
-                format!("prov-{role_index}-{}", k.id()),
-                format!("prov-ring-{role_index}-{}", k.id()),
-                k == kind,
-                c.lang.tr(k.label()).into(),
-                cx.listener(move |this, _, _, cx| {
-                    this.update_engine(role, move |e| e.provider.kind = k);
-                    this.test = TestState::Idle;
-                    cx.notify();
-                }),
+                format!("prov-{role_index}-{}", item.id),
+                format!("prov-ring-{role_index}-{}", item.id),
+                item.id == configurations.selected,
+                item.name.clone().into(),
+                cx.listener(move |this, _, window, cx| this.select_configuration(&id, window, cx)),
             ));
         }
         row
@@ -39,14 +39,15 @@ impl ModelsPage {
         let col = div().w_full().flex().flex_col().gap(px(18.));
         let inputs = &self.inputs;
         let cfg = self.st.cfg.get();
-        let engine = role::engine(&cfg, role);
-        match engine.provider.kind {
-            ProviderKind::Azure => azure_fields(c, inputs, col),
-            ProviderKind::Bedrock => {
-                let profile = self.aws_profile_select(c, cx, role, &engine.provider.bedrock.profile);
+        let configurations = role::engine(&cfg, role).polish_configurations();
+        match configurations.active().map(|config| &config.target) {
+            Some(PolishTarget::Azure { .. }) => azure_fields(c, inputs, col),
+            Some(PolishTarget::Bedrock { profile, .. }) => {
+                let profile = self.aws_profile_select(c, cx, role, profile);
                 bedrock_fields(c, inputs, profile, col)
             }
-            ProviderKind::Compat => compat_fields(c, inputs, col),
+            Some(PolishTarget::Compat { .. }) => compat_fields(c, inputs, col),
+            None => col,
         }
     }
 
@@ -69,7 +70,14 @@ impl ModelsPage {
             self.toggle_select(cx, "bedrock-profile"),
             Rc::new(move |i, _, _| {
                 if let Some(name) = profiles.get(i).cloned() {
-                    services::save_config(&st, |cfg| role::engine_mut(cfg, role).provider.bedrock.profile = name);
+                    services::save_config(&st, |cfg| {
+                        let configurations = role::engine_mut(cfg, role).polish_configurations_mut();
+                        if let Some(PolishConfiguration { target: PolishTarget::Bedrock { profile, .. }, .. }) =
+                            configurations.active_mut()
+                        {
+                            *profile = name;
+                        }
+                    });
                 }
             }),
         )

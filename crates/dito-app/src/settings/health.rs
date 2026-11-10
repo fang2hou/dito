@@ -1,7 +1,6 @@
 use dito_core::config::{EngineConfig, Source};
 use dito_core::health::{EngineStatus, Health};
 use dito_core::i18n::{Lang, Tr};
-use dito_core::provider::configured_asr::AsrProfiles;
 use dito_core::secrets::Role;
 use gpui_kit::prelude::*;
 use gpui_kit::*;
@@ -35,13 +34,15 @@ impl Settings {
         models: &dito_local::ModelManager,
     ) -> SharedString {
         match e.source {
-            Source::Provider => SharedString::from(
-                role::cloud_profiles(role, e)
-                    .as_deref()
-                    .and_then(AsrProfiles::active_name)
-                    .unwrap_or_else(|| lang.tr(e.provider.kind.label()))
-                    .to_owned(),
-            ),
+            Source::Provider => {
+                let profiles = role::cloud_profiles(role, e);
+                let configurations = e.polish_configurations();
+                let name = match profiles.as_deref() {
+                    Some(profiles) => profiles.active_name(),
+                    None => configurations.active().map(|configuration| configuration.name.as_str()),
+                };
+                SharedString::from(name.unwrap_or_else(|| lang.tr(Tr::ModelsProvider)).to_owned())
+            }
             Source::Local => SharedString::from(
                 models
                     .catalog()

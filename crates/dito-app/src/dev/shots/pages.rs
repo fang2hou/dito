@@ -2,7 +2,7 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use dito_core::config::{Appearance, DisplayLanguage, HudPosition, ProviderKind, Source};
+use dito_core::config::{Appearance, DisplayLanguage, HudPosition, Source};
 use dito_core::controller::{Command, HudState};
 use dito_core::factory::LocalBackend;
 use dito_core::provider::configured_asr::AsrProfiles;
@@ -215,10 +215,12 @@ pub async fn status_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
                     c.asr.source = Source::Local;
                     c.polish.enabled = case != "disabled";
                     c.polish.engine.source = if case == "local" { Source::Local } else { Source::Provider };
-                    c.polish.engine.provider.kind = ProviderKind::Compat;
-                    c.polish.engine.provider.compat.base_url =
+                    let configurations = c.polish.engine.polish_configurations_mut();
+                    configurations.select("compat");
+                    let compat = configurations.active_mut().expect("the templates include a compat configuration");
+                    *compat.target.address_mut() =
                         "https://regional-transcription-gateway.ap-northeast-1.example.com/v1".into();
-                    c.polish.engine.provider.compat.model = "gpt-4o-mini".into();
+                    *compat.target.model_mut() = "gpt-4o-mini".into();
                 });
                 open_page_sized(st, Page::Status, width, 1000., cx);
                 page_shot(cx, dir, &format!("status-{}-{size}-{case}.png", theme_tag(appearance))).await;
@@ -431,7 +433,7 @@ fn apply_model_case(st: &AppState, appearance: Appearance, case: &ModelCase) {
         c.general.appearance = appearance;
         c.asr.source = if case.local { Source::Local } else { Source::Provider };
         c.polish.engine.source = c.asr.source;
-        c.polish.engine.provider.kind = [ProviderKind::Azure, ProviderKind::Bedrock, ProviderKind::Compat][case.preset];
+        c.polish.engine.polish_configurations_mut().select(["azure", "bedrock", "compat"][case.preset]);
         let mut profiles = AsrProfiles::default();
         profiles.select_index(case.preset);
         for profile in &mut profiles.profiles {

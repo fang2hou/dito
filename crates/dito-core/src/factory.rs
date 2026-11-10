@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex, MutexGuard};
 
 use async_trait::async_trait;
 
-use crate::config::{AsrProfiles, Config, EngineConfig, ProviderKind, Source};
+use crate::config::{AsrProfiles, Config, EngineConfig, LocalParams, PolishConfiguration, PolishTarget, Source};
 use crate::error::{ErrorKind, ProviderError, ProviderResult};
 use crate::health::EngineStatus;
 use crate::provider::bedrock::{BedrockEngine, BedrockParams};
@@ -12,13 +12,16 @@ use crate::provider::configured_asr::ConfiguredAsr;
 use crate::provider::mock::{MockPolisher, MockTranscriber};
 use crate::provider::openai::{Flavor, OpenAiEngine};
 use crate::provider::{Polisher, Transcriber};
-use crate::secrets::{Role, SecretStore, account};
+use crate::secrets::SecretStore;
 
 /// On-device engines, implemented by `dito-local`.
 #[async_trait]
 pub trait LocalBackend: Send + Sync {
+    /// Local speech models decode greedily and take no parameters.
     async fn transcriber(&self, model_id: &str) -> ProviderResult<Arc<dyn Transcriber>>;
-    async fn polisher(&self, model_id: &str) -> ProviderResult<Arc<dyn Polisher>>;
+    /// `params` are the user's sampling settings for this model; a field they leave unset takes the value the model's
+    /// catalog entry recommends.
+    async fn polisher(&self, model_id: &str, params: &LocalParams) -> ProviderResult<Arc<dyn Polisher>>;
     fn status(&self, model_id: &str) -> EngineStatus;
 }
 
@@ -85,37 +88,33 @@ impl EngineFactory {
         self
     }
 
-    fn polish_key(&self, kind: ProviderKind) -> String {
-        self.secrets.get(&account(Role::Polish, kind)).unwrap_or_default()
-    }
-
-    fn openai(&self, e: &EngineConfig) -> ProviderResult<OpenAiEngine> {
-        let p = &e.provider;
-        match p.kind {
-            ProviderKind::Azure => OpenAiEngine::new(
-                Flavor::Azure { endpoint: p.azure.endpoint.clone(), deployment: p.azure.deployment.clone() },
-                self.polish_key(ProviderKind::Azure),
-                p.azure.reasoning_effort.clone(),
+    /// The engine of one cloud polish configuration. Azure and compatible servers use the key stored under the
+    /// configuration's Keychain account; Bedrock authenticates through its AWS profile.
+    async fn cloud_polisher(&self, configuration: &PolishConfiguration) -> ProviderResult<Arc<dyn Polisher>> {
+        let key = || self.secrets.get(&configuration.account()).unwrap_or_default();
+        let params = configuration.params.clone();
+        Ok(match &configuration.target {
+            PolishTarget::Azure { endpoint, deployment } => Arc::new(OpenAiEngine::new(
+                Flavor::Azure { endpoint: endpoint.clone(), deployment: deployment.clone() },
+                key(),
+                params,
+            )?),
+            PolishTarget::Compat { base_url, model } => Arc::new(OpenAiEngine::new(
+                Flavor::Compat { base_url: base_url.clone(), model: model.clone() },
+                key(),
+                params,
+            )?),
+            PolishTarget::Bedrock { profile, region, model_id } => Arc::new(
+                BedrockEngine::connect(BedrockParams {
+                    profile: profile.clone(),
+                    region: region.clone(),
+                    model_id: model_id.clone(),
+                    params,
+                    endpoint_override: self.bedrock_endpoint.clone(),
+                })
+                .await?,
             ),
-            ProviderKind::Compat => OpenAiEngine::new(
-                Flavor::Compat { base_url: p.compat.base_url.clone(), model: p.compat.model.clone() },
-                self.polish_key(ProviderKind::Compat),
-                p.compat.reasoning_effort.clone(),
-            ),
-            ProviderKind::Bedrock => unreachable!("handled by caller"),
-        }
-    }
-
-    async fn bedrock(&self, e: &EngineConfig) -> ProviderResult<BedrockEngine> {
-        let b = &e.provider.bedrock;
-        BedrockEngine::connect(BedrockParams {
-            profile: b.profile.clone(),
-            region: b.region.clone(),
-            model_id: b.model_id.clone(),
-            endpoint_override: self.bedrock_endpoint.clone(),
         })
-        .await
-        .map(|engine| engine.with_reasoning_effort(b.reasoning_effort.as_str()))
     }
 
     fn require_local(&self) -> ProviderResult<&Arc<dyn LocalBackend>> {
@@ -148,10 +147,17 @@ impl EngineFactory {
     }
 
     pub async fn polisher_for(&self, e: &EngineConfig) -> ProviderResult<Arc<dyn Polisher>> {
-        match (e.source, e.provider.kind) {
-            (Source::Local, _) => self.require_local()?.polisher(&e.local_model).await,
-            (Source::Provider, ProviderKind::Bedrock) => Ok(Arc::new(self.bedrock(e).await?)),
-            (Source::Provider, _) => Ok(Arc::new(self.openai(e)?)),
+        match e.source {
+            // Local engines are not cached here, so a changed parameter applies to the next dictation.
+            Source::Local => self.require_local()?.polisher(&e.local_model, &e.local_params_for(&e.local_model)).await,
+            Source::Provider => {
+                // `cloud_polish` stays `None` until a list is first saved; the templates stand in.
+                let configurations = e.polish_configurations();
+                let active = configurations.active().ok_or_else(|| {
+                    ProviderError::new(ErrorKind::Unavailable, "no cloud polish configuration is selected")
+                })?;
+                self.cloud_polisher(active).await
+            }
         }
     }
 }
@@ -254,9 +260,11 @@ mod tests {
         cfg.polish.enabled = true;
         let engine = &mut cfg.polish.engine;
         engine.source = Source::Provider;
-        engine.provider.kind = ProviderKind::Compat;
-        engine.provider.compat.base_url = "http://127.0.0.1:1/v1".into();
-        engine.provider.compat.model = model.into();
+        let configurations = engine.polish_configurations_mut();
+        configurations.select("compat");
+        let compat = configurations.active_mut().expect("the templates include a compat configuration");
+        *compat.target.address_mut() = "http://127.0.0.1:1/v1".into();
+        *compat.target.model_mut() = model.into();
         cfg
     }
 
@@ -281,6 +289,68 @@ mod tests {
         assert!(!Arc::ptr_eq(&first, &second));
         let third = polisher(&factory, &compat_config("model-b")).await;
         assert!(Arc::ptr_eq(&second, &third));
+    }
+
+    #[tokio::test]
+    async fn a_changed_parameter_or_selection_builds_a_new_engine() {
+        let factory = factory();
+        let base = compat_config("model-a");
+        let first = polisher(&factory, &base).await;
+
+        let mut warmer = base.clone();
+        warmer.polish.engine.polish_configurations_mut().active_mut().unwrap().params.temperature = Some(0.9);
+        let second = polisher(&factory, &warmer).await;
+        assert!(!Arc::ptr_eq(&first, &second), "a parameter is part of the engine");
+
+        let mut other = warmer.clone();
+        let copy = other.polish.engine.polish_configurations_mut().duplicate("compat", "Copy").unwrap();
+        assert_eq!(other.polish.engine.polish_configurations().selected, copy);
+        let third = polisher(&factory, &other).await;
+        assert!(!Arc::ptr_eq(&second, &third), "another configuration is another engine");
+    }
+
+    /// A local backend that remembers which model it was asked to polish with, and under which parameters.
+    #[derive(Default)]
+    struct Recorder(Mutex<Vec<(String, LocalParams)>>);
+
+    #[async_trait]
+    impl LocalBackend for Recorder {
+        async fn transcriber(&self, _: &str) -> ProviderResult<Arc<dyn Transcriber>> {
+            Err(ProviderError::new(ErrorKind::Unavailable, "speech is not under test"))
+        }
+        async fn polisher(&self, model_id: &str, params: &LocalParams) -> ProviderResult<Arc<dyn Polisher>> {
+            self.0.lock().unwrap().push((model_id.into(), *params));
+            Ok(Arc::new(MockPolisher::default()))
+        }
+        fn status(&self, _: &str) -> EngineStatus {
+            EngineStatus::Running
+        }
+    }
+
+    #[tokio::test]
+    async fn a_local_polisher_gets_the_parameters_saved_for_its_model_and_for_no_other() {
+        let backend = Arc::new(Recorder::default());
+        let factory = factory().with_local(backend.clone());
+        let mut cfg = Config::default();
+        let model = cfg.polish.engine.local_model.clone();
+        let params = LocalParams { temperature: Some(0.5), top_k: Some(20), ..LocalParams::default() };
+        cfg.polish.engine.set_local_params(&model, params);
+        cfg.polish.engine.set_local_params("another-model", LocalParams { max_tokens: Some(9), ..Default::default() });
+
+        factory.polisher(&cfg).await.unwrap().expect("polish is enabled");
+        cfg.polish.engine.set_local_params(&model, LocalParams::default());
+        factory.polisher(&cfg).await.unwrap().expect("polish is enabled");
+
+        let asked = backend.0.lock().unwrap().clone();
+        assert_eq!(asked, [(model.clone(), params), (model, LocalParams::default())], "nothing is cached for local");
+    }
+
+    #[tokio::test]
+    async fn a_selection_that_points_nowhere_is_a_reported_problem_not_a_default() {
+        let mut cfg = compat_config("model-a");
+        cfg.polish.engine.polish_configurations_mut().selected = "gone".into();
+        let error = factory().polisher(&cfg).await.err().expect("nothing is selected");
+        assert_eq!(error.kind, ErrorKind::Unavailable);
     }
 
     #[tokio::test]

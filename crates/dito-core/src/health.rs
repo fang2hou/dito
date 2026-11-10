@@ -78,6 +78,7 @@ mod tests {
         async fn polisher(
             &self,
             _: &str,
+            _: &crate::config::LocalParams,
         ) -> crate::error::ProviderResult<std::sync::Arc<dyn crate::provider::Polisher>> {
             unimplemented!()
         }

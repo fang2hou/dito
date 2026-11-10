@@ -3,7 +3,7 @@ use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, OnceLock};
 
-use dito_local::{AsrOutput, AsrRuntime, LlmRuntime, RuntimeError};
+use dito_local::{AsrOutput, AsrRuntime, LlmRuntime, RuntimeError, Sampling};
 use llama_cpp_2::context::LlamaContext;
 use llama_cpp_2::context::params::LlamaContextParams;
 use llama_cpp_2::llama_backend::LlamaBackend;
@@ -28,6 +28,31 @@ fn backend() -> Result<&'static LlamaBackend, RuntimeError> {
 
 /// Qwen hybrid-thinking checkpoints answer directly when the assistant turn opens with an empty think block.
 const EMPTY_THINK_BLOCK: &str = "<think>\n\n</think>\n\n";
+
+/// The seed of a polish reply: the same input and sampling give the same text.
+const POLISH_SEED: u32 = 1234;
+
+/// How many tokens a polish reply may take. A rewrite runs about as long as the input and long dictations need the
+/// headroom; `cap` (the user's `max_tokens` or the catalog's) can only lower that.
+fn output_budget(prompt_tokens: usize, cap: Option<u32>) -> u32 {
+    let computed = (prompt_tokens as u32 * 3 / 2).clamp(256, 4096);
+    cap.map_or(computed, |cap| computed.min(cap))
+}
+
+/// The cuts first, then the temperature, as llama.cpp orders its own default chain. Without a top-k or top-p the chain is
+/// the temperature alone.
+fn polish_sampler(sampling: &Sampling) -> LlamaSampler {
+    let mut chain = Vec::with_capacity(4);
+    if let Some(k) = sampling.top_k {
+        chain.push(LlamaSampler::top_k(i32::try_from(k).unwrap_or(i32::MAX)));
+    }
+    if let Some(p) = sampling.top_p {
+        chain.push(LlamaSampler::top_p(p, 1));
+    }
+    chain.push(LlamaSampler::temp(sampling.temperature));
+    chain.push(LlamaSampler::dist(POLISH_SEED));
+    LlamaSampler::chain_simple(chain)
+}
 
 /// A chat model served by llama.cpp with Metal offload. Its prompt format is the chat template embedded in the GGUF.
 pub struct Chat {
@@ -76,7 +101,13 @@ impl Chat {
 }
 
 impl LlmRuntime for Chat {
-    fn generate(&self, system: &str, user: &str, stop: &AtomicBool) -> Result<String, RuntimeError> {
+    fn generate(
+        &self,
+        system: &str,
+        user: &str,
+        sampling: &Sampling,
+        stop: &AtomicBool,
+    ) -> Result<String, RuntimeError> {
         let _one_at_a_time = self.gate.lock().map_err(|_| RuntimeError::LockPoisoned("model lock"))?;
         // A call cancelled while it waited for the gate must not start decoding.
         if stop.load(Ordering::Relaxed) {
@@ -85,8 +116,7 @@ impl LlmRuntime for Chat {
         let backend = backend()?;
         let prompt = self.render_prompt(system, user)?;
         let tokens = self.tokenize_prompt(&prompt);
-        // A polish rewrite runs about as long as the input; long dictations need the headroom.
-        let budget = (tokens.len() as u32 * 3 / 2).clamp(256, 4096);
+        let budget = output_budget(tokens.len(), sampling.max_tokens);
         let n_ctx = (tokens.len() as u32 + budget).max(1024);
         let threads = std::thread::available_parallelism().map(|n| n.get() as i32).unwrap_or(4);
         let params = LlamaContextParams::default()
@@ -102,7 +132,7 @@ impl LlmRuntime for Chat {
         }
         ctx.decode(&mut batch).map_err(RuntimeError::engine)?;
 
-        let mut sampler = LlamaSampler::chain_simple([LlamaSampler::temp(0.2), LlamaSampler::dist(1234)]);
+        let mut sampler = polish_sampler(sampling);
         let prompt_len = batch.n_tokens();
         let generated =
             generate_text(&self.model, &mut ctx, &mut sampler, &mut batch, prompt_len, budget as usize, stop)?;
@@ -264,13 +294,57 @@ impl Asr {
 #[cfg(test)]
 mod tests {
     #[test]
+    fn the_output_budget_follows_the_input_and_a_cap_only_lowers_it() {
+        use super::output_budget;
+        assert_eq!(output_budget(10, None), 256, "a short input gets the floor");
+        assert_eq!(output_budget(1000, None), 1500, "a rewrite runs about as long as the input, with headroom");
+        assert_eq!(output_budget(100_000, None), 4096, "a long input gets the ceiling");
+        assert_eq!(output_budget(1000, Some(300)), 300, "a cap lowers the budget");
+        assert_eq!(output_budget(1000, Some(9000)), 1500, "a cap never raises it");
+    }
+
+    /// The user's parameters reach the sampler: a cap below what the reply needs cuts it off, and a chain that keeps one
+    /// candidate repeats the greedy reply at any temperature.
+    #[test]
+    #[ignore = "requires DITO_POLISH_MODEL_DIR and a local Qwen3.5-4B GGUF"]
+    fn polish_sampling_parameters_reach_the_sampler() {
+        use dito_local::{LlmRuntime, RuntimeError, Sampling};
+        use std::sync::atomic::AtomicBool;
+        let spec = dito_local::catalog::default_catalog().into_iter().find(|s| s.id == "qwen3.5-4b-instruct").unwrap();
+        let dito_local::catalog::ModelFormat::Chat { model, disable_thinking, sampling } = spec.format else {
+            unreachable!()
+        };
+        let path = std::path::PathBuf::from(std::env::var("DITO_POLISH_MODEL_DIR").unwrap()).join(model);
+        let chat = super::Chat::load(&path, disable_thinking).unwrap();
+        let stop = AtomicBool::new(false);
+        let system = "Rewrite the text without filler words. Reply with the rewritten text only.";
+        let text = "えーと、明日の午後三時に、あの、会議をします。";
+
+        let capped = Sampling { max_tokens: Some(2), ..sampling };
+        assert!(matches!(chat.generate(system, text, &capped, &stop), Err(RuntimeError::Truncated)));
+
+        let greedy = Sampling { temperature: 0.0, ..sampling };
+        let reply = chat.generate(system, text, &greedy, &stop).unwrap();
+        assert!(!reply.is_empty());
+        assert_eq!(chat.generate(system, text, &greedy, &stop).unwrap(), reply, "greedy decoding repeats itself");
+        let one_candidate = Sampling { temperature: 1.5, top_k: Some(1), top_p: Some(0.5), ..sampling };
+        assert_eq!(
+            chat.generate(system, text, &one_candidate, &stop).unwrap(),
+            reply,
+            "top-k and top-p are in the chain"
+        );
+    }
+
+    #[test]
     #[ignore = "requires DITO_POLISH_MODEL_DIR and a local Qwen3.5-4B GGUF"]
     fn polish_reference_vocabulary_regression() {
         use dito_core::prompts::{PromptInput, Prompts, Style, build_system_prompt};
         use dito_local::LlmRuntime;
         use std::sync::atomic::AtomicBool;
         let spec = dito_local::catalog::default_catalog().into_iter().find(|s| s.id == "qwen3.5-4b-instruct").unwrap();
-        let dito_local::catalog::ModelFormat::Chat { model, disable_thinking } = spec.format else { unreachable!() };
+        let dito_local::catalog::ModelFormat::Chat { model, disable_thinking, sampling } = spec.format else {
+            unreachable!()
+        };
         let path = std::path::PathBuf::from(std::env::var("DITO_POLISH_MODEL_DIR").unwrap()).join(model);
         let model = super::Chat::load(&path, disable_thinking).unwrap();
         let terms = vec!["NebulaBanana".into(), "银河量子仓库".into()];
@@ -285,7 +359,7 @@ mod tests {
                 text,
                 dictionary: &terms,
             });
-            let out = model.generate(&system, text, &stop).unwrap();
+            let out = model.generate(&system, text, &sampling, &stop).unwrap();
             eprintln!("POLISH_REGRESSION {text}: {out}");
             assert!(!out.is_empty());
             for term in &terms {
@@ -300,7 +374,9 @@ mod tests {
     #[ignore = "requires DITO_POLISH_MODEL_DIR and a local Qwen3.5-4B GGUF"]
     fn polish_chat_template_matches_legacy_chatml() {
         let spec = dito_local::catalog::default_catalog().into_iter().find(|s| s.id == "qwen3.5-4b-instruct").unwrap();
-        let dito_local::catalog::ModelFormat::Chat { model, disable_thinking } = spec.format else { unreachable!() };
+        let dito_local::catalog::ModelFormat::Chat { model, disable_thinking, .. } = spec.format else {
+            unreachable!()
+        };
         let path = std::path::PathBuf::from(std::env::var("DITO_POLISH_MODEL_DIR").unwrap()).join(model);
         let chat = super::Chat::load(&path, disable_thinking).unwrap();
         // Edge whitespace must survive: llama.cpp trims message content for some other families, never for ChatML.

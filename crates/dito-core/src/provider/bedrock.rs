@@ -1,5 +1,7 @@
 //! Amazon Bedrock through the Converse API. Credentials come from the user's AWS profile.
 
+use std::collections::HashMap;
+
 use async_trait::async_trait;
 use aws_config::{BehaviorVersion, Region};
 use aws_sdk_bedrockruntime::Client;
@@ -7,21 +9,25 @@ use aws_sdk_bedrockruntime::error::{ProvideErrorMetadata, SdkError};
 use aws_sdk_bedrockruntime::types::{
     ContentBlock, ConversationRole, InferenceConfiguration, Message, SystemContentBlock,
 };
+use aws_smithy_types::{Document, Number};
+use serde_json::Value;
 
 use super::{PolishRequest, Polisher};
+use crate::config::RequestParams;
 use crate::error::{ErrorKind, ProviderError, ProviderResult};
 
 #[derive(Clone)]
 pub struct BedrockEngine {
     client: Client,
     model_id: String,
-    reasoning_effort: String,
+    params: RequestParams,
 }
 
 pub struct BedrockParams {
     pub profile: String,
     pub region: String,
     pub model_id: String,
+    pub params: RequestParams,
     /// Test hook: point the SDK at a local mock instead of AWS.
     pub endpoint_override: Option<String>,
 }
@@ -54,6 +60,63 @@ fn classify<E: ProvideErrorMetadata + std::fmt::Debug, R>(e: SdkError<E, R>) -> 
     }
 }
 
+/// Claude's reasoning effort is `output_config.effort` next to adaptive thinking, not `reasoning_effort`.
+/// <https://docs.aws.amazon.com/bedrock/latest/userguide/claude-messages-adaptive-thinking.html>
+fn adaptive_thinking(model_id: &str, params: &RequestParams) -> bool {
+    model_id.contains("anthropic") && !params.reasoning_effort.as_str().trim().is_empty()
+}
+
+/// The inference configuration of a request: each of temperature, top-p and the token limit that is set, and nothing
+/// when none is. Bedrock refuses temperature and top-p while adaptive thinking is on, so those are left out then.
+fn inference_config(model_id: &str, params: &RequestParams) -> Option<InferenceConfiguration> {
+    let sampling = !adaptive_thinking(model_id, params);
+    let temperature = params.temperature.filter(|_| sampling);
+    let top_p = params.top_p.filter(|_| sampling);
+    let max_tokens = params.max_tokens.map(|limit| i32::try_from(limit).unwrap_or(i32::MAX));
+    if temperature.is_none() && top_p.is_none() && max_tokens.is_none() {
+        return None;
+    }
+    Some(
+        InferenceConfiguration::builder()
+            .set_temperature(temperature)
+            .set_top_p(top_p)
+            .set_max_tokens(max_tokens)
+            .build(),
+    )
+}
+
+/// The model-specific request fields: the reasoning effort in the form the model family takes it, then `extra` over it.
+fn additional_fields(model_id: &str, params: &RequestParams) -> Option<Document> {
+    let text = |value: &str| Document::String(value.to_owned());
+    let mut fields = HashMap::new();
+    let effort = params.reasoning_effort.as_str().trim();
+    if adaptive_thinking(model_id, params) {
+        fields.insert("thinking".into(), Document::Object(HashMap::from([("type".into(), text("adaptive"))])));
+        fields.insert("output_config".into(), Document::Object(HashMap::from([("effort".into(), text(effort))])));
+    } else if !effort.is_empty() {
+        fields.insert("reasoning_effort".into(), text(effort));
+    }
+    fields.extend(params.extra.iter().map(|(key, value)| (key.clone(), document(value))));
+    (!fields.is_empty()).then_some(Document::Object(fields))
+}
+
+fn document(value: &Value) -> Document {
+    match value {
+        Value::Null => Document::Null,
+        Value::Bool(flag) => Document::Bool(*flag),
+        Value::Number(number) => Document::Number(match (number.as_u64(), number.as_i64()) {
+            (Some(unsigned), _) => Number::PosInt(unsigned),
+            (None, Some(signed)) => Number::NegInt(signed),
+            (None, None) => Number::Float(number.as_f64().unwrap_or_default()),
+        }),
+        Value::String(text) => Document::String(text.clone()),
+        Value::Array(items) => Document::Array(items.iter().map(document).collect()),
+        Value::Object(fields) => {
+            Document::Object(fields.iter().map(|(key, value)| (key.clone(), document(value))).collect())
+        }
+    }
+}
+
 impl BedrockEngine {
     pub async fn connect(p: BedrockParams) -> ProviderResult<Self> {
         if p.model_id.trim().is_empty() {
@@ -70,16 +133,7 @@ impl BedrockEngine {
             loader = loader.endpoint_url(url);
         }
         let conf = loader.load().await;
-        Ok(Self {
-            client: Client::new(&conf),
-            model_id: p.model_id.trim().to_string(),
-            reasoning_effort: String::new(),
-        })
-    }
-
-    pub fn with_reasoning_effort(mut self, value: &str) -> Self {
-        self.reasoning_effort = value.trim().to_owned();
-        self
+        Ok(Self { client: Client::new(&conf), model_id: p.model_id.trim().to_string(), params: p.params })
     }
 
     async fn converse(&self, system: Option<&str>, content: ContentBlock) -> ProviderResult<String> {
@@ -88,39 +142,15 @@ impl BedrockEngine {
             .content(content)
             .build()
             .map_err(|e| ProviderError::new(ErrorKind::Other, e.to_string()))?;
-        let mut call = self
-            .client
-            .converse()
-            .model_id(&self.model_id)
-            .messages(msg)
-            .inference_config(InferenceConfiguration::builder().max_tokens(2048).temperature(0.2).build());
+        let mut call = self.client.converse().model_id(&self.model_id).messages(msg);
+        if let Some(config) = inference_config(&self.model_id, &self.params) {
+            call = call.inference_config(config);
+        }
+        if let Some(fields) = additional_fields(&self.model_id, &self.params) {
+            call = call.additional_model_request_fields(fields);
+        }
         if let Some(s) = system {
             call = call.system(SystemContentBlock::Text(s.to_string()));
-        }
-        if !self.reasoning_effort.is_empty() {
-            use aws_smithy_types::Document;
-            let effort = Document::String(self.reasoning_effort.clone());
-            // Bedrock's Claude effort is output_config.effort, not reasoning_effort.
-            // https://docs.aws.amazon.com/bedrock/latest/userguide/claude-messages-adaptive-thinking.html
-            let fields = if self.model_id.contains("anthropic") {
-                call = call.inference_config(InferenceConfiguration::builder().max_tokens(2048).build());
-                Document::Object(std::collections::HashMap::from([
-                    (
-                        "thinking".into(),
-                        Document::Object(std::collections::HashMap::from([(
-                            "type".into(),
-                            Document::String("adaptive".into()),
-                        )])),
-                    ),
-                    (
-                        "output_config".into(),
-                        Document::Object(std::collections::HashMap::from([("effort".into(), effort)])),
-                    ),
-                ]))
-            } else {
-                Document::Object(std::collections::HashMap::from([("reasoning_effort".into(), effort)]))
-            };
-            call = call.additional_model_request_fields(fields);
         }
         let out = call.send().await.map_err(classify)?;
         if matches!(out.stop_reason(), aws_sdk_bedrockruntime::types::StopReason::MaxTokens) {
@@ -145,5 +175,64 @@ impl BedrockEngine {
 impl Polisher for BedrockEngine {
     async fn polish(&self, req: &PolishRequest<'_>) -> ProviderResult<String> {
         self.converse(Some(req.system), ContentBlock::Text(req.text.to_string())).await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::ReasoningEffort;
+
+    const CLAUDE: &str = "apac.anthropic.claude-sonnet-4-20250514-v1:0";
+    const OTHER: &str = "openai.gpt-oss-120b-1:0";
+
+    fn params(effort: &str) -> RequestParams {
+        RequestParams {
+            temperature: Some(0.2),
+            top_p: Some(0.9),
+            max_tokens: Some(2048),
+            reasoning_effort: ReasoningEffort::from(effort.to_owned()),
+            ..RequestParams::default()
+        }
+    }
+
+    #[test]
+    fn an_unset_parameter_is_not_in_the_inference_configuration() {
+        let unset = RequestParams { reasoning_effort: ReasoningEffort::Custom(String::new()), ..Default::default() };
+        assert_eq!(inference_config(CLAUDE, &unset), None, "no empty configuration is sent");
+        let tokens_only = RequestParams { max_tokens: Some(64), ..unset };
+        let config = inference_config(CLAUDE, &tokens_only).unwrap();
+        assert_eq!((config.max_tokens(), config.temperature(), config.top_p()), (Some(64), None, None));
+    }
+
+    #[test]
+    fn adaptive_thinking_leaves_out_what_bedrock_refuses_alongside_it() {
+        let thinking = inference_config(CLAUDE, &params("low")).unwrap();
+        assert_eq!((thinking.max_tokens(), thinking.temperature(), thinking.top_p()), (Some(2048), None, None));
+        let plain = inference_config(CLAUDE, &params("")).unwrap();
+        assert_eq!((plain.max_tokens(), plain.temperature(), plain.top_p()), (Some(2048), Some(0.2), Some(0.9)));
+        let other_family = inference_config(OTHER, &params("high")).unwrap();
+        assert_eq!(other_family.temperature(), Some(0.2), "only Claude switches to adaptive thinking");
+    }
+
+    #[test]
+    fn the_reasoning_effort_takes_the_form_of_the_model_family_and_extra_goes_over_it() {
+        assert_eq!(additional_fields(CLAUDE, &params("")), None);
+        let claude = additional_fields(CLAUDE, &params(" low ")).unwrap();
+        let expected =
+            document(&serde_json::json!({"thinking": {"type": "adaptive"}, "output_config": {"effort": "low"}}));
+        assert_eq!(claude, expected);
+        let other = additional_fields(OTHER, &params("high")).unwrap();
+        assert_eq!(other, document(&serde_json::json!({"reasoning_effort": "high"})));
+
+        let extra = RequestParams {
+            extra: serde_json::from_str(r#"{"reasoning_effort": "x", "top_k": 5, "stop": [null, 1.5, -2, true]}"#)
+                .unwrap(),
+            ..params("high")
+        };
+        let merged = additional_fields(OTHER, &extra).unwrap();
+        let expected =
+            document(&serde_json::json!({"reasoning_effort": "x", "top_k": 5, "stop": [null, 1.5, -2, true]}));
+        assert_eq!(merged, expected);
     }
 }

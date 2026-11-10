@@ -1,4 +1,4 @@
-use dito_core::config::{EngineConfig, ProviderKind, Source};
+use dito_core::config::{EngineConfig, PolishConfiguration, PolishTarget, Source};
 use dito_core::i18n::Tr;
 use dito_core::provider::configured_asr::AsrProfiles;
 use dito_core::secrets::Role;
@@ -36,17 +36,20 @@ impl StatusPage {
         let idx = role::index(role);
         let profiles = role::cloud_profiles(role, e);
         let profiles = profiles.as_deref();
-        let name = provider_name(c, e, profiles);
+        let configurations = e.polish_configurations();
+        let configuration = configurations.active();
+        let name = provider_name(profiles, configuration);
         let (label, tone) = match &self.checks[idx] {
             TestState::Ok(_) => (c.t(Tr::ModelsConnected), StatusTone::Success),
             TestState::Failed(_) => (c.t(Tr::ModelsConnectionError), StatusTone::Danger),
             TestState::Running | TestState::Idle => (c.t(Tr::ModelsChecking), StatusTone::Warning),
         };
         let chip = ui::status_chip(p, label, tone);
-        let mut body: Vec<AnyElement> =
-            vec![model_line(c, provider_model(e, profiles).to_owned(), Source::Provider).into_any_element()];
+        let mut body: Vec<AnyElement> = vec![
+            model_line(c, provider_model(profiles, configuration).to_owned(), Source::Provider).into_any_element(),
+        ];
         let mut error = None;
-        let mut cells = vec![(c.t(Tr::StatusProvider), name.to_string()), endpoint_cell(c, e, profiles)];
+        let mut cells = vec![(c.t(Tr::StatusProvider), name.to_string()), endpoint_cell(c, profiles, configuration)];
         match &self.checks[idx] {
             TestState::Ok(ms) => {
                 cells.push((c.t(Tr::ModelsLatency), format!("{ms} ms")));
@@ -73,35 +76,40 @@ impl StatusPage {
     }
 }
 
-fn provider_name<'a>(c: &Ctx, e: &EngineConfig, profiles: Option<&'a AsrProfiles>) -> &'a str {
-    profiles.and_then(AsrProfiles::active_name).unwrap_or_else(|| c.lang.tr(e.provider.kind.label()))
+/// The speech profile or polish configuration the engine runs, by the name it was given.
+fn provider_name<'a>(profiles: Option<&'a AsrProfiles>, configuration: Option<&'a PolishConfiguration>) -> &'a str {
+    match profiles {
+        Some(profiles) => profiles.active_name().unwrap_or("—"),
+        None => configuration.map_or("—", |c| c.name.as_str()),
+    }
 }
 
-fn provider_model<'a>(e: &'a EngineConfig, profiles: Option<&'a AsrProfiles>) -> &'a str {
+fn provider_model<'a>(profiles: Option<&'a AsrProfiles>, configuration: Option<&'a PolishConfiguration>) -> &'a str {
     if let Some(profiles) = profiles {
         return profiles.active()["connection"]["model"].as_str().unwrap_or("");
     }
-    match e.provider.kind {
-        ProviderKind::Azure => &e.provider.azure.deployment,
-        ProviderKind::Bedrock => &e.provider.bedrock.model_id,
-        ProviderKind::Compat => &e.provider.compat.model,
-    }
+    configuration.map_or("", |c| c.target.model())
 }
 
 /// The card's second fact: where the provider is reached.
-fn endpoint_cell(c: &Ctx, e: &EngineConfig, profiles: Option<&AsrProfiles>) -> (SharedString, String) {
+fn endpoint_cell(
+    c: &Ctx,
+    profiles: Option<&AsrProfiles>,
+    configuration: Option<&PolishConfiguration>,
+) -> (SharedString, String) {
     if let Some(profiles) = profiles {
         return (c.t(Tr::ModelsEndpoint), url_host(profiles.active()["connection"]["base_url"].as_str().unwrap_or("")));
     }
-    match e.provider.kind {
-        ProviderKind::Azure => {
-            let resource = azure_resource(&e.provider.azure.endpoint);
+    match configuration.map(|c| &c.target) {
+        Some(PolishTarget::Azure { endpoint, .. }) => {
+            let resource = azure_resource(endpoint);
             (c.t(Tr::ModelsResource), if resource.is_empty() { "—".into() } else { resource })
         }
-        ProviderKind::Bedrock => (c.t(Tr::ModelsRegion), e.provider.bedrock.region.clone()),
-        ProviderKind::Compat => {
-            let host = url_host(&e.provider.compat.base_url);
+        Some(PolishTarget::Bedrock { region, .. }) => (c.t(Tr::ModelsRegion), region.clone()),
+        Some(PolishTarget::Compat { base_url, .. }) => {
+            let host = url_host(base_url);
             (c.t(Tr::ModelsEndpoint), if host.is_empty() { "—".into() } else { host })
         }
+        None => (c.t(Tr::ModelsEndpoint), "—".into()),
     }
 }

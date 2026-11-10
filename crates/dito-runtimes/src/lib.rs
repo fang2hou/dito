@@ -59,7 +59,7 @@ impl RuntimeLoader for Runtimes {
     fn load_llm(&self, spec: &ModelSpec, dir: &Path) -> Result<Arc<dyn LlmRuntime>, RuntimeError> {
         match spec.format {
             #[cfg(feature = "llama")]
-            ModelFormat::Chat { model, disable_thinking } => {
+            ModelFormat::Chat { model, disable_thinking, .. } => {
                 Ok(Arc::new(llama::Chat::load(&model_file(dir, model)?, disable_thinking)?))
             }
             #[cfg(not(feature = "llama"))]

@@ -1,4 +1,5 @@
 use axum::http::HeaderMap;
+use serde_json::Value;
 
 #[derive(Debug, Clone, Default)]
 pub struct Recorded {
@@ -10,6 +11,8 @@ pub struct Recorded {
     pub system: Option<String>,
     pub user: Option<String>,
     pub reasoning_effort: Option<String>,
+    /// The JSON request body of the chat and Converse routes, as it was sent.
+    pub body: Option<Value>,
     pub headers: Vec<(String, String)>,
 }
 
