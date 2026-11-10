@@ -35,7 +35,8 @@ async fn server() -> (String, Capture, tokio::task::JoinHandle<()>) {
 async fn all_presets_send_their_own_format_preserve_relay_prefix_and_extract_text() {
     let (url, c, task) = server().await;
     let clip = AudioClip::silence(0.1);
-    for (index, mut v) in AsrProfiles::default().profiles.into_iter().enumerate() {
+    for (index, profile) in AsrProfiles::default().profiles.into_iter().enumerate() {
+        let mut v = profile.config;
         v["connection"]["base_url"] = url.clone().into();
         v["connection"]["model"] = "future-model".into();
         v["language_map"]["ja"] = "JP".into();
@@ -61,7 +62,7 @@ async fn all_presets_send_their_own_format_preserve_relay_prefix_and_extract_tex
 #[tokio::test]
 async fn auto_language_is_omitted_and_unknown_language_uses_other() {
     let (url, c, task) = server().await;
-    let mut v = AsrProfiles::default().profiles[2].clone();
+    let mut v = AsrProfiles::default().profiles[2].config.clone();
     v["connection"]["base_url"] = url.into();
     v["connection"]["model"] = "my-model".into();
     let engine = ConfiguredAsr::new(v, String::new()).unwrap();
@@ -79,7 +80,7 @@ async fn auto_language_is_omitted_and_unknown_language_uses_other() {
 #[tokio::test]
 async fn custom_multipart_sends_binary_audio_and_encoded_query() {
     let (url, c, task) = server().await;
-    let mut v = AsrProfiles::default().profiles[2].clone();
+    let mut v = AsrProfiles::default().profiles[2].config.clone();
     v["connection"]["base_url"] = url.into();
     v["connection"]["model"] = "my-model".into();
     v["request"] = json!({"method":"POST","path":"/transcribe","headers":{"X-API-Key":"{{api_key}}"},"query":{"name":"日本語 & test"},"encoding":"multipart","fields":{"file":"{{audio.file}}","language":"{{language}}","model":"{{model}}"}});

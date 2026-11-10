@@ -200,7 +200,8 @@ pub(super) fn provider(w: &Onboarding, c: &Ctx, cx: &mut Context<Onboarding>) ->
 fn provider_tiles(w: &Onboarding, c: &Ctx, cx: &mut Context<Onboarding>) -> Div {
     let p = &c.p;
     let mut row = div().w_full().flex().gap(px(10.));
-    for (k, name) in dito_core::provider::configured_asr::AsrProfiles::NAMES.iter().enumerate() {
+    let profiles = w.st.cfg.get().asr.cloud_asr.clone().unwrap_or_default().profiles;
+    for (k, profile) in profiles.iter().enumerate() {
         let on = k == w.provider;
         let card_id = ElementId::from(("wizard-prov", k));
         row = row.child(
@@ -221,7 +222,7 @@ fn provider_tiles(w: &Onboarding, c: &Ctx, cx: &mut Context<Onboarding>) -> Div 
                 .child(ui::hover_fill_if(&card_id, Some(14.), ui::hex_alpha(p.seg, 0.6), !on))
                 .child(ui::ring_overlay(("wizard-ring", k), on, 14., p.border_strong, p.accent))
                 .on_click(cx.listener(move |this, _, window, cx| this.select_provider(k, window, cx)))
-                .child(ui::choice_label(&card_id, p, (*name).into(), 13., on)),
+                .child(ui::choice_label(&card_id, p, profile.name.clone().into(), 13., on)),
         );
     }
     row

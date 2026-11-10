@@ -31,8 +31,9 @@ impl Settings {
             Source::Provider => SharedString::from(
                 e.cloud_asr
                     .as_ref()
-                    .and_then(|p| dito_core::provider::configured_asr::AsrProfiles::NAMES.get(p.selected).copied())
-                    .unwrap_or_else(|| lang.tr(e.provider.kind.label())),
+                    .and_then(|p| p.active_name())
+                    .unwrap_or_else(|| lang.tr(e.provider.kind.label()))
+                    .to_owned(),
             ),
             Source::Local => SharedString::from(
                 models
