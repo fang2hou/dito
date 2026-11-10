@@ -2,7 +2,15 @@
 # Build target/bundle/Dito.app (release build, Liquid Glass icon, Info.plist). Ad-hoc signed unless CODESIGN_IDENTITY is set.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
+if [[ -z ${DEVELOPER_DIR:-} ]]; then
+  selected_xcode="$(xcode-select -p 2>/dev/null || true)"
+  if [[ -x "$selected_xcode/usr/bin/xcodebuild" ]]; then
+    DEVELOPER_DIR="$selected_xcode"
+  else
+    DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+  fi
+fi
+export DEVELOPER_DIR
 
 cargo build --release -p dito-app
 app=target/bundle/Dito.app
@@ -10,8 +18,6 @@ rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp target/release/dito "$app/Contents/MacOS/dito"
 
-# The Icon Composer document becomes Assets.car (Liquid Glass, macOS 26/27) plus a flat Dito.icns fallback.
-# Do not set the Dock icon at runtime from a bundle: the system draws the icon from Assets.car (see docs/IMPLEMENTATION.md, Engineering Traps).
 scripts/icon.sh compile "$app/Contents/Resources"
 
 # Localize the system permission prompt (it reads InfoPlist.strings, not our UI code).
@@ -43,6 +49,11 @@ cat > "$app/Contents/Info.plist" <<'PLIST'
 </dict>
 </plist>
 PLIST
+
+# without Assets.car, CFBundleIconName would name a missing icon
+if [[ ! -s "$app/Contents/Resources/Assets.car" ]]; then
+  /usr/libexec/PlistBuddy -c "Delete :CFBundleIconName" "$app/Contents/Info.plist"
+fi
 
 # Stable local signing identity keeps TCC permissions (mic / accessibility / input
 # monitoring) across rebuilds; set up once via scripts/certs.sh. CODESIGN_IDENTITY
