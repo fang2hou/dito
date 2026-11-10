@@ -52,6 +52,7 @@ pub async fn run(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     profiles.profiles[1].config["connection"]["base_url"] = format!("{}/v1", server.url).into();
     profiles.profiles[1].config["connection"]["model"] = "inline-before".into();
     st.secrets.set(&profiles.account(), "test-key").expect("isolated mock credentials");
+    st.factory.invalidate_engines();
     services::save_config(st, |config| {
         config.general.display_language = DisplayLanguage::Ja;
         config.asr.source = Source::Provider;
