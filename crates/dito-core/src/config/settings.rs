@@ -3,12 +3,14 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use super::{EngineConfig, General, PolishConfig, ProviderKind, ReasoningEffort, Source};
+use super::{EngineConfig, General, PolishConfig, ProviderKind, ReasoningEffort, SCHEMA_VERSION, Source};
 use crate::prompts::Prompts;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Config {
+    /// Version of the persisted shape (see `migrate`). Declared first so it is the first line of the saved file.
+    pub schema_version: u32,
     pub general: General,
     pub asr: EngineConfig,
     pub polish: PolishConfig,
@@ -17,6 +19,21 @@ pub struct Config {
     pub dictionary_for_polish: bool,
     pub onboarded: bool,
     pub models_dir: Option<PathBuf>,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            schema_version: SCHEMA_VERSION,
+            general: General::default(),
+            asr: EngineConfig::default(),
+            polish: PolishConfig::default(),
+            prompts: Prompts::default(),
+            dictionary_for_polish: false,
+            onboarded: false,
+            models_dir: None,
+        }
+    }
 }
 
 impl Config {

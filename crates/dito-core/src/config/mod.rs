@@ -1,4 +1,4 @@
-//! Settings: the schema, the persisted store and the default data directory.
+//! Settings: the schema, its versioned migrations, the persisted store and the default data directory.
 
 mod asr_profiles;
 mod data_dir;
@@ -6,6 +6,7 @@ mod engine;
 mod error;
 mod general;
 mod hud;
+mod migrate;
 mod settings;
 mod store;
 
@@ -20,5 +21,6 @@ pub use general::{
     Appearance, DEFAULT_SHORTCUT, DisplayLanguage, General, InsertMethod, MusicMuteMode, PreferredLanguage, RecordMode,
 };
 pub use hud::HudPosition;
+pub use migrate::SCHEMA_VERSION;
 pub use settings::Config;
 pub use store::ConfigStore;
