@@ -155,8 +155,9 @@ impl AsrProfiles {
         Some(id)
     }
 
-    /// Take a profile out of the list; the caller deletes the key under its `account()`. The last one stays, so this
-    /// returns `None` for it. When the profile in use goes, its neighbour is selected.
+    /// Take a profile out of the list and return it. Its key is still under its `account()`:
+    /// `ConfigStore::remove_asr_profile` removes both, deleting the key only once the list is saved. The last profile
+    /// stays, so this returns `None` for it. When the profile in use goes, its neighbour is selected.
     pub fn remove(&mut self, id: &str) -> Option<AsrProfile> {
         self.list().remove(id)
     }

@@ -88,19 +88,20 @@ impl EngineFactory {
         self
     }
 
-    /// The engine of one cloud polish configuration, with the key stored under its Keychain account.
+    /// The engine of one cloud polish configuration. Azure and compatible servers use the key stored under the
+    /// configuration's Keychain account; Bedrock authenticates through its AWS profile.
     async fn cloud_polisher(&self, configuration: &PolishConfiguration) -> ProviderResult<Arc<dyn Polisher>> {
-        let key = self.secrets.get(&configuration.account()).unwrap_or_default();
+        let key = || self.secrets.get(&configuration.account()).unwrap_or_default();
         let params = configuration.params.clone();
         Ok(match &configuration.target {
             PolishTarget::Azure { endpoint, deployment } => Arc::new(OpenAiEngine::new(
                 Flavor::Azure { endpoint: endpoint.clone(), deployment: deployment.clone() },
-                key,
+                key(),
                 params,
             )?),
             PolishTarget::Compat { base_url, model } => Arc::new(OpenAiEngine::new(
                 Flavor::Compat { base_url: base_url.clone(), model: model.clone() },
-                key,
+                key(),
                 params,
             )?),
             PolishTarget::Bedrock { profile, region, model_id } => Arc::new(

@@ -4,7 +4,8 @@ use std::sync::Arc;
 use tokio::sync::watch;
 
 use super::migrate::{self, SCHEMA_VERSION, UpgradeError};
-use super::{Config, ConfigError};
+use super::{AsrProfiles, Config, ConfigError};
+use crate::secrets::SecretStore;
 
 type Result<T> = std::result::Result<T, ConfigError>;
 
@@ -58,6 +59,21 @@ impl ConfigStore {
         Ok(())
     }
 
+    /// Remove a cloud polish configuration and the key it holds. The list is saved first, so a failed save keeps the
+    /// configuration and its key together. The last configuration stays, and so does its key: `false`.
+    pub fn remove_polish_configuration(&self, id: &str, secrets: &dyn SecretStore) -> Result<bool> {
+        let mut removed = None;
+        self.update(|c| removed = c.polish.engine.polish_configurations_mut().remove(id))?;
+        Ok(forget_key(removed.map(|configuration| configuration.account()), secrets))
+    }
+
+    /// The same for a cloud speech profile.
+    pub fn remove_asr_profile(&self, id: &str, secrets: &dyn SecretStore) -> Result<bool> {
+        let mut removed = None;
+        self.update(|c| removed = c.asr.cloud_asr.get_or_insert_with(AsrProfiles::default).remove(id))?;
+        Ok(forget_key(removed.map(|profile| profile.account()), secrets))
+    }
+
     fn write(&self, cfg: &Config) -> Result<()> {
         if let Some(dir) = self.path.parent() {
             std::fs::create_dir_all(dir)?;
@@ -68,6 +84,16 @@ impl ConfigStore {
         std::fs::rename(&tmp, &self.path)?;
         Ok(())
     }
+}
+
+/// Delete the key of an entry that was removed, and say whether there was one. A key that cannot be deleted stays in the
+/// Keychain under an id that is never used again: that is logged, because the entry is gone either way.
+fn forget_key(account: Option<String>, secrets: &dyn SecretStore) -> bool {
+    let Some(account) = account else { return false };
+    if let Err(error) = secrets.delete(&account) {
+        tracing::warn!("could not delete the API key of a removed entry: {error}");
+    }
+    true
 }
 
 /// Parse `text`, upgrade it to the current schema and return the settings together with the version the file was at.
@@ -372,6 +398,57 @@ reasoning_effort = "minimal"
         );
         assert_eq!(config.polish.engine.local_params_for("qwen3.5-9b-instruct"), params);
         assert_eq!(config.polish.engine.local_params_for("other"), LocalParams::default());
+    }
+
+    #[test]
+    fn removing_a_configuration_or_profile_saves_the_list_and_deletes_its_key() {
+        use crate::secrets::{MemorySecrets, SecretError};
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+        let store = ConfigStore::open(&path).unwrap();
+        let secrets = MemorySecrets::default();
+        for account in ["polish.azure", "polish.bedrock", "polish.compat", "asr.funasr", "asr.openrouter"] {
+            secrets.set(account, "key").unwrap();
+        }
+
+        // The configuration in use goes, its neighbour takes over, the other keys stay.
+        assert!(store.remove_polish_configuration("azure", &secrets).unwrap());
+        let config = store.get();
+        let list = config.polish.engine.polish_configurations();
+        assert_eq!(list.items.iter().map(|c| c.id.as_str()).collect::<Vec<_>>(), ["bedrock", "compat"]);
+        assert_eq!(list.selected, "bedrock");
+        assert_eq!(secrets.get("polish.azure"), None);
+        assert_eq!(secrets.get("polish.compat").as_deref(), Some("key"));
+        let reopened = ConfigStore::open(&path).unwrap().get();
+        assert_eq!(reopened.polish.engine.polish_configurations().items.len(), 2, "the list is on disk");
+
+        // The last one stays with its key; an unknown id is not a removal.
+        assert!(store.remove_polish_configuration("bedrock", &secrets).unwrap());
+        assert!(!store.remove_polish_configuration("compat", &secrets).unwrap());
+        assert!(!store.remove_polish_configuration("missing", &secrets).unwrap());
+        assert_eq!(secrets.get("polish.compat").as_deref(), Some("key"));
+
+        // Speech profiles go the same way.
+        assert!(store.remove_asr_profile("funasr", &secrets).unwrap());
+        assert_eq!(secrets.get("asr.funasr"), None);
+        assert_eq!(secrets.get("asr.openrouter").as_deref(), Some("key"));
+        assert_eq!(store.get().asr.cloud_asr.as_ref().unwrap().selected, "qwen_asr");
+
+        // A Keychain that refuses the deletion does not bring the configuration back.
+        struct Locked;
+        impl SecretStore for Locked {
+            fn get(&self, _: &str) -> Option<String> {
+                None
+            }
+            fn set(&self, _: &str, _: &str) -> std::result::Result<(), SecretError> {
+                Err(SecretError::Backend("locked".into()))
+            }
+            fn delete(&self, _: &str) -> std::result::Result<(), SecretError> {
+                Err(SecretError::Backend("locked".into()))
+            }
+        }
+        assert!(store.remove_asr_profile("qwen_asr", &Locked).unwrap());
+        assert_eq!(store.get().asr.cloud_asr.as_ref().unwrap().profiles.len(), 1);
     }
 
     #[test]

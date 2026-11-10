@@ -259,8 +259,10 @@ impl PolishConfigurations {
         Some(id)
     }
 
-    /// Take a configuration out of the list; the caller deletes the key under its `account()`. The last one stays,
-    /// so this returns `None` for it. When the configuration in use goes, its neighbour is selected.
+    /// Take a configuration out of the list and return it. Its key is still under its `account()`:
+    /// `ConfigStore::remove_polish_configuration` removes both, deleting the key only once the list is saved. The last
+    /// configuration stays, so this returns `None` for it. When the configuration in use goes, its neighbour is
+    /// selected.
     pub fn remove(&mut self, id: &str) -> Option<PolishConfiguration> {
         self.list().remove(id)
     }
