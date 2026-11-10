@@ -244,6 +244,10 @@ dictionary.same_spelling = { ja = "整形でも同じ表記を使う", en = "Use
 dictionary.no_words_yet = { ja = "まだ単語がありません", en = "No words yet", zh = "还没有词条" }
 dictionary.words_passed_to_asr = { ja = "登録した単語は音声認識に渡されます。", en = "Added words are passed to speech recognition.", zh = "添加的词条会传给语音识别。" }
 dictionary.words_sent_to_polish = { ja = "整形モデルにも単語を渡し、表記をそろえます。", en = "Also sends your words to the polish model to keep spelling consistent.", zh = "同时把词条传给润色模型，统一写法。" }
+dictionary.add_failed = { ja = "単語を追加できませんでした。", en = "Could not add the word.", zh = "无法添加词语。" }
+dictionary.delete_failed = { ja = "単語を削除できませんでした。", en = "Could not delete the word.", zh = "无法删除词语。" }
+dictionary.import_failed = { ja = "インポートできませんでした。ファイルの内容を確認してください。", en = "Could not import. Check the file's contents.", zh = "导入失败，请检查文件内容。" }
+dictionary.export_failed = { ja = "エクスポートできませんでした。保存先を確認してください。", en = "Could not export. Check the destination.", zh = "导出失败，请检查保存位置。" }
 dictionary.no_hotword_support = { ja = "現在のモデルはホットワードに対応していません。対応する音声認識モデルを選ぶと有効になります。", en = "The current model does not support hotwords. Select a speech recognition model that supports them to use this feature.", zh = "当前模型不支持热词，选择支持热词的语音识别模型后即可生效。" }
 
 # --- prompts page -------------------------------------------------------------

@@ -1,6 +1,7 @@
 //! Small UI kit matching the FigCraft design: controls, pill buttons, grouped cards.
 
 mod appearance_seg;
+mod banner;
 mod button;
 mod callbacks;
 mod format;
@@ -32,6 +33,7 @@ mod typography;
 mod watch;
 
 pub use appearance_seg::appearance_seg;
+pub use banner::{BannerAction, banner};
 pub use button::{
     BtnKind, BtnSize, CONTROL_H, CircleAppearance, CircleSize, bare_icon_button, button, button_with, circle_control,
     close_button, disabled_button, icon_button, icon_button_with,

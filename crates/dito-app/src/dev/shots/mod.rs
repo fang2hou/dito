@@ -1,5 +1,6 @@
 mod capture;
 mod demo;
+mod dictionary;
 mod hud;
 #[cfg(feature = "mock")]
 mod inline_asr;
