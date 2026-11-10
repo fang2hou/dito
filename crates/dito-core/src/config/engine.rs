@@ -162,12 +162,44 @@ impl EngineConfig {
             cloud_asr: None,
         }
     }
+
+    /// The engine's identity in history, see [`EngineLabels`]. A provider source with a configured cloud speech
+    /// profile is labelled by that profile, the same condition `EngineFactory::transcriber_for` uses to run it.
+    pub fn label(&self) -> String {
+        match (self.source, &self.cloud_asr) {
+            (Source::Local, _) => format!("local:{}", self.local_model),
+            (Source::Provider, Some(profiles)) => {
+                let model = profiles.active()["connection"]["model"].as_str().unwrap_or("");
+                format!("{}:{model}", profiles.account())
+            }
+            (Source::Provider, None) => {
+                let provider = &self.provider;
+                let model = match provider.kind {
+                    ProviderKind::Azure => &provider.azure.deployment,
+                    ProviderKind::Bedrock => &provider.bedrock.model_id,
+                    ProviderKind::Compat => &provider.compat.model,
+                };
+                format!("{}:{model}", provider.kind.id())
+            }
+        }
+    }
 }
 
 impl Default for EngineConfig {
     fn default() -> Self {
         Self::with_local(DEFAULT_ASR_LOCAL)
     }
+}
+
+/// Which engines produced a history entry: `local:<model id>` for an on-device model, `<provider id>:<model>` for a
+/// provider (`azure:<deployment>`, `bedrock:<model id>`, `compat:<model>`), and `<keychain account>:<model>` for a
+/// configured cloud speech profile (for example `asr.funasr:paraformer-v2`).
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct EngineLabels {
+    /// Speech recognition. `None` for an entry from before labels were recorded, or one that never reached recognition.
+    pub asr: Option<String>,
+    /// Polishing. `None` when polishing was off, was never reached, or the entry predates labels.
+    pub polish: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

@@ -1,7 +1,7 @@
 use std::sync::Mutex;
 
 use super::*;
-use crate::config::{ConfigStore, InsertMethod};
+use crate::config::{ConfigStore, DEFAULT_ASR_LOCAL, DEFAULT_POLISH_LOCAL, InsertMethod};
 use crate::controller::{Env, FocusWarmer, Frontmost, MusicMute, Recorder, RecorderError, Sink};
 use crate::factory::FixedEngines;
 use crate::provider::mock::{MockPolisher, MockTranscriber};
@@ -120,6 +120,7 @@ struct Rig {
     h: DictationHandle,
     sink: Arc<FakeSink>,
     store: Arc<Store>,
+    config: Arc<ConfigStore>,
     asr: Arc<MockTranscriber>,
     mute: FakeMusicMute,
     gate: Option<GateControl>,
@@ -177,12 +178,12 @@ fn rig(asr: MockTranscriber, polish: MockPolisher, options: RigOptions) -> Rig {
             focus_warmer: Arc::new(NoopFocusWarmer),
             music_mute: Arc::new(music_mute.clone()),
         },
-        config,
+        config: config.clone(),
         store: store.clone(),
         engines: Arc::new(FixedEngines { asr: asr.clone(), polish: Arc::new(polish) }),
         audio_dir: Some(audio_dir),
     });
-    Rig { h, sink, store, asr, mute: music_mute, gate: gate_control, _dir: dir }
+    Rig { h, sink, store, config, asr, mute: music_mute, gate: gate_control, _dir: dir }
 }
 
 fn simple_rig(text: &str) -> Rig {
@@ -218,6 +219,14 @@ async fn history_of(store: &Store, count: usize) -> Vec<crate::store::HistoryEnt
         }
         assert!(std::time::Instant::now() < deadline, "history row was not written");
         tokio::task::yield_now().await;
+    }
+}
+
+/// What the default settings run: local recognition, then local polishing.
+fn default_labels() -> EngineLabels {
+    EngineLabels {
+        asr: Some(format!("local:{DEFAULT_ASR_LOCAL}")),
+        polish: Some(format!("local:{DEFAULT_POLISH_LOCAL}")),
     }
 }
 
@@ -270,6 +279,7 @@ async fn toggle_mode_runs_listen_recognize_polish_insert_then_hides() {
     assert_eq!((h[0].app.as_str(), h[0].style.clone()), ("Slack", Style::Slack), "style follows the frontmost app");
     assert_eq!(h[0].raw, "えーと 会議です");
     assert!(h[0].audio_path.as_deref().is_some_and(|p| std::path::Path::new(p).exists()));
+    assert_eq!(h[0].engines, default_labels(), "the row names the engines of the settings it ran with");
 }
 
 #[tokio::test]
@@ -314,6 +324,7 @@ async fn cancelling_while_listening_keeps_the_audio_as_a_cancelled_entry() {
     let h = history_of(&r.store, 1).await;
     assert_eq!(h[0].kind, HistoryKind::Cancelled);
     assert!(h[0].audio_path.is_some(), "the audio is what 再認識 needs");
+    assert_eq!(h[0].engines, EngineLabels::default(), "no engine had run, so there is nothing to name");
 }
 
 #[tokio::test]
@@ -326,7 +337,9 @@ async fn stop_during_processing_cancels_and_records_it() {
     r.h.send(Command::Stop);
     wait_for(&r.h, |s| *s == HudState::Hidden).await;
     assert!(r.sink.delivered.lock().unwrap().is_empty());
-    assert_eq!(history_of(&r.store, 1).await[0].kind, HistoryKind::Cancelled);
+    let h = history_of(&r.store, 1).await;
+    assert_eq!(h[0].kind, HistoryKind::Cancelled);
+    assert_eq!(h[0].engines, default_labels(), "a run cancelled while processing still names its engines");
 }
 
 #[tokio::test]
@@ -340,11 +353,18 @@ async fn auth_failure_shows_error_records_history_and_retry_succeeds() {
     r.h.send(Command::Finish);
     let s = wait_for(&r.h, |s| matches!(s, HudState::Error { .. })).await;
     assert!(matches!(s, HudState::Error { kind: ErrorKind::Auth, action: ErrorAction::OpenSettings, .. }));
-    assert_eq!(history_of(&r.store, 1).await[0].kind, HistoryKind::Failed);
+    let failed = history_of(&r.store, 1).await;
+    assert_eq!(failed[0].kind, HistoryKind::Failed);
+    assert_eq!(failed[0].engines, default_labels(), "a failed run still names the engines it used");
 
+    // A retry takes a new snapshot of the settings, so its row names the engines as they are by then.
+    r.config.update(|c| c.asr.local_model = "retry-asr".into()).unwrap();
     r.h.send(Command::Retry);
     wait_for(&r.h, |s| *s == HudState::Inserted).await;
     assert_eq!(*r.sink.delivered.lock().unwrap(), ["やり直し。"]);
+    let rows = history_of(&r.store, 2).await;
+    assert_eq!(rows[0].kind, HistoryKind::Dictation, "the retry's row is the newer one");
+    assert_eq!(rows[0].engines.asr.as_deref(), Some("local:retry-asr"));
 }
 
 #[tokio::test]

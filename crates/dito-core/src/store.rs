@@ -8,6 +8,7 @@ use serde::de::value::Error as ValueError;
 use serde::de::{DeserializeOwned, IntoDeserializer};
 use serde::{Deserialize, Serialize};
 
+use crate::config::EngineLabels;
 use crate::prompts::Style;
 
 #[derive(Debug, thiserror::Error)]
@@ -48,6 +49,8 @@ pub struct NewHistory {
     pub polished: Option<String>,
     pub error: Option<String>,
     pub audio_path: Option<String>,
+    /// The engines that produced the entry; both labels are `None` for an entry that never reached an engine.
+    pub engines: EngineLabels,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -63,6 +66,8 @@ pub struct HistoryEntry {
     pub polished: Option<String>,
     pub error: Option<String>,
     pub audio_path: Option<String>,
+    /// The engines that produced the entry; both labels are `None` for an entry recorded before they were kept.
+    pub engines: EngineLabels,
 }
 
 impl HistoryEntry {
@@ -130,6 +135,9 @@ const MIGRATIONS: &[&str] = &[
        term TEXT PRIMARY KEY,
        created INTEGER NOT NULL
      );",
+    // 2: which engines produced an entry. Nullable, so entries from before it stay unlabelled.
+    "ALTER TABLE history ADD COLUMN asr_engine TEXT;
+     ALTER TABLE history ADD COLUMN polish_engine TEXT;",
 ];
 
 /// The schema version this build creates and the newest one it can open.
@@ -206,8 +214,9 @@ impl Store {
     pub fn add_history(&self, h: &NewHistory) -> Result<i64> {
         let c = self.conn();
         c.execute(
-            "INSERT INTO history (ts, day, kind, style, app, lang, duration_ms, raw, polished, error, audio_path)
-             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)",
+            "INSERT INTO history (ts, day, kind, style, app, lang, duration_ms, raw, polished, error, audio_path,
+                                  asr_engine, polish_engine)
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)",
             params![
                 h.ts,
                 self.day_of(h.ts),
@@ -219,23 +228,40 @@ impl Store {
                 h.raw,
                 h.polished,
                 h.error,
-                h.audio_path
+                h.audio_path,
+                h.engines.asr,
+                h.engines.polish
             ],
         )?;
         Ok(c.last_insert_rowid())
     }
 
-    /// Turn a cancelled/failed entry into a normal dictation after a successful retry.
-    pub fn complete_history(&self, id: i64, raw: &str, polished: Option<&str>, lang: &str) -> Result<()> {
+    /// Turn a cancelled/failed entry into a normal dictation after a successful retry. `engines` are the retry's and
+    /// replace the earlier attempt's labels, so a polish label the retry lacks is cleared.
+    pub fn complete_history(
+        &self,
+        id: i64,
+        raw: &str,
+        polished: Option<&str>,
+        lang: &str,
+        engines: &EngineLabels,
+    ) -> Result<()> {
         self.conn().execute(
-            "UPDATE history SET kind='dictation', raw=?2, polished=?3, lang=?4, error=NULL WHERE id=?1",
-            params![id, raw, polished, lang],
+            "UPDATE history
+             SET kind='dictation', raw=?2, polished=?3, lang=?4, asr_engine=?5, polish_engine=?6, error=NULL
+             WHERE id=?1",
+            params![id, raw, polished, lang, engines.asr, engines.polish],
         )?;
         Ok(())
     }
 
-    pub fn set_polished(&self, id: i64, polished: &str) -> Result<()> {
-        self.conn().execute("UPDATE history SET polished=?2 WHERE id=?1", params![id, polished])?;
+    /// Replaces the polished text after polishing again. `polish_engine` labels the engine that wrote it; the
+    /// recognition is unchanged, so its label is left alone.
+    pub fn set_polished(&self, id: i64, polished: &str, polish_engine: &str) -> Result<()> {
+        self.conn().execute(
+            "UPDATE history SET polished=?2, polish_engine=?3 WHERE id=?1",
+            params![id, polished, polish_engine],
+        )?;
         Ok(())
     }
 
@@ -428,8 +454,8 @@ impl Store {
     }
 }
 
-const SELECT_HISTORY: &str =
-    "SELECT id, ts, kind, style, app, lang, duration_ms, raw, polished, error, audio_path FROM history";
+const SELECT_HISTORY: &str = "SELECT id, ts, kind, style, app, lang, duration_ms, raw, polished, error, audio_path,
+    asr_engine, polish_engine FROM history";
 
 fn row_to_entry(r: &rusqlite::Row<'_>) -> rusqlite::Result<HistoryEntry> {
     Ok(HistoryEntry {
@@ -444,6 +470,7 @@ fn row_to_entry(r: &rusqlite::Row<'_>) -> rusqlite::Result<HistoryEntry> {
         polished: r.get(8)?,
         error: r.get(9)?,
         audio_path: r.get(10)?,
+        engines: EngineLabels { asr: r.get(11)?, polish: r.get(12)? },
     })
 }
 
@@ -463,17 +490,33 @@ mod tests {
             polished: polished.map(Into::into),
             error: None,
             audio_path: None,
+            engines: EngineLabels::default(),
         }
     }
 
+    fn labels(asr: &str, polish: Option<&str>) -> EngineLabels {
+        EngineLabels { asr: Some(asr.into()), polish: polish.map(Into::into) }
+    }
+
     #[test]
-    fn custom_application_style_round_trips_in_history() {
+    fn custom_application_style_and_engine_labels_round_trip_in_history() {
         let store = Store::open_in_memory().unwrap();
         let mut row = entry(1, "Editor", "en", "hello", None);
         row.style = Style::Application("example.editor".into());
-        store.add_history(&row).unwrap();
+        row.engines = labels("asr.funasr:paraformer-v2", Some("azure:gpt-example"));
+        let id = store.add_history(&row).unwrap();
         let rows = store.list_history(&HistoryFilter::default()).unwrap();
         assert_eq!(rows[0].style, row.style);
+        assert_eq!(rows[0].engines, row.engines);
+
+        store.set_polished(id, "polished again", "bedrock:example-model").unwrap();
+        let again = store.get_history(id).unwrap().unwrap();
+        assert_eq!(again.polished.as_deref(), Some("polished again"));
+        assert_eq!(
+            again.engines,
+            labels("asr.funasr:paraformer-v2", Some("bedrock:example-model")),
+            "polishing again relabels the polish engine and leaves the recognition label"
+        );
     }
 
     #[test]
@@ -593,12 +636,15 @@ mod tests {
         let mut c = entry(5, "Notes", "", "", None);
         c.kind = HistoryKind::Cancelled;
         c.audio_path = Some("/tmp/a.wav".into());
+        c.engines = labels("local:old-asr", Some("local:old-polish"));
         let id = s.add_history(&c).unwrap();
-        s.complete_history(id, "こんにちは", Some("こんにちは。"), "ja").unwrap();
+        let retry = labels("local:new-asr", Some("local:new-polish"));
+        s.complete_history(id, "こんにちは", Some("こんにちは。"), "ja", &retry).unwrap();
         let e = s.get_history(id).unwrap().unwrap();
         assert_eq!(e.kind, HistoryKind::Dictation);
         assert_eq!(e.final_text(), "こんにちは。");
         assert_eq!(e.audio_path.as_deref(), Some("/tmp/a.wav"), "audio is kept for playback");
+        assert_eq!(e.engines, retry, "the retry's engines replace the cancelled attempt's");
     }
 
     #[test]
@@ -681,30 +727,36 @@ mod tests {
     }
 
     #[test]
-    fn a_database_from_before_versioning_keeps_its_rows_and_reaches_the_latest_version() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("h.db");
-        {
-            let old = Connection::open(&path).unwrap();
-            old.execute_batch(PRE_VERSIONING_SCHEMA).unwrap();
-            old.execute(
-                "INSERT INTO history (ts, day, kind, style, app, lang, duration_ms, raw)
-                 VALUES (10, '1970-01-01', 'dictation', 'general', 'Notes', 'ja', 6000, 'from the old build')",
-                (),
-            )
-            .unwrap();
-            assert_eq!(user_version(&old).unwrap(), 0, "a database from before versioning has no version");
+    fn an_older_database_keeps_its_rows_and_reaches_the_latest_version() {
+        // Version 0 is a database from before versioning, version 1 one the first versioned build created. Both hold
+        // the frozen schema, and the migrations after theirs must leave their rows readable.
+        for applied in [0u32, 1] {
+            let dir = tempfile::tempdir().unwrap();
+            let path = dir.path().join("h.db");
+            {
+                let old = Connection::open(&path).unwrap();
+                old.execute_batch(PRE_VERSIONING_SCHEMA).unwrap();
+                old.execute(
+                    "INSERT INTO history (ts, day, kind, style, app, lang, duration_ms, raw)
+                     VALUES (10, '1970-01-01', 'dictation', 'general', 'Notes', 'ja', 6000, 'from the old build')",
+                    (),
+                )
+                .unwrap();
+                old.pragma_update(None, "user_version", applied).unwrap();
+                assert_eq!(user_version(&old).unwrap(), applied);
+            }
+
+            let s = Store::open(&path, 0).unwrap();
+            assert_eq!(user_version(&s.conn()).unwrap(), SCHEMA_VERSION, "upgrading from version {applied}");
+            let rows = s.list_history(&HistoryFilter::default()).unwrap();
+            assert_eq!(rows.iter().map(|e| e.raw.as_str()).collect::<Vec<_>>(), ["from the old build"]);
+            assert_eq!(rows[0].engines, EngineLabels::default(), "a row from before the engine columns is unlabelled");
+            drop(s);
+
+            let reopened = Store::open(&path, 0).unwrap();
+            assert_eq!(user_version(&reopened.conn()).unwrap(), SCHEMA_VERSION, "a current database opens unchanged");
+            assert_eq!(reopened.list_history(&HistoryFilter::default()).unwrap().len(), 1);
         }
-
-        let s = Store::open(&path, 0).unwrap();
-        assert_eq!(user_version(&s.conn()).unwrap(), SCHEMA_VERSION);
-        let rows = s.list_history(&HistoryFilter::default()).unwrap();
-        assert_eq!(rows.iter().map(|e| e.raw.as_str()).collect::<Vec<_>>(), ["from the old build"]);
-        drop(s);
-
-        let reopened = Store::open(&path, 0).unwrap();
-        assert_eq!(user_version(&reopened.conn()).unwrap(), SCHEMA_VERSION, "a current database opens unchanged");
-        assert_eq!(reopened.list_history(&HistoryFilter::default()).unwrap().len(), 1);
     }
 
     #[test]
