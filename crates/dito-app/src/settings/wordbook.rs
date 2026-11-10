@@ -13,7 +13,7 @@ use super::downloads_dir::downloads_dir;
 use super::page_query::{PageQuery, QueryPage};
 use super::{Ctx, content_width};
 use crate::assets::Ic;
-use crate::services::{self, DictionaryWords};
+use crate::services::{self, WordbookWords};
 use crate::state::AppState;
 use crate::theme::Palette;
 use crate::timefmt::now;
@@ -31,10 +31,10 @@ enum Failure {
 impl Failure {
     fn message(self) -> Tr {
         match self {
-            Self::Add => Tr::DictionaryAddFailed,
-            Self::Delete => Tr::DictionaryDeleteFailed,
-            Self::Import => Tr::DictionaryImportFailed,
-            Self::Export => Tr::DictionaryExportFailed,
+            Self::Add => Tr::WordbookAddFailed,
+            Self::Delete => Tr::WordbookDeleteFailed,
+            Self::Import => Tr::WordbookImportFailed,
+            Self::Export => Tr::WordbookExportFailed,
         }
     }
 }
@@ -64,12 +64,12 @@ impl SelectionFades {
     }
 }
 
-pub struct DictionaryPage {
+pub struct WordbookPage {
     st: Arc<AppState>,
     add: Entity<InputState>,
     search: Entity<InputState>,
     query_text: String,
-    words: PageQuery<DictionaryWords>,
+    words: PageQuery<WordbookWords>,
     loaded: bool,
     placeholder_lang: Lang,
     failure: Option<Failure>,
@@ -82,17 +82,17 @@ pub struct DictionaryPage {
     motion: ui::MotionScope,
 }
 
-impl EventEmitter<ModalChanged> for DictionaryPage {}
+impl EventEmitter<ModalChanged> for WordbookPage {}
 
-impl QueryPage for DictionaryPage {
-    type Data = DictionaryWords;
+impl QueryPage for WordbookPage {
+    type Data = WordbookWords;
 
-    fn page_query(&mut self) -> &mut PageQuery<DictionaryWords> {
+    fn page_query(&mut self) -> &mut PageQuery<WordbookWords> {
         &mut self.words
     }
 
-    fn fetch(&self) -> impl Future<Output = anyhow::Result<DictionaryWords>> + 'static {
-        services::dictionary_words(self.st.clone(), self.query_text.clone())
+    fn fetch(&self) -> impl Future<Output = anyhow::Result<WordbookWords>> + 'static {
+        services::wordbook_words(self.st.clone(), self.query_text.clone())
     }
 
     fn applied(&mut self, cx: &mut Context<Self>) {
@@ -103,7 +103,7 @@ impl QueryPage for DictionaryPage {
     }
 }
 
-impl DictionaryPage {
+impl WordbookPage {
     /// Page visibility lifecycle, driven by `Settings`: entering loads the words, leaving
     /// drops any result still in flight.
     pub fn set_active(&mut self, active: bool, cx: &mut Context<Self>) {
@@ -143,7 +143,7 @@ impl DictionaryPage {
             add,
             search,
             query_text: String::new(),
-            words: PageQuery::new("dictionary", DictionaryWords::default()),
+            words: PageQuery::new("wordbook", WordbookWords::default()),
             loaded: false,
             placeholder_lang: lang,
             failure: None,
@@ -258,14 +258,14 @@ impl DictionaryPage {
         }
         let count = self.selection.as_ref()?.len().to_string();
         let c = Ctx::new(&self.st, cx);
-        let body = text(c.t(Tr::DictionaryDeleteDescription), 14., FontWeight::NORMAL, c.p.text).into_any_element();
+        let body = text(c.t(Tr::WordbookDeleteDescription), 14., FontWeight::NORMAL, c.p.text).into_any_element();
         Some(ui::with_motion_scope(self.motion.handle(), || {
             ui::confirm_dialog(
                 window,
                 &c.p,
-                "dictionary-delete-confirmation",
+                "wordbook-delete-confirmation",
                 &self.delete_focus,
-                fmt::dictionary_delete_title(c.lang, &count),
+                fmt::wordbook_delete_title(c.lang, &count),
                 vec![body],
                 ui::DialogAnswer { label: c.t(Tr::AsrEditorCancel), on_click: Some(cbk(cx, Self::close_delete)) },
                 ui::DialogAnswer { label: c.t(Tr::ModelsDelete), on_click: Some(cbk(cx, Self::confirm_delete)) },
@@ -343,7 +343,7 @@ impl DictionaryPage {
     }
 
     fn failed(&mut self, failure: Failure, error: &anyhow::Error, cx: &mut Context<Self>) {
-        tracing::warn!("dictionary: {failure:?} failed: {error:#}");
+        tracing::warn!("wordbook: {failure:?} failed: {error:#}");
         self.failure = Some(failure);
         cx.notify();
     }
@@ -362,7 +362,7 @@ async fn off_main<T: Send + 'static>(
     st.rt.spawn_blocking(work).await.map_err(|e| anyhow::anyhow!("blocking task failed: {e}"))?
 }
 
-impl DictionaryPage {
+impl WordbookPage {
     /// Reset the page's transient motion state; its controls mount statically on the next entry.
     pub(super) fn reset_motion(&mut self) {
         self.motion.reset();
@@ -375,7 +375,7 @@ impl DictionaryPage {
     }
 }
 
-impl Render for DictionaryPage {
+impl Render for WordbookPage {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         // The page draws under its own scope: after a page switch its controls mount statically,
         // never sliding to values remembered from another page or an earlier visit.
@@ -383,7 +383,7 @@ impl Render for DictionaryPage {
     }
 }
 
-impl DictionaryPage {
+impl WordbookPage {
     fn view(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let c = Ctx::new(&self.st, cx);
         let p = c.p;
@@ -398,15 +398,15 @@ impl DictionaryPage {
         let fades = SelectionFades::new();
         let page = super::page(
             p,
-            "dictionary",
-            c.t(Tr::NavDictionary),
+            "wordbook",
+            c.t(Tr::NavWordbook),
             Some(self.actions(&c, cx)),
             div()
                 .w_full()
                 .flex()
                 .flex_col()
                 .gap(px(20.))
-                .child(div().child(text(c.t(Tr::DictionaryWordsPassedToAsr), 14., FontWeight::NORMAL, p.muted)))
+                .child(div().child(text(c.t(Tr::WordbookWordsPassedToAsr), 14., FontWeight::NORMAL, p.muted)))
                 .children(self.failure_banner(&c, cx))
                 .child(self.add_card(&c, cx))
                 .child(self.polish_option(&c))
@@ -431,7 +431,7 @@ impl DictionaryPage {
             .child(ui::button(
                 "import",
                 &p,
-                &c.t(Tr::DictionaryImport),
+                &c.t(Tr::WordbookImport),
                 BtnKind::Secondary,
                 Some(Ic::Upload),
                 cbk(cx, |this: &mut Self, _, cx| this.import(cx)),
@@ -439,7 +439,7 @@ impl DictionaryPage {
             .child(ui::button(
                 "export",
                 &p,
-                &c.t(Tr::DictionaryExport),
+                &c.t(Tr::WordbookExport),
                 BtnKind::Secondary,
                 Some(Ic::Download),
                 cbk(cx, |this: &mut Self, _, cx| this.export(cx)),
@@ -451,7 +451,7 @@ impl DictionaryPage {
         let failure = self.failure?;
         Some(ui::dismissible_banner(
             &c.p,
-            "dictionary-failure-close",
+            "wordbook-failure-close",
             c.t(failure.message()),
             c.t(Tr::HudClose),
             cbk(cx, |this: &mut Self, _, cx| this.dismiss_failure(cx)),
@@ -471,13 +471,13 @@ impl DictionaryPage {
                 .gap(px(12.))
                 .child(div().flex_1().min_w(px(0.)).child(ui::field(
                     &p,
-                    c.t(Tr::DictionaryWord),
+                    c.t(Tr::WordbookWord),
                     ui::text_input(&p, &self.add, None),
                 )))
                 .child(ui::button(
                     "add-word",
                     &p,
-                    &c.t(Tr::DictionaryAdd),
+                    &c.t(Tr::WordbookAdd),
                     BtnKind::Primary,
                     Some(Ic::Plus),
                     cbk(cx, |this: &mut Self, w, cx| this.add_word(w, cx)),
@@ -487,7 +487,7 @@ impl DictionaryPage {
             add_card = add_card.child(
                 div().w_full().flex().items_start().gap(px(10.)).child(ui::icon(Ic::Alert, 16., p.accent_text)).child(
                     div().flex_1().min_w(px(0.)).child(text(
-                        c.t(Tr::DictionaryNoHotwordSupport),
+                        c.t(Tr::WordbookNoHotwordSupport),
                         12.,
                         FontWeight::NORMAL,
                         p.accent_text,
@@ -514,15 +514,15 @@ impl DictionaryPage {
                     .flex()
                     .flex_col()
                     .gap(px(2.))
-                    .child(text(c.t(Tr::DictionarySameSpelling), 14., FontWeight::MEDIUM, p.text))
-                    .child(ui::muted12(&p, c.t(Tr::DictionaryWordsSentToPolish))),
+                    .child(text(c.t(Tr::WordbookSameSpelling), 14., FontWeight::MEDIUM, p.text))
+                    .child(ui::muted12(&p, c.t(Tr::WordbookWordsSentToPolish))),
             )
             .child(ui::switch(
-                "dict-polish",
+                "wordbook-polish",
                 &p,
-                cfg.dictionary_for_polish,
+                cfg.wordbook_for_polish,
                 Rc::new(move |on, _, _| {
-                    services::save_config(&st, |c| c.dictionary_for_polish = on);
+                    services::save_config(&st, |c| c.wordbook_for_polish = on);
                 }),
             ))
     }
@@ -530,7 +530,7 @@ impl DictionaryPage {
     fn toolbar(&self, c: &Ctx, total: Option<usize>, cx: &mut Context<Self>, fades: &SelectionFades) -> Div {
         let p = &c.p;
         let selecting = self.selection.is_some();
-        let opacity = fades.sample("dictionary-selection-toolbar".into(), selecting);
+        let opacity = fades.sample("wordbook-selection-toolbar".into(), selecting);
         let count = match total {
             Some(total) => ui::muted12(p, format!("{} {}", total, c.t(Tr::UnitsItems)))
                 .text_size(px(COUNT_SIZE))
@@ -553,8 +553,8 @@ impl DictionaryPage {
         let p = &c.p;
         let selecting = self.selection.is_some();
         let count = self.selection.as_ref().map_or(self.exiting_count, BTreeSet::len).to_string();
-        let exit = ElementId::from("dictionary-exit-selection");
-        let delete = ElementId::from("dictionary-delete-selected");
+        let exit = ElementId::from("wordbook-exit-selection");
+        let delete = ElementId::from("wordbook-delete-selected");
         let (exit_button, delete_button) = if !selecting {
             let appearance = || ui::CircleAppearance {
                 background: None,
@@ -569,8 +569,8 @@ impl DictionaryPage {
         } else if self.deleting {
             (ui::disabled_icon_button(exit, p, Ic::X), ui::disabled_icon_button(delete, p, Ic::Trash))
         } else {
-            ui::tip_label(exit.clone(), c.t(Tr::DictionaryExitSelection));
-            ui::tip_label(delete.clone(), c.t(Tr::DictionaryDeleteSelected));
+            ui::tip_label(exit.clone(), c.t(Tr::WordbookExitSelection));
+            ui::tip_label(delete.clone(), c.t(Tr::WordbookDeleteSelected));
             (
                 ui::icon_button(
                     exit.clone(),
@@ -593,7 +593,7 @@ impl DictionaryPage {
             .items_center()
             .gap(px(10.))
             .child(
-                ui::muted12(p, fmt::dictionary_selected(c.lang, &count))
+                ui::muted12(p, fmt::wordbook_selected(c.lang, &count))
                     .text_size(px(COUNT_SIZE))
                     .w(px(selection_count_width(c.lang, total)))
                     .flex_none()
@@ -619,7 +619,7 @@ impl DictionaryPage {
                 .py(px(28.))
                 .flex()
                 .justify_center()
-                .child(ui::muted12(&p, c.t(Tr::DictionaryNoWordsYet)).text_size(px(13.)));
+                .child(ui::muted12(&p, c.t(Tr::WordbookNoWordsYet)).text_size(px(13.)));
         }
         div()
             .w_full()
@@ -699,7 +699,7 @@ fn selection_count_width(lang: Lang, total: usize) -> f32 {
     ('0'..='9')
         .map(|digit| {
             let sample = digit.to_string().repeat(digits);
-            ui::text_width(&fmt::dictionary_selected(lang, &sample), COUNT_SIZE, FontWeight::NORMAL)
+            ui::text_width(&fmt::wordbook_selected(lang, &sample), COUNT_SIZE, FontWeight::NORMAL)
         })
         .fold(0., f32::max)
         .ceil()
@@ -724,7 +724,7 @@ fn word_columns(window: &Window) -> u16 {
 
 /// What the screenshot harness drives and reads: the same handlers the controls call.
 #[cfg(feature = "screenshots")]
-impl DictionaryPage {
+impl WordbookPage {
     pub(super) fn probe(&mut self, case: &str, arg: &str, window: &mut Window, cx: &mut Context<Self>) {
         match case {
             "add" => {
@@ -735,7 +735,7 @@ impl DictionaryPage {
             "import" => self.import_from(arg.into(), cx),
             "export" => self.export_to(arg.into(), cx),
             "dismiss" => self.dismiss_failure(cx),
-            other => panic!("unknown dictionary probe {other:?}"),
+            other => panic!("unknown wordbook probe {other:?}"),
         }
     }
 

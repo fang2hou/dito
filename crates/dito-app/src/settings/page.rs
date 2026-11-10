@@ -7,7 +7,7 @@ use crate::assets::Ic;
 pub enum Page {
     General,
     Models,
-    Dictionary,
+    Wordbook,
     Prompts,
     History,
     Stats,
@@ -19,7 +19,7 @@ impl Page {
         match self {
             Self::General => Tr::NavGeneral,
             Self::Models => Tr::NavModels,
-            Self::Dictionary => Tr::NavDictionary,
+            Self::Wordbook => Tr::NavWordbook,
             Self::Prompts => Tr::NavPrompts,
             Self::History => Tr::NavHistory,
             Self::Stats => Tr::NavStats,
@@ -31,7 +31,7 @@ impl Page {
         match self {
             Self::General => "General",
             Self::Models => "Models",
-            Self::Dictionary => "Wordbook",
+            Self::Wordbook => "Wordbook",
             Self::Prompts => "Prompts",
             Self::History => "History",
             Self::Stats => "Stats",
@@ -41,13 +41,13 @@ impl Page {
 
     /// Every page in sidebar order.
     pub const ALL: [Page; 7] =
-        [Self::General, Self::Models, Self::Dictionary, Self::Prompts, Self::History, Self::Stats, Self::Status];
+        [Self::General, Self::Models, Self::Wordbook, Self::Prompts, Self::History, Self::Stats, Self::Status];
 
     pub(super) fn icon(self) -> Ic {
         match self {
             Self::General => Ic::Sliders,
             Self::Models => Ic::Cpu,
-            Self::Dictionary => Ic::BookOpen,
+            Self::Wordbook => Ic::BookOpen,
             Self::Prompts => Ic::Sparkles,
             Self::History => Ic::Clock,
             Self::Stats => Ic::Chart,
@@ -87,7 +87,7 @@ pub(super) fn nav_y(page: Page) -> f32 {
     let step = NAV_H + NAV_GAP;
     let header = NAV_SECTION_H + NAV_GAP;
     match page {
-        Page::General | Page::Models | Page::Dictionary | Page::Prompts => header + (page as usize) as f32 * step,
+        Page::General | Page::Models | Page::Wordbook | Page::Prompts => header + (page as usize) as f32 * step,
         _ => header + 4. * step + header + ((page as usize) - 4) as f32 * step,
     }
 }

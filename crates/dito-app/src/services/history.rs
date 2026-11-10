@@ -62,7 +62,7 @@ pub async fn recognize_again(st: Arc<AppState>, entry: HistoryEntry) -> Result<(
             let out = pipeline::run(
                 engines,
                 &cfg,
-                &Job { clip: &clip, style: entry.style.clone(), dictionary: &words },
+                &Job { clip: &clip, style: entry.style.clone(), wordbook: &words },
                 &|_| {},
                 &CancellationToken::new(),
             )
@@ -104,7 +104,7 @@ pub async fn polish_again(st: Arc<AppState>, entry: HistoryEntry) -> Result<(), 
                 prompts: &cfg.prompts,
                 style: entry.style.clone(),
                 text: &entry.raw,
-                dictionary: pipeline::polish_dictionary(&cfg, &words),
+                wordbook: pipeline::polish_wordbook(&cfg, &words),
                 lang: None,
             };
             let text = pipeline::polish_text(polisher.as_ref(), polish_job).await.map_err(|e| e.to_string())?;

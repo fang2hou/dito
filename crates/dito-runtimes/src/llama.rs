@@ -353,12 +353,8 @@ mod tests {
         for text in
             ["嗯，明天下午三点开会。", "えーと、明日の午後三時に会議をします。", "Um, let's meet tomorrow at three."]
         {
-            let system = build_system_prompt(&PromptInput {
-                prompts: &prompts,
-                style: Style::General,
-                text,
-                dictionary: &terms,
-            });
+            let system =
+                build_system_prompt(&PromptInput { prompts: &prompts, style: Style::General, text, wordbook: &terms });
             let out = model.generate(&system, text, &sampling, &stop).unwrap();
             eprintln!("POLISH_REGRESSION {text}: {out}");
             assert!(!out.is_empty());

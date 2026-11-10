@@ -22,8 +22,11 @@ The `config.toml` shapes so far, one migration each (`MIGRATIONS` in `migrate.rs
 | 1 | Prompt sets gain the Herdr style with its default text |
 | 2 | Cloud speech configurations are identified by id instead of position (the list was then named `cloud_asr.profiles`) |
 | 3 | The three provider forms become named cloud polish configurations (`polish.cloud_polish`) with request parameters, the Bedrock temperature and token limit that were hard-coded become its parameters, `asr.provider` is dropped, and the cloud speech list `cloud_asr.profiles` is renamed `cloud_asr.items`, as in `polish.cloud_polish`, with its entries unchanged |
+| 4 | Rename the spelling-reference toggle to `wordbook_for_polish` |
 
 Version 3 keeps the Keychain accounts `polish.azure` and `polish.compat` working by giving the migrated configurations the ids `azure`, `bedrock` and `compat`; every later configuration has a random id suffix, so the key of a removed one is never picked up by a new one.
+
+SQLite version 3 renames the wordbook table in place and preserves its rows.
 
 ## Alternatives Considered
 

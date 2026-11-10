@@ -55,7 +55,7 @@ Add a runtime's Python package to the matching extra in `pyproject.toml` (`sherp
 ## Test data
 
 - `data/clips.json`: clips and their reference text. Clips with `hotwords` also run as a second case with those hotwords for models that support them.
-- `data/polish_cases.json`: dirty dictation text for the polish models. Optional `dictionary` terms are passed as the reference vocabulary.
+- `data/polish_cases.json`: dirty dictation text for the polish models. Optional `wordbook` terms are passed as the reference vocabulary.
 - The prompts in `src/dito_bench/polish/prompts.py` mirror `crates/dito-core/src/prompts.rs`. Keep them identical; a change makes stored polish results stale.
 - Clip texts, prompts and polish inputs are Japanese, Chinese and English on purpose. They are test data, not documentation.
 

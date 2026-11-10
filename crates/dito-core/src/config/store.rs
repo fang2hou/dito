@@ -367,7 +367,7 @@ reasoning_effort = "minimal"
 
         assert_eq!(std::fs::read(dir.path().join("config.toml.v2.bak")).unwrap(), original.as_bytes());
         let upgraded = std::fs::read_to_string(&path).unwrap();
-        assert!(upgraded.starts_with("schema_version = 3\n"), "{upgraded}");
+        assert!(upgraded.starts_with(&format!("schema_version = {}\n", crate::config::SCHEMA_VERSION)), "{upgraded}");
         assert!(upgraded.contains("[polish.cloud_polish]"), "{upgraded}");
         assert!(!upgraded.contains("[polish.provider") && !upgraded.contains("[asr.provider"), "{upgraded}");
 

@@ -10,7 +10,7 @@ Dictations contain whatever people say at work. The only acceptable place for au
 ## Decision
 
 - API keys live only in the macOS Keychain, never in config files, logs or copied text.
-- History, dictionary, audio and models are stored locally.
+- History, wordbook, audio and models are stored locally.
 - Nothing is sent anywhere except to the providers the user configured; there is no analytics or telemetry.
 - Text copied for AI help contains no keys or recordings.
 

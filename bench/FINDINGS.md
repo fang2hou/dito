@@ -54,7 +54,7 @@ Measured on an M4 Pro (16 kHz mono, three routes compared):
 
 Details:
 
-- Prompt shape: `<|im_start|>user\n<__media__>Transcribe the audio.<|im_end|>\n<|im_start|>assistant\n`. Hotwords are injected as `<|im_start|>system\nContext: ...` (Dito's `hotwords` parameter passes the dictionary straight through).
+- Prompt shape: `<|im_start|>user\n<__media__>Transcribe the audio.<|im_end|>\n<|im_start|>assistant\n`. Hotwords are injected as `<|im_start|>system\nContext: ...` (Dito's `hotwords` parameter passes the wordbook straight through).
 - Output looks like `language Chinese<asr_text>body`. The runtime strips the wrapper and maps the language name to `zh`, `en` or `ja`.
 - **Long audio**: llama.cpp #21847 (early stop or empty output beyond 60 s) was fixed upstream on 2026-05-15 (commit `72e60f5`, PR #23073, the qwen3a preprocessor splits into 30 s chunks). The tree vendored by llama-cpp-sys-2 0.1.160 contains the fix. Retest on 2026-11-03 (Dito in-process, 336.7 s of real-pace synthesized audio, 1394 characters): 1.7B finished in a single pass, CER 0.002, 16.4 s; 0.6B CER 0.003, 9.6 s. Dito's 45 s truncation was removed (the limit now matches the 10 minute recording limit). Audio token density is about 13.5 tokens/s (25.9 s gave 353 tokens), and `n_ctx` is computed from it.
 - **SenseVoice long audio**: feeding very long audio in one piece drops punctuation and syllables (CER 0.188 at 336.7 s). Dito's runtime splits at silent frames into segments of at most 28 s and joins the transcripts, which brings the same audio to CER 0.026 and makes it faster (11.2 s versus 31.2 s).
@@ -74,7 +74,7 @@ Q4_K_M on an M4 Pro, six dirty texts: SenseVoice Japanese with spaces, a spoken 
 | qwen3-1.7b (Dito's smallest tier at the time) | No | about 2.3 s, truncated | A hybrid thinking model: the output is all `<think>` reasoning text. **Switching Dito to it would send reasoning junk to the user**; remove it or disable thinking |
 | qwen3-4b-2507 (Dito's default at the time) | Yes | 0.32 to 0.49 s | Stable, but it normalizes English words in mixed speech into Chinese (quick prototype becomes 快速原型) |
 | **qwen3.5-2b** (2026-03) | Yes | **0.25 to 0.32 s** | Quality comparable to the previous 4B and the fastest; **keeps English terms**; occasionally embellishes spoken English slightly |
-| **qwen3.5-4b** (2026-03) | Yes | 0.48 to 0.63 s | Most stable quality; **dictionary injection works perfectly** (katakana is converted back to Latin words from the word list, closing the loop with the ASR hotwords) |
+| **qwen3.5-4b** (2026-03) | Yes | 0.48 to 0.63 s | Most stable quality; **wordbook injection works perfectly** (katakana is converted back to Latin words from the word list, closing the loop with the ASR hotwords) |
 
 Recommendation: default tier `qwen3.5-4b` (quality and speed), fast tier `qwen3.5-2b`, drop `qwen3-1.7b` from the candidates. Normalizing versus keeping English terms is a product taste; a sentence in Dito's prompt can control it without changing the model.
 
@@ -82,7 +82,7 @@ Recommendation: default tier `qwen3.5-4b` (quality and speed), fast tier `qwen3.
 
 Extended matrix (MLX with mlx-lm 4-bit, same prompts and dirty texts):
 
-| Configuration | Runtime | Mean latency | Dictionary injection | Notes |
+| Configuration | Runtime | Mean latency | Wordbook injection | Notes |
 |---|---|---|---|---|
 | qwen3.5-4b 4-bit (2.9 GB) | MLX | **0.46 s** | No (not converted) | Same quality as the GGUF version |
 | qwen3.5-9b Q4_K_M (5.3 GB) | llama.cpp | 0.96 s | Yes, perfect | |
@@ -92,7 +92,7 @@ Extended matrix (MLX with mlx-lm 4-bit, same prompts and dirty texts):
 
 Conclusions:
 
-- **The sweet spot is 9B at 4-bit.** Compared with 4B, the real gains are reliable dictionary injection and a more natural Japanese polite style, at twice the latency (MLX 0.8 s, GGUF 0.96 s). **The ASR hotwords to polish dictionary loop needs 9B at minimum**: 4B's injection is unreliable (all converted in the GGUF round, none converted in the MLX round, same weights with a different quantization or template), while 9B converts everything on both runtimes.
+- **The sweet spot is 9B at 4-bit.** Compared with 4B, the real gains are reliable wordbook injection and a more natural Japanese polite style, at twice the latency (MLX 0.8 s, GGUF 0.96 s). **The ASR hotwords to polish wordbook loop needs 9B at minimum**: 4B's injection is unreliable (all converted in the GGUF round, none converted in the MLX round, same weights with a different quantization or template), while 9B converts everything on both runtimes.
 - **Bigger model with fewer bits measured as a net loss.** 9B Q3 saves no time, and 27B at 4-bit has no quality edge at 2.7 s per clip. The benefit of parameter count is saturated at 9B, and quantizing below 4-bit visibly degrades models of 12B or less, in line with the quantization literature.
 - **MLX versus llama.cpp**: with the same weights MLX is faster throughout (15% for 9B, more for 27B). Dito's production runtime is llama.cpp (Rust), so an MLX route needs a different binding, which is a later architecture decision.
 - **Integration traps**: the Qwen3.5 chat template **enables thinking by default** (mlx-lm needs an explicit `enable_thinking=False`), while the chat template embedded in the unsloth GGUF defaults to non-thinking, so the two runtimes behave differently out of the box.
