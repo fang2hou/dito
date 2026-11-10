@@ -9,6 +9,7 @@ mod hud;
 mod list;
 mod migrate;
 mod polish_configurations;
+mod restore;
 mod settings;
 mod store;
 
@@ -27,5 +28,6 @@ pub use migrate::SCHEMA_VERSION;
 pub use polish_configurations::{
     PolishConfiguration, PolishConfigurations, PolishTarget, PolishTemplate, RequestParams,
 };
+pub use restore::{ParseProblem, parse_problem, restore_defaults};
 pub use settings::Config;
 pub use store::ConfigStore;

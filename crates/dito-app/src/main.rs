@@ -10,6 +10,7 @@ mod opts;
 mod services;
 mod settings;
 mod startup;
+mod startup_failure;
 mod state;
 mod theme;
 mod timefmt;
@@ -34,7 +35,10 @@ fn main() -> Result<()> {
     let opts = Opts::parse(std::env::args().skip(1))?;
     dito_core::i18n::set_system_language(opts.system_lang.unwrap_or_else(dito_platform::system::system_language));
     let rt = tokio::runtime::Builder::new_multi_thread().enable_all().thread_name("dito-rt").build()?;
-    let st = AppState::build(opts, &rt)?;
+    let st = match AppState::build(opts.clone(), rt.handle()) {
+        Ok(st) => st,
+        Err(error) => return startup_failure::run(error, opts, rt.handle().clone()),
+    };
 
     dito_platform::system::configure_text_rendering();
     let mut app = gpui_kit::application().with_assets(AppAssets);
@@ -42,8 +46,7 @@ fn main() -> Result<()> {
         // Accessory activation policy: no Dock icon, no menu bar, never the frontmost app.
         app = app.with_windowing(WindowingRequest::Headless);
     }
-    let reopen_state = st.clone();
-    app.on_reopen(move |cx| startup::reopen(reopen_state.clone(), cx));
+    app.on_reopen(startup::reopen);
     app.run(move |cx| startup::run(st, cx));
     Ok(())
 }

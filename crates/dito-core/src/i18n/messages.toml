@@ -324,6 +324,15 @@ menubar.connecting = { ja = "接続中…", en = "Connecting…", zh = "连接�
 menubar.working = { ja = "処理中…", en = "Working…", zh = "处理中…" }
 status.queued_requests = { ja = "待機中のリクエスト", en = "Queued requests", zh = "排队中的请求" }
 
+# --- startup failure window (opens instead of exiting when settings or history cannot be used) ---
+startup.unreadable_title = { ja = "設定を読み込めませんでした", en = "Could not load settings", zh = "无法读取设置" }
+startup.unreadable_body = { ja = "設定ファイルの内容に誤りがあります。修正して開き直すか、初期設定に戻してください。", en = "The settings file has an error. Fix it and reopen Dito, or restore the default settings.", zh = "设置文件内容有误。请修正后重新打开，或恢复默认设置。" }
+startup.unreadable_hint = { ja = "今の設定ファイルはバックアップとして残ります。履歴、辞書、API キーは変わりません。", en = "The current file is kept as a backup. History, dictionary and API keys do not change.", zh = "当前的设置文件会保留为备份。历史记录、词典和 API 密钥不受影响。" }
+startup.newer_title = { ja = "Dito のアップデートが必要です", en = "Dito needs an update", zh = "需要更新 Dito" }
+startup.newer_body = { ja = "このデータは新しい Dito で保存されています。アップデートしてから開いてください。", en = "This data was saved by a newer Dito. Update Dito, then open it again.", zh = "这些数据由更新版本的 Dito 保存。请更新后再打开。" }
+fmt.startup_newer_version = { ja = "形式のバージョン：{found}（この Dito が開けるのは {supported} まで）", en = "Format version: {found} (this Dito opens up to {supported})", zh = "格式版本：{found}（此版本的 Dito 最高支持 {supported}）" }
+startup.quit = { ja = "終了", en = "Quit", zh = "退出" }
+
 # --- onboarding wizard --------------------------------------------------------
 onboarding.step.permissions = { ja = "権限付与", en = "Permissions", zh = "授权" }
 onboarding.step.how_to = { ja = "使い方", en = "How to", zh = "使用方法" }
