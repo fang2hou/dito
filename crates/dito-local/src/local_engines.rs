@@ -6,12 +6,13 @@ use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use async_trait::async_trait;
+use dito_core::config::LocalPolishParams;
 use dito_core::error::{ErrorKind, ProviderError, ProviderResult};
 use dito_core::factory::LocalBackend;
 use dito_core::health::EngineStatus;
 use dito_core::provider::{AsrRequest, PolishRequest, Polisher, Transcriber, Transcript};
 
-use crate::catalog::ModelKind;
+use crate::catalog::{ModelKind, Sampling};
 use crate::manager::ModelManager;
 use crate::runtime::{AsrRuntime, LlmRuntime, RuntimeLoader};
 use crate::runtime_error::RuntimeError;
@@ -169,6 +170,7 @@ struct LocalAsr {
 struct LocalLlm {
     rt: Arc<dyn LlmRuntime>,
     metrics: Arc<Metrics>,
+    sampling: Sampling,
 }
 
 struct InflightGuard<'a>(&'a Metrics, Instant);
@@ -229,9 +231,10 @@ impl Polisher for LocalLlm {
     async fn polish(&self, req: &PolishRequest<'_>) -> ProviderResult<String> {
         let _g = InflightGuard::new(&self.metrics);
         let (rt, system, user) = (self.rt.clone(), req.system.to_string(), req.text.to_string());
+        let sampling = self.sampling;
         let stop = Arc::new(AtomicBool::new(false));
         let _cancel = StopOnDrop(stop.clone());
-        let text = tokio::task::spawn_blocking(move || rt.generate(&system, &user, &stop))
+        let text = tokio::task::spawn_blocking(move || rt.generate(&system, &user, &sampling, &stop))
             .await
             .map_err(|e| ProviderError::new(ErrorKind::Other, e.to_string()))?
             .map_err(runtime_failure)?;
@@ -252,9 +255,14 @@ impl LocalBackend for LocalEngines {
         }
     }
 
-    async fn polisher(&self, model_id: &str) -> ProviderResult<Arc<dyn Polisher>> {
-        match self.ensure_loaded(model_id).await? {
-            Slot::Llm(rt) => Ok(Arc::new(LocalLlm { rt, metrics: self.metrics_for(model_id) })),
+    async fn polisher(&self, model_id: &str, params: &LocalPolishParams) -> ProviderResult<Arc<dyn Polisher>> {
+        let recommended = self.manager.spec(model_id).and_then(|spec| spec.format.sampling());
+        match (self.ensure_loaded(model_id).await?, recommended) {
+            (Slot::Llm(rt), Some(recommended)) => Ok(Arc::new(LocalLlm {
+                rt,
+                metrics: self.metrics_for(model_id),
+                sampling: recommended.with_params(params),
+            })),
             _ => Err(ProviderError::new(ErrorKind::Unavailable, format!("{model_id} is not a language model"))),
         }
     }

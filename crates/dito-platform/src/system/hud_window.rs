@@ -3,9 +3,9 @@ use std::ptr::NonNull;
 use std::time::Instant;
 
 use objc2::rc::Retained;
-use objc2::{MainThreadMarker, class, msg_send};
-use objc2_app_kit::{NSPanel, NSScreen, NSStatusWindowLevel, NSView, NSWindow, NSWindowLevel};
-use objc2_foundation::{NSPoint, NSRect};
+use objc2::{MainThreadMarker, Message, class, msg_send};
+use objc2_app_kit::{NSPanel, NSScreen, NSStatusWindowLevel, NSView, NSWindow, NSWindowLevel, NSWindowStyleMask};
+use objc2_foundation::{NSPoint, NSRect, NSSize};
 
 use super::accessibility::reduce_motion;
 use super::hud_follow::{Area, FOOTPRINT_BOTTOM, FollowFrame, HudFollowState, PointerContact, pointer_target};
@@ -30,8 +30,36 @@ impl HudWindowMove {
     }
 }
 
-/// The HUD's native window, reached through the view gpui renders into. Every method works on the
-/// view's current window and does nothing once the view has none.
+/// A window that is about to lose its frame, see [`HudNativeWindow::frameless`].
+///
+/// AppKit calls gpui's resize and move handlers synchronously while the frame changes, and they need the borrow of
+/// the app that is still held when the change is prepared. Apply it after releasing that borrow, as for
+/// [`HudWindowMove`].
+pub struct FramelessWindow {
+    window: Retained<NSWindow>,
+    view: Retained<NSView>,
+    size: NSSize,
+}
+
+impl FramelessWindow {
+    /// gpui opens every window titled, even without a title bar. Changing the style mask makes AppKit resign the
+    /// window's key status and first responder; the first responder goes back to gpui's view here, as gpui does when
+    /// it toggles its own borderless fullscreen, and the caller makes the window key again. gpui's window classes can
+    /// become key whatever their style, so the window stays usable for keyboard input and text selection.
+    pub fn apply(self) {
+        let Self { window, view, size } = self;
+        window.setStyleMask(NSWindowStyleMask::Borderless);
+        window.setHasShadow(false);
+        window.setFrame_display(NSRect::new(window.frame().origin, size), false);
+        window.center();
+        window.invalidateShadow();
+        window.makeFirstResponder(Some(&view));
+    }
+}
+
+/// The native window of a transparent gpui window with its own look (the HUD, the startup failure card), reached
+/// through the view gpui renders into. Every method works on the view's current window and does nothing once the view
+/// has none.
 pub struct HudNativeWindow<'a> {
     view: &'a NSView,
     mtm: MainThreadMarker,
@@ -59,6 +87,14 @@ impl<'a> HudNativeWindow<'a> {
             window.setHasShadow(false);
             window.invalidateShadow();
         }
+    }
+
+    /// Prepare taking away everything macOS draws around a titled window: the title bar and its buttons, the rounded
+    /// corner mask, the border, the shadow and the background. What is left is exactly what gpui paints, so a
+    /// transparent window can be one card whose own corner is the only one. Applying the change makes the window
+    /// `size` points large (width, height) and centers it on its screen; it does not show, order or activate it.
+    pub fn frameless(&self, size: (f64, f64)) -> Option<FramelessWindow> {
+        Some(FramelessWindow { window: self.window()?, view: self.view.retain(), size: NSSize::new(size.0, size.1) })
     }
 
     /// Raise the window to the macOS status level, above every application's normal windows and

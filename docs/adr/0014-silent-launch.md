@@ -9,7 +9,9 @@ Dito is a background tool: the user presses a shortcut and speaks. Starting it, 
 
 ## Decision
 
-A launch opens a window by itself in two cases only: Onboarding on first run, and Settings when a permission is missing, because dictation cannot work without it (General for Accessibility, where the banner explains it; Status when only the Microphone is denied). Otherwise Settings open on request: the menu bar item, the Dock menu, a click on the Dock icon, or opening Dito again while it runs (General). `--open-settings` opens it at launch for checking a build.
+A launch opens a window by itself in three cases only: Onboarding on first run; Settings when a permission is missing, because dictation cannot work without it (General for Accessibility, where the banner explains it; Status when only the Microphone is denied); and the startup failure window (design 20.10) when `config.toml` cannot be read, or `config.toml` or `dito.db` was saved by a newer Dito, because nothing can start without them. Otherwise Settings open on request: the menu bar item, the Dock menu, a click on the Dock icon, or opening Dito again while it runs (General). `--open-settings` opens it at launch for checking a build.
+
+The third window exists because the alternative is worse than a window: the process used to exit with no UI, so a login item died unseen and left a Dito that was silently not running. Like the other two it blocks dictation, so showing it does not break the rule against reporting states that do not. It starts nothing else (no hotkeys, HUD, menu bar item or dictation), follows the system appearance and language because the saved ones cannot be read, and never changes a file by itself. The person ends it with Quit or, for unreadable settings only, with the restore button, which keeps the file as a backup beside it, writes the default settings and carries on into Onboarding in the same process (ADR-0015 forbids a silent reset, not one the person asks for). Data from a newer Dito offers no reset: resetting would hide it, so the only fix on offer is updating Dito.
 
 "Show icon in Dock" (General, on by default) controls the Dock icon. Off, the app runs without one and the icon returns only while a window is open.
 
@@ -38,6 +40,7 @@ Moves that look reasonable but go against this decision:
 - Opening Settings at launch "to be helpful", or adding a launch flag the login item must pass.
 - Showing a window to report a state that is not blocking dictation.
 - Setting the activation policy after launch, or inside a window-close callback.
+- Opening the startup failure window for an error that leaves dictation working, or letting it change a file without the person pressing the restore button.
 
 ## Review Triggers
 
@@ -45,4 +48,4 @@ Users report not noticing that Dito is running; a new permission becomes necessa
 
 ## Code
 
-`crates/dito-app/src/startup.rs` (`launch_window`, `reopen`), `crates/dito-app/src/dock.rs`.
+`crates/dito-app/src/startup.rs` (`launch_window`, `reopen`), `crates/dito-app/src/dock.rs`, `crates/dito-app/src/startup_failure/` (the third window), `crates/dito-core/src/config/restore.rs` (the restore).

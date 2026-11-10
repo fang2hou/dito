@@ -7,7 +7,14 @@ use std::fmt::Write as _;
 use std::fs;
 use std::path::PathBuf;
 
+// The syntax of a message; the crate's tests include the same file.
+#[path = "src/i18n/template.rs"]
+mod template;
+
 const LANGS: [(&str, &str); 3] = [("ja", "Ja"), ("en", "En"), ("zh", "Zh")];
+
+/// Messages under this prefix are templates of generated formatting functions; all other copy is plain text.
+const PARAMETERIZED: &str = "fmt.";
 
 struct Msg {
     id: String,
@@ -18,6 +25,7 @@ fn main() {
     let manifest = PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("cargo sets CARGO_MANIFEST_DIR"));
     let src_path = manifest.join("src/i18n/messages.toml");
     println!("cargo::rerun-if-changed=build.rs");
+    println!("cargo::rerun-if-changed=src/i18n/template.rs");
     println!("cargo::rerun-if-changed={}", src_path.display());
 
     let raw = fs::read_to_string(&src_path).expect("read messages.toml");
@@ -105,8 +113,8 @@ fn write_tables(code: &mut String, msgs: &[Msg]) {
 fn write_formatters(code: &mut String, msgs: &[Msg]) {
     let _ = writeln!(code, "/// Formatting functions for templates with placeholders (`fmt.*` in messages.toml).");
     let _ = writeln!(code, "pub mod fmt {{");
-    for m in msgs {
-        let mut args = placeholders(&m.texts[0]);
+    for m in msgs.iter().filter(|m| m.id.starts_with(PARAMETERIZED)) {
+        let mut args = placeholders(&m.id, "ja", &m.texts[0]);
         if args.is_empty() {
             continue;
         }
@@ -117,7 +125,7 @@ fn write_formatters(code: &mut String, msgs: &[Msg]) {
 }
 
 fn write_formatter(code: &mut String, m: &Msg, args: &[String]) {
-    let fname = m.id.strip_prefix("fmt.").expect("parameterized ids live under fmt.*");
+    let fname = m.id.strip_prefix(PARAMETERIZED).expect("only parameterized messages get a formatter");
     let _ =
         writeln!(code, "/// `{}` — `{}`", m.id, m.texts.iter().map(|t| t.as_str()).collect::<Vec<_>>().join("` / `"));
     let sig = args.iter().map(|a| format!("{a}: &str")).collect::<Vec<_>>().join(", ");
@@ -161,12 +169,20 @@ fn parse_message(id: String, table: &toml::Table) -> Msg {
         texts.push(s.to_string());
     }
     let texts: [String; 3] = texts.try_into().expect("one text per language");
-    assert_same_placeholders(&id, &texts);
+    if id.starts_with(PARAMETERIZED) {
+        assert_same_placeholders(&id, &texts);
+    } else {
+        for ((l, _), text) in LANGS.iter().zip(&texts) {
+            if let Err(reason) = template::plain(text) {
+                panic!("{id}: {l}: {reason}");
+            }
+        }
+    }
     Msg { id, texts }
 }
 
 fn assert_same_placeholders(id: &str, texts: &[String; 3]) {
-    let sets: Vec<Vec<String>> = texts.iter().map(|t| placeholders(t)).collect();
+    let sets: Vec<Vec<String>> = texts.iter().zip(LANGS).map(|(t, (l, _))| placeholders(id, l, t)).collect();
     let mut reference = sets[0].clone();
     reference.sort();
     for (li, set) in sets.iter().enumerate() {
@@ -176,23 +192,9 @@ fn assert_same_placeholders(id: &str, texts: &[String; 3]) {
     }
 }
 
-fn placeholders(s: &str) -> Vec<String> {
-    let mut out = Vec::new();
-    let mut rest = s;
-    while let Some(open) = rest.find('{') {
-        let after = &rest[open + 1..];
-        let Some(close) = after.find('}') else { break };
-        let name = &after[..close];
-        assert!(
-            name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') && !name.is_empty(),
-            "placeholder {{ {name} }} must be a bare identifier (no positional {{}}), in {s:?}"
-        );
-        if !out.iter().any(|n| n == name) {
-            out.push(name.to_string());
-        }
-        rest = &after[close + 1..];
-    }
-    out
+/// The placeholders of one language's text of the parameterized message `id`.
+fn placeholders(id: &str, lang: &str, text: &str) -> Vec<String> {
+    template::placeholders(text).unwrap_or_else(|reason| panic!("{id}: {lang}: {reason}"))
 }
 
 fn variant_name(id: &str) -> String {

@@ -149,6 +149,17 @@ pub fn icon_button(id: impl Into<ElementId>, p: &Palette, ic: Ic, active: bool, 
     icon_button_with(id, p, ic, active, CircleSize::Regular, on_click)
 }
 
+/// [`icon_button`] that cannot be used: the same instance at 45% opacity, with no hover and no click.
+pub fn disabled_icon_button(id: impl Into<ElementId>, p: &Palette, ic: Ic) -> Stateful<Div> {
+    circle_control(
+        id,
+        ic,
+        CircleSize::Regular,
+        CircleAppearance { background: None, foreground: p.text, border: Some(p.border_strong), hover: None },
+    )
+    .opacity(0.45)
+}
+
 /// The approved circle and glyph pairs from 11.05.6.
 #[derive(Clone, Copy)]
 pub enum CircleSize {

@@ -9,7 +9,7 @@ Each speech vendor has a different HTTP shape and changes it over time. Code per
 
 ## Decision
 
-A cloud speech provider is a JSON connection config: connection, language map, request template and response pointers, with a fixed set of placeholders and no expression language. Presets ship as templates; users can edit them or describe a new vendor. Each profile has a stable id that also names its Keychain account, so bundled templates can be added without touching saved ones. Keys stay outside the JSON, Content-Type is never user-controlled, and redirects are off. The contract is `design/asr-json-config.md`.
+A cloud speech configuration is a request JSON: connection, language map, request template and response pointers, with a fixed set of placeholders and no expression language. Templates ship with the app and pre-fill a new configuration; users can edit it or describe a new vendor. Each configuration has a stable id that also names its Keychain account, so bundled templates can be added without touching saved ones. Keys stay outside the JSON, Content-Type is never user-controlled, and redirects are off. The contract is `design/asr-json-config.md`.
 
 ## Alternatives Considered
 

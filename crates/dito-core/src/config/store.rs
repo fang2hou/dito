@@ -4,7 +4,8 @@ use std::sync::Arc;
 use tokio::sync::watch;
 
 use super::migrate::{self, SCHEMA_VERSION, UpgradeError};
-use super::{Config, ConfigError};
+use super::{CloudAsrConfigurations, Config, ConfigError};
+use crate::secrets::SecretStore;
 
 type Result<T> = std::result::Result<T, ConfigError>;
 
@@ -58,16 +59,47 @@ impl ConfigStore {
         Ok(())
     }
 
-    fn write(&self, cfg: &Config) -> Result<()> {
-        if let Some(dir) = self.path.parent() {
-            std::fs::create_dir_all(dir)?;
-        }
-        let text = toml::to_string_pretty(cfg)?;
-        let tmp = self.path.with_extension("toml.tmp");
-        std::fs::write(&tmp, text)?;
-        std::fs::rename(&tmp, &self.path)?;
-        Ok(())
+    /// Remove a cloud polish configuration and the key it holds. The list is saved first, so a failed save keeps the
+    /// configuration and its key together. The last configuration stays, and so does its key: `false`.
+    pub fn remove_cloud_polish_configuration(&self, id: &str, secrets: &dyn SecretStore) -> Result<bool> {
+        let mut removed = None;
+        self.update(|c| removed = c.polish.engine.polish_configurations_mut(c.general.lang()).remove(id))?;
+        Ok(forget_key(removed.map(|configuration| configuration.account()), secrets))
     }
+
+    /// The same for a cloud speech configuration.
+    pub fn remove_cloud_asr_configuration(&self, id: &str, secrets: &dyn SecretStore) -> Result<bool> {
+        let mut removed = None;
+        self.update(|c| removed = c.asr.cloud_asr.get_or_insert_with(CloudAsrConfigurations::default).remove(id))?;
+        Ok(forget_key(removed.map(|configuration| configuration.account()), secrets))
+    }
+
+    fn write(&self, cfg: &Config) -> Result<()> {
+        write_file(&self.path, cfg)
+    }
+}
+
+/// Delete the key of an entry that was removed, and say whether there was one. A key that cannot be deleted stays in the
+/// Keychain under an id that is never used again: that is logged, because the entry is gone either way.
+fn forget_key(account: Option<String>, secrets: &dyn SecretStore) -> bool {
+    let Some(account) = account else { return false };
+    if let Err(error) = secrets.delete(&account) {
+        tracing::warn!("could not delete the API key of a removed entry: {error}");
+    }
+    true
+}
+
+/// Write `cfg` to `path` through a temporary file beside it, so a crash leaves the old file or the new one, never a
+/// half-written one.
+pub(super) fn write_file(path: &Path, cfg: &Config) -> Result<()> {
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir)?;
+    }
+    let text = toml::to_string_pretty(cfg)?;
+    let tmp = path.with_extension("toml.tmp");
+    std::fs::write(&tmp, text)?;
+    std::fs::rename(&tmp, path)?;
+    Ok(())
 }
 
 /// Parse `text`, upgrade it to the current schema and return the settings together with the version the file was at.
@@ -104,7 +136,7 @@ fn back_up(path: &Path, version: u32) -> std::io::Result<()> {
 mod tests {
     use super::*;
     use crate::config::{
-        Appearance, AsrProfiles, DEFAULT_POLISH_LOCAL, DEFAULT_SHORTCUT, MusicMuteMode, ReasoningEffort,
+        Appearance, CloudAsrConfigurations, DEFAULT_POLISH_LOCAL, DEFAULT_SHORTCUT, MusicMuteMode, ReasoningEffort,
     };
     use crate::i18n::Lang;
     use crate::prompts::{Style, default_set};
@@ -166,17 +198,17 @@ mod tests {
     }
 
     #[test]
-    fn profile_nulls_and_custom_requests_survive_toml_storage() {
+    fn cloud_speech_nulls_and_custom_requests_survive_toml_storage() {
         let mut config = Config::default();
-        let mut profiles = AsrProfiles::default();
-        profiles.select_index(2);
-        profiles.profiles[2].config["connection"]["model"] = "my-model".into();
-        profiles.profiles[2].config["language_map"]["ja"] = "JP".into();
-        config.asr.cloud_asr = Some(profiles);
+        let mut configurations = CloudAsrConfigurations::default();
+        configurations.select("openrouter");
+        configurations.items[2].config["connection"]["model"] = "my-model".into();
+        configurations.items[2].config["language_map"]["ja"] = "JP".into();
+        config.asr.cloud_asr = Some(configurations);
         let encoded = toml::to_string(&config).unwrap();
         let decoded: Config = toml::from_str(&encoded).unwrap();
         assert_eq!(config, decoded);
-        assert!(decoded.asr.cloud_asr.unwrap().active()["language_map"]["auto"].is_null());
+        assert!(decoded.asr.cloud_asr.unwrap().active().unwrap().config["language_map"]["auto"].is_null());
     }
 
     #[test]
@@ -239,7 +271,7 @@ instruction = "my herdr rule"
     }
 
     #[test]
-    fn legacy_cloud_asr_profiles_keep_their_selection_edits_and_keychain_account() {
+    fn a_version_one_cloud_speech_list_keeps_its_selection_edits_and_keychain_account() {
         let edited = r#"{"connection":{"model":"my-model"},"language_map":{"auto":null,"ja":"JP"}}"#;
         let untouched = "{}";
         let (dir, path) = config_file(&format!(
@@ -256,17 +288,175 @@ profiles = ['{untouched}', '{untouched}', '{edited}']
         ));
 
         let cfg = ConfigStore::open(&path).unwrap().get();
-        let profiles = cfg.asr.cloud_asr.as_ref().unwrap();
-        assert_eq!(profiles.selected, "openrouter");
-        assert_eq!(profiles.selected_index(), 2);
-        assert_eq!(profiles.account(), "asr.openrouter", "the Keychain account is the one the position had");
-        assert_eq!(profiles.active_name(), Some("OpenRouter"));
+        let configurations = cfg.asr.cloud_asr.as_ref().unwrap();
+        assert_eq!(configurations.selected, "openrouter");
+        let active = configurations.active().unwrap();
+        assert_eq!(active.id, "openrouter");
+        assert_eq!(active.account(), "asr.openrouter", "the Keychain account is the one the position had");
+        assert_eq!(configurations.active_name(), Some("OpenRouter"));
         let expected: serde_json::Value = serde_json::from_str(edited).unwrap();
-        assert_eq!(profiles.active(), &expected, "edits and nulls stay");
+        assert_eq!(active.config, expected, "edits and nulls stay");
         assert!(dir.path().join("config.toml.v1.bak").exists(), "the original is kept");
 
         // The rewritten file is in the new shape and loads back unchanged.
         assert_eq!(ConfigStore::open(&path).unwrap().get(), cfg);
+    }
+
+    #[test]
+    fn a_version_two_file_keeps_its_polish_behavior_as_configurations_and_the_original_is_kept() {
+        let original = r#"schema_version = 2
+onboarded = true
+
+[general]
+display_language = "ja"
+
+[asr]
+source = "local"
+local_model = "qwen3-asr-1.7b"
+
+[asr.provider]
+kind = "azure"
+
+[asr.provider.azure]
+endpoint = ""
+deployment = ""
+reasoning_effort = "low"
+
+[polish]
+enabled = true
+source = "provider"
+local_model = "qwen3.5-9b-instruct"
+
+[polish.provider]
+kind = "compat"
+
+[polish.provider.azure]
+endpoint = "https://dito.openai.azure.com/"
+deployment = "gpt-6.1-terra"
+reasoning_effort = "low"
+
+[polish.provider.bedrock]
+profile = "work"
+region = "ap-northeast-1"
+model_id = "jp.anthropic.claude-sonnet-4-5"
+reasoning_effort = "low"
+
+[polish.provider.compat]
+base_url = "https://router.example/v1"
+model = "vendor/model"
+reasoning_effort = "minimal"
+"#;
+        let (dir, path) = config_file(original);
+
+        let cfg = ConfigStore::open(&path).unwrap().get();
+        let configurations = cfg.polish.engine.polish_configurations(cfg.general.lang());
+        assert_eq!(configurations.selected, "compat", "the selected form stays selected");
+        let compat = configurations.active().unwrap();
+        assert_eq!(
+            (compat.name.as_str(), compat.target.address(), compat.target.model()),
+            ("OpenAI 互換 API", "https://router.example/v1", "vendor/model")
+        );
+        assert_eq!(compat.params.reasoning_effort.as_str(), "minimal");
+        assert_eq!(compat.account(), "polish.compat", "the key saved under the old account keeps working");
+        assert_eq!(cfg.polish.engine.label(), "compat:vendor/model");
+        let bedrock = configurations.get("bedrock").unwrap();
+        assert_eq!((bedrock.params.temperature, bedrock.params.max_tokens), (Some(0.2), Some(2048)));
+        assert_eq!(bedrock.params.reasoning_effort.as_str(), "low");
+        assert_eq!(configurations.get("azure").unwrap().account(), "polish.azure");
+        assert!(cfg.onboarded && cfg.asr.cloud_asr.is_none(), "the rest of the file is as it was");
+
+        assert_eq!(std::fs::read(dir.path().join("config.toml.v2.bak")).unwrap(), original.as_bytes());
+        let upgraded = std::fs::read_to_string(&path).unwrap();
+        assert!(upgraded.starts_with("schema_version = 3\n"), "{upgraded}");
+        assert!(upgraded.contains("[polish.cloud_polish]"), "{upgraded}");
+        assert!(!upgraded.contains("[polish.provider") && !upgraded.contains("[asr.provider"), "{upgraded}");
+
+        // The upgraded file is current: opening it again changes nothing and adds no backup.
+        assert_eq!(ConfigStore::open(&path).unwrap().get(), cfg);
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), upgraded);
+        assert_eq!(file_count(&dir), 2);
+    }
+
+    #[test]
+    fn configurations_and_local_parameters_survive_toml_and_the_speech_section_stays_free_of_them() {
+        use crate::config::{CloudPolishConfigurations, CloudPolishTemplate, LocalPolishParams};
+        let mut config = Config::default();
+        let mut configurations = CloudPolishConfigurations::new(Lang::En);
+        let added = configurations.add_from_template(CloudPolishTemplate::Azure, "Mine");
+        let mine = configurations.get_mut(&added).unwrap();
+        *mine.target.model_mut() = "gpt-x".into();
+        mine.params.temperature = Some(0.7);
+        mine.params.max_tokens = Some(300);
+        mine.params.extra = serde_json::from_str(r#"{"seed": 7, "stop": null}"#).unwrap();
+        config.polish.engine.cloud_polish = Some(configurations);
+        let params =
+            LocalPolishParams { temperature: Some(0.3), top_p: Some(0.8), top_k: Some(40), max_tokens: Some(512) };
+        config.polish.engine.set_local_params("qwen3.5-9b-instruct", params);
+        config.polish.engine.set_local_params("qwen3.5-2b-instruct", LocalPolishParams::default());
+
+        let encoded = toml::to_string(&config).unwrap();
+        assert_eq!(toml::from_str::<Config>(&encoded).unwrap(), config);
+        let table: toml::Table = encoded.parse().unwrap();
+        assert!(table["asr"].get("cloud_polish").is_none() && table["asr"].get("local_params").is_none());
+        assert!(table["polish"].get("cloud_asr").is_none());
+        assert_eq!(
+            table["polish"]["local_params"].as_table().unwrap().len(),
+            1,
+            "parameters that set nothing are not kept"
+        );
+        assert_eq!(config.polish.engine.local_params_for("qwen3.5-9b-instruct"), params);
+        assert_eq!(config.polish.engine.local_params_for("other"), LocalPolishParams::default());
+    }
+
+    #[test]
+    fn removing_a_polish_or_speech_configuration_saves_the_list_and_deletes_its_key() {
+        use crate::secrets::{MemorySecrets, SecretError};
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+        let store = ConfigStore::open(&path).unwrap();
+        let secrets = MemorySecrets::default();
+        for account in ["polish.azure", "polish.bedrock", "polish.compat", "asr.funasr", "asr.openrouter"] {
+            secrets.set(account, "key").unwrap();
+        }
+
+        // The configuration in use goes, its neighbour takes over, the other keys stay.
+        assert!(store.remove_cloud_polish_configuration("azure", &secrets).unwrap());
+        let config = store.get();
+        let list = config.polish.engine.polish_configurations(config.general.lang());
+        assert_eq!(list.items.iter().map(|c| c.id.as_str()).collect::<Vec<_>>(), ["bedrock", "compat"]);
+        assert_eq!(list.selected, "bedrock");
+        assert_eq!(secrets.get("polish.azure"), None);
+        assert_eq!(secrets.get("polish.compat").as_deref(), Some("key"));
+        let reopened = ConfigStore::open(&path).unwrap().get();
+        assert_eq!(reopened.polish.engine.polish_configurations(reopened.general.lang()).items.len(), 2, "on disk");
+
+        // The last one stays with its key; an unknown id is not a removal.
+        assert!(store.remove_cloud_polish_configuration("bedrock", &secrets).unwrap());
+        assert!(!store.remove_cloud_polish_configuration("compat", &secrets).unwrap());
+        assert!(!store.remove_cloud_polish_configuration("missing", &secrets).unwrap());
+        assert_eq!(secrets.get("polish.compat").as_deref(), Some("key"));
+
+        // Speech configurations go the same way.
+        assert!(store.remove_cloud_asr_configuration("funasr", &secrets).unwrap());
+        assert_eq!(secrets.get("asr.funasr"), None);
+        assert_eq!(secrets.get("asr.openrouter").as_deref(), Some("key"));
+        assert_eq!(store.get().asr.cloud_asr.as_ref().unwrap().selected, "qwen_asr");
+
+        // A Keychain that refuses the deletion does not bring the configuration back.
+        struct Locked;
+        impl SecretStore for Locked {
+            fn get(&self, _: &str) -> Option<String> {
+                None
+            }
+            fn set(&self, _: &str, _: &str) -> std::result::Result<(), SecretError> {
+                Err(SecretError::Backend("locked".into()))
+            }
+            fn delete(&self, _: &str) -> std::result::Result<(), SecretError> {
+                Err(SecretError::Backend("locked".into()))
+            }
+        }
+        assert!(store.remove_cloud_asr_configuration("qwen_asr", &Locked).unwrap());
+        assert_eq!(store.get().asr.cloud_asr.as_ref().unwrap().items.len(), 1);
     }
 
     #[test]

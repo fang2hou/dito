@@ -4,36 +4,55 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use dito_core::audio::AudioClip;
-use dito_core::config::{AsrProfiles, Config, ProviderKind, ReasoningEffort, Source};
+use dito_core::config::{
+    CloudAsrConfigurations, CloudPolishConfiguration, CloudPolishParams, Config, ReasoningEffort, Source,
+};
 use dito_core::error::ErrorKind;
 use dito_core::factory::{EngineFactory, Engines};
 use dito_core::pipeline::CancellationToken;
 use dito_core::pipeline::{self, Job, PipelineError};
 use dito_core::prompts::Style;
 use dito_core::provider::{AsrRequest, PolishRequest, TestOutcome, test_polisher, test_transcriber};
-use dito_core::secrets::{MemorySecrets, Role, SecretStore, account};
-use dito_testkit::{MockServer, mock_asr_profile};
+use dito_core::secrets::{MemorySecrets, SecretStore, polish_account};
+use dito_testkit::{MockServer, mock_cloud_asr_config};
+use serde_json::json;
 
 fn tone() -> AudioClip {
     AudioClip::new(vec![0.3; 16_000])
 }
 
-/// The dev defaults with the cloud speech profile and the Azure polish settings both pointed at the mock at `url`.
+/// The configuration the polish engine of `cfg` runs.
+fn active(cfg: &mut Config) -> &mut CloudPolishConfiguration {
+    cfg.polish.engine.polish_configurations_mut(cfg.general.lang()).active_mut().expect("a configuration is selected")
+}
+
+/// The dev defaults with the cloud speech configuration and the Azure polish configuration both pointed at the mock at `url`.
 fn mock_cfg(url: &str) -> Config {
     let mut c = Config::dev_azure();
-    let profiles = c.asr.cloud_asr.as_mut().expect("the dev defaults use a cloud speech profile");
-    *profiles.active_mut().expect("the selected profile is in the list") = mock_asr_profile(url);
-    c.polish.engine.provider.azure.endpoint = url.into();
+    let configurations = c.asr.cloud_asr.as_mut().expect("the dev defaults use a cloud speech configuration");
+    *configurations.active_mut().expect("the selected configuration is in the list") = mock_cloud_asr_config(url);
+    *active(&mut c).target.address_mut() = url.into();
     c
 }
 
-/// A keychain holding `key` for the cloud speech profile `mock_cfg` selects and for both polish providers.
+/// Default settings with the polish engine on its OpenAI-compatible configuration, pointed at `base_url`.
+fn compat_cfg(base_url: &str) -> Config {
+    let mut cfg = Config::default();
+    cfg.polish.engine.source = Source::Provider;
+    cfg.polish.engine.polish_configurations_mut(cfg.general.lang()).select("compat");
+    *active(&mut cfg).target.address_mut() = base_url.into();
+    *active(&mut cfg).target.model_mut() = "gpt-4o-mini".into();
+    cfg
+}
+
+/// A keychain holding `key` for the cloud speech configuration `mock_cfg` selects and for the Azure and compatible polish
+/// configurations the templates start with.
 fn factory(key: Option<&str>) -> EngineFactory {
     let secrets = Arc::new(MemorySecrets::default());
     if let Some(k) = key {
-        secrets.set(&AsrProfiles::default().account(), k).unwrap();
-        secrets.set(&account(Role::Polish, ProviderKind::Azure), k).unwrap();
-        secrets.set(&account(Role::Polish, ProviderKind::Compat), k).unwrap();
+        secrets.set(&CloudAsrConfigurations::default().active().unwrap().account(), k).unwrap();
+        secrets.set(&polish_account("azure"), k).unwrap();
+        secrets.set(&polish_account("compat"), k).unwrap();
     }
     EngineFactory::new(secrets)
 }
@@ -133,11 +152,7 @@ async fn connection_test_reports_latency_and_treats_no_speech_as_reachable() {
 async fn compat_accepts_a_pasted_chat_completions_url_and_uses_bearer_auth() {
     let srv = MockServer::start().await.unwrap();
     srv.behavior(|b| b.expected_key = Some("tok".into()));
-    let mut cfg = Config::default();
-    cfg.polish.engine.source = Source::Provider;
-    cfg.polish.engine.provider.kind = ProviderKind::Compat;
-    cfg.polish.engine.provider.compat.base_url = format!("{}/v1/chat/completions", srv.url);
-    cfg.polish.engine.provider.compat.model = "gpt-4o-mini".into();
+    let cfg = compat_cfg(&format!("{}/v1/chat/completions", srv.url));
     let f = factory(Some("tok"));
     let p = f.polisher(&cfg).await.unwrap().unwrap();
     assert_eq!(p.polish(&PolishRequest { system: "s", text: "um hello" }).await.unwrap(), "hello.");
@@ -150,13 +165,125 @@ async fn reasoning_effort_is_dropped_and_retried_for_models_that_reject_it() {
     let srv = MockServer::start().await.unwrap();
     srv.behavior(|b| b.reject_reasoning_effort = true);
     let mut cfg = mock_cfg(&srv.url);
-    cfg.polish.engine.provider.azure.reasoning_effort = ReasoningEffort::High;
+    active(&mut cfg).params.reasoning_effort = ReasoningEffort::High;
+    active(&mut cfg).params.temperature = Some(0.3);
     let p = factory(None).polisher(&cfg).await.unwrap().unwrap();
     assert_eq!(p.polish(&PolishRequest { system: "s", text: "ok" }).await.unwrap(), "ok.");
     let reqs = srv.requests();
     assert_eq!(reqs.len(), 2);
     assert_eq!(reqs[0].reasoning_effort.as_deref(), Some("high"));
     assert_eq!(reqs[1].reasoning_effort, None);
+    assert_eq!(reqs[1].body.as_ref().unwrap()["temperature"], json!(0.3), "the retry keeps the other parameters");
+}
+
+fn body_keys(body: &serde_json::Value) -> Vec<&str> {
+    let mut keys: Vec<_> = body.as_object().expect("a JSON object").keys().map(String::as_str).collect();
+    keys.sort_unstable();
+    keys
+}
+
+async fn polish_body(cfg: &Config, srv: &MockServer) -> serde_json::Value {
+    let before = srv.requests().len();
+    let p = factory(None).polisher(cfg).await.unwrap().unwrap();
+    p.polish(&PolishRequest { system: "s", text: "ok" }).await.unwrap();
+    srv.requests()[before].body.clone().expect("the chat route records its body")
+}
+
+#[tokio::test]
+async fn a_parameter_that_is_not_set_is_not_sent() {
+    let srv = MockServer::start().await.unwrap();
+    for mut cfg in [mock_cfg(&srv.url), compat_cfg(&format!("{}/v1", srv.url))] {
+        active(&mut cfg).params =
+            CloudPolishParams { reasoning_effort: ReasoningEffort::Custom(String::new()), ..Default::default() };
+        let body = polish_body(&cfg, &srv).await;
+        assert_eq!(body_keys(&body), ["messages", "model"], "nothing but the prompt and the model");
+    }
+}
+
+#[tokio::test]
+async fn set_parameters_are_sent_under_the_token_limit_name_of_their_api() {
+    let srv = MockServer::start().await.unwrap();
+    let params = CloudPolishParams {
+        temperature: Some(0.3),
+        top_p: Some(0.9),
+        max_tokens: Some(256),
+        reasoning_effort: ReasoningEffort::Medium,
+        ..Default::default()
+    };
+
+    let mut azure = mock_cfg(&srv.url);
+    active(&mut azure).params = params.clone();
+    let body = polish_body(&azure, &srv).await;
+    assert_eq!(
+        body_keys(&body),
+        ["max_completion_tokens", "messages", "model", "reasoning_effort", "temperature", "top_p"]
+    );
+    assert_eq!(
+        (&body["temperature"], &body["top_p"], &body["max_completion_tokens"], &body["reasoning_effort"]),
+        (&json!(0.3), &json!(0.9), &json!(256), &json!("medium"))
+    );
+
+    let mut compat = compat_cfg(&format!("{}/v1", srv.url));
+    active(&mut compat).params = params;
+    let body = polish_body(&compat, &srv).await;
+    assert_eq!(body_keys(&body), ["max_tokens", "messages", "model", "reasoning_effort", "temperature", "top_p"]);
+    assert_eq!(body["max_tokens"], json!(256));
+}
+
+#[tokio::test]
+async fn extra_is_merged_over_the_request_body_last() {
+    let srv = MockServer::start().await.unwrap();
+    let mut cfg = mock_cfg(&srv.url);
+    active(&mut cfg).params = CloudPolishParams {
+        temperature: Some(0.3),
+        extra: serde_json::from_value(json!({"temperature": 0.9, "seed": 42, "response_format": {"type": "text"}}))
+            .unwrap(),
+        ..Default::default()
+    };
+    let body = polish_body(&cfg, &srv).await;
+    assert_eq!(body["temperature"], json!(0.9), "extra overrides a parameter with a field of its own");
+    assert_eq!((&body["seed"], &body["response_format"]), (&json!(42), &json!({"type": "text"})));
+    assert_eq!(body["model"], json!("gpt-6.1-terra"), "the rest of the body stays");
+}
+
+#[tokio::test]
+async fn every_configuration_authenticates_with_the_key_under_its_own_account() {
+    let srv = MockServer::start().await.unwrap();
+    srv.behavior(|b| b.expected_key = Some("key-of-the-copy".into()));
+    let secrets = Arc::new(MemorySecrets::default());
+    let f = EngineFactory::new(secrets.clone());
+    let mut cfg = mock_cfg(&srv.url);
+    let original = active(&mut cfg).id.clone();
+    let configurations = cfg.polish.engine.polish_configurations_mut(cfg.general.lang());
+    let copy = configurations.duplicate(&original, "Copy").unwrap();
+    secrets.set(&polish_account(&original), "key-of-the-original").unwrap();
+    assert_eq!(secrets.get(&polish_account(&copy)), None, "a copy starts without a key");
+    secrets.set(&polish_account(&copy), "key-of-the-copy").unwrap();
+    let request = PolishRequest { system: "s", text: "ok" };
+
+    // The copy is selected, and the server wants its key.
+    f.polisher(&cfg).await.unwrap().unwrap().polish(&request).await.unwrap();
+    cfg.polish.engine.polish_configurations_mut(cfg.general.lang()).select(&original);
+    let err = f.polisher(&cfg).await.unwrap().unwrap().polish(&request).await.unwrap_err();
+    assert_eq!(err.kind, ErrorKind::Auth, "the original sends its own key");
+}
+
+#[tokio::test]
+async fn a_changed_key_is_picked_up_once_the_engines_are_invalidated() {
+    let srv = MockServer::start().await.unwrap();
+    srv.behavior(|b| b.expected_key = Some("new".into()));
+    let secrets = Arc::new(MemorySecrets::default());
+    let f = EngineFactory::new(secrets.clone());
+    let cfg = mock_cfg(&srv.url);
+    let account = polish_account("azure");
+    let request = PolishRequest { system: "s", text: "ok" };
+
+    secrets.set(&account, "old").unwrap();
+    let first = f.polisher(&cfg).await.unwrap().unwrap().polish(&request).await.unwrap_err();
+    assert_eq!(first.kind, ErrorKind::Auth);
+    secrets.set(&account, "new").unwrap();
+    f.invalidate_engines();
+    f.polisher(&cfg).await.unwrap().unwrap().polish(&request).await.unwrap();
 }
 
 #[tokio::test]
@@ -174,8 +301,8 @@ async fn a_blank_base_url_or_model_fails_before_any_request() {
     let srv = MockServer::start().await.unwrap();
     for field in ["base_url", "model"] {
         let mut cfg = mock_cfg(&srv.url);
-        let profile = cfg.asr.cloud_asr.as_mut().unwrap().active_mut().unwrap();
-        profile["connection"][field] = "".into();
+        let config = cfg.asr.cloud_asr.as_mut().unwrap().active_mut().unwrap();
+        config["connection"][field] = "".into();
         let err = factory(None).transcriber(&cfg).await.err().unwrap();
         assert_eq!(err.kind, ErrorKind::Unavailable, "blank {field}");
     }

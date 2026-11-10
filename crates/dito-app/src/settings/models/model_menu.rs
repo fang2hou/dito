@@ -10,8 +10,7 @@ use gpui_kit::*;
 
 use super::page::ModelsPage;
 use crate::assets::Ic;
-use crate::services;
-use crate::settings::{Ctx, role};
+use crate::settings::Ctx;
 use crate::state::AppState;
 use crate::ui::{self, MenuItem, MenuTone, cbk};
 
@@ -28,7 +27,7 @@ impl ModelsPage {
             this.menu = None;
             cx.notify();
         });
-        let runtime = self.engine_command_items(c, role, &spec.id, selected);
+        let runtime = self.engine_command_items(c, cx, role, &spec.id, selected);
         let mut files = self.file_command_items(c, &spec.id);
         let removal = files.split_off(2);
         files.swap(0, 1);
@@ -42,7 +41,14 @@ impl ModelsPage {
 
     /// Engine commands follow the runtime: Stop + Restart while the engine runs, Start otherwise. Starting a
     /// non-selected model also switches the engine to it.
-    fn engine_command_items(&self, c: &Ctx, role: Role, id: &str, selected: bool) -> Vec<MenuItem> {
+    fn engine_command_items(
+        &self,
+        c: &Ctx,
+        cx: &mut Context<Self>,
+        role: Role,
+        id: &str,
+        selected: bool,
+    ) -> Vec<MenuItem> {
         let running = matches!(self.st.local.status(id), EngineStatus::Running | EngineStatus::Loading);
         let (st, id) = (self.st.clone(), id.to_string());
         if running && selected {
@@ -69,11 +75,16 @@ impl ModelsPage {
             icon: Some(Ic::Play),
             label: c.t(Tr::ModelsStart),
             tone: MenuTone::Default,
-            on_click: Rc::new(move |_, _| {
-                services::save_config(&st, |cfg| role::engine_mut(cfg, role).local_model = id.clone());
-                restart_engine(&st, &id);
-            }),
+            on_click: cbk(cx, move |this: &mut Self, _, cx| this.start_model(role, &id, cx)),
         }]
+    }
+
+    /// Start the model `id`, which also makes it the one `role` uses. A selection that cannot be saved starts nothing.
+    fn start_model(&mut self, role: Role, id: &str, cx: &mut Context<Self>) {
+        if self.select_local_model(role, id) {
+            restart_engine(&self.st, id);
+        }
+        cx.notify();
     }
 
     /// Download again, show in Finder and delete.

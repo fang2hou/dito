@@ -1,6 +1,6 @@
-use dito_core::config::{EngineConfig, ProviderKind, Source};
+use dito_core::config::{CloudPolishConfiguration, CloudPolishTarget, EngineConfig, Source};
 use dito_core::i18n::Tr;
-use dito_core::provider::configured_asr::AsrProfiles;
+use dito_core::provider::configured_asr::CloudAsrConfigurations;
 use dito_core::secrets::Role;
 use gpui_kit::*;
 
@@ -31,22 +31,29 @@ fn azure_resource(endpoint: &str) -> String {
     host.strip_suffix(".openai.azure.com").unwrap_or(&host).to_string()
 }
 impl StatusPage {
-    pub(super) fn provider_engine_card(&self, c: &Ctx, role: Role, e: &EngineConfig) -> EngineParts {
+    pub(super) fn cloud_engine_card(&self, c: &Ctx, role: Role, e: &EngineConfig) -> EngineParts {
         let p = &c.p;
         let idx = role::index(role);
-        let profiles = role::cloud_profiles(role, e);
-        let profiles = profiles.as_deref();
-        let name = provider_name(c, e, profiles);
+        let asr_configurations = role::cloud_asr_configurations(role, e);
+        let asr_configurations = asr_configurations.as_deref();
+        let polish_configurations = e.polish_configurations(c.lang);
+        let polish_configuration = polish_configurations.active();
+        let name = configuration_name(asr_configurations, polish_configuration);
         let (label, tone) = match &self.checks[idx] {
             TestState::Ok(_) => (c.t(Tr::ModelsConnected), StatusTone::Success),
             TestState::Failed(_) => (c.t(Tr::ModelsConnectionError), StatusTone::Danger),
             TestState::Running | TestState::Idle => (c.t(Tr::ModelsChecking), StatusTone::Warning),
         };
         let chip = ui::status_chip(p, label, tone);
-        let mut body: Vec<AnyElement> =
-            vec![model_line(c, provider_model(e, profiles).to_owned(), Source::Provider).into_any_element()];
+        let mut body: Vec<AnyElement> = vec![
+            model_line(c, configuration_model(asr_configurations, polish_configuration).to_owned(), Source::Provider)
+                .into_any_element(),
+        ];
         let mut error = None;
-        let mut cells = vec![(c.t(Tr::StatusProvider), name.to_string()), endpoint_cell(c, e, profiles)];
+        let mut cells = vec![
+            (c.t(Tr::StatusProvider), name.to_string()),
+            endpoint_cell(c, asr_configurations, polish_configuration),
+        ];
         match &self.checks[idx] {
             TestState::Ok(ms) => {
                 cells.push((c.t(Tr::ModelsLatency), format!("{ms} ms")));
@@ -73,35 +80,51 @@ impl StatusPage {
     }
 }
 
-fn provider_name<'a>(c: &Ctx, e: &EngineConfig, profiles: Option<&'a AsrProfiles>) -> &'a str {
-    profiles.and_then(AsrProfiles::active_name).unwrap_or_else(|| c.lang.tr(e.provider.kind.label()))
-}
-
-fn provider_model<'a>(e: &'a EngineConfig, profiles: Option<&'a AsrProfiles>) -> &'a str {
-    if let Some(profiles) = profiles {
-        return profiles.active()["connection"]["model"].as_str().unwrap_or("");
-    }
-    match e.provider.kind {
-        ProviderKind::Azure => &e.provider.azure.deployment,
-        ProviderKind::Bedrock => &e.provider.bedrock.model_id,
-        ProviderKind::Compat => &e.provider.compat.model,
+/// The cloud speech or cloud polish configuration the engine runs, by the name it was given.
+fn configuration_name<'a>(
+    asr_configurations: Option<&'a CloudAsrConfigurations>,
+    polish_configuration: Option<&'a CloudPolishConfiguration>,
+) -> &'a str {
+    match asr_configurations {
+        Some(asr_configurations) => asr_configurations.active_name().unwrap_or("—"),
+        None => polish_configuration.map_or("—", |c| c.name.as_str()),
     }
 }
 
-/// The card's second fact: where the provider is reached.
-fn endpoint_cell(c: &Ctx, e: &EngineConfig, profiles: Option<&AsrProfiles>) -> (SharedString, String) {
-    if let Some(profiles) = profiles {
-        return (c.t(Tr::ModelsEndpoint), url_host(profiles.active()["connection"]["base_url"].as_str().unwrap_or("")));
+fn configuration_model<'a>(
+    asr_configurations: Option<&'a CloudAsrConfigurations>,
+    polish_configuration: Option<&'a CloudPolishConfiguration>,
+) -> &'a str {
+    if let Some(asr_configurations) = asr_configurations {
+        return asr_configurations.active().map_or("", |c| c.config["connection"]["model"].as_str().unwrap_or(""));
     }
-    match e.provider.kind {
-        ProviderKind::Azure => {
-            let resource = azure_resource(&e.provider.azure.endpoint);
+    polish_configuration.map_or("", |c| c.target.model())
+}
+
+/// The card's second fact: where the cloud engine is reached.
+fn endpoint_cell(
+    c: &Ctx,
+    asr_configurations: Option<&CloudAsrConfigurations>,
+    polish_configuration: Option<&CloudPolishConfiguration>,
+) -> (SharedString, String) {
+    if let Some(asr_configurations) = asr_configurations {
+        return (
+            c.t(Tr::ModelsEndpoint),
+            url_host(
+                asr_configurations.active().map_or("", |c| c.config["connection"]["base_url"].as_str().unwrap_or("")),
+            ),
+        );
+    }
+    match polish_configuration.map(|c| &c.target) {
+        Some(CloudPolishTarget::Azure { endpoint, .. }) => {
+            let resource = azure_resource(endpoint);
             (c.t(Tr::ModelsResource), if resource.is_empty() { "—".into() } else { resource })
         }
-        ProviderKind::Bedrock => (c.t(Tr::ModelsRegion), e.provider.bedrock.region.clone()),
-        ProviderKind::Compat => {
-            let host = url_host(&e.provider.compat.base_url);
+        Some(CloudPolishTarget::Bedrock { region, .. }) => (c.t(Tr::ModelsRegion), region.clone()),
+        Some(CloudPolishTarget::Compat { base_url, .. }) => {
+            let host = url_host(base_url);
             (c.t(Tr::ModelsEndpoint), if host.is_empty() { "—".into() } else { host })
         }
+        None => (c.t(Tr::ModelsEndpoint), "—".into()),
     }
 }

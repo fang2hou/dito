@@ -25,7 +25,7 @@ pub(super) fn error_row(source: &str) -> usize {
 /// Parse and validate a draft; the error is the localized message shown under the editor.
 pub(super) fn check(source: &str, lang: Lang) -> Result<Value, String> {
     let value = serde_json::from_str::<Value>(source).map_err(|e| {
-        lang.tr(Tr::FmtAsrSyntaxError)
+        lang.tr(Tr::FmtLineColumnError)
             .replace("{line}", &e.line().to_string())
             .replace("{column}", &e.column().to_string())
             .replace("{detail}", &e.to_string())

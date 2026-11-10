@@ -15,6 +15,6 @@ mod watch_config;
 pub use connection::{test_asr_draft, test_connection, try_polish};
 pub use history::{delete_history_entry, history_entry, polish_again, recognize_again};
 pub use queries::{DictionaryWords, aws_profiles, dictionary_words, history_list, history_stats};
-pub use save_config::save_config;
-pub use store_secret::store_secret;
+pub use save_config::{save_config, try_save_config};
+pub use store_secret::{store_secret, try_store_secret};
 pub use watch_config::watch_config;

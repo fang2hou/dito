@@ -53,7 +53,7 @@ The Python benchmark harness has its own tasks: `mise run bench:sync`, `bench:te
 ## Layout
 
 - `crates/`: the workspace crates (see [ARCHITECTURE.md](ARCHITECTURE.md)).
-- `design/`: `dito.figcraft` (UI and motion), `features.md`, the ASR connection config contract, and `asr-templates/` (compiled into the app).
+- `design/`: `dito.figcraft` (UI and motion), `features.md`, the cloud speech request JSON contract, and `asr-templates/` (compiled into the app).
 - `assets/icon/`: the Icon Composer document.
 - `bench/`: Python benchmark harness for ASR and polish models, with stored results.
 - `mise.toml`: tool versions and the project tasks. `prek.toml`: commit hooks. `.github/`: PR rules, and the release workflow (see [CONTRIBUTING.md](CONTRIBUTING.md)).
@@ -93,7 +93,7 @@ The Python benchmark harness has its own tasks: `mise run bench:sync`, `bench:te
 | `--screenshots <dir>` | Render screenshots (build with `--features screenshots`; narrow with `DITO_SHOTS_ONLY`); windows are never shown and never take focus |
 
 - Logs go to stdout through `tracing`; the dev runner tails the app's output into the terminal. Override with `RUST_LOG`.
-- Data lives in `~/Library/Application Support/com.fang2hou.Dito`: `config.toml`, `dito.db`, `audio/` and `models/`. Keys are in the Keychain under `com.fang2hou.dito`. The login item is `~/Library/LaunchAgents/com.fang2hou.dito.plist`.
+- Data lives in `~/Library/Application Support/com.fang2hou.Dito`: `config.toml`, `dito.db`, `audio/` and `models/`. Keys are in the Keychain under `com.fang2hou.dito`, one item per cloud polish configuration (`polish.<id>`) and per cloud speech configuration (`asr.<id>`). The login item is `~/Library/LaunchAgents/com.fang2hou.dito.plist`.
 - Debug builds (`mise run dev`, `cargo run`, tests) use a separate identity, `com.fang2hou.dito-dev` (data in `com.fang2hou.Dito-dev`, own Keychain items, login item, and Microphone and Accessibility grants), so they never read or change the installed app's config, history, keys or login item. API keys, models and permissions start empty there; point `models_dir` at the release folder to reuse downloaded models.
 - `--data-dir` doesn't move the models folder; set `models_dir` for that.
 - Use `--mock --log-sink` for any automated or agent run.
@@ -133,7 +133,7 @@ The SQLite store behind `dito.db` versions its schema with `PRAGMA user_version`
 
 The catalog in `dito-local` owns model files, pinned URLs, sizes, checksums, memory estimates, language-focus hints and the inference layout. For another checkpoint of an existing `ModelFormat`, add one catalog entry; downloads, verification, selection and engine lifecycle reuse the existing path. `ModelFormat` declares exact filenames for each role, so a projector or unrelated ONNX file cannot be mistaken for the main model. Keep external data files such as Haas-ja's `encoder.data` in the same download entry and directory.
 
-A chat model of another family (Gemma, Llama, Phi) is a catalog entry with `ModelFormat::Chat` too, and its prompt format comes from the chat template embedded in the GGUF, so a file without one fails to load. Pass `disable_thinking: false` for it (the flag is the Qwen hybrid-thinking prefill), and check its output handling (`strip_think`, sampling) against real weights before it ships.
+A chat model of another family (Gemma, Llama, Phi) is a catalog entry with `ModelFormat::Chat` too, and its prompt format comes from the chat template embedded in the GGUF, so a file without one fails to load. Pass `disable_thinking: false` for it (the flag is the Qwen hybrid-thinking prefill), give it the `sampling` the family recommends (the values the model uses for any parameter the user leaves empty on the Models page; `Sampling::POLISH` is what the Qwen entries use), and check its output handling (`strip_think`, sampling) against real weights before it ships.
 
 For a new architecture, add a `ModelFormat` variant and its adapter in `dito-runtimes`, declare its hotword capability, and extend the loader. Update ADR-0002 when introducing another backend library. A language-focus hint is descriptive and must not reject other input languages; return no detected language when the decoder cannot provide one. Check the license and attribution of each conversion. Haas-ja uses `oboroge0/Haas-ja-v1.0-onnx-quantized`, a community Apache-2.0 conversion of Third Intelligence's model, pinned at `7f5ab0a4b1bf39db78afd6691eeecbc4f9d42e39`.
 
@@ -143,7 +143,7 @@ The native sherpa binding is the official `sherpa-onnx-sys` 2.0.1 static package
 
 ### Changing the config schema
 
-Bump `SCHEMA_VERSION` in `crates/dito-core/src/config/migrate.rs` and append one migration function that rewrites the parsed TOML table from the previous version; migrations run in order before the typed load. Add one test per migration that feeds it a table in the old shape. Never edit or renumber a shipped migration, because files in the field have already passed through it. Before rewriting, `ConfigStore::open` saves the original as `config.toml.v<old>.bak`, and it refuses a file with a newer version (ADR-0015).
+Bump `SCHEMA_VERSION` in `crates/dito-core/src/config/migrate.rs` and append one migration function that rewrites the parsed TOML table from the previous version; migrations run in order before the typed load. Add one test per migration that feeds it a table in the old shape. Spell out the names and defaults a migration writes instead of reading them from live code (`asr_profile_ids` and `cloud_configurations` are the pattern), so it keeps its result when a label or a template changes. Never edit or renumber a shipped migration, because files in the field have already passed through it. ADR-0015 lists the versions. Before rewriting, `ConfigStore::open` saves the original as `config.toml.v<old>.bak`, and it refuses a file with a newer version (ADR-0015).
 
 ### Adding a built-in writing style
 

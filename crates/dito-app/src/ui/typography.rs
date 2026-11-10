@@ -75,6 +75,28 @@ pub fn text_width(s: &str, size: f32, weight: FontWeight) -> f32 {
     })
 }
 
+/// How many lines `s` takes once wrapped to `width`, set in `family` as the renderer will lay it out. For windows
+/// that fit their text, where the height follows the line count.
+pub fn text_lines(s: &str, family: impl Into<SharedString>, size: f32, weight: FontWeight, width: f32) -> usize {
+    TEXT_SYSTEM.with(|t| match t.borrow().as_ref() {
+        Some(ts) => {
+            let mut f = font(family);
+            f.weight = weight;
+            let run = TextRun {
+                len: s.len(),
+                font: f,
+                color: hsla(0., 0., 0., 1.),
+                background_color: None,
+                underline: None,
+                strikethrough: None,
+            };
+            ts.shape_text(SharedString::from(s.to_string()), px(size), &[run], Some(px(width)), None)
+                .map_or(1, |lines| lines.iter().map(|line| line.wrap_boundaries.len() + 1).sum())
+        }
+        None => 1,
+    })
+}
+
 /// Measure the same glyph spacing as [`text_tracked`] for controls with fitted widths.
 pub fn text_tracked_width(s: &str, size: f32, weight: FontWeight, cjk_em: f32) -> f32 {
     let em = tracking_for(s, cjk_em);

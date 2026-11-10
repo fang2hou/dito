@@ -199,8 +199,8 @@ impl Settings {
         theme::apply(&p, cx);
         let prompt_overlay =
             if self.page == Page::Prompts { self.prompts.update(cx, |p, cx| p.overlay(window, cx)) } else { None };
-        let help_overlay = if self.page == Page::Models {
-            self.models.update(cx, |models, cx| models.help_overlay(window, cx))
+        let models_overlay = if self.page == Page::Models {
+            self.models.update(cx, |models, cx| models.overlay(window, cx))
         } else {
             None
         };
@@ -219,6 +219,6 @@ impl Settings {
             // Painted last so the health card floats above the page content, not under it.
             .child(self.health_overlay(&c))
             .children(prompt_overlay)
-            .children(help_overlay)
+            .children(models_overlay)
     }
 }

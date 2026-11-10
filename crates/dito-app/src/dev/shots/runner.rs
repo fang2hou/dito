@@ -5,7 +5,7 @@ use std::time::Duration;
 use gpui_kit::*;
 
 use super::input::redraw;
-use super::{demo, hud, onboarding, pages};
+use super::{demo, dictionary, hud, onboarding, pages, polish_form, startup, tile_row};
 use crate::settings::{self, Page};
 use crate::state::{AppGlobal, AppState};
 
@@ -28,8 +28,8 @@ impl Groups {
     }
 }
 
-/// Render the groups (pages, extra, onboarding, hud, demo, min by default; the rest only when named) to `dir`, then
-/// quit.
+/// Render the groups (pages, extra, onboarding, startup, hud, demo, min by default; the rest only when named) to
+/// `dir`, then quit.
 pub fn run(dir: PathBuf, cx: &mut App) {
     std::fs::create_dir_all(&dir).expect("screenshot dir");
     let st = cx.global::<AppGlobal>().0.clone();
@@ -83,6 +83,12 @@ async fn render_app_shots(st: &Arc<AppState>, dir: &Path, groups: &Groups, cx: &
     if groups.selects("prompts") {
         pages::prompt_shots(st, dir, cx).await;
     }
+    if groups.selects("dictionary") {
+        dictionary::dictionary_failure_shots(st, dir, cx).await;
+    }
+    if groups.selects("tilerow") {
+        tile_row::tile_row_shots(dir, cx).await;
+    }
     if groups.selects("status") {
         pages::status_shots(st, dir, cx).await;
     }
@@ -90,14 +96,24 @@ async fn render_app_shots(st: &Arc<AppState>, dir: &Path, groups: &Groups, cx: &
     if groups.selects("inlineasr") {
         super::inline_asr::run(st, dir, cx).await;
     }
+    #[cfg(feature = "mock")]
+    if groups.selects("cloudspeechtiles") {
+        super::cloud_speech_tiles::run(st, dir, cx).await;
+    }
     if groups.selects("models") {
         pages::model_shots(st, dir, cx).await;
+    }
+    if groups.selects("polishform") {
+        polish_form::polish_form_shots(st, dir, cx).await;
     }
     if groups.runs_by_default("extra") {
         pages::extra_shots(st, dir, cx).await;
     }
     if groups.runs_by_default("onboarding") {
         onboarding::onboarding_shots(st, dir, cx).await;
+    }
+    if groups.runs_by_default("startup") {
+        startup::startup_failure_shots(st, dir, cx).await;
     }
     if groups.runs_by_default("hud") {
         hud::hud_shots(st, dir, cx).await;

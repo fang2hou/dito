@@ -3,7 +3,7 @@ use gpui_kit::*;
 
 use super::button::CONTROL_H;
 use super::callbacks::Cb;
-use super::menu_panel::{float, menu_panel, menu_row, menu_separator};
+use super::menu_panel::{float, menu_label, menu_panel, menu_row, menu_separator};
 use super::primitives::icon;
 use super::typography::text;
 use crate::assets::Ic;
@@ -53,6 +53,45 @@ pub fn popup_menu(id: impl Into<ElementId>, p: &Palette, items: Vec<MenuItem>, o
         let item_id = ElementId::from((id.clone(), SharedString::from(format!("m{i}"))));
         panel = panel.child(popup_row(item_id, p, item, on_close.clone(), false));
     }
+    float(ElementId::from((id, "popup")), CONTROL_H + 8., panel)
+}
+
+/// One row of the [`add_menu`]: what it says and what it does. The menu closes before `on_click` runs.
+pub struct AddEntry {
+    pub label: SharedString,
+    pub on_click: Cb,
+}
+
+fn add_row(id: ElementId, p: &Palette, entry: AddEntry, on_close: Cb) -> Stateful<Div> {
+    let on_click = entry.on_click;
+    menu_row(id, p)
+        .on_click(move |_, w, cx| {
+            on_close(w, cx);
+            on_click(w, cx);
+        })
+        .child(text(entry.label, 14., FontWeight::NORMAL, p.text).line_height(px(20.)))
+}
+
+/// The menu under the plus button of a configuration row (`20.05.11`), for cloud speech and cloud polish alike: a
+/// caption, the `templates` a new configuration can start from, a rule, and the row that copies the selected
+/// configuration. The caption says the entries are templates that only pre-fill the new configuration, not things to
+/// choose between. Hangs under its (relative) parent with the right edges aligned, drawn above everything.
+pub fn add_menu(
+    id: impl Into<ElementId>,
+    p: &Palette,
+    caption: impl Into<SharedString>,
+    templates: Vec<AddEntry>,
+    duplicate: AddEntry,
+    on_close: Cb,
+) -> Div {
+    let id: ElementId = id.into();
+    let mut panel = menu_panel(id.clone(), p, on_close.clone()).w(px(240.)).child(menu_label(p, caption));
+    for (index, entry) in templates.into_iter().enumerate() {
+        let entry_id = ElementId::from((id.clone(), SharedString::from(format!("template-{index}"))));
+        panel = panel.child(add_row(entry_id, p, entry, on_close.clone()));
+    }
+    let duplicate_id = ElementId::from((id.clone(), "duplicate"));
+    panel = panel.child(menu_separator(p)).child(add_row(duplicate_id, p, duplicate, on_close));
     float(ElementId::from((id, "popup")), CONTROL_H + 8., panel)
 }
 

@@ -111,12 +111,14 @@ impl ModelsPage {
         .into_any_element()
     }
 
-    /// Make `id` the role's engine; a running previous model hands over to it (unload, then restart).
-    fn use_model(&self, role: Role, id: &str) {
+    /// Make `id` the role's engine; a running previous model hands over to it (unload, then restart). A selection
+    /// that cannot be saved changes nothing.
+    pub(super) fn use_model(&mut self, role: Role, id: &str) {
         let previous = role::engine(&self.st.cfg.get(), role).local_model.clone();
         let hand_over = matches!(self.st.local.status(&previous), EngineStatus::Running | EngineStatus::Loading);
-        let selected = id.to_string();
-        self.update_engine(role, move |e| e.local_model = selected);
+        if !self.select_local_model(role, id) {
+            return;
+        }
         if hand_over {
             let local = self.st.local.clone();
             let id = id.to_string();

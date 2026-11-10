@@ -9,7 +9,7 @@ mod manager_error;
 pub mod runtime;
 mod runtime_error;
 
-pub use catalog::{ModelKind, ModelSpec, Runtime, default_catalog};
+pub use catalog::{ModelKind, ModelSpec, Runtime, Sampling, default_catalog};
 pub use local_engines::LocalEngines;
 pub use manager::{ModelManager, ModelState, Snapshot, Storage};
 pub use manager_error::ManagerError;

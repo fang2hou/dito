@@ -13,6 +13,18 @@ Every persisted format carries a schema version. A change to a persisted shape g
 
 `config.toml` follows this now: a top-level `schema_version`, with a missing key meaning version 0. `ConfigStore::open` parses the file into a TOML table, runs the migrations in order, saves the original as `config.toml.v<old>.bak` before rewriting, and fails with `ConfigError::NewerSchema` for a version this build does not know. The SQLite store follows the same rule, with `PRAGMA user_version` as its version and ordered migrations run before the store is used.
 
+## Schema versions
+
+The `config.toml` shapes so far, one migration each (`MIGRATIONS` in `migrate.rs`):
+
+| Version | What changed from the one before |
+| --- | --- |
+| 1 | Prompt sets gain the Herdr style with its default text |
+| 2 | Cloud speech configurations are identified by id instead of position (the list was then named `cloud_asr.profiles`) |
+| 3 | The three provider forms become named cloud polish configurations (`polish.cloud_polish`) with request parameters, the Bedrock temperature and token limit that were hard-coded become its parameters, `asr.provider` is dropped, and the cloud speech list `cloud_asr.profiles` is renamed `cloud_asr.items`, as in `polish.cloud_polish`, with its entries unchanged |
+
+Version 3 keeps the Keychain accounts `polish.azure` and `polish.compat` working by giving the migrated configurations the ids `azure`, `bedrock` and `compat`; every later configuration has a random id suffix, so the key of a removed one is never picked up by a new one.
+
 ## Alternatives Considered
 
 ### Tolerant `Deserialize` impls and serde defaults only
@@ -43,6 +55,7 @@ Moves that look reasonable but go against this decision:
 
 - Patching old shapes inside serde impls, `#[serde(default)]` tricks or `Value` round-trips.
 - Renumbering or editing a migration that has shipped; add a new one instead.
+- Reading names, templates or defaults from live code inside a migration. Spell them out, so the step keeps its result when a label or a bundled template changes.
 - Silently resetting an unreadable file, or loading a newer file and saving it back.
 - Changing a persisted shape without bumping the schema version.
 

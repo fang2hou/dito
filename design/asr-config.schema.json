@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Dito ASR connection config v1",
-  "description": "Configuration format for Dito synchronous ASR connections.",
+  "title": "Dito cloud ASR request JSON v1",
+  "description": "The request JSON of a Dito cloud speech configuration, for synchronous ASR over HTTP.",
   "type": "object",
   "additionalProperties": false,
   "required": [

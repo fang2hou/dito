@@ -50,7 +50,7 @@ impl Step {
 }
 
 /// Whether the user may leave `step` forward. `Prepare` needs the local models installed (local engine)
-/// or a passing connection test (provider); `Try` needs a successful try-out; other steps are always open.
+/// or a passing connection test (cloud engine); `Try` needs a successful try-out; other steps are always open.
 pub(in crate::onboarding) fn can_continue(
     step: Step,
     local: bool,
@@ -102,7 +102,7 @@ mod tests {
         // Prepare with a local engine: only the installed models matter.
         assert!(can_continue(Step::Prepare, true, true, false, false));
         assert!(!can_continue(Step::Prepare, true, false, true, true));
-        // Prepare with a provider: only the connection test matters.
+        // Prepare with a cloud engine: only the connection test matters.
         assert!(can_continue(Step::Prepare, false, false, true, false));
         assert!(!can_continue(Step::Prepare, false, true, false, true));
         // Try: only the try-out matters.

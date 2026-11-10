@@ -4,14 +4,13 @@ models.storage_used = { ja = "使用容量", en = "Storage used", zh = "占用�
 asr_editor.input_codes = { ja = "日本語: ja  /  英語: en  /  中国語: zh", en = "Japanese: ja  /  English: en  /  Chinese: zh", zh = "日语: ja  /  英语: en  /  中文: zh" }
 asr_editor.input_auto = { ja = "自動: 未指定 → auto", en = "Auto: unspecified → auto", zh = "自动识别: 未指定 → auto" }
 models.model_placeholder = { ja = "モデル ID を入力", en = "Enter a model ID", zh = "输入模型 ID" }
-models.effort_placeholder = { ja = "例：low", en = "e.g. low", zh = "例如：low" }
+models.effort_placeholder = { ja = "例：low（自由入力）", en = "e.g. low (any value)", zh = "例如：low（可自由输入）" }
 fmt.asr_line_count = { ja = "{count} 行", en = "{count} lines", zh = "{count} 行" }
-fmt.asr_syntax_error = { ja = "{line} 行目、{column} 列目：{detail}", en = "Line {line}, column {column}: {detail}", zh = "第 {line} 行，第 {column} 列：{detail}" }
+fmt.line_column_error = { ja = "{line} 行目、{column} 列目：{detail}", en = "Line {line}, column {column}: {detail}", zh = "第 {line} 行，第 {column} 列：{detail}" }
 fmt.asr_field_error = { ja = "{line} 行目：{detail}", en = "Line {line}: {detail}", zh = "第 {line} 行：{detail}" }
 models.download_available = { ja = "ダウンロードして利用できます", en = "Available to download", zh = "下载后即可使用" }
 asr_editor.title = { ja = "接続設定", en = "Connection settings", zh = "连接设置" }
 asr_editor.help_title = { ja = "設定の書き方", en = "Configuration help", zh = "配置帮助" }
-asr_editor.template = { ja = "テンプレート", en = "Template", zh = "模板" }
 asr_editor.edit = { ja = "編集", en = "Edit", zh = "编辑" }
 asr_editor.check = { ja = "自動チェック", en = "Automatic check", zh = "自动检查" }
 asr_editor.save = { ja = "保存", en = "Save", zh = "保存" }
@@ -77,7 +76,10 @@ models.connection_settings = { ja = "接続設定", en = "Connection settings", 
 # - ja/en/zh are all required. An empty value or a language that forgets a placeholder
 #   fails the build.
 # - Placeholders are named (`{model}`), never positional `{}`; entries with placeholders
-#   also get a generated formatting function (`i18n::using_model(lang, &name)`).
+#   also get a generated formatting function (`i18n::using_model(lang, &name)`) and live
+#   under `fmt.`, where a literal brace is doubled (`{{`, `}}`) as in `format!`. All other
+#   copy is shown as written, so its braces are literal text; a bare `{name}` there fails
+#   the build, since it is a placeholder outside `fmt.`.
 # - Adding a language: add the column here and one match arm in build.rs's LANGS.
 
 # --- sidebar navigation -------------------------------------------------------
@@ -187,8 +189,8 @@ models.dictation_desc = { ja = "音声をテキストに変換します。", en 
 models.polish_desc = { ja = "フィラーの除去や句読点を整え、プロンプトを適用します。", en = "Removes fillers, fixes punctuation, and applies your prompt.", zh = "去除口头禅、整理标点，并应用你的提示词。" }
 models.local = { ja = "ローカル", en = "Local", zh = "本地" }
 models.provider = { ja = "クラウド", en = "Cloud", zh = "云端" }
-models.provider_azure = { ja = "Azure OpenAI", en = "Azure OpenAI", zh = "Azure OpenAI" }
-models.provider_bedrock = { ja = "Amazon Bedrock", en = "Amazon Bedrock", zh = "Amazon Bedrock" }
+models.azure_openai = { ja = "Azure OpenAI", en = "Azure OpenAI", zh = "Azure OpenAI" }
+models.amazon_bedrock = { ja = "Amazon Bedrock", en = "Amazon Bedrock", zh = "Amazon Bedrock" }
 models.openai_compatible = { ja = "OpenAI 互換 API", en = "OpenAI-compatible API", zh = "OpenAI 兼容 API" }
 models.system_permissions = { ja = "システム権限", en = "System permissions", zh = "系统权限" }
 models.not_installed = { ja = "未インストール", en = "Not installed", zh = "未安装" }
@@ -196,6 +198,19 @@ models.startup_error = { ja = "起動エラー", en = "Startup error", zh = "启
 models.connected = { ja = "接続済み", en = "Connected", zh = "已连接" }
 models.test_ok = { ja = "接続成功", en = "Connection succeeded", zh = "连接成功" }
 models.reasoning_hint = { ja = "空欄はモデルの既定値。候補以外の値も入力できます。", en = "Leave empty for the model default. Values outside the suggestions also work.", zh = "留空则使用模型默认值，也可输入建议之外的值。" }
+models.name = { ja = "名前", en = "Name", zh = "名称" }
+models.model = { ja = "モデル", en = "Model", zh = "模型" }
+models.parameters = { ja = "パラメータ", en = "Parameters", zh = "参数" }
+models.temperature = { ja = "温度", en = "Temperature", zh = "温度" }
+models.top_p = { ja = "Top P", en = "Top P", zh = "Top P" }
+models.top_k = { ja = "Top K", en = "Top K", zh = "Top K" }
+models.max_tokens = { ja = "最大トークン数", en = "Max tokens", zh = "最大 token 数" }
+models.extra_parameters = { ja = "追加パラメータ", en = "Extra parameters", zh = "额外参数" }
+models.extra_placeholder = { ja = '例：{"seed": 42}', en = 'e.g. {"seed": 42}', zh = '例如：{"seed": 42}' }
+models.cloud_number_placeholder = { ja = "既定値", en = "Default", zh = "默认值" }
+models.local_number_placeholder = { ja = "推奨値", en = "Recommended", zh = "推荐值" }
+models.save_failed = { ja = "設定を保存できませんでした。", en = "Could not save the settings.", zh = "无法保存设置。" }
+models.delete_configuration_title = { ja = "設定を削除しますか？", en = "Delete this configuration?", zh = "要删除这个设置吗？" }
 models.checking = { ja = "接続確認中", en = "Checking", zh = "正在检查连接" }
 models.connection_error = { ja = "接続エラー", en = "Connection error", zh = "连接错误" }
 models.latency = { ja = "応答時間", en = "Response time", zh = "响应时间" }
@@ -212,6 +227,10 @@ models.endpoint = { ja = "エンドポイント", en = "Endpoint", zh = "端点"
 models.deployment = { ja = "デプロイ名", en = "Deployment", zh = "部署名称" }
 models.api_key = { ja = "API キー", en = "API key", zh = "API 密钥" }
 models.reasoning_effort = { ja = "思考強度", en = "Reasoning effort", zh = "推理强度" }
+models.new_configuration = { ja = "新しい設定", en = "New configuration", zh = "新设置" }
+models.no_model = { ja = "モデル未設定", en = "No model set", zh = "未设置模型" }
+models.create_from_template = { ja = "テンプレートから作成", en = "Create from template", zh = "从模板创建" }
+models.duplicate_configuration = { ja = "選択中の設定を複製", en = "Duplicate the selected one", zh = "复制当前设置" }
 models.aws_profile = { ja = "AWS プロファイル", en = "AWS profile", zh = "AWS 配置文件" }
 models.region = { ja = "リージョン", en = "Region", zh = "区域" }
 models.model_id = { ja = "モデル ID", en = "Model ID", zh = "模型 ID" }
@@ -244,6 +263,10 @@ dictionary.same_spelling = { ja = "整形でも同じ表記を使う", en = "Use
 dictionary.no_words_yet = { ja = "まだ単語がありません", en = "No words yet", zh = "还没有词条" }
 dictionary.words_passed_to_asr = { ja = "登録した単語は音声認識に渡されます。", en = "Added words are passed to speech recognition.", zh = "添加的词条会传给语音识别。" }
 dictionary.words_sent_to_polish = { ja = "整形モデルにも単語を渡し、表記をそろえます。", en = "Also sends your words to the polish model to keep spelling consistent.", zh = "同时把词条传给润色模型，统一写法。" }
+dictionary.add_failed = { ja = "単語を追加できませんでした。", en = "Could not add the word.", zh = "无法添加词语。" }
+dictionary.delete_failed = { ja = "単語を削除できませんでした。", en = "Could not delete the word.", zh = "无法删除词语。" }
+dictionary.import_failed = { ja = "インポートできませんでした。ファイルの内容を確認してください。", en = "Could not import. Check the file's contents.", zh = "导入失败，请检查文件内容。" }
+dictionary.export_failed = { ja = "エクスポートできませんでした。保存先を確認してください。", en = "Could not export. Check the destination.", zh = "导出失败，请检查保存位置。" }
 dictionary.no_hotword_support = { ja = "現在のモデルはホットワードに対応していません。対応する音声認識モデルを選ぶと有効になります。", en = "The current model does not support hotwords. Select a speech recognition model that supports them to use this feature.", zh = "当前模型不支持热词，选择支持热词的语音识别模型后即可生效。" }
 
 # --- prompts page -------------------------------------------------------------
@@ -319,6 +342,15 @@ menubar.free = { ja = "空き", en = "Free", zh = "可用" }
 menubar.connecting = { ja = "接続中…", en = "Connecting…", zh = "连接中…" }
 menubar.working = { ja = "処理中…", en = "Working…", zh = "处理中…" }
 status.queued_requests = { ja = "待機中のリクエスト", en = "Queued requests", zh = "排队中的请求" }
+
+# --- startup failure window (opens instead of exiting when settings or history cannot be used) ---
+startup.unreadable_title = { ja = "設定を読み込めませんでした", en = "Could not load settings", zh = "无法读取设置" }
+startup.unreadable_body = { ja = "設定ファイルの内容に誤りがあります。修正して開き直すか、初期設定に戻してください。", en = "The settings file has an error. Fix it and reopen Dito, or restore the default settings.", zh = "设置文件内容有误。请修正后重新打开，或恢复默认设置。" }
+startup.unreadable_hint = { ja = "今の設定ファイルはバックアップとして残ります。履歴、辞書、API キーは変わりません。", en = "The current file is kept as a backup. History, dictionary and API keys do not change.", zh = "当前的设置文件会保留为备份。历史记录、词典和 API 密钥不受影响。" }
+startup.newer_title = { ja = "Dito のアップデートが必要です", en = "Dito needs an update", zh = "需要更新 Dito" }
+startup.newer_body = { ja = "このデータは新しい Dito で保存されています。アップデートしてから開いてください。", en = "This data was saved by a newer Dito. Update Dito, then open it again.", zh = "这些数据由更新版本的 Dito 保存。请更新后再打开。" }
+fmt.startup_newer_version = { ja = "形式のバージョン：{found}（この Dito が開けるのは {supported} まで）", en = "Format version: {found} (this Dito opens up to {supported})", zh = "格式版本：{found}（此版本的 Dito 最高支持 {supported}）" }
+startup.quit = { ja = "終了", en = "Quit", zh = "退出" }
 
 # --- onboarding wizard --------------------------------------------------------
 onboarding.step.permissions = { ja = "権限付与", en = "Permissions", zh = "授权" }
@@ -475,3 +507,13 @@ zh = "恢复{language}的默认通用规则。"
 ja = "「{app}」の{language}の書き方と例を初期設定に戻します。"
 en = "Restore the default {language} writing rules and examples for {app}."
 zh = "恢复“{app}”的{language}默认写法和范例。"
+
+[fmt.local_polish_hint]
+ja = "「{model}」の設定です。空欄は推奨値を使います。"
+en = "Settings for {model}. Empty fields use the recommended values."
+zh = "「{model}」的设置。留空则使用推荐值。"
+
+[fmt.delete_configuration_body]
+ja = "「{name}」の内容と API キーを削除します。"
+en = "Deletes \"{name}\" and its API key."
+zh = "将删除「{name}」及其 API 密钥。"

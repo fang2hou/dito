@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use super::{AsrProfiles, EngineConfig, General, PolishConfig, ProviderKind, ReasoningEffort, SCHEMA_VERSION, Source};
+use super::{CloudAsrConfigurations, EngineConfig, General, PolishConfig, ReasoningEffort, SCHEMA_VERSION, Source};
 use crate::prompts::Prompts;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -37,16 +37,19 @@ impl Default for Config {
 }
 
 impl Config {
-    /// Development defaults: speech through the bundled cloud profiles, polishing through Azure (gpt-6.1-terra, low).
-    /// No endpoint is set; the caller points the active speech profile and the Azure polish endpoint at a server.
+    /// Development defaults: speech through the bundled cloud configurations, polishing through the `azure` configuration
+    /// (gpt-6.1-terra, low). No endpoint is set; the caller points the active speech configuration and the Azure polish
+    /// endpoint at a server.
     pub fn dev_azure() -> Self {
         let mut c = Self::default();
         c.asr.source = Source::Provider;
-        c.asr.cloud_asr = Some(AsrProfiles::default());
+        c.asr.cloud_asr = Some(CloudAsrConfigurations::default());
         c.polish.engine.source = Source::Provider;
-        c.polish.engine.provider.kind = ProviderKind::Azure;
-        c.polish.engine.provider.azure.deployment = "gpt-6.1-terra".into();
-        c.polish.engine.provider.azure.reasoning_effort = ReasoningEffort::Low;
+        let configurations = c.polish.engine.polish_configurations_mut(c.general.lang());
+        configurations.select("azure");
+        let azure = configurations.active_mut().expect("the templates include an azure configuration");
+        *azure.target.model_mut() = "gpt-6.1-terra".into();
+        azure.params.reasoning_effort = ReasoningEffort::Low;
         c
     }
 

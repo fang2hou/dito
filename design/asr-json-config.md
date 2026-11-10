@@ -1,15 +1,15 @@
-# Cloud ASR Connection Config (v1)
+# Cloud ASR Request JSON (v1)
 
-The contract behind the cloud speech presets: what the JSON config means, how the editor behaves, and how it is stored. `dito-core` implements the request, language mapping, validation and storage; `dito-app` implements the editor and help. The decision itself is [ADR 0007](../docs/adr/0007-declarative-cloud-asr.md).
+The contract behind the cloud speech configurations: what the request JSON means, how the editor behaves, and how it is stored. `dito-core` implements the request, language mapping, validation and storage; `dito-app` implements the editor and help. The decision itself is [ADR 0007](../docs/adr/0007-declarative-cloud-asr.md).
 
 ## UI and Config
 
-- Settings keep three presets (FunASR, Qwen ASR, OpenRouter), each with a base URL, a model ID and an API key.
-- The model ID is free text with no suggestions or default; the templates leave it empty, so a preset takes effect only after the user fills it in from the vendor's docs.
-- There is no language field on the speech page. The language comes from the global speech language (General), mapped through `language_map`; it never follows the UI language or the macOS language, and it isn't repeated in each profile.
-- 接続設定 → 編集 opens a single-column JSON editor about 900 px wide: template name, language-code shortcuts, the editor, a separate live validation area, and Save. There is no request preview and no protocol text under the template name. JSON gets light syntax highlighting; error lines are marked and details appear below the editor. No code completion.
+- Settings start with three configurations made from the templates (FunASR, Qwen ASR, OpenRouter), each with a base URL, a model ID and an API key.
+- The model ID is free text with no suggestions or default; the templates leave it empty, so a configuration takes effect only after the user fills it in from the vendor's docs.
+- There is no language field on the speech page. The language comes from the global speech language (General), mapped through `language_map`; it never follows the UI language or the macOS language, and it isn't repeated in each configuration.
+- 接続設定 → 編集 opens a single-column JSON editor about 900 px wide: configuration name, language-code shortcuts, the editor, a separate live validation area, and Save. There is no request preview and no protocol text under the configuration name. JSON gets light syntax highlighting; error lines are marked and details appear below the editor. No code completion.
 - The simple form and the JSON share one config: the form edits `connection`, the editor edits the whole draft. A draft replaces the active config only after it validates and is saved.
-- Each preset keeps its own config. Editing the language map, the request, the response, or the global speech language invalidates earlier connection test results.
+- Each configuration keeps its own request JSON. Editing the language map, the request, the response, or the global speech language invalidates earlier connection test results.
 - The JSON never holds a real API key. The key comes from its own field and replaces `{{api_key}}` at request time; copied templates and the AI help never include keys or recordings.
 
 ## Files
@@ -65,7 +65,7 @@ The map only produces a value. Where it goes is decided by `{{language}}` in the
 
 | Field | Rule |
 | --- | --- |
-| `method` | `POST` or `PUT` (all presets use `POST`) |
+| `method` | `POST` or `PUT` (all templates use `POST`) |
 | `path` | The appended path; the query is separate, never a full URL |
 | `query` | Query parameters, may use variables |
 | `headers` | Headers, for example `Authorization: "Bearer {{api_key}}"` |
@@ -73,7 +73,7 @@ The map only produces a value. Where it goes is decided by `{{language}}` in the
 | `body` | JSON body with nested objects and arrays; `json` only |
 | `fields` | Multipart fields; `multipart` only; the file field is `{{audio.file}}` |
 
-The presets use each vendor's synchronous HTTP API. v1 doesn't describe WebSocket sessions, polling or multi-step uploads; those need a dedicated adapter and a new version.
+The templates use each vendor's synchronous HTTP API. v1 doesn't describe WebSocket sessions, polling or multi-step uploads; those need a dedicated adapter and a new version.
 
 ## Variables
 
@@ -81,7 +81,7 @@ The presets use each vendor's synchronous HTTP API. v1 doesn't describe WebSocke
 | --- | --- |
 | `{{model}}` | `connection.model` |
 | `{{language}}` | The speech language after `language_map` |
-| `{{api_key}}` | The key saved for this preset |
+| `{{api_key}}` | The key saved for this configuration |
 | `{{audio.base64}}` | The WAV as plain Base64, without a `data:` prefix |
 | `{{audio.data_uri}}` | The WAV with a `data:audio/wav;base64,` prefix |
 | `{{audio.file}}` | The WAV as a multipart file; only as the whole value of a multipart field |
@@ -97,7 +97,7 @@ Variables are fixed placeholders; nothing is evaluated. Unknown variables are an
 
 `response.text_pointer` is a JSON Pointer (RFC 6901), for example `/text`, `/output/text` or `/choices/0/message/content`; escape `~` and `/` as `~0` and `~1`. The text is trimmed. A missing path or a non-string value is a response format error; an empty string means no speech. `language_pointer` is optional and never overrides the speech language setting.
 
-## Presets
+## Templates
 
 - **FunASR**: synchronous HTTP, Data URI audio, text at `/output/text`. No language field, so the service detects it. Based on the vendor's synchronous HTTP docs.
 - **Qwen ASR**: an audio message body, language at `asr_options.language`, text at `/choices/0/message/content`. Based on the Qwen ASR API reference.
@@ -107,7 +107,7 @@ The templates use the vendors' public endpoints; users can switch to a workspace
 
 ## Editor and Validation
 
-1. Opening 接続設定 loads the current preset. Each preset keeps its own URL, model, key and config; templates fill in only on first use. Switching presets keeps each one's unsaved edits; Save applies to the current preset; Cancel changes nothing. Only an explicit template reload that would overwrite edits asks for confirmation.
+1. Opening 接続設定 loads the current configuration. Each configuration keeps its own URL, model, key and config; templates fill in only on first use. Switching configurations keeps each one's unsaved edits; Save applies to the current configuration; Cancel changes nothing. Only an explicit template reload that would overwrite edits asks for confirmation.
 2. Two language-map shortcuts fill `ja`, `en`, `zh` and `other`, keeping extra languages and the `auto` choice; they do nothing while the JSON doesn't parse. The editor offers 設定をコピー and the help page offers AI 用の説明をコピー.
 3. Validation runs as you type: syntax, schema, `other`, placeholders, response pointer, URL, encoding and audio variables. It is debounced (about 200 ms); any edit invalidates the previous result at once. While checking, it shows 確認しています… and Save is disabled. Errors show the line, column and field path; Save is enabled only when everything passes.
 4. The editor shows only JSON and error markers, with a thin divider above the line count. Below it, a separate area shows 入力内容の確認 and the result. Keys and audio variables are never expanded; the connection test stays on the Models page.
@@ -150,9 +150,9 @@ The editor stays plain: the title is just 接続設定, with no template instruc
 - The dialog is `min(900, available width − 48)` wide and `min(content height, available height − 48)` tall, with at least 24 pt above and below. The help page's natural height is about 836 pt and the editor's about 900 pt; these are design references, not fixed heights. The design shows a 620 pt short window for the help page (top, middle, bottom) and the editor (middle), in light and dark.
 - The help page has a fixed header, a shrinkable scroll area (`min-height: 0`) and a fixed footer; the page itself never scrolls.
 - Scroll areas fade 24 pt at the top and bottom edges (about 94% background to transparent), following the theme and ignoring the pointer. The top fade shows once scrolled; the bottom fade shows while more content remains.
-- In the editor, only the JSON scrolls. Title, close, preset, language map, copy, validation area and footer stay fixed; a taller window only grows the code viewport (`flex: 1`, `min-height: 0`), so there is no nested scroll. The line count and its divider stay at the bottom of the code area.
+- In the editor, only the JSON scrolls. Title, close, configuration, language map, copy, validation area and footer stay fixed; a taller window only grows the code viewport (`flex: 1`, `min-height: 0`), so there is no nested scroll. The line count and its divider stay at the bottom of the code area.
 - A thin scrollbar (4 pt, visible track and thumb, 8 pt from the edge) appears only on overflow; the thumb shows the visible share and position, and wheel, trackpad and dragging all scroll. The hit area is wider than the line and hover makes it more visible without shifting the code. The code area fades 20 pt at its edges without covering the scrollbar, line count or validation area.
 
 ## Storage
 
-Settings are TOML. `cloud_asr.profiles` is a list of presets, each with a stable `id`, a display `name` and its `config`; `cloud_asr.selected` holds the id of the active one. Each `config` is stored as a JSON string and parsed back on load, which keeps `null`, nested arrays and custom fields exactly. Keys are stored separately in the Keychain, under an account named after the preset's id, and never in this JSON.
+Settings are TOML. `cloud_asr.items` is a list of configurations, each with a stable `id`, a display `name` and its `config`; `cloud_asr.selected` holds the id of the active one. Each `config` is stored as a JSON string and parsed back on load, which keeps `null`, nested arrays and custom fields exactly. Keys are stored separately in the Keychain, under an account named after the configuration's id, and never in this JSON.
