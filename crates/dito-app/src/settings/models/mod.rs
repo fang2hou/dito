@@ -1,5 +1,6 @@
 mod action;
 mod cloud_polish_form;
+mod cloud_polish_tiles;
 mod installed_row;
 mod local_polish_form;
 mod local_rows;
@@ -15,5 +16,3 @@ mod storage;
 pub use probe::ModelsProbe;
 
 pub use page::{ModalChanged, ModelsPage};
-
-pub(in crate::settings) use cloud_polish_form::test_status;

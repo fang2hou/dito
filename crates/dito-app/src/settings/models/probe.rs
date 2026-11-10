@@ -6,7 +6,7 @@ use gpui_kit::*;
 use crate::settings::asr_editor::EditorPreview;
 use crate::ui::{self, InputEvent, InputState, TestState};
 
-use super::page::ModelsPage;
+use super::page::{CloudPolishPanel, ModelsPage};
 use super::polish_field_rules::{CloudPolishField, LocalPolishField};
 
 impl ModelsPage {
@@ -19,12 +19,8 @@ impl ModelsPage {
     ) {
         self.tab = role;
         // Each shot starts from the settings alone: nothing typed, scrolled or opened before is left in the page.
-        self.cloud_polish = Self::new_cloud_polish_form(window, cx);
-        self.cloud_polish_tiles = ui::TileRowState::new();
-        self.cloud_polish_menu_open = false;
-        self.deleting_cloud_polish = None;
+        self.cloud_polish = CloudPolishPanel::new(window, cx);
         self.save_failed = false;
-        self.cloud_polish_test = TestState::Idle;
         // Synthetic visual states never touch downloads or files on disk.
         if std::env::var_os("DITO_MODEL_STATES").is_some() {
             let kind = if role == Role::Asr { dito_local::ModelKind::Asr } else { dito_local::ModelKind::Polish };
@@ -102,7 +98,7 @@ impl ModelsPage {
         match case {
             "type" => {
                 let field = CloudPolishField::ALL.into_iter().find(|f| cloud_name(*f) == arg).expect("a field");
-                replace_text(&self.cloud_polish[field], text, window, cx);
+                replace_text(&self.cloud_polish.form[field], text, window, cx);
             }
             "type-local" => {
                 let field = LocalPolishField::ALL.into_iter().find(|f| local_name(*f) == arg).expect("a field");
@@ -110,7 +106,20 @@ impl ModelsPage {
             }
             // A window that is never shown moves no focus, so focus leaving the name is delivered as the input's own
             // event, which is what the page listens to.
-            "blur-name" => self.cloud_polish[CloudPolishField::Name].update(cx, |_, cx| cx.emit(InputEvent::Blur)),
+            "blur-name" => self.cloud_polish.form[CloudPolishField::Name].update(cx, |_, cx| cx.emit(InputEvent::Blur)),
+            // The Local and Cloud switch of the tab, as a click on one of its segments does it.
+            "source" => self.set_source(self.tab, if arg == "local" { 0 } else { 1 }, cx),
+            // The Use button of the local model `arg` on the tab.
+            "use-model" => self.use_model(self.tab, arg),
+            // The form shows a configuration that was just deleted until the page is drawn again, and a key typed
+            // into that gap has nowhere to go.
+            "delete-then-key" => {
+                let Some(id) = self.cloud_polish.form.shown().map(str::to_owned) else { return };
+                self.delete_cloud_polish(&id, window, cx);
+                self.cloud_polish.form[CloudPolishField::Key]
+                    .update(cx, |input, cx| input.set_value(text.to_owned(), window, cx));
+                self.cloud_polish_edited(CloudPolishField::Key, cx);
+            }
             "local-states" => {
                 // The first polish model is in use and downloaded, the second is downloaded, the rest are not.
                 let specs: Vec<_> = self
@@ -146,22 +155,22 @@ impl ModelsPage {
 
     /// What the harness reads of the polish forms after a step.
     pub(in crate::settings) fn probe_state(&self, window: &Window, cx: &App) -> ModelsProbe {
-        let cloud = &self.cloud_polish;
+        let cloud = &self.cloud_polish.form;
         let local = &self.local_polish;
         let name = cloud[CloudPolishField::Name].read(cx);
         ModelsProbe {
             save_failed: self.save_failed,
-            menu_open: self.cloud_polish_menu_open,
+            menu_open: self.cloud_polish.tiles.menu_open(),
             name_focused: name.focus_handle(cx).is_focused(window),
             name_selection: name.selected_range(),
-            tiles: self.cloud_polish_tiles.probe(),
-            test: match &self.cloud_polish_test {
+            tiles: self.cloud_polish.tiles.probe(),
+            test: match &self.cloud_polish.test {
                 TestState::Idle => "idle",
                 TestState::Running => "running",
                 TestState::Ok(_) => "ok",
                 TestState::Failed(_) => "failed",
             },
-            deleting: self.deleting_cloud_polish.as_ref().map(|deleting| deleting.name.clone()),
+            deleting: self.cloud_polish.tiles.deleting().map(|deleting| deleting.name.clone()),
             shown: cloud.shown().map(str::to_owned),
             texts: CloudPolishField::ALL.map(|field| (cloud_name(field), cloud.text(field, cx))).into(),
             invalid: CloudPolishField::ALL.into_iter().filter(|f| cloud.invalid(*f, cx)).map(cloud_name).collect(),

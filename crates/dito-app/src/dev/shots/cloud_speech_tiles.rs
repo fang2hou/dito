@@ -164,6 +164,13 @@ impl Rig<'_> {
         read(self.cx, |editor, window, cx| editor.probe_form(window, cx))
     }
 
+    /// Whether the Models page says the last save failed: the banner above the card, which the editor reports into.
+    fn save_failed(&mut self) -> bool {
+        let mut failed = false;
+        on_settings_window(self.cx, |window, cx, view| failed = view.read(cx).models_probe(window, cx).save_failed);
+        failed
+    }
+
     fn drafts(&mut self) -> Vec<CloudAsrDraftState> {
         read(self.cx, |editor, _, cx| editor.probe_drafts(cx))
     }
@@ -522,23 +529,23 @@ async fn behavior(rig: &mut Rig<'_>, server: &str) {
     let before = saved(rig.st);
     rig.command(EditorCommand::SelectName);
     rig.command(EditorCommand::TypeName("Blocked".into()));
-    assert!(rig.form().save_failed, "a rename that cannot be saved raises the banner");
+    assert!(rig.save_failed(), "a rename that cannot be saved raises the banner");
     assert_eq!(saved(rig.st), before, "and nothing changed");
     rig.shot("speech-save-failed.png").await;
     std::fs::remove_dir(&blocker).expect("unblock the settings file");
     rig.command(EditorCommand::SelectName);
     rig.command(EditorCommand::TypeName(before.0[0].1.clone()));
-    assert!(!rig.form().save_failed, "the next save that works takes the banner down");
+    assert!(!rig.save_failed(), "the next save that works takes the banner down");
     // A draft that cannot be saved raises it too, and stays valid: the banner says why it was not kept.
     std::fs::create_dir_all(&blocker).expect("block again");
     rig.replace(|config| config["connection"]["model"] = "unsaved".into());
     settle(rig.cx).await;
-    assert!(rig.form().save_failed, "a draft that cannot be saved raises the banner");
+    assert!(rig.save_failed(), "a draft that cannot be saved raises the banner");
     assert_eq!(rig.draft(&before.0[0].0).error, None, "the draft itself is fine");
     std::fs::remove_dir(&blocker).expect("unblock the settings file");
     rig.replace(|config| config["connection"]["model"] = before.0[0].2.clone().into());
     settle(rig.cx).await;
-    assert!(!rig.form().save_failed);
+    assert!(!rig.save_failed());
 
     // Everything is in the file, not only in memory.
     let on_disk = ConfigStore::open(rig.st.cfg.path()).expect("the settings file reads back").get();

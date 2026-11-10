@@ -8,7 +8,7 @@ use crate::assets::Ic;
 use crate::settings::Ctx;
 use crate::settings::asr_editor::configuration_list;
 use crate::theme::Palette;
-use crate::ui::{self, BtnKind, Editor, cbk, text};
+use crate::ui::{self, BtnKind, Editor, ErrorPlacement, FooterTrash, TestButton, cbk, text};
 
 impl AsrEditor {
     pub(super) fn inline(&mut self, window: &mut Window, cx: &mut Context<Self>) -> Div {
@@ -203,64 +203,31 @@ impl AsrEditor {
     /// the form shows and is disabled while it is the only one.
     fn connection_footer(&self, c: &Ctx, cx: &mut Context<Self>) -> Div {
         let p = &c.p;
-        let test = &self.draft().test;
-        let mut status = div()
-            .flex_1()
-            .min_w(px(0.))
-            .flex()
-            .flex_col()
-            .gap(px(6.))
-            .child(crate::settings::models::test_status(c, test));
-        if let ui::TestState::Failed(message) = test {
-            status = status.child(text(ui::error_line(c.lang, message), 12., FontWeight::NORMAL, p.text));
-        }
-        let ready = self.can_test(&self.shown, cx);
-        let trash = if configuration_list::of(&self.st.cfg.get()).items.len() > 1 {
-            editor_icon(
-                "asr-delete",
-                p,
-                c.t(Tr::ModelsDelete),
-                Ic::Trash,
-                cbk(cx, |this: &mut Self, window, cx| this.ask_delete_configuration(window, cx)),
-            )
-        } else {
-            ui::disabled_icon_button("asr-delete", p, Ic::Trash)
-        };
-        div()
-            .w_full()
-            .pt(px(16.))
-            .border_t_1()
-            .border_color(p.border)
-            .flex()
-            .items_center()
-            .gap(px(16.))
-            .child(status)
-            .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .gap(px(10.))
-                    .child(trash)
-                    .child(
-                        ui::button(
-                            "asr-test",
-                            p,
-                            &c.t(Tr::ModelsTestConnection),
-                            BtnKind::Subtle,
-                            None,
-                            cbk(cx, |this: &mut Self, _, cx| this.run_test(cx)),
-                        )
-                        .opacity(if ready { 1. } else { 0.45 }),
-                    )
-                    .child(ui::button(
-                        "asr-help",
-                        p,
-                        &c.t(Tr::AsrEditorHelp),
-                        BtnKind::Secondary,
-                        Some(Ic::BookOpen),
-                        cbk(cx, |this: &mut Self, w, cx| this.open_help(w, cx)),
-                    )),
-            )
+        let help = ui::button(
+            "asr-help",
+            p,
+            &c.t(Tr::AsrEditorHelp),
+            BtnKind::Secondary,
+            Some(Ic::BookOpen),
+            cbk(cx, |this: &mut Self, w, cx| this.open_help(w, cx)),
+        );
+        ui::form_footer(
+            p,
+            ui::test_summary(p, c.lang, &self.draft().test, ErrorPlacement::Below),
+            FooterTrash {
+                id: "asr-delete",
+                tip: Some(c.t(Tr::ModelsDelete)),
+                on_click: (configuration_list::of(&self.st.cfg.get()).items.len() > 1)
+                    .then(|| cbk(cx, |this: &mut Self, window, cx| this.ask_delete_configuration(window, cx))),
+            },
+            TestButton {
+                id: "asr-test",
+                label: c.t(Tr::ModelsTestConnection),
+                width: None,
+                on_click: self.can_test(&self.shown, cx).then(|| cbk(cx, |this: &mut Self, _, cx| this.run_test(cx))),
+            },
+            vec![help.into_any_element()],
+        )
     }
 }
 

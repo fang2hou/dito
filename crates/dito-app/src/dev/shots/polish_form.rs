@@ -395,6 +395,7 @@ async fn behavior(rig: &mut Rig<'_>, server: &str) {
     save_failure(rig).await;
     adding_and_reordering(rig).await;
     deleting(rig).await;
+    key_after_delete(rig).await;
     local_parameters(rig).await;
 }
 
@@ -489,9 +490,26 @@ async fn save_failure(rig: &mut Rig<'_>) {
     rig.click(point(px(1010.), px(206.)));
     rig.wait(200).await;
     assert!(!rig.probe().save_failed, "Close dismisses the banner");
+
+    // Every save on the page reports into the same banner, not only the form's own. A switch between Local and Cloud
+    // that works takes down a banner an earlier failure raised, and one that cannot be saved raises it and changes
+    // nothing.
+    rig.type_cloud("name", "ふだん使い 4");
+    assert!(rig.probe().save_failed);
     std::fs::remove_dir(&blocker).expect("unblock the settings file");
+    rig.step("source", "local", "");
+    assert_eq!(st.cfg.get().polish.engine.source, Source::Local, "the switch was saved");
+    assert!(!rig.probe().save_failed, "a switch that works takes down the banner of an earlier failed save");
+    std::fs::create_dir_all(&blocker).expect("block again");
+    rig.step("source", "cloud", "");
+    assert_eq!(st.cfg.get().polish.engine.source, Source::Local, "a switch that cannot be saved changes nothing");
+    assert!(rig.probe().save_failed, "and raises the banner");
+    std::fs::remove_dir(&blocker).expect("unblock the settings file");
+    rig.step("source", "cloud", "");
+    assert_eq!(st.cfg.get().polish.engine.source, Source::Provider);
+    assert!(!rig.probe().save_failed);
     rig.type_cloud("name", "ふだん使い");
-    println!("verified: a failed save shows the banner; Close and the next good save clear it");
+    println!("verified: a failed save shows the banner; Close and the next good save clear it, from any control");
 }
 
 /// Adding from each template, duplicating, reordering and the scroll that follows them.
@@ -603,6 +621,19 @@ async fn deleting(rig: &mut Rig<'_>) {
     );
 }
 
+/// The form shows a configuration that was just deleted until the page is drawn again. A key typed into that gap is
+/// not stored: the Keychain would hold it under an account that nothing reads or deletes.
+async fn key_after_delete(rig: &mut Rig<'_>) {
+    let st = rig.st.clone();
+    rig.start(Appearance::Light, DisplayLanguage::Ja, Some(staged(false)), (WIDTH, HEIGHT)).await;
+    assert_eq!(rig.probe().shown.as_deref(), Some("compat"));
+    rig.step("delete-then-key", "", "late-key");
+    assert_eq!(ids(&st), ["azure", "bedrock"], "the configuration the form showed is gone");
+    assert_eq!(key_of(&st, "compat"), None, "its key went with it, and the late one was not stored");
+    assert_eq!(key_of(&st, "azure").as_deref(), Some("azure-demo-key-0123456789"), "the other keys stay");
+    println!("verified: a key typed after its configuration was deleted is not stored");
+}
+
 async fn local_parameters(rig: &mut Rig<'_>) {
     let st = rig.st.clone();
     services::save_config(&st, |c| c.polish.engine.source = Source::Local);
@@ -648,6 +679,20 @@ async fn local_parameters(rig: &mut Rig<'_>) {
     }
     assert!(st.cfg.get().polish.engine.local_params.is_empty(), "parameters that set nothing are not kept");
     rig.type_local("temperature", "0.3");
+
+    // The Use button of another model saves its selection like every other control of the page: one that cannot be
+    // saved raises the banner and leaves the model in use as it was.
+    let blocker = st.cfg.path().with_extension("toml.tmp");
+    std::fs::create_dir_all(&blocker).expect("block the settings file's temporary name");
+    rig.step("use-model", &other, "");
+    assert_eq!(st.cfg.get().polish.engine.local_model, model, "a selection that cannot be saved changes nothing");
+    assert!(rig.probe().save_failed, "and raises the banner");
+    std::fs::remove_dir(&blocker).expect("unblock the settings file");
+    rig.step("use-model", &other, "");
+    assert_eq!(st.cfg.get().polish.engine.local_model, other, "the selection was saved");
+    assert!(!rig.probe().save_failed, "a selection that works takes the banner down");
+    rig.step("use-model", &model, "");
+    assert_eq!(st.cfg.get().polish.engine.local_model, model);
     services::save_config(&st, |c| c.polish.engine.source = Source::Provider);
     println!("verified: local parameters are saved per model, follow the model in use and flag what does not parse");
 }

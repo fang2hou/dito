@@ -15,7 +15,7 @@ use crate::services::{self, DictionaryWords};
 use crate::state::AppState;
 use crate::theme::Palette;
 use crate::timefmt::now;
-use crate::ui::{self, BannerAction, BtnKind, InputEvent, InputState, cbk, text};
+use crate::ui::{self, BtnKind, InputEvent, InputState, cbk, text};
 
 /// The operation behind the failure banner. One at a time: the newest failure replaces the last.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -315,15 +315,12 @@ impl DictionaryPage {
 
     fn failure_banner(&self, c: &Ctx, cx: &mut Context<Self>) -> Option<Div> {
         let failure = self.failure?;
-        Some(ui::banner(
+        Some(ui::dismissible_banner(
             &c.p,
+            "dictionary-failure-close",
             c.t(failure.message()),
-            Some(BannerAction {
-                id: "dictionary-failure-close".into(),
-                label: c.t(Tr::HudClose),
-                kind: BtnKind::Secondary,
-                on_click: cbk(cx, |this: &mut Self, _, cx| this.dismiss_failure(cx)),
-            }),
+            c.t(Tr::HudClose),
+            cbk(cx, |this: &mut Self, _, cx| this.dismiss_failure(cx)),
         ))
     }
 

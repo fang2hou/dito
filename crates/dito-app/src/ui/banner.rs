@@ -51,3 +51,19 @@ pub fn banner(p: &Palette, message: impl Into<SharedString>, action: Option<Bann
     }
     strip
 }
+
+/// A [`banner`] for a failure the user can read and put away: the `message` and a secondary button, `id` and
+/// `close_label`, that runs `on_close`. The Dictionary page and the Models page show their failures with it.
+pub fn dismissible_banner(
+    p: &Palette,
+    id: impl Into<ElementId>,
+    message: impl Into<SharedString>,
+    close_label: impl Into<SharedString>,
+    on_close: Cb,
+) -> Div {
+    banner(
+        p,
+        message,
+        Some(BannerAction { id: id.into(), label: close_label.into(), kind: BtnKind::Secondary, on_click: on_close }),
+    )
+}

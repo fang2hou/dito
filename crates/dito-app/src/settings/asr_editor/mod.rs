@@ -4,6 +4,6 @@ mod editor;
 mod help;
 mod validation;
 
-pub use editor::{AsrEditor, Changed, Closed};
+pub use editor::{AsrEditor, Changed, Closed, SaveOutcome};
 #[cfg(feature = "screenshots")]
 pub use editor::{CloudAsrDraftState, CloudAsrFormState, EditorCommand, EditorPreview};

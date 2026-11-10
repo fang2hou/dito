@@ -11,6 +11,7 @@ use serde_json::Value;
 use super::configuration_list::{self, KeyChange};
 use super::drafts::Draft;
 use super::validation::{check, error_row};
+use crate::settings::configuration_panel::ConfigurationPanel;
 use crate::state::AppState;
 use crate::ui::{self, EditorState, InputEvent, InputState};
 
@@ -27,6 +28,10 @@ const LOCALE_CODES: [(&str, &str); 4] = [("ja", "ja-JP"), ("en", "en-US"), ("zh"
 const CHECK_DELAY: Duration = Duration::from_millis(200);
 
 pub struct Changed;
+
+/// A change to the saved configurations was tried, and `.0` says whether it was saved. The Models page keeps the
+/// failure banner for the whole page, so the editor only reports.
+pub struct SaveOutcome(pub bool);
 
 /// Completion event for the onboarding wizard's legacy advanced editor.
 pub struct Closed(pub bool);
@@ -50,14 +55,8 @@ pub struct AsrEditor {
     shown: String,
     name: Entity<InputState>,
     key: Entity<InputState>,
-    tiles: ui::TileRowState,
-    /// Whether the menu of the plus button is open.
-    menu: bool,
-    /// The configuration a delete dialog asks about, while it is open.
-    deleting: Option<configuration_tiles::ConfigurationDeletion>,
-    delete_focus: FocusHandle,
-    /// The last save failed: the banner above the card says so until it is closed or a save works.
-    save_failed: bool,
+    /// The tile row, the menu of its plus button and the delete dialog.
+    tiles: ConfigurationPanel,
     help_focus: FocusHandle,
     help: bool,
     dialog: bool,
@@ -66,6 +65,7 @@ pub struct AsrEditor {
 }
 
 impl EventEmitter<Changed> for AsrEditor {}
+impl EventEmitter<SaveOutcome> for AsrEditor {}
 impl EventEmitter<Closed> for AsrEditor {}
 
 impl AsrEditor {
@@ -91,11 +91,7 @@ impl AsrEditor {
             shown: String::new(),
             name,
             key,
-            tiles: ui::TileRowState::new(),
-            menu: false,
-            deleting: None,
-            delete_focus: cx.focus_handle(),
-            save_failed: false,
+            tiles: ConfigurationPanel::new(cx),
             help_focus: cx.focus_handle(),
             help: false,
             dialog: false,
@@ -180,7 +176,7 @@ impl AsrEditor {
         let key = self.drafts[id].key.clone();
         self.key.update(cx, |input, cx| input.set_value(key, window, cx));
         self.shown = id.to_owned();
-        self.tiles.reveal(id.to_owned());
+        self.tiles.reveal(id);
         cx.notify();
     }
 
@@ -341,29 +337,15 @@ impl AsrEditor {
         }
     }
 
-    /// What a change to the saved configurations came to. A save that fails raises the banner above the card and
-    /// leaves everything as it was; one that works takes the banner down.
+    /// What a change to the saved configurations came to. A save that fails leaves everything as it was; either way
+    /// the Models page is told, and its banner above the card follows.
     fn saved<T>(&mut self, result: anyhow::Result<T>, cx: &mut Context<Self>) -> Option<T> {
-        let failed = result.is_err();
         if let Err(error) = &result {
             tracing::warn!("could not save the speech configurations: {error:#}");
         }
-        if std::mem::replace(&mut self.save_failed, failed) != failed {
-            cx.emit(Changed);
-        }
+        cx.emit(SaveOutcome(result.is_ok()));
         cx.notify();
         result.ok()
-    }
-
-    /// Whether the last save of a speech configuration failed.
-    pub(in crate::settings) fn save_failed(&self) -> bool {
-        self.save_failed
-    }
-
-    /// The banner was closed.
-    pub(in crate::settings) fn dismiss_save_failure(&mut self, cx: &mut Context<Self>) {
-        self.save_failed = false;
-        cx.notify();
     }
 
     fn map_language_codes(&mut self, codes: [(&str, &str); 4], window: &mut Window, cx: &mut Context<Self>) {
@@ -440,15 +422,13 @@ impl AsrEditor {
 
     pub(in crate::settings) fn reset_motion(&mut self) {
         self.motion.reset();
-        self.menu = false;
+        self.tiles.reset();
         self.help = false;
-        // A dialog belongs to the visit that opened it.
-        self.deleting = None;
     }
 
     /// What the shell paints over the whole window: the delete dialog, or the help.
     pub(in crate::settings) fn overlay(&mut self, window: &mut Window, cx: &mut Context<Self>) -> Option<AnyElement> {
-        if self.deleting.is_some() {
+        if self.tiles.deleting().is_some() {
             return ui::with_motion_scope(self.motion.handle(), || self.delete_dialog(window, cx));
         }
         if !self.help {

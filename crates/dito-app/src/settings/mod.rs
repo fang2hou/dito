@@ -2,6 +2,7 @@
 
 pub(crate) mod asr_editor;
 mod asr_highlight;
+mod configuration_panel;
 mod ctx;
 mod dictionary;
 mod downloads_dir;

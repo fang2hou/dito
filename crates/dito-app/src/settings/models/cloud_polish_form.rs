@@ -3,7 +3,7 @@
 
 use std::ops::Index;
 
-use dito_core::config::{CloudPolishConfiguration, CloudPolishConfigurations, CloudPolishTarget, CloudPolishTemplate};
+use dito_core::config::{CloudPolishConfiguration, CloudPolishTarget, CloudPolishTemplate};
 use dito_core::i18n::{Lang, Tr};
 use dito_core::secrets::SecretStore;
 use gpui_kit::prelude::*;
@@ -11,11 +11,10 @@ use gpui_kit::*;
 
 use super::page::ModelsPage;
 use super::polish_field_rules::CloudPolishField;
-use crate::assets::Ic;
 use crate::services;
 use crate::settings::Ctx;
 use crate::theme::Palette;
-use crate::ui::{self, BtnKind, CircleSize, DialogAnswer, InputState, ParamField, TestState, cbk, cbk_idx, text};
+use crate::ui::{self, ErrorPlacement, FooterTrash, InputState, ParamField, TestButton, TestState, cbk, cbk_idx};
 
 /// The inputs of the cloud polish form: one per [`CloudPolishField`], showing the configuration in use. The inputs
 /// outlive a selection: choosing another configuration puts its values into the same inputs.
@@ -88,14 +87,6 @@ impl CloudPolishForm {
     pub(super) fn set_name(&self, name: String, window: &mut Window, cx: &mut Context<ModelsPage>) {
         self[CloudPolishField::Name].update(cx, |input, cx| input.set_value(name, window, cx));
     }
-
-    /// Put the cursor in the name field with all of its text selected: typing replaces the name.
-    pub(super) fn edit_name(&self, window: &mut Window, cx: &mut Context<ModelsPage>) {
-        self[CloudPolishField::Name].update(cx, |input, cx| {
-            input.focus(window, cx);
-            input.select_all(window, cx);
-        });
-    }
 }
 
 impl Index<CloudPolishField> for CloudPolishForm {
@@ -125,68 +116,7 @@ fn placeholder(field: CloudPolishField, template: CloudPolishTemplate, lang: Lan
     }
 }
 
-/// What the tile row shows of each cloud polish configuration, in the order of the list: the name over the model, or
-/// over the note that it has none yet.
-pub(super) fn cloud_polish_config_tiles(configurations: &CloudPolishConfigurations, lang: Lang) -> Vec<ui::ConfigTile> {
-    configurations
-        .items
-        .iter()
-        .map(|item| {
-            let model = item.target.model().trim();
-            ui::ConfigTile {
-                id: item.id.clone().into(),
-                name: item.name.clone().into(),
-                detail: if model.is_empty() { lang.tr(Tr::ModelsNoModel).into() } else { model.to_owned().into() },
-                selected: item.id == configurations.selected,
-            }
-        })
-        .collect()
-}
-
 impl ModelsPage {
-    /// One tile per saved cloud polish configuration, and the plus button that adds one. A click selects, and the form
-    /// follows; a drag reorders; the order is saved when the tile is dropped.
-    pub(super) fn cloud_polish_tile_row(&self, c: &Ctx, cx: &mut Context<Self>) -> AnyElement {
-        let cfg = self.st.cfg.get();
-        let tiles = cloud_polish_config_tiles(&cfg.polish.engine.polish_configurations(c.lang), c.lang);
-        ui::tile_row("cloud-polish-tiles", &c.p, &self.cloud_polish_tiles, tiles)
-            .on_select(ui::cbk_id(cx, |this: &mut Self, id, _, cx| this.select_cloud_polish(id, cx)))
-            .on_move(ui::cbk_move(cx, |this: &mut Self, id, to, _, cx| this.move_cloud_polish(id, to, cx)))
-            .plus(ui::TilePlus {
-                open: self.cloud_polish_menu_open,
-                on_press: cbk(cx, |this: &mut Self, _, cx| {
-                    this.cloud_polish_menu_open = !this.cloud_polish_menu_open;
-                    cx.notify();
-                }),
-                menu: self.cloud_polish_menu_open.then(|| self.cloud_polish_add_menu(c, cx)),
-            })
-            .into_any_element()
-    }
-
-    /// The menu of the plus button: the three templates a new configuration can start from, then a copy of the
-    /// configuration in use.
-    fn cloud_polish_add_menu(&self, c: &Ctx, cx: &mut Context<Self>) -> AnyElement {
-        let templates = CloudPolishTemplate::ALL
-            .iter()
-            .map(|&template| ui::AddEntry {
-                label: c.t(template.label()),
-                on_click: cbk(cx, move |this: &mut Self, window, cx| {
-                    this.add_cloud_polish_from_template(template, window, cx)
-                }),
-            })
-            .collect();
-        let duplicate = ui::AddEntry {
-            label: c.t(Tr::ModelsDuplicateConfiguration),
-            on_click: cbk(cx, |this: &mut Self, window, cx| this.duplicate_cloud_polish(window, cx)),
-        };
-        let close = cbk(cx, |this: &mut Self, _, cx| {
-            this.cloud_polish_menu_open = false;
-            cx.notify();
-        });
-        ui::add_menu("cloud-polish-add-menu", &c.p, c.t(Tr::ModelsCreateFromTemplate), templates, duplicate, close)
-            .into_any_element()
-    }
-
     /// The form of the cloud polish configuration in use: its name and address, its model and credential, its
     /// parameters, and the footer with the connection test.
     pub(super) fn cloud_polish_view(&self, c: &Ctx, cx: &mut Context<Self>) -> Div {
@@ -196,7 +126,7 @@ impl ModelsPage {
         let configurations = cfg.polish.engine.polish_configurations(c.lang);
         let Some(active) = configurations.active() else { return col };
         let template = active.target.template();
-        let form = &self.cloud_polish;
+        let form = &self.cloud_polish.form;
 
         let first_row = div()
             .w_full()
@@ -271,70 +201,31 @@ impl ModelsPage {
 
     /// The footer: the state of the connection test on the left, on the right the trash and the test button.
     fn cloud_polish_footer(&self, c: &Ctx, cx: &mut Context<Self>, removable: bool) -> Div {
-        let p = &c.p;
-        let state = &self.cloud_polish_test;
-        let mut status = div().flex_1().min_w(px(0.)).flex().items_center().gap(px(12.)).child(test_status(c, state));
-        if let TestState::Failed(message) = state {
-            status = status
-                .child(text(ui::error_line(c.lang, message), 12., FontWeight::NORMAL, p.text).flex_1().min_w(px(0.)));
-        }
-        let trash = if removable {
-            ui::icon_button_with(
-                "cloud-polish-delete",
-                p,
-                Ic::Trash,
-                false,
-                CircleSize::Regular,
-                cbk(cx, |this: &mut Self, window, cx| this.ask_delete_cloud_polish(window, cx)),
-            )
-        } else {
-            ui::disabled_icon_button("cloud-polish-delete", p, Ic::Trash)
-        };
-        let enabled = *state != TestState::Running;
-        div()
-            .w_full()
-            .pt(px(16.))
-            .border_t_1()
-            .border_color(p.border)
-            .flex()
-            .items_center()
-            .gap(px(16.))
-            .child(status)
-            .child(
-                div().flex().items_center().gap(px(10.)).child(trash).child(cloud_polish_test_button(c, cx, enabled)),
-            )
-    }
-
-    /// The dialog that asks whether to delete the cloud polish configuration in use (20.05.12), while it is open.
-    pub(super) fn cloud_polish_delete_dialog(&self, window: &Window, cx: &mut Context<Self>) -> Option<AnyElement> {
-        let name = self.deleting_cloud_polish.as_ref()?.name.clone();
-        let c = Ctx::new(&self.st, cx);
-        let body =
-            text(dito_core::i18n::fmt::delete_configuration_body(c.lang, &name), 13., FontWeight::NORMAL, c.p.text)
-                .line_height(px(20.))
-                .into_any_element();
-        Some(ui::confirm_dialog(
-            window,
+        let state = &self.cloud_polish.test;
+        ui::form_footer(
             &c.p,
-            "cloud-polish-delete-dialog",
-            &self.delete_dialog_focus,
-            c.t(Tr::ModelsDeleteConfigurationTitle),
-            vec![body],
-            DialogAnswer {
-                label: c.t(Tr::AsrEditorCancel),
-                on_click: Some(cbk(cx, |this: &mut Self, window, cx| this.close_cloud_polish_delete(window, cx))),
+            ui::test_summary(&c.p, c.lang, state, ErrorPlacement::Beside),
+            FooterTrash {
+                id: "cloud-polish-delete",
+                tip: None,
+                on_click: removable
+                    .then(|| cbk(cx, |this: &mut Self, window, cx| this.ask_delete_cloud_polish(window, cx))),
             },
-            DialogAnswer {
-                label: c.t(Tr::PromptsRemoveConfirm),
-                on_click: Some(cbk(cx, |this: &mut Self, window, cx| this.delete_cloud_polish(window, cx))),
+            TestButton {
+                id: "cloud-polish-test",
+                label: c.t(Tr::ModelsTestConnection),
+                width: Some(140.),
+                on_click: (*state != TestState::Running)
+                    .then(|| cbk(cx, |this: &mut Self, _, cx| this.run_cloud_polish_test(cx))),
             },
-        ))
+            Vec::new(),
+        )
     }
 
     /// Choosing an AWS profile saves it into the Bedrock configuration the form shows.
     fn pick_cloud_polish_aws_profile(&mut self, index: usize, cx: &mut Context<Self>) {
         let (Some(name), Some(id)) =
-            (self.aws_profiles.get(index).cloned(), self.cloud_polish.shown().map(str::to_owned))
+            (self.aws_profiles.get(index).cloned(), self.cloud_polish.form.shown().map(str::to_owned))
         else {
             return;
         };
@@ -347,69 +238,9 @@ impl ModelsPage {
             }
         });
         self.note_save(saved.is_ok());
-        self.cloud_polish_test = TestState::Idle;
+        self.cloud_polish.test = TestState::Idle;
         cx.notify();
     }
-}
-
-/// Test state as a small tag: neutral while unchecked or running, green on success with the response time beside
-/// it, and the danger tones on failure.
-pub(in crate::settings) fn test_status(c: &Ctx, state: &TestState) -> Div {
-    let p = &c.p;
-    let (label, bg, fg, weight) = match state {
-        TestState::Idle => (c.t(Tr::ModelsUnchecked), p.seg, p.muted, FontWeight::NORMAL),
-        TestState::Running => (c.t(Tr::ModelsChecking), p.seg, p.muted, FontWeight::NORMAL),
-        TestState::Ok(_) => (c.t(Tr::ModelsTestOk), p.model_running_bg, p.model_running_text, FontWeight::MEDIUM),
-        TestState::Failed(_) => {
-            (c.t(Tr::ModelsConnectionError), p.button_danger_bg, p.button_danger_text, FontWeight::MEDIUM)
-        }
-    };
-    let tag = div()
-        .flex_none()
-        .px(px(10.))
-        .py(px(4.))
-        .rounded(px(6.))
-        .bg(bg)
-        .child(text(label, 12., weight, fg).line_height(relative(1.5)));
-    let mut status = div().flex().items_center().gap(px(12.)).child(tag);
-    if let TestState::Ok(ms) = state {
-        status = status.child(
-            div()
-                .flex()
-                .items_baseline()
-                .gap(px(6.))
-                .child(text(c.t(Tr::ModelsLatency), 12., FontWeight::NORMAL, p.muted))
-                .child(text(ms.to_string(), 13., FontWeight::MEDIUM, p.text))
-                .child(text("ms", 12., FontWeight::NORMAL, p.muted)),
-        );
-    }
-    status
-}
-
-fn cloud_polish_test_button(c: &Ctx, cx: &mut Context<ModelsPage>, enabled: bool) -> AnyElement {
-    let p = &c.p;
-    if enabled {
-        return ui::button(
-            "cloud-polish-test",
-            p,
-            &c.t(Tr::ModelsTestConnection),
-            BtnKind::Subtle,
-            None,
-            cbk(cx, |this: &mut ModelsPage, _, cx| this.run_cloud_polish_test(cx)),
-        )
-        .w(px(140.))
-        .into_any_element();
-    }
-    div()
-        .h(px(36.))
-        .w(px(140.))
-        .rounded_full()
-        .bg(p.seg)
-        .flex()
-        .items_center()
-        .justify_center()
-        .child(text(c.t(Tr::ModelsTestConnection), 13., FontWeight::MEDIUM, p.muted))
-        .into_any_element()
 }
 
 fn form_input(p: &Palette, state: &Entity<InputState>) -> impl IntoElement {
@@ -431,44 +262,5 @@ fn model_label(template: CloudPolishTemplate) -> Tr {
         CloudPolishTemplate::Azure => Tr::ModelsDeployment,
         CloudPolishTemplate::Bedrock => Tr::ModelsModelId,
         CloudPolishTemplate::Compat => Tr::ModelsModel,
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use dito_core::config::CloudPolishConfigurations;
-    use dito_core::i18n::{Lang, Tr};
-
-    use super::{CloudPolishField, cloud_polish_config_tiles};
-
-    #[test]
-    fn the_tile_feed_follows_the_name_and_model_as_they_are_typed() {
-        let mut list = CloudPolishConfigurations::new(Lang::En);
-        list.select("compat");
-        let compat = list.get_mut("compat").unwrap();
-        assert!(CloudPolishField::Name.apply(compat, "Fast"));
-        assert!(CloudPolishField::Model.apply(compat, "gpt-x"));
-        let feed: Vec<_> = cloud_polish_config_tiles(&list, Lang::En)
-            .into_iter()
-            .map(|t| (t.id.to_string(), t.name.to_string(), t.detail.to_string(), t.selected))
-            .collect();
-        let none = Lang::En.tr(Tr::ModelsNoModel);
-        assert_eq!(
-            feed,
-            [
-                ("azure".into(), "Azure OpenAI".into(), none.into(), false),
-                ("bedrock".into(), "Amazon Bedrock".into(), none.into(), false),
-                ("compat".into(), "Fast".into(), "gpt-x".into(), true),
-            ],
-            "ordered as saved, the selected one marked, a missing model said so"
-        );
-    }
-
-    #[test]
-    fn a_model_of_blanks_counts_as_none() {
-        let mut list = CloudPolishConfigurations::new(Lang::Ja);
-        assert!(CloudPolishField::Model.apply(list.get_mut("azure").unwrap(), "   "));
-        let feed = cloud_polish_config_tiles(&list, Lang::Ja);
-        assert_eq!(feed[0].detail.to_string(), Lang::Ja.tr(Tr::ModelsNoModel));
     }
 }

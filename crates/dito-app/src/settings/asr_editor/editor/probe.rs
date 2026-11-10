@@ -38,8 +38,6 @@ pub struct CloudAsrFormState {
     pub menu_open: bool,
     /// The name a delete dialog asks about, while it is open.
     pub deleting: Option<String>,
-    /// Whether the last save failed, which the banner above the card says.
-    pub save_failed: bool,
 }
 
 /// What the cloud speech editor keeps for one configuration.
@@ -69,9 +67,8 @@ impl AsrEditor {
             name_focused: name.focus_handle(cx).is_focused(window),
             name_selection: name.selected_range(),
             key: self.key.read(cx).value().to_string(),
-            menu_open: self.menu,
-            deleting: self.deleting.as_ref().map(|deletion| deletion.name.clone()),
-            save_failed: self.save_failed,
+            menu_open: self.tiles.menu_open(),
+            deleting: self.tiles.deleting().map(|deletion| deletion.name.clone()),
         }
     }
 
