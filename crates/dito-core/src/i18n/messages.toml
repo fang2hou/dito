@@ -77,7 +77,10 @@ models.connection_settings = { ja = "接続設定", en = "Connection settings", 
 # - ja/en/zh are all required. An empty value or a language that forgets a placeholder
 #   fails the build.
 # - Placeholders are named (`{model}`), never positional `{}`; entries with placeholders
-#   also get a generated formatting function (`i18n::using_model(lang, &name)`).
+#   also get a generated formatting function (`i18n::using_model(lang, &name)`) and live
+#   under `fmt.`, where a literal brace is doubled (`{{`, `}}`) as in `format!`. All other
+#   copy is shown as written, so its braces are literal text; a bare `{name}` there fails
+#   the build, since it is a placeholder outside `fmt.`.
 # - Adding a language: add the column here and one match arm in build.rs's LANGS.
 
 # --- sidebar navigation -------------------------------------------------------
