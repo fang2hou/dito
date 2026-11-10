@@ -17,8 +17,7 @@ impl GeneralPage {
             c.t(Tr::GeneralSpeechRecognition),
             vec![
                 ui::row(&p, c.t(Tr::GeneralMicrophone), self.microphone_select(c, cx), false),
-                ui::row(&p, c.t(Tr::GeneralPreferredLanguage), self.preferred_language_select(c, cx), false),
-                ui::row(&p, c.t(Tr::GeneralHudLanguageShortcuts), self.hud_language_select(c, cx), true),
+                ui::row(&p, c.t(Tr::GeneralPreferredLanguage), self.preferred_language_select(c, cx), true),
             ],
         )
     }
@@ -91,32 +90,6 @@ impl GeneralPage {
             self.toggle(cx, "pref-lang"),
             Rc::new(move |i, _, _| {
                 services::save_config(&st, move |c| c.general.preferred_language = PreferredLanguage::ALL[i])
-            }),
-        )
-    }
-
-    fn hud_language_select(&self, c: &Ctx, cx: &mut Context<Self>) -> Div {
-        let st = self.st.clone();
-        let cfg = st.cfg.get();
-        let selected = PreferredLanguage::ALL.map(|language| cfg.general.hud_languages.contains(&language));
-        let label = match selected.iter().filter(|&&on| on).count() {
-            0 => c.t(Tr::GeneralHudLanguageHidden),
-            count if count == selected.len() => c.t(Tr::GeneralHudLanguageAll),
-            _ => {
-                cfg.general.hud_languages().map(|language| language.name(c.lang)).collect::<Vec<_>>().join(", ").into()
-            }
-        };
-        ui::select_multi(
-            "hud-languages",
-            &c.p,
-            &PreferredLanguage::ALL.map(|language| language.name(c.lang).into()),
-            &selected,
-            label,
-            self.open == Some("hud-languages"),
-            240.,
-            self.toggle(cx, "hud-languages"),
-            Rc::new(move |i, _, _| {
-                services::save_config(&st, |c| c.general.toggle_hud_language(PreferredLanguage::ALL[i]));
             }),
         )
     }
