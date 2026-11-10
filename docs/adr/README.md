@@ -20,3 +20,4 @@ Before changing something an ADR covers, read it. When a request conflicts with 
 | [0012](0012-structure-over-prompting.md) | Fix model behavior with structure, not longer prompts |
 | [0013](0013-ui-state-ownership.md) | UI state belongs to its view and never blocks rendering |
 | [0014](0014-silent-launch.md) | Launching Dito opens no window |
+| [0015](0015-versioned-persistence.md) | Persisted formats are versioned and migrated before loading |

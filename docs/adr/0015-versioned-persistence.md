@@ -1,0 +1,55 @@
+# ADR-0015: Persisted formats are versioned and migrated before loading
+
+- **Status**: accepted
+- **Date**: 2026-11-10
+
+## Context
+
+`config.toml` outlived several shapes, and each upgrade was handled by a fix-up inside a `Deserialize` impl, such as inserting a missing prompt style while parsing. These patches are invisible at the file level, run on every load, cannot be tested apart from the type, and give no way to tell which shape a file has. A build that meets a file written by a newer version had no way to notice, so it could read the file as if nothing had changed and overwrite it on the next save.
+
+## Decision
+
+Every persisted format carries a schema version. A change to a persisted shape goes through an ordered, tested migration that runs on the raw data before typed loading. A migration never destroys the previous file: the original is backed up first, then the migrated file is written. Data written by a newer build is refused, not reinterpreted, and the file is left untouched. Fix-ups for old shapes inside `Deserialize` impls are not allowed; serde defaults only describe the current shape.
+
+`config.toml` follows this now: a top-level `schema_version`, with a missing key meaning version 0. `ConfigStore::open` parses the file into a TOML table, runs the migrations in order, saves the original as `config.toml.v<old>.bak` before rewriting, and fails with `ConfigError::NewerSchema` for a version this build does not know. The SQLite store follows the same rule, with `PRAGMA user_version` as its version and ordered migrations run before the store is used.
+
+## Alternatives Considered
+
+### Tolerant `Deserialize` impls and serde defaults only
+
+- Pros: No version field; old files load without a rewrite
+- Cons: Shapes cannot be told apart, renames and removals cannot be expressed, fixes run on every load and are not tested as steps
+- Why not chosen: This is the state that caused the problem
+
+### Rewrite in place without a backup
+
+- Pros: Simpler; no leftover files
+- Cons: A faulty migration or a downgrade loses the user's settings with no way back
+- Why not chosen: Rejected; settings and prompts are user-written content
+
+### Reset to defaults when the file cannot be read
+
+- Pros: The app always starts
+- Cons: Silently discards the user's configuration
+- Why not chosen: Rejected; an unreadable or newer file is reported and kept
+
+## Consequences
+
+Each shape change costs one migration function and one test, and the schema version is a visible fact in the file. Downgrading to an older build after a migration is refused rather than corrupting data; the user's previous file remains as the backup. Backups accumulate one per migrated version and are never deleted by Dito.
+
+## Pitfalls
+
+Moves that look reasonable but go against this decision:
+
+- Patching old shapes inside serde impls, `#[serde(default)]` tricks or `Value` round-trips.
+- Renumbering or editing a migration that has shipped; add a new one instead.
+- Silently resetting an unreadable file, or loading a newer file and saving it back.
+- Changing a persisted shape without bumping the schema version.
+
+## Review Triggers
+
+A second persisted format needs a shared migration runner, or users need to move between builds in both directions.
+
+## Code
+
+`crates/dito-core/src/config/migrate.rs`, `crates/dito-core/src/config/store.rs`.
