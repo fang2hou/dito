@@ -1,13 +1,5 @@
 use dito_local::AsrOutput;
 
-/// ChatML prompt for a Qwen3 chat model. Hybrid-thinking checkpoints need an empty think block to answer directly.
-pub(crate) fn chat_prompt(system: &str, user: &str, disable_thinking: bool) -> String {
-    let think = if disable_thinking { "<think>\n\n</think>\n\n" } else { "" };
-    format!(
-        "<|im_start|>system\n{system}<|im_end|>\n<|im_start|>user\n{user}<|im_end|>\n<|im_start|>assistant\n{think}"
-    )
-}
-
 /// The model answers as `language Chinese<asr_text>今天……`; map the label to an ISO code.
 pub(crate) fn parse_output(raw: &str) -> AsrOutput {
     match raw.split_once("<asr_text>") {
