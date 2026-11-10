@@ -1,7 +1,6 @@
 use std::rc::Rc;
 
 use dito_core::i18n::Tr;
-use gpui_kit::component::scroll::{Scrollbar, ScrollbarHandle, ScrollbarMode};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
@@ -11,7 +10,7 @@ use crate::settings::asr_editor::help::help_body;
 use crate::settings::asr_highlight::JsonHighlight;
 use crate::settings::edge_fade::{Edge, edge_fade};
 use crate::theme::Palette;
-use crate::ui::{self, BtnKind, cbk, text};
+use crate::ui::{self, BtnKind, Scrollbar, ScrollbarHandle, ScrollbarMode, cbk, text};
 
 impl AsrEditor {
     pub(super) fn modal(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {

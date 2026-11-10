@@ -9,7 +9,6 @@ use dito_core::provider::configured_asr::AsrProfiles;
 use dito_core::secrets::{Role, account};
 use dito_local::catalog::ModelKind;
 use dito_local::{ModelState, Snapshot};
-use gpui_kit::component::input::InputEvent;
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
@@ -19,7 +18,7 @@ use crate::services;
 use crate::settings::asr_editor::{self, AsrEditor};
 use crate::settings::{self, Ctx, Page, global_state, page, role};
 use crate::state::AppState;
-use crate::ui::{self, BtnKind, Cb, TestState, cbk, cbk_idx, text};
+use crate::ui::{self, BtnKind, Cb, InputEvent, TestState, cbk, cbk_idx, text};
 
 const ROLES: [Role; 2] = [Role::Asr, Role::Polish];
 

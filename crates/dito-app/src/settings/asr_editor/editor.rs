@@ -3,14 +3,13 @@ use std::time::Duration;
 
 use dito_core::provider::configured_asr::AsrProfiles;
 use gpui_kit::base::input::{Diagnostic, DiagnosticSeverity, Position};
-use gpui_kit::component::input::{EditorState, InputEvent, InputState};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 use serde_json::Value;
 
 use super::validation::{check, error_row};
 use crate::state::AppState;
-use crate::ui;
+use crate::ui::{self, EditorState, InputEvent, InputState};
 
 mod edit_panels;
 mod modal;

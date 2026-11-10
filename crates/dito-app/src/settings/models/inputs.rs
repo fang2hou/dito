@@ -4,13 +4,12 @@ use dito_core::config::{EngineConfig, ProviderKind, ProviderSettings};
 use dito_core::i18n::{Lang, Tr};
 use dito_core::provider::configured_asr::AsrProfiles;
 use dito_core::secrets::{Role, account};
-use gpui_kit::component::input::InputState;
 use gpui_kit::*;
 
 use super::page::ModelsPage;
 use crate::settings::role;
 use crate::state::AppState;
-use crate::ui;
+use crate::ui::{self, InputState};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum Field {
