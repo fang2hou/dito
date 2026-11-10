@@ -13,7 +13,7 @@ pub use asr_profiles::AsrProfiles;
 pub use data_dir::default_data_dir;
 pub use engine::{
     AzureSettings, BedrockSettings, CompatSettings, DEFAULT_ASR_LOCAL, DEFAULT_POLISH_LOCAL, EngineConfig,
-    PolishConfig, ProviderKind, ProviderSettings, ReasoningEffort, Source,
+    EngineLabels, PolishConfig, ProviderKind, ProviderSettings, ReasoningEffort, Source,
 };
 pub use error::ConfigError;
 pub use general::{
