@@ -215,7 +215,7 @@ pub async fn status_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
                     c.asr.source = Source::Local;
                     c.polish.enabled = case != "disabled";
                     c.polish.engine.source = if case == "local" { Source::Local } else { Source::Provider };
-                    let configurations = c.polish.engine.polish_configurations_mut();
+                    let configurations = c.polish.engine.polish_configurations_mut(c.general.lang());
                     configurations.select("compat");
                     let compat = configurations.active_mut().expect("the templates include a compat configuration");
                     *compat.target.address_mut() =
@@ -327,16 +327,23 @@ async fn general_hover_shots(dir: &Path, cx: &mut AsyncApp, shell: &ScopeHandle,
     ui::force_hover(general, ElementId::from("ui-lang"), false);
 }
 
-/// A provider card and a button on the Models page.
+/// A cloud polish tile and the test button on the Models page.
 async fn models_hover_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
+    services::save_config(st, |c| c.polish.engine.source = Source::Provider);
     let models = cx
         .update(|cx| {
             settings::open(st.clone(), Page::Models, cx);
             settings::page_motion(Page::Models, cx)
         })
         .expect("models page scope");
-    ui::force_hover(&models, ElementId::from("prov-0-bedrock"), true);
-    ui::force_hover(&models, ElementId::from("test-0"), true);
+    cx.update(|cx| {
+        let (window, view) = settings::handle(cx).expect("settings window");
+        let _ = window.update(cx, |_, window, cx| {
+            view.update(cx, |s, cx| s.preview_models(Role::Polish, None, window, cx));
+        });
+    });
+    ui::force_hover(&models, ElementId::from("cloud-polish-tile-bedrock"), true);
+    ui::force_hover(&models, ElementId::from("cloud-polish-test"), true);
     page_shot(cx, dir, "hover-warmup.png").await;
     page_shot(cx, dir, "models-hover.png").await;
 }
@@ -433,7 +440,7 @@ fn apply_model_case(st: &AppState, appearance: Appearance, case: &ModelCase) {
         c.general.appearance = appearance;
         c.asr.source = if case.local { Source::Local } else { Source::Provider };
         c.polish.engine.source = c.asr.source;
-        c.polish.engine.polish_configurations_mut().select(["azure", "bedrock", "compat"][case.preset]);
+        c.polish.engine.polish_configurations_mut(c.general.lang()).select(["azure", "bedrock", "compat"][case.preset]);
         let mut profiles = AsrProfiles::default();
         profiles.select(["funasr", "qwen_asr", "openrouter"][case.preset]);
         for profile in &mut profiles.profiles {

@@ -4,7 +4,7 @@ models.storage_used = { ja = "使用容量", en = "Storage used", zh = "占用�
 asr_editor.input_codes = { ja = "日本語: ja  /  英語: en  /  中国語: zh", en = "Japanese: ja  /  English: en  /  Chinese: zh", zh = "日语: ja  /  英语: en  /  中文: zh" }
 asr_editor.input_auto = { ja = "自動: 未指定 → auto", en = "Auto: unspecified → auto", zh = "自动识别: 未指定 → auto" }
 models.model_placeholder = { ja = "モデル ID を入力", en = "Enter a model ID", zh = "输入模型 ID" }
-models.effort_placeholder = { ja = "例：low", en = "e.g. low", zh = "例如：low" }
+models.effort_placeholder = { ja = "例：low（自由入力）", en = "e.g. low (any value)", zh = "例如：low（可自由输入）" }
 fmt.asr_line_count = { ja = "{count} 行", en = "{count} lines", zh = "{count} 行" }
 fmt.asr_syntax_error = { ja = "{line} 行目、{column} 列目：{detail}", en = "Line {line}, column {column}: {detail}", zh = "第 {line} 行，第 {column} 列：{detail}" }
 fmt.asr_field_error = { ja = "{line} 行目：{detail}", en = "Line {line}: {detail}", zh = "第 {line} 行：{detail}" }
@@ -76,7 +76,10 @@ models.connection_settings = { ja = "接続設定", en = "Connection settings", 
 # - ja/en/zh are all required. An empty value or a language that forgets a placeholder
 #   fails the build.
 # - Placeholders are named (`{model}`), never positional `{}`; entries with placeholders
-#   also get a generated formatting function (`i18n::using_model(lang, &name)`).
+#   also get a generated formatting function (`i18n::using_model(lang, &name)`) and live
+#   under `fmt.`, where a literal brace is doubled (`{{`, `}}`) as in `format!`. All other
+#   copy is shown as written, so its braces are literal text; a bare `{name}` there fails
+#   the build, since it is a placeholder outside `fmt.`.
 # - Adding a language: add the column here and one match arm in build.rs's LANGS.
 
 # --- sidebar navigation -------------------------------------------------------
@@ -195,6 +198,19 @@ models.startup_error = { ja = "起動エラー", en = "Startup error", zh = "启
 models.connected = { ja = "接続済み", en = "Connected", zh = "已连接" }
 models.test_ok = { ja = "接続成功", en = "Connection succeeded", zh = "连接成功" }
 models.reasoning_hint = { ja = "空欄はモデルの既定値。候補以外の値も入力できます。", en = "Leave empty for the model default. Values outside the suggestions also work.", zh = "留空则使用模型默认值，也可输入建议之外的值。" }
+models.name = { ja = "名前", en = "Name", zh = "名称" }
+models.model = { ja = "モデル", en = "Model", zh = "模型" }
+models.parameters = { ja = "パラメータ", en = "Parameters", zh = "参数" }
+models.temperature = { ja = "温度", en = "Temperature", zh = "温度" }
+models.top_p = { ja = "Top P", en = "Top P", zh = "Top P" }
+models.top_k = { ja = "Top K", en = "Top K", zh = "Top K" }
+models.max_tokens = { ja = "最大トークン数", en = "Max tokens", zh = "最大 token 数" }
+models.extra_parameters = { ja = "追加パラメータ", en = "Extra parameters", zh = "额外参数" }
+models.extra_placeholder = { ja = '例：{"seed": 42}', en = 'e.g. {"seed": 42}', zh = '例如：{"seed": 42}' }
+models.cloud_number_placeholder = { ja = "既定値", en = "Default", zh = "默认值" }
+models.local_number_placeholder = { ja = "推奨値", en = "Recommended", zh = "推荐值" }
+models.save_failed = { ja = "設定を保存できませんでした。", en = "Could not save the settings.", zh = "无法保存设置。" }
+models.delete_configuration_title = { ja = "設定を削除しますか？", en = "Delete this configuration?", zh = "要删除这个设置吗？" }
 models.checking = { ja = "接続確認中", en = "Checking", zh = "正在检查连接" }
 models.connection_error = { ja = "接続エラー", en = "Connection error", zh = "连接错误" }
 models.latency = { ja = "応答時間", en = "Response time", zh = "响应时间" }
@@ -213,7 +229,6 @@ models.api_key = { ja = "API キー", en = "API key", zh = "API 密钥" }
 models.reasoning_effort = { ja = "思考強度", en = "Reasoning effort", zh = "推理强度" }
 models.new_configuration = { ja = "新しい設定", en = "New configuration", zh = "新设置" }
 models.no_model = { ja = "モデル未設定", en = "No model set", zh = "未设置模型" }
-models.name = { ja = "名前", en = "Name", zh = "名称" }
 models.create_from_template = { ja = "テンプレートから作成", en = "Create from template", zh = "从模板创建" }
 models.duplicate_configuration = { ja = "選択中の設定を複製", en = "Duplicate the selected one", zh = "复制当前设置" }
 models.aws_profile = { ja = "AWS プロファイル", en = "AWS profile", zh = "AWS 配置文件" }
@@ -492,3 +507,13 @@ zh = "恢复{language}的默认通用规则。"
 ja = "「{app}」の{language}の書き方と例を初期設定に戻します。"
 en = "Restore the default {language} writing rules and examples for {app}."
 zh = "恢复“{app}”的{language}默认写法和范例。"
+
+[fmt.local_polish_hint]
+ja = "「{model}」の設定です。空欄は推奨値を使います。"
+en = "Settings for {model}. Empty fields use the recommended values."
+zh = "「{model}」的设置。留空则使用推荐值。"
+
+[fmt.delete_configuration_body]
+ja = "「{name}」の内容と API キーを削除します。"
+en = "Deletes \"{name}\" and its API key."
+zh = "将删除「{name}」及其 API 密钥。"

@@ -21,7 +21,7 @@ fn tone() -> AudioClip {
 
 /// The configuration the polish engine of `cfg` runs.
 fn active(cfg: &mut Config) -> &mut PolishConfiguration {
-    cfg.polish.engine.polish_configurations_mut().active_mut().expect("a configuration is selected")
+    cfg.polish.engine.polish_configurations_mut(cfg.general.lang()).active_mut().expect("a configuration is selected")
 }
 
 /// The dev defaults with the cloud speech profile and the Azure polish configuration both pointed at the mock at `url`.
@@ -37,7 +37,7 @@ fn mock_cfg(url: &str) -> Config {
 fn compat_cfg(base_url: &str) -> Config {
     let mut cfg = Config::default();
     cfg.polish.engine.source = Source::Provider;
-    cfg.polish.engine.polish_configurations_mut().select("compat");
+    cfg.polish.engine.polish_configurations_mut(cfg.general.lang()).select("compat");
     *active(&mut cfg).target.address_mut() = base_url.into();
     *active(&mut cfg).target.model_mut() = "gpt-4o-mini".into();
     cfg
@@ -252,7 +252,7 @@ async fn every_configuration_authenticates_with_the_key_under_its_own_account() 
     let f = EngineFactory::new(secrets.clone());
     let mut cfg = mock_cfg(&srv.url);
     let original = active(&mut cfg).id.clone();
-    let configurations = cfg.polish.engine.polish_configurations_mut();
+    let configurations = cfg.polish.engine.polish_configurations_mut(cfg.general.lang());
     let copy = configurations.duplicate(&original, "Copy").unwrap();
     secrets.set(&polish_account(&original), "key-of-the-original").unwrap();
     assert_eq!(secrets.get(&polish_account(&copy)), None, "a copy starts without a key");
@@ -261,7 +261,7 @@ async fn every_configuration_authenticates_with_the_key_under_its_own_account() 
 
     // The copy is selected, and the server wants its key.
     f.polisher(&cfg).await.unwrap().unwrap().polish(&request).await.unwrap();
-    cfg.polish.engine.polish_configurations_mut().select(&original);
+    cfg.polish.engine.polish_configurations_mut(cfg.general.lang()).select(&original);
     let err = f.polisher(&cfg).await.unwrap().unwrap().polish(&request).await.unwrap_err();
     assert_eq!(err.kind, ErrorKind::Auth, "the original sends its own key");
 }

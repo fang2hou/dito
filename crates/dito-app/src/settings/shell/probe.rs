@@ -47,6 +47,14 @@ impl Settings {
         self.dictionary.read(cx).failure_name()
     }
 
+    pub fn probe_models(&self, case: &str, arg: &str, text: &str, window: &mut Window, cx: &mut Context<Self>) {
+        self.models.update(cx, |m, cx| m.probe(case, arg, text, window, cx));
+    }
+
+    pub fn models_probe(&self, cx: &App) -> crate::settings::ModelsProbe {
+        self.models.read(cx).probe_state(cx)
+    }
+
     pub fn preview_models(
         &self,
         role: Role,

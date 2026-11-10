@@ -50,8 +50,7 @@ fn engine_key(engine: &EngineConfig, asr: bool) -> u64 {
             } else {
                 // Provider polish always runs the active configuration, the templates' when none is saved. A new
                 // model or other parameters start a new estimate; the name does not.
-                let configurations = engine.polish_configurations();
-                let active = configurations.active().map(|c| (&c.id, format!("{:?}{:?}", c.target, c.params)));
+                let active = engine.active_polish().map(|c| (c.id.clone(), format!("{:?}{:?}", c.target, c.params)));
                 ("configuration", active).hash(&mut key);
             }
         }

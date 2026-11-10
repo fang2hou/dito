@@ -4,8 +4,8 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
+use super::ReasoningEffort;
 use super::list::{Entry, List};
-use super::{DisplayLanguage, ReasoningEffort};
 use crate::i18n::{Lang, Tr};
 use crate::secrets::polish_account;
 
@@ -189,8 +189,12 @@ impl Entry for PolishConfiguration {
     }
 }
 
-/// The cloud polish configurations and the one in use.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+/// The templates a fresh list starts from, in the order of the original provider tabs. The first one is in use.
+const STARTING: [PolishTemplate; 3] = [PolishTemplate::Azure, PolishTemplate::Bedrock, PolishTemplate::Compat];
+
+/// The cloud polish configurations and the one in use. Only `new` makes a list with content: its names depend on the
+/// language the UI is shown in, which a default has no way to know.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 #[serde(default)]
 pub struct PolishConfigurations {
     /// Id of the configuration in use.
@@ -198,20 +202,20 @@ pub struct PolishConfigurations {
     pub items: Vec<PolishConfiguration>,
 }
 
-impl Default for PolishConfigurations {
-    fn default() -> Self {
-        Self::new(DisplayLanguage::default().resolve())
-    }
-}
-
 impl PolishConfigurations {
-    /// The three templates as configurations, in the order of the original provider tabs, named after their templates
-    /// in `lang`. Their ids keep the Keychain accounts of the keys saved before configurations existed.
+    /// The three templates as configurations, named after their templates in `lang`. Their ids keep the Keychain
+    /// accounts of the keys saved before configurations existed.
     pub fn new(lang: Lang) -> Self {
-        let items: Vec<_> = [PolishTemplate::Azure, PolishTemplate::Bedrock, PolishTemplate::Compat]
-            .map(|template| template.configuration(template.id(), lang.tr(template.label())))
-            .into();
+        let items: Vec<_> =
+            STARTING.map(|template| template.configuration(template.id(), lang.tr(template.label()))).into();
         Self { selected: items[0].id.clone(), items }
+    }
+
+    /// The configuration in use while no list is saved, as `new` makes it but without a name, since no request reads
+    /// one.
+    pub(super) fn stand_in_active() -> PolishConfiguration {
+        let template = STARTING[0];
+        template.configuration(template.id(), "")
     }
 
     fn list(&mut self) -> List<'_, PolishConfiguration> {

@@ -4,6 +4,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 use super::{AsrProfiles, PolishConfiguration, PolishConfigurations};
+use crate::i18n::Lang;
 
 pub const DEFAULT_ASR_LOCAL: &str = "qwen3-asr-1.7b";
 pub const DEFAULT_POLISH_LOCAL: &str = "qwen3.5-9b-instruct";
@@ -94,14 +95,24 @@ impl EngineConfig {
         }
     }
 
-    /// The saved polish configurations, or the templates' three while none are saved.
-    pub fn polish_configurations(&self) -> Cow<'_, PolishConfigurations> {
-        self.cloud_polish.as_ref().map_or_else(|| Cow::Owned(PolishConfigurations::default()), Cow::Borrowed)
+    /// The saved polish configurations, or the templates' three while none are saved, named in `lang`: the language
+    /// the UI is shown in, which is not necessarily the system's.
+    pub fn polish_configurations(&self, lang: Lang) -> Cow<'_, PolishConfigurations> {
+        self.cloud_polish.as_ref().map_or_else(|| Cow::Owned(PolishConfigurations::new(lang)), Cow::Borrowed)
     }
 
-    /// The saved polish configurations for editing; the first edit saves the templates' three.
-    pub fn polish_configurations_mut(&mut self) -> &mut PolishConfigurations {
-        self.cloud_polish.get_or_insert_with(PolishConfigurations::default)
+    /// The saved polish configurations for editing; the first edit saves the templates' three, named in `lang`.
+    pub fn polish_configurations_mut(&mut self, lang: Lang) -> &mut PolishConfigurations {
+        self.cloud_polish.get_or_insert_with(|| PolishConfigurations::new(lang))
+    }
+
+    /// The configuration polish requests run: the selected one of the saved list, or the first template's while none
+    /// is saved. For the code that sends requests, which reads no name and so needs no language.
+    pub fn active_polish(&self) -> Option<Cow<'_, PolishConfiguration>> {
+        match &self.cloud_polish {
+            Some(saved) => saved.active().map(Cow::Borrowed),
+            None => Some(Cow::Owned(PolishConfigurations::stand_in_active())),
+        }
     }
 
     /// The parameters set for the local model `model`; all unset when there are none.
@@ -127,9 +138,7 @@ impl EngineConfig {
                 let model = profiles.active()["connection"]["model"].as_str().unwrap_or("");
                 format!("{}:{model}", profiles.account())
             }
-            (Source::Provider, None) => {
-                self.polish_configurations().active().map(PolishConfiguration::label).unwrap_or_default()
-            }
+            (Source::Provider, None) => self.active_polish().map(|active| active.label()).unwrap_or_default(),
         }
     }
 }
@@ -162,5 +171,45 @@ pub struct PolishConfig {
 impl Default for PolishConfig {
     fn default() -> Self {
         Self { enabled: true, engine: EngineConfig::with_local(DEFAULT_POLISH_LOCAL) }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const COMPAT_NAMES: [(Lang, &str); 3] =
+        [(Lang::Ja, "OpenAI 互換 API"), (Lang::En, "OpenAI-compatible API"), (Lang::Zh, "OpenAI 兼容 API")];
+
+    #[test]
+    fn stand_in_configurations_are_named_in_the_language_they_are_asked_for() {
+        let engine = EngineConfig::default();
+        assert!(engine.cloud_polish.is_none(), "nothing is saved, so these are the stand-ins");
+        for (lang, compat) in COMPAT_NAMES {
+            assert_eq!(engine.polish_configurations(lang).get("compat").unwrap().name, compat);
+        }
+    }
+
+    #[test]
+    fn the_first_edit_saves_the_templates_in_the_language_the_ui_is_shown_in() {
+        for (lang, compat) in COMPAT_NAMES {
+            let mut engine = EngineConfig::default();
+            engine.polish_configurations_mut(lang).select("azure");
+            // What was saved stays as saved when the list is read in another language.
+            let other = if lang == Lang::Ja { Lang::En } else { Lang::Ja };
+            assert_eq!(engine.polish_configurations(other).get("compat").unwrap().name, compat);
+        }
+    }
+
+    #[test]
+    fn requests_run_the_selected_configuration_or_the_first_template_while_none_is_saved() {
+        let mut engine = EngineConfig { source: Source::Provider, ..EngineConfig::default() };
+        assert_eq!(engine.active_polish().unwrap().id, "azure");
+        assert_eq!(engine.label(), "azure:", "history labels do not depend on any name");
+
+        engine.polish_configurations_mut(Lang::En).select("compat");
+        assert_eq!(engine.active_polish().unwrap().id, "compat");
+        engine.polish_configurations_mut(Lang::En).selected = "gone".into();
+        assert!(engine.active_polish().is_none(), "a selection that points nowhere is not replaced by a template");
     }
 }

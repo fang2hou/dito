@@ -5,6 +5,7 @@ mod banner;
 mod button;
 mod callbacks;
 mod config_tiles;
+mod dialog;
 mod format;
 mod glass;
 mod history_tip;
@@ -15,6 +16,7 @@ mod menu_button;
 mod menu_panel;
 mod modal;
 mod motion;
+mod params;
 mod plate;
 mod popup_menu;
 mod primitives;
@@ -42,6 +44,7 @@ pub use button::{
 };
 pub use callbacks::{Cb, cbk, cbk_idx, click_cb};
 pub use config_tiles::{ConfigTile, TilePlus, TileRowState, cbk_id, cbk_move, tile_row};
+pub use dialog::{DialogAnswer, confirm_dialog};
 pub use format::{error_line, error_summary, fmt_bytes, fmt_eta, history_style_label};
 pub use glass::{prepare as prepare_card_backdrop, wordmark as page_wordmark};
 pub use history_tip::history_tip;
@@ -52,12 +55,13 @@ pub use hover::{
     is_hovered_in, reset_hover, reset_hover_in,
 };
 pub use inputs::{
-    blur_on_outside, field, focus_on_click, form_field, notify_on_focus, ring_overlay, text_input, with_ring,
+    blur_on_outside, field, focus_on_click, form_field, new_input, notify_on_focus, ring_overlay, text_input, with_ring,
 };
 pub use layout::{StatusTone, card, drag_area, group, page_title, row, status_chip, status_tag, tag};
 pub use menu_button::menu_button;
 pub use modal::modal_layer;
 pub use motion::Motion;
+pub use params::{ParamField, parameter_block};
 pub use plate::{GLASS_MS, coverage, plate_state};
 pub use popup_menu::{AddEntry, MenuItem, MenuTone, add_menu, popup_menu, popup_menu_grouped};
 pub use primitives::{hex_alpha, icon, mix, mix_rgb, transparent, white};
@@ -66,7 +70,7 @@ pub use radio::radio;
 pub use requests::Requests;
 pub use scope::{MotionScope, ScopeHandle, motion_scope, with_motion_scope};
 pub use segmented::{SegContent, SegOption, SegStyle, seg, seg_with};
-pub use select::{SelectItem, select, select_disabled, select_items, select_multi, select_trigger};
+pub use select::{SelectItem, select, select_form, select_form_disabled, select_items, select_multi, select_trigger};
 pub use select_badge::SelectBadge;
 pub use selectable::selectable_text;
 pub use switch::switch;

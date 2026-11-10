@@ -45,7 +45,7 @@ impl Config {
         c.asr.source = Source::Provider;
         c.asr.cloud_asr = Some(AsrProfiles::default());
         c.polish.engine.source = Source::Provider;
-        let configurations = c.polish.engine.polish_configurations_mut();
+        let configurations = c.polish.engine.polish_configurations_mut(c.general.lang());
         configurations.select("azure");
         let azure = configurations.active_mut().expect("the templates include an azure configuration");
         *azure.target.model_mut() = "gpt-6.1-terra".into();
