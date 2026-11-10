@@ -18,7 +18,9 @@ use dito_platform::{KeychainSecrets, MacFrontmost, MacMusicMute, MacSink, Permis
 use gpui_kit::Global;
 
 use crate::dev::log_sink::LogSink;
+#[cfg(feature = "mock")]
 use crate::dev::seed;
+#[cfg(feature = "mock")]
 use crate::dev::synthetic_recorder::SyntheticRecorder;
 use crate::dev::wav_recorder::WavRecorder;
 use crate::hotkeys::Hotkeys;
@@ -149,9 +151,12 @@ fn start_mock_server(
 
 fn open_store(opts: &Opts, data_dir: &std::path::Path) -> Result<Arc<Store>> {
     let store = Arc::new(Store::open(data_dir.join("dito.db"), dito_platform::local_utc_offset_secs())?);
+    #[cfg(feature = "mock")]
     if opts.mock {
         seed::demo(&store, crate::timefmt::now())?;
     }
+    #[cfg(not(feature = "mock"))]
+    let _ = opts;
     Ok(store)
 }
 
@@ -179,7 +184,11 @@ fn pick_recorder(opts: &Opts, capture: Option<&Arc<Capture>>) -> Result<Arc<dyn 
     Ok(match (&opts.wav, capture) {
         (Some(path), _) => Arc::new(WavRecorder::open(path)?),
         (None, Some(capture)) => Arc::new(AuthorizedCapture(capture.clone())),
+        #[cfg(feature = "mock")]
         (None, None) => Arc::new(SyntheticRecorder::default()),
+        // Only `--mock` without `--real-mic` leaves no capture, and `--mock` needs the `mock` feature.
+        #[cfg(not(feature = "mock"))]
+        (None, None) => anyhow::bail!("no audio input is available"),
     })
 }
 
