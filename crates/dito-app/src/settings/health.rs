@@ -1,11 +1,13 @@
 use dito_core::config::{EngineConfig, Source};
 use dito_core::health::{EngineStatus, Health};
 use dito_core::i18n::{Lang, Tr};
+use dito_core::provider::configured_asr::AsrProfiles;
+use dito_core::secrets::Role;
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
-use super::Ctx;
 use super::shell::Settings;
+use super::{Ctx, role};
 use crate::theme::Palette;
 use crate::ui::{self, Motion, text};
 
@@ -26,12 +28,17 @@ const HEALTH_WIDTH: f32 = 322.;
 
 impl Settings {
     /// The engine's display name shown in the health card.
-    pub(super) fn health_name(lang: Lang, e: &EngineConfig, models: &dito_local::ModelManager) -> SharedString {
+    pub(super) fn health_name(
+        lang: Lang,
+        role: Role,
+        e: &EngineConfig,
+        models: &dito_local::ModelManager,
+    ) -> SharedString {
         match e.source {
             Source::Provider => SharedString::from(
-                e.cloud_asr
-                    .as_ref()
-                    .and_then(|p| p.active_name())
+                role::cloud_profiles(role, e)
+                    .as_deref()
+                    .and_then(AsrProfiles::active_name)
                     .unwrap_or_else(|| lang.tr(e.provider.kind.label()))
                     .to_owned(),
             ),
@@ -53,13 +60,13 @@ impl Settings {
         vec![
             HealthRow {
                 role: lang.tr(Tr::ModelsDictation),
-                name: Self::health_name(lang, &cfg.asr, &self.st.models),
+                name: Self::health_name(lang, Role::Asr, &cfg.asr, &self.st.models),
                 status: Some(health.asr),
             },
             HealthRow {
                 role: lang.tr(Tr::ModelsPolish),
                 name: if cfg.polish.enabled {
-                    Self::health_name(lang, &cfg.polish.engine, &self.st.models)
+                    Self::health_name(lang, Role::Polish, &cfg.polish.engine, &self.st.models)
                 } else {
                     SharedString::from(lang.tr(Tr::ModelsPolishOff))
                 },

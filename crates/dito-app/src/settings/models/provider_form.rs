@@ -6,7 +6,7 @@ use dito_core::secrets::Role;
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
-use super::inputs::{Field, RoleInputs};
+use super::inputs::{Field, ProviderInputs};
 use super::page::ModelsPage;
 use crate::services;
 use crate::settings::{Ctx, role};
@@ -27,7 +27,7 @@ impl ModelsPage {
                 c.lang.tr(k.label()).into(),
                 cx.listener(move |this, _, _, cx| {
                     this.update_engine(role, move |e| e.provider.kind = k);
-                    this.tests[role_index] = TestState::Idle;
+                    this.test = TestState::Idle;
                     cx.notify();
                 }),
             ));
@@ -37,17 +37,16 @@ impl ModelsPage {
 
     pub(super) fn provider_fields(&self, c: &Ctx, cx: &mut Context<Self>, role: Role) -> Div {
         let col = div().w_full().flex().flex_col().gap(px(18.));
-        let inputs = &self.inputs[role::index(role)];
+        let inputs = &self.inputs;
         let cfg = self.st.cfg.get();
         let engine = role::engine(&cfg, role);
-        let llm = role == Role::Polish;
         match engine.provider.kind {
-            ProviderKind::Azure => azure_fields(c, llm, inputs, col),
+            ProviderKind::Azure => azure_fields(c, inputs, col),
             ProviderKind::Bedrock => {
                 let profile = self.aws_profile_select(c, cx, role, &engine.provider.bedrock.profile);
-                bedrock_fields(c, llm, inputs, profile, col)
+                bedrock_fields(c, inputs, profile, col)
             }
-            ProviderKind::Compat => compat_fields(c, llm, inputs, col),
+            ProviderKind::Compat => compat_fields(c, inputs, col),
         }
     }
 
@@ -79,12 +78,12 @@ impl ModelsPage {
 
     pub(super) fn test_footer(&self, c: &Ctx, cx: &mut Context<Self>, role: Role) -> Div {
         let p = &c.p;
-        let state = &self.tests[role::index(role)];
+        let state = &self.test;
         let mut left = div().flex_1().min_w(px(0.)).flex().flex_col().gap(px(6.)).child(test_status(c, state));
         if let TestState::Failed(message) = state {
             left = left.child(text(ui::error_line(c.lang, message), 12., FontWeight::NORMAL, p.text));
         }
-        let enabled = self.test_ready(role) && *state != TestState::Running;
+        let enabled = *state != TestState::Running;
         div()
             .w_full()
             .pt(px(16.))
@@ -95,18 +94,6 @@ impl ModelsPage {
             .gap(px(16.))
             .child(left)
             .child(test_button(c, cx, role, enabled))
-    }
-
-    /// Whether the role's connection is complete enough to test: a cloud ASR profile must validate and carry a key
-    /// when its request template asks for one.
-    fn test_ready(&self, role: Role) -> bool {
-        if role != Role::Asr {
-            return true;
-        }
-        let profiles = self.st.cfg.get().asr.cloud_asr.clone().unwrap_or_default();
-        dito_core::provider::configured_asr::validate(profiles.active()).is_ok()
-            && (!profiles.active()["request"].to_string().contains("{{api_key}}")
-                || !self.st.secrets.get(&profiles.account()).unwrap_or_default().trim().is_empty())
     }
 }
 
@@ -153,7 +140,7 @@ fn test_button(c: &Ctx, cx: &mut Context<ModelsPage>, role: Role, enabled: bool)
             &c.t(Tr::ModelsTestConnection),
             BtnKind::Subtle,
             None,
-            cbk(cx, move |this: &mut ModelsPage, _, cx| this.run_test(role, cx)),
+            cbk(cx, |this: &mut ModelsPage, _, cx| this.run_test(cx)),
         )
         .w(px(140.))
         .into_any_element();
@@ -217,11 +204,10 @@ fn reasoning_hint(c: &Ctx) -> Div {
     text(c.t(Tr::ModelsReasoningHint), 12., FontWeight::NORMAL, c.p.muted)
 }
 
-/// The model field row shared by providers with an API key: polish puts the reasoning effort beside
-/// the model and the key below; dictation puts the key beside the model.
+/// The model field row shared by providers with an API key: the reasoning effort sits beside the model and the
+/// key below.
 fn model_and_key(
     c: &Ctx,
-    llm: bool,
     model: (SharedString, &Entity<InputState>),
     effort: &Entity<InputState>,
     key: &Entity<InputState>,
@@ -229,23 +215,18 @@ fn model_and_key(
 ) -> Div {
     let p = &c.p;
     let row = div().w_full().flex().gap(px(16.)).child(wide_field(p, model.0, model.1));
-    if llm {
-        col.child(row.child(effort_slot(c, effort))).child(reasoning_hint(c)).child(ui::form_field(
-            p,
-            c.t(Tr::ModelsApiKey),
-            form_input(p, key),
-        ))
-    } else {
-        col.child(row.child(ui::form_field(p, c.t(Tr::ModelsApiKey), form_input(p, key)).flex_1().min_w(px(0.))))
-    }
+    col.child(row.child(effort_slot(c, effort))).child(reasoning_hint(c)).child(ui::form_field(
+        p,
+        c.t(Tr::ModelsApiKey),
+        form_input(p, key),
+    ))
 }
 
-fn azure_fields(c: &Ctx, llm: bool, inputs: &RoleInputs, col: Div) -> Div {
+fn azure_fields(c: &Ctx, inputs: &ProviderInputs, col: Div) -> Div {
     let p = &c.p;
     let col = col.child(ui::form_field(p, c.t(Tr::ModelsEndpoint), form_input(p, &inputs[Field::AzureEndpoint])));
     model_and_key(
         c,
-        llm,
         (c.t(Tr::ModelsDeployment), &inputs[Field::AzureDeployment]),
         &inputs[Field::EffortAzure],
         &inputs[Field::KeyAzure],
@@ -253,12 +234,11 @@ fn azure_fields(c: &Ctx, llm: bool, inputs: &RoleInputs, col: Div) -> Div {
     )
 }
 
-fn compat_fields(c: &Ctx, llm: bool, inputs: &RoleInputs, col: Div) -> Div {
+fn compat_fields(c: &Ctx, inputs: &ProviderInputs, col: Div) -> Div {
     let p = &c.p;
     let col = col.child(ui::form_field(p, c.t(Tr::ModelsBaseUrl), form_input(p, &inputs[Field::CompatBase])));
     model_and_key(
         c,
-        llm,
         (c.t(Tr::NavModels), &inputs[Field::CompatModel]),
         &inputs[Field::EffortCompat],
         &inputs[Field::KeyCompat],
@@ -266,17 +246,16 @@ fn compat_fields(c: &Ctx, llm: bool, inputs: &RoleInputs, col: Div) -> Div {
     )
 }
 
-fn bedrock_fields(c: &Ctx, llm: bool, inputs: &RoleInputs, profile: AnyElement, col: Div) -> Div {
+fn bedrock_fields(c: &Ctx, inputs: &ProviderInputs, profile: AnyElement, col: Div) -> Div {
     let p = &c.p;
-    let mut row =
-        div().w_full().flex().gap(px(16.)).child(wide_field(p, c.t(Tr::ModelsModelId), &inputs[Field::BedrockModel]));
-    if llm {
-        row = row.child(effort_slot(c, &inputs[Field::EffortBedrock]));
-    }
-    let mut col =
-        col.child(ui::form_field(p, c.t(Tr::ModelsRegion), form_input(p, &inputs[Field::BedrockRegion]))).child(row);
-    if llm {
-        col = col.child(reasoning_hint(c));
-    }
-    col.child(ui::form_field(p, c.t(Tr::ModelsAwsProfile), profile))
+    let row = div()
+        .w_full()
+        .flex()
+        .gap(px(16.))
+        .child(wide_field(p, c.t(Tr::ModelsModelId), &inputs[Field::BedrockModel]))
+        .child(effort_slot(c, &inputs[Field::EffortBedrock]));
+    col.child(ui::form_field(p, c.t(Tr::ModelsRegion), form_input(p, &inputs[Field::BedrockRegion])))
+        .child(row)
+        .child(reasoning_hint(c))
+        .child(ui::form_field(p, c.t(Tr::ModelsAwsProfile), profile))
 }
