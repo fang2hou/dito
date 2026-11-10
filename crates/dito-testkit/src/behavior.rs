@@ -10,6 +10,8 @@ pub struct Behavior {
     pub fail_status: Option<u16>,
     /// Reject `reasoning_effort` like a non-reasoning model would.
     pub reject_reasoning_effort: bool,
+    /// Chat completions end with `finish_reason: "length"`, as when the output token limit is hit.
+    pub truncate_chat: bool,
     pub transcript: String,
     pub language: Option<String>,
     /// File downloads: cut the connection after this many body bytes (first matching request only).
@@ -25,6 +27,7 @@ impl Default for Behavior {
             latency: Duration::ZERO,
             fail_status: None,
             reject_reasoning_effort: false,
+            truncate_chat: false,
             transcript: "えーと 明日の3時に会議があります".into(),
             language: Some("ja".into()),
             cut_download_after: None,

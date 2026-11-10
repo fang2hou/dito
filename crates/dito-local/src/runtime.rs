@@ -5,6 +5,7 @@
 
 use std::path::Path;
 use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 
 use crate::catalog::ModelSpec;
 use crate::runtime_error::RuntimeError;
@@ -17,16 +18,22 @@ pub struct AsrOutput {
 }
 
 pub trait AsrRuntime: Send + Sync {
+    /// `stop` is raised when the caller no longer wants the result, for example when the dictation is cancelled. Check
+    /// it between decoding steps with `Ordering::Relaxed` and return [`RuntimeError::Cancelled`] at once: a runtime
+    /// that ignores it keeps the model busy to the end, and the next dictation waits behind the abandoned one.
     fn transcribe(
         &self,
         samples: &[f32],
         language: Option<&str>,
         hotwords: &[String],
+        stop: &AtomicBool,
     ) -> Result<AsrOutput, RuntimeError>;
 }
 
 pub trait LlmRuntime: Send + Sync {
-    fn generate(&self, system: &str, user: &str) -> Result<String, RuntimeError>;
+    /// `stop` works as in [`AsrRuntime::transcribe`]. When the token budget runs out before the model ends its turn,
+    /// return [`RuntimeError::Truncated`], never the cut-off text.
+    fn generate(&self, system: &str, user: &str, stop: &AtomicBool) -> Result<String, RuntimeError>;
 }
 
 pub trait RuntimeLoader: Send + Sync {
