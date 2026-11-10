@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use dito_core::i18n::{Lang, Tr};
-use dito_core::prompts::{Prompts, Style};
+use dito_core::prompts::{BUILTIN_STYLES, Prompts, Style};
 use dito_platform::system::{InstalledApplication, installed_application};
 
 mod application_ui;
@@ -425,8 +425,9 @@ enum Dialog {
 
 fn app_choices(prompts: &Prompts) -> Vec<AppChoice> {
     let mut choices = Vec::new();
-    for id in ["com.tinyspeck.slackmacgap", "com.microsoft.teams2", "com.microsoft.teams", "dev.herdr.app"]
-        .into_iter()
+    for id in BUILTIN_STYLES
+        .iter()
+        .flat_map(|style| style.bundle_ids.iter().copied())
         .chain(prompts.applications.keys().map(String::as_str))
     {
         // A configured app stays in the list even when the bundle is not installed, so its settings remain selectable
@@ -604,7 +605,7 @@ impl PromptsPage {
             }
             "preview" => self.try_state = Try::Done(dito_core::i18n::sample_utterance(self.lang).into(), 420),
             "help" => ui::force_hover(&self.motion.handle(), ElementId::from("prompt-examples-help"), true),
-            "herdr" => self.switch(self.lang, Style::Herdr, window, cx),
+            "herdr" => self.switch(self.lang, Style::builtin("herdr").expect("built-in style"), window, cx),
             "custom" | "removeapp" => {
                 self.drafts.add_application("com.apple.AppStore", "App Store", &Style::General);
                 self.apps = app_choices(&self.drafts);

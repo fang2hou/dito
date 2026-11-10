@@ -137,3 +137,9 @@ The native sherpa binding is the official `sherpa-onnx-sys` 2.0.1 static package
 ### Changing the config schema
 
 Bump `SCHEMA_VERSION` in `crates/dito-core/src/config/migrate.rs` and append one migration function that rewrites the parsed TOML table from the previous version; migrations run in order before the typed load. Add one test per migration that feeds it a table in the old shape. Never edit or renumber a shipped migration, because files in the field have already passed through it. Before rewriting, `ConfigStore::open` saves the original as `config.toml.v<old>.bak`, and it refuses a file with a newer version (ADR-0015).
+
+### Adding a built-in writing style
+
+Built-in styles (Slack, Teams, Herdr) are one table, `BUILTIN_STYLES` in `crates/dito-core/src/prompts.rs`. Add one entry with its `id`, `label`, the `bundle_ids` of the apps it applies to, and its default instruction and sample sentences in Japanese, English and Chinese. Style lookup by bundle id, the default prompt sets, the history filter and the settings pages all read the table. The `id` is the style's stored form (history rows and `disabled_builtin_styles`) and the key of its prompt in every saved prompt set, so never change it after release, and keep it different from `base`, `general`, `applications` and `application_defaults`.
+
+The loader does not patch missing keys (ADR-0015), so a saved prompt set has no entry for the new style and would run it with an empty prompt. Add a config migration that inserts the style's default prompt into every saved language set that lacks it, as described in "Changing the config schema" above; `herdr_defaults` in `crates/dito-core/src/config/migrate.rs` is the pattern. Nothing else needs editing.

@@ -4,7 +4,7 @@
 use toml::{Table, Value};
 
 use crate::i18n::Lang;
-use crate::prompts::default_set;
+use crate::prompts::{Style, default_set};
 
 /// Version of the persisted shape that this build reads and writes. Raise it together with appending one function to
 /// `MIGRATIONS`, and never edit or renumber a shipped migration: files in the field have already passed through it.
@@ -51,11 +51,13 @@ fn malformed() -> UpgradeError {
 /// keeps it, and a set the file does not have is left to the defaults of the typed load.
 fn herdr_defaults(table: &mut Table) {
     let Some(prompts) = table.get_mut("prompts").and_then(Value::as_table_mut) else { return };
+    let herdr = Style::builtin("herdr").expect("herdr is a built-in style");
     for (key, lang) in [("ja", Lang::Ja), ("en", Lang::En), ("zh", Lang::Zh)] {
         let Some(set) = prompts.get_mut(key).and_then(Value::as_table_mut) else { continue };
         if !set.contains_key("herdr") {
-            let herdr = Value::try_from(default_set(lang).herdr).expect("a style prompt encodes as a TOML table");
-            set.insert("herdr".into(), herdr);
+            let prompt =
+                Value::try_from(default_set(lang).style(&herdr)).expect("a style prompt encodes as a TOML table");
+            set.insert("herdr".into(), prompt);
         }
     }
 }
@@ -88,7 +90,7 @@ samples = ["short"]
         assert_eq!(legacy["onboarded"].as_bool(), Some(true), "unrelated settings are untouched");
         let prompts = &legacy["prompts"];
         let herdr = |lang: &str| -> StylePrompt { prompts[lang]["herdr"].clone().try_into().unwrap() };
-        assert_eq!(herdr("ja"), default_set(Lang::Ja).herdr);
+        assert_eq!(&herdr("ja"), default_set(Lang::Ja).style(&Style::builtin("herdr").unwrap()));
         assert_eq!(prompts["ja"]["base"].as_str(), Some("my rule"), "edits next to the new style stay");
         assert_eq!(herdr("en"), StylePrompt { instruction: "my herdr rule".into(), samples: vec!["short".into()] });
         assert!(prompts.get("zh").is_none(), "a set the file lacks is left to the typed defaults");
