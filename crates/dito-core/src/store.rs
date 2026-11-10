@@ -16,6 +16,9 @@ pub enum StoreError {
     Database(#[from] rusqlite::Error),
     #[error(transparent)]
     Io(#[from] std::io::Error),
+    /// The database was written by a newer build. It is refused untouched: this build cannot know what changed.
+    #[error("the database has schema version {found}, but this build supports up to version {supported}")]
+    SchemaTooNew { found: u32, supported: u32 },
 }
 
 type Result<T> = std::result::Result<T, StoreError>;
@@ -104,6 +107,51 @@ pub struct Store {
     tz_offset_secs: i32,
 }
 
+/// Schema migrations in the order they shipped. `PRAGMA user_version` holds how many have been applied, so a shipped
+/// entry is never edited or reordered: a schema change is a new entry at the end.
+const MIGRATIONS: &[&str] = &[
+    // 1: the schema from before versioning. `IF NOT EXISTS` lets a database created by that build adopt it unchanged.
+    "CREATE TABLE IF NOT EXISTS history (
+       id INTEGER PRIMARY KEY AUTOINCREMENT,
+       ts INTEGER NOT NULL,
+       day TEXT NOT NULL,
+       kind TEXT NOT NULL,
+       style TEXT NOT NULL,
+       app TEXT NOT NULL,
+       lang TEXT NOT NULL,
+       duration_ms INTEGER NOT NULL,
+       raw TEXT NOT NULL,
+       polished TEXT,
+       error TEXT,
+       audio_path TEXT
+     );
+     CREATE INDEX IF NOT EXISTS history_ts ON history(ts DESC);
+     CREATE TABLE IF NOT EXISTS dictionary (
+       term TEXT PRIMARY KEY,
+       created INTEGER NOT NULL
+     );",
+];
+
+/// The schema version this build creates and the newest one it can open.
+const SCHEMA_VERSION: u32 = MIGRATIONS.len() as u32;
+
+fn user_version(conn: &Connection) -> rusqlite::Result<u32> {
+    conn.pragma_query_value(None, "user_version", |row| row.get(0))
+}
+
+/// Applies the migrations after `applied`, each in its own transaction together with its version bump, so a failure
+/// leaves the database at the last version that applied completely.
+fn migrate(conn: &mut Connection, applied: u32) -> Result<()> {
+    for (migration, version) in MIGRATIONS.iter().zip(1u32..).skip(applied as usize) {
+        let tx = conn.transaction()?;
+        tx.execute_batch(migration)?;
+        tx.pragma_update(None, "user_version", version)?;
+        tx.commit()?;
+        tracing::info!(version, "applied database migration");
+    }
+    Ok(())
+}
+
 /// The text stored in a column for an enum that serializes as a unit variant name.
 fn encode<T: Serialize>(value: T) -> String {
     serde_json::to_value(value)
@@ -134,29 +182,14 @@ impl Store {
         Self::init(Connection::open_in_memory()?, 0)
     }
 
-    fn init(conn: Connection, tz_offset_secs: i32) -> Result<Self> {
-        conn.execute_batch(
-            "PRAGMA journal_mode = WAL;
-             CREATE TABLE IF NOT EXISTS history (
-               id INTEGER PRIMARY KEY AUTOINCREMENT,
-               ts INTEGER NOT NULL,
-               day TEXT NOT NULL,
-               kind TEXT NOT NULL,
-               style TEXT NOT NULL,
-               app TEXT NOT NULL,
-               lang TEXT NOT NULL,
-               duration_ms INTEGER NOT NULL,
-               raw TEXT NOT NULL,
-               polished TEXT,
-               error TEXT,
-               audio_path TEXT
-             );
-             CREATE INDEX IF NOT EXISTS history_ts ON history(ts DESC);
-             CREATE TABLE IF NOT EXISTS dictionary (
-               term TEXT PRIMARY KEY,
-               created INTEGER NOT NULL
-             );",
-        )?;
+    fn init(mut conn: Connection, tz_offset_secs: i32) -> Result<Self> {
+        let applied = user_version(&conn)?;
+        if applied > SCHEMA_VERSION {
+            // Checked before anything is written, the journal mode included, so a refused database stays as it was.
+            return Err(StoreError::SchemaTooNew { found: applied, supported: SCHEMA_VERSION });
+        }
+        conn.execute_batch("PRAGMA journal_mode = WAL;")?;
+        migrate(&mut conn, applied)?;
         Ok(Self { conn: Mutex::new(conn), tz_offset_secs })
     }
 
@@ -617,5 +650,81 @@ mod tests {
         // 1970-01-01 20:00 UTC is already 01-02 in JST.
         s.add_history(&entry(20 * 3600, "A", "ja", "x", None)).unwrap();
         assert_eq!(s.stats(None).unwrap().per_day[0].0, "1970-01-02");
+    }
+
+    /// The schema as it shipped before versioning. Frozen here on purpose: real databases hold exactly this, whatever
+    /// migrations are appended later. It omits `IF NOT EXISTS`, so migration 1 must tolerate tables that already exist.
+    const PRE_VERSIONING_SCHEMA: &str = "CREATE TABLE history (
+       id INTEGER PRIMARY KEY AUTOINCREMENT,
+       ts INTEGER NOT NULL,
+       day TEXT NOT NULL,
+       kind TEXT NOT NULL,
+       style TEXT NOT NULL,
+       app TEXT NOT NULL,
+       lang TEXT NOT NULL,
+       duration_ms INTEGER NOT NULL,
+       raw TEXT NOT NULL,
+       polished TEXT,
+       error TEXT,
+       audio_path TEXT
+     );
+     CREATE INDEX history_ts ON history(ts DESC);
+     CREATE TABLE dictionary (
+       term TEXT PRIMARY KEY,
+       created INTEGER NOT NULL
+     );";
+
+    #[test]
+    fn a_fresh_store_is_at_the_latest_schema_version() {
+        let s = Store::open_in_memory().unwrap();
+        assert_eq!(user_version(&s.conn()).unwrap(), SCHEMA_VERSION);
+    }
+
+    #[test]
+    fn a_database_from_before_versioning_keeps_its_rows_and_reaches_the_latest_version() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("h.db");
+        {
+            let old = Connection::open(&path).unwrap();
+            old.execute_batch(PRE_VERSIONING_SCHEMA).unwrap();
+            old.execute(
+                "INSERT INTO history (ts, day, kind, style, app, lang, duration_ms, raw)
+                 VALUES (10, '1970-01-01', 'dictation', 'general', 'Notes', 'ja', 6000, 'from the old build')",
+                (),
+            )
+            .unwrap();
+            assert_eq!(user_version(&old).unwrap(), 0, "a database from before versioning has no version");
+        }
+
+        let s = Store::open(&path, 0).unwrap();
+        assert_eq!(user_version(&s.conn()).unwrap(), SCHEMA_VERSION);
+        let rows = s.list_history(&HistoryFilter::default()).unwrap();
+        assert_eq!(rows.iter().map(|e| e.raw.as_str()).collect::<Vec<_>>(), ["from the old build"]);
+        drop(s);
+
+        let reopened = Store::open(&path, 0).unwrap();
+        assert_eq!(user_version(&reopened.conn()).unwrap(), SCHEMA_VERSION, "a current database opens unchanged");
+        assert_eq!(reopened.list_history(&HistoryFilter::default()).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn a_database_from_a_newer_build_is_refused_and_left_untouched() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("h.db");
+        let newer = SCHEMA_VERSION + 1;
+        {
+            let future = Connection::open(&path).unwrap();
+            future.execute_batch("CREATE TABLE added_by_a_newer_build (x INTEGER)").unwrap();
+            future.pragma_update(None, "user_version", newer).unwrap();
+        }
+
+        let err = Store::open(&path, 0).err().expect("a newer database is refused");
+        let StoreError::SchemaTooNew { found, supported } = err else { panic!("unexpected error: {err}") };
+        assert_eq!((found, supported), (newer, SCHEMA_VERSION));
+
+        let conn = Connection::open(&path).unwrap();
+        assert_eq!(user_version(&conn).unwrap(), newer, "the version is not lowered");
+        let objects: i64 = conn.query_row("SELECT COUNT(*) FROM sqlite_master", (), |row| row.get(0)).unwrap();
+        assert_eq!(objects, 1, "no migration ran: only the newer build's table exists");
     }
 }
