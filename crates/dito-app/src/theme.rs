@@ -281,7 +281,7 @@ pub enum Tint {
 
 /// Push the palette into gpui-component so its inputs match the design.
 pub fn apply(p: &Palette, cx: &mut App) {
-    use gpui_kit::component::Theme;
+    use crate::ui::Theme;
     let t = Theme::global_mut(cx);
     t.colors.background = p.bg;
     t.colors.foreground = p.text;

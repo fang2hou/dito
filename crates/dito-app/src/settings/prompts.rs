@@ -10,14 +10,13 @@ mod application_ui;
 mod history;
 use history::{Editor, History, Snapshot};
 mod view;
-use gpui_kit::component::input::{InputEvent, InputState, Textarea, TextareaState};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
 use super::Ctx;
 use crate::services;
 use crate::state::AppState;
-use crate::ui;
+use crate::ui::{self, InputEvent, InputState, Textarea, TextareaState};
 
 enum Try {
     Idle,
