@@ -4,8 +4,7 @@
 use std::sync::Arc;
 
 use dito_core::error::ErrorKind;
-use dito_core::prompts::{PromptInput, build_system_prompt_for_language};
-use dito_core::provider::PolishRequest;
+use dito_core::pipeline::{self, PolishJob};
 use dito_core::provider::{TestOutcome, test_polisher, test_transcriber_with_language};
 use dito_core::secrets::Role;
 
@@ -67,13 +66,9 @@ pub async fn try_polish(
         .spawn(async move {
             let cfg = st2.cfg.get();
             let polisher = st2.factory.polisher_for(&cfg.polish.engine).await.map_err(|e| e.to_string())?;
-            let system = build_system_prompt_for_language(
-                &PromptInput { prompts: &prompts, style, text: &text, dictionary: &[] },
-                lang,
-            );
+            let polish_job = PolishJob { prompts: &prompts, style, text: &text, dictionary: &[], lang: Some(lang) };
             let started = std::time::Instant::now();
-            let out =
-                polisher.polish(&PolishRequest { system: &system, text: &text }).await.map_err(|e| e.to_string())?;
+            let out = pipeline::polish_text(polisher.as_ref(), polish_job).await.map_err(|e| e.to_string())?;
             Ok((out, started.elapsed().as_millis() as u64))
         })
         .await
