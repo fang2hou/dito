@@ -27,12 +27,31 @@ impl Recorder for FakeRecorder {
 struct FakeSink {
     delivered: Mutex<Vec<String>>,
     no_target: bool,
+    gate: Option<Gate>,
 }
 impl Sink for FakeSink {
     fn deliver(&self, text: &str, _: InsertMethod) -> Delivery {
         self.delivered.lock().unwrap().push(text.into());
+        if let Some(gate) = &self.gate {
+            let _ = gate.entered.send(());
+            // Dropping the test's end releases a delivery that nobody waits for any more.
+            let _ = gate.release.lock().unwrap().recv();
+        }
         if self.no_target { Delivery::Copied } else { Delivery::Inserted }
     }
+}
+
+/// Makes delivery as slow as the real sink, which sleeps while it polls focus: the sink reports that it started, then
+/// blocks until the test releases it.
+struct Gate {
+    entered: tokio::sync::mpsc::UnboundedSender<()>,
+    release: Mutex<std::sync::mpsc::Receiver<()>>,
+}
+
+/// The test's end of a [`Gate`].
+struct GateControl {
+    entered: tokio::sync::mpsc::UnboundedReceiver<()>,
+    release: std::sync::mpsc::Sender<()>,
 }
 
 struct FakeFront;
@@ -80,6 +99,8 @@ struct RigOptions {
     audio_dir_blocked: bool,
     mode: RecordMode,
     music_mute: MusicMuteMode,
+    /// Delivery blocks until `Rig::release_delivery`.
+    gated_delivery: bool,
 }
 
 impl Default for RigOptions {
@@ -90,6 +111,7 @@ impl Default for RigOptions {
             audio_dir_blocked: false,
             mode: RecordMode::Toggle,
             music_mute: MusicMuteMode::Off,
+            gated_delivery: false,
         }
     }
 }
@@ -100,7 +122,24 @@ struct Rig {
     store: Arc<Store>,
     asr: Arc<MockTranscriber>,
     mute: FakeMusicMute,
+    gate: Option<GateControl>,
     _dir: tempfile::TempDir,
+}
+
+impl Rig {
+    /// Waits until the gated sink has been called. From then on it blocks on the pool until `release_delivery`.
+    async fn delivery_started(&mut self) {
+        let gate = self.gate.as_mut().expect("the rig was built with gated_delivery");
+        tokio::time::timeout(Duration::from_secs(5), gate.entered.recv())
+            .await
+            .expect("timed out waiting for delivery to start")
+            .expect("the sink was dropped");
+    }
+
+    fn release_delivery(&self) {
+        let gate = self.gate.as_ref().expect("the rig was built with gated_delivery");
+        gate.release.send(()).expect("the sink was dropped");
+    }
 }
 
 fn rig(asr: MockTranscriber, polish: MockPolisher, options: RigOptions) -> Rig {
@@ -113,7 +152,17 @@ fn rig(asr: MockTranscriber, polish: MockPolisher, options: RigOptions) -> Rig {
         })
         .unwrap();
     let store = Arc::new(Store::open_in_memory().unwrap());
-    let sink = Arc::new(FakeSink { no_target: options.no_insertion_target, ..Default::default() });
+    let (gate, gate_control) = if options.gated_delivery {
+        let (entered_tx, entered_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (release_tx, release_rx) = std::sync::mpsc::channel();
+        (
+            Some(Gate { entered: entered_tx, release: Mutex::new(release_rx) }),
+            Some(GateControl { entered: entered_rx, release: release_tx }),
+        )
+    } else {
+        (None, None)
+    };
+    let sink = Arc::new(FakeSink { no_target: options.no_insertion_target, gate, ..Default::default() });
     let asr = Arc::new(asr);
     let music_mute = FakeMusicMute::default();
     let audio_dir = dir.path().join("audio");
@@ -133,7 +182,7 @@ fn rig(asr: MockTranscriber, polish: MockPolisher, options: RigOptions) -> Rig {
         engines: Arc::new(FixedEngines { asr: asr.clone(), polish: Arc::new(polish) }),
         audio_dir: Some(audio_dir),
     });
-    Rig { h, sink, store, asr, mute: music_mute, _dir: dir }
+    Rig { h, sink, store, asr, mute: music_mute, gate: gate_control, _dir: dir }
 }
 
 fn simple_rig(text: &str) -> Rig {
@@ -317,6 +366,86 @@ async fn no_insertion_target_reports_copied() {
     r.h.send(Command::KeyDown);
     r.h.send(Command::Finish);
     wait_for(&r.h, |s| *s == HudState::Copied).await;
+}
+
+#[tokio::test]
+async fn a_key_press_during_delivery_starts_listening_only_after_its_result() {
+    let mut r = rig(
+        MockTranscriber::new("会議です"),
+        MockPolisher::default(),
+        RigOptions { gated_delivery: true, ..Default::default() },
+    );
+    r.h.send(Command::KeyDown);
+    r.h.send(Command::Finish);
+    r.delivery_started().await;
+    // The actor stays free while the sink blocks, and the text is already saved.
+    assert_eq!(history_of(&r.store, 1).await[0].kind, HistoryKind::Dictation);
+    r.h.send(Command::KeyDown);
+    r.h.send(Command::KeyUp); // releasing a toggle shortcut must not take the press back
+    tokio::task::yield_now().await;
+    assert!(matches!(*r.h.hud().borrow(), HudState::Recognizing | HudState::Polishing));
+    assert!(r.h.recording_started().is_none(), "the press waits for the first dictation to finish");
+
+    r.release_delivery();
+    wait_for(&r.h, |s| matches!(s, HudState::Listening { mode: RecordMode::Toggle })).await;
+    assert!(r.h.recording_started().is_some());
+    assert_eq!(*r.sink.delivered.lock().unwrap(), ["会議です。"], "the first dictation is typed exactly once");
+}
+
+#[tokio::test]
+async fn in_hold_mode_releasing_the_key_during_delivery_drops_the_held_back_press() {
+    let mut r = rig(
+        MockTranscriber::new("会議です"),
+        MockPolisher::default(),
+        RigOptions { mode: RecordMode::Hold, gated_delivery: true, ..Default::default() },
+    );
+    r.h.send(Command::KeyDown);
+    wait_for(&r.h, |s| matches!(s, HudState::Listening { mode: RecordMode::Hold })).await;
+    r.h.send(Command::KeyUp);
+    r.delivery_started().await;
+    r.h.send(Command::KeyDown);
+    r.h.send(Command::KeyUp);
+    tokio::task::yield_now().await;
+
+    r.release_delivery();
+    wait_for(&r.h, |s| *s == HudState::Inserted).await;
+    assert!(r.h.recording_started().is_none(), "a hold recording for a finished press would never end");
+}
+
+#[tokio::test(start_paused = true)]
+async fn commands_during_delivery_cannot_change_its_outcome() {
+    let mut r = rig(
+        MockTranscriber::new("会議です"),
+        MockPolisher::default(),
+        RigOptions { gated_delivery: true, ..Default::default() },
+    );
+    r.h.send(Command::KeyDown);
+    r.h.send(Command::Finish);
+    r.delivery_started().await;
+    // Insertion cannot be cancelled, and a partial insertion is never retried.
+    for c in [
+        Command::Cancel,
+        Command::Stop,
+        Command::Finish,
+        Command::Retry,
+        Command::Dismiss,
+        Command::ErrorHover(true),
+        Command::KeyUp,
+    ] {
+        r.h.send(c);
+    }
+    tokio::task::yield_now().await;
+    assert!(matches!(*r.h.hud().borrow(), HudState::Recognizing | HudState::Polishing));
+
+    r.release_delivery();
+    wait_for(&r.h, |s| *s == HudState::Inserted).await;
+    // Queued behind a blocking call, a Cancel used to hide the outcome the moment it appeared.
+    assert_eq!(*r.h.hud().borrow(), HudState::Inserted);
+    tokio::time::advance(SUCCESS_FLASH + Duration::from_millis(10)).await;
+    wait_for(&r.h, |s| *s == HudState::Hidden).await;
+    assert_eq!(*r.sink.delivered.lock().unwrap(), ["会議です。"], "typed once, never retried");
+    let rows = history_of(&r.store, 1).await;
+    assert_eq!(rows.iter().map(|e| e.kind).collect::<Vec<_>>(), [HistoryKind::Dictation]);
 }
 
 #[tokio::test]
