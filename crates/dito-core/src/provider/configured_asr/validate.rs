@@ -332,7 +332,8 @@ mod tests {
 
     #[test]
     fn failures_name_their_field_and_reason() {
-        let mut v = AsrProfiles::default().profiles.remove(0);
+        let template = include_str!("../../../../../design/asr-templates/funasr.json");
+        let mut v: Value = serde_json::from_str(template).expect("bundled ASR template");
         assert_eq!(validate(&v), Err(ValidationError::new("/connection/model", ValidationReason::Required)));
 
         v["connection"]["model"] = "user-model".into();
