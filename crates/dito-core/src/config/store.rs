@@ -107,7 +107,7 @@ mod tests {
         Appearance, AsrProfiles, DEFAULT_POLISH_LOCAL, DEFAULT_SHORTCUT, MusicMuteMode, ReasoningEffort,
     };
     use crate::i18n::Lang;
-    use crate::prompts::default_set;
+    use crate::prompts::{Style, default_set};
 
     /// A fresh directory holding `config.toml` with `contents`.
     fn config_file(contents: &str) -> (tempfile::TempDir, PathBuf) {
@@ -231,10 +231,11 @@ instruction = "my herdr rule"
         );
 
         let prompts = ConfigStore::open(path).unwrap().get().prompts.clone();
+        let herdr = Style::builtin("herdr").unwrap();
         assert_eq!(prompts.ja.base, "my existing rule");
-        assert_eq!(prompts.ja.herdr, default_set(Lang::Ja).herdr);
-        assert_eq!(prompts.en.herdr.instruction, "my herdr rule");
-        assert_eq!(prompts.zh.herdr, default_set(Lang::Zh).herdr);
+        assert_eq!(prompts.ja.style(&herdr), default_set(Lang::Ja).style(&herdr));
+        assert_eq!(prompts.en.style(&herdr).instruction, "my herdr rule");
+        assert_eq!(prompts.zh.style(&herdr), default_set(Lang::Zh).style(&herdr));
     }
 
     #[test]
