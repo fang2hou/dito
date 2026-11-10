@@ -1,4 +1,5 @@
 //! Recognize → polish for one recorded clip. No recording, no delivery: those belong to the controller.
+//! The polish step is also available alone ([`polish_text`]) for text that is already recognized.
 
 use std::time::Instant;
 
@@ -6,11 +7,11 @@ pub use tokio_util::sync::CancellationToken;
 
 use crate::audio::AudioClip;
 use crate::config::Config;
-use crate::error::{ErrorKind, ProviderError};
+use crate::error::{ErrorKind, ProviderError, ProviderResult};
 use crate::factory::Engines;
 use crate::i18n::Lang;
-use crate::prompts::{PromptInput, Style, build_system_prompt, detect_lang};
-use crate::provider::{AsrRequest, PolishRequest};
+use crate::prompts::{PromptInput, Prompts, Style, build_system_prompt, build_system_prompt_for_language, detect_lang};
+use crate::provider::{AsrRequest, PolishRequest, Polisher};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Phase {
@@ -124,19 +125,49 @@ async fn polish(
 
     let started = Instant::now();
     on_phase(Phase::Polishing { input_chars: out.raw.chars().count(), started });
-    let words: &[String] = if cfg.dictionary_for_polish { job.dictionary } else { &[] };
-    let system = build_system_prompt(&PromptInput {
+    let polish_job = PolishJob {
         prompts: &cfg.prompts,
         style: job.style.clone(),
         text: &out.raw,
-        dictionary: words,
-    });
-    match or_cancel(cancel, polisher.polish(&PolishRequest { system: &system, text: &out.raw })).await? {
+        dictionary: polish_dictionary(cfg, job.dictionary),
+        lang: None,
+    };
+    match or_cancel(cancel, polish_text(polisher.as_ref(), polish_job)).await? {
         Ok(text) => out.polished = Some(text),
         Err(e) => out.polish_error = Some(e),
     }
     out.polish_ms = started.elapsed().as_millis() as u64;
     Ok(())
+}
+
+/// What one polish call needs: the text and everything its system prompt is built from.
+pub struct PolishJob<'a> {
+    /// Passed in rather than read from the config because the Prompts page previews unsaved drafts.
+    pub prompts: &'a Prompts,
+    pub style: Style,
+    pub text: &'a str,
+    /// Spelling references for the prompt: the saved dictionary run through [`polish_dictionary`], or none.
+    pub dictionary: &'a [String],
+    /// Prompt language; `None` detects it from `text`, as dictation does.
+    pub lang: Option<Lang>,
+}
+
+/// The dictionary words the polish prompt may carry: all of `words` when the user turned on
+/// `dictionary_for_polish`, none otherwise. Recognition hotwords are not subject to it.
+pub fn polish_dictionary<'a>(cfg: &Config, words: &'a [String]) -> &'a [String] {
+    if cfg.dictionary_for_polish { words } else { &[] }
+}
+
+/// Polish `job.text` with `polisher`. The one place that builds the system prompt and calls the model; dictation,
+/// polishing a history entry again and the Prompts page preview all use it.
+pub async fn polish_text(polisher: &dyn Polisher, job: PolishJob<'_>) -> ProviderResult<String> {
+    let PolishJob { prompts, style, text, dictionary, lang } = job;
+    let input = PromptInput { prompts, style, text, dictionary };
+    let system = match lang {
+        Some(lang) => build_system_prompt_for_language(&input, lang),
+        None => build_system_prompt(&input),
+    };
+    polisher.polish(&PolishRequest { system: &system, text }).await
 }
 
 fn lang_from_code(code: &str) -> Option<Lang> {
@@ -289,5 +320,31 @@ mod tests {
         cfg.dictionary_for_polish = true;
         run(&e, &cfg, &job, &|_| {}, &CancellationToken::new()).await.unwrap();
         assert!(spy.0.lock().unwrap().contains("Acme"));
+    }
+
+    #[tokio::test]
+    async fn polish_text_uses_the_given_prompt_language_instead_of_detecting_it() {
+        struct Capture(std::sync::Mutex<(String, String)>);
+        #[async_trait::async_trait]
+        impl Polisher for Capture {
+            async fn polish(&self, r: &PolishRequest<'_>) -> ProviderResult<String> {
+                *self.0.lock().unwrap() = (r.system.to_string(), r.text.to_string());
+                Ok("ok".into())
+            }
+        }
+        let capture = Capture(Default::default());
+        let prompts = Prompts::default();
+        let text = "hello there";
+        let job = |lang| PolishJob { prompts: &prompts, style: Style::General, text, dictionary: &[], lang };
+
+        polish_text(&capture, job(None)).await.unwrap();
+        let (system, sent) = capture.0.lock().unwrap().clone();
+        assert!(system.starts_with(prompts.en.base.trim()), "no language given: the English text picks English");
+        assert_eq!(sent, text);
+
+        polish_text(&capture, job(Some(Lang::Ja))).await.unwrap();
+        let (system, sent) = capture.0.lock().unwrap().clone();
+        assert!(system.starts_with(prompts.ja.base.trim()), "a given language wins over the text");
+        assert_eq!(sent, text);
     }
 }
