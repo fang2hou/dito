@@ -73,7 +73,7 @@ fn keep_a_copy(path: &Path) -> io::Result<Option<PathBuf>> {
                 Err(e) => Some(Err(e)),
             }
         })
-        .unwrap_or_else(|| Err(io::ErrorKind::AlreadyExists.into()))?;
+        .expect("the backup numbers have no end")?;
     // The backup is the only copy once the original is replaced: have it on disk before that happens.
     if let Err(e) = io::copy(&mut original, &mut copy).and_then(|_| copy.sync_all()) {
         let _ = std::fs::remove_file(&backup);

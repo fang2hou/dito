@@ -88,18 +88,14 @@ impl Default for CloudAsrConfigurations {
 }
 
 impl CloudAsrConfigurations {
-    fn selected_configuration(&self) -> Option<&CloudAsrConfiguration> {
-        self.items.iter().find(|configuration| configuration.id == self.selected)
-    }
-
     fn list(&mut self) -> List<'_, CloudAsrConfiguration> {
         List::new(&mut self.selected, &mut self.items)
     }
 
-    /// Config of the selected configuration, `Null` when no configuration has the selected id; validation rejects that before a
-    /// request is made.
-    pub fn active(&self) -> &Value {
-        self.selected_configuration().map_or(&Value::Null, |configuration| &configuration.config)
+    /// The configuration in use. `None` when no configuration has the selected id: nothing takes its place, so the
+    /// id, the config and the Keychain account are all read from the same configuration or none.
+    pub fn active(&self) -> Option<&CloudAsrConfiguration> {
+        self.items.iter().find(|configuration| configuration.id == self.selected)
     }
 
     pub fn active_mut(&mut self) -> Option<&mut Value> {
@@ -111,18 +107,7 @@ impl CloudAsrConfigurations {
     }
 
     pub fn active_name(&self) -> Option<&str> {
-        self.selected_configuration().map(|configuration| configuration.name.as_str())
-    }
-
-    /// Keychain account of the selected configuration's key: its id behind a fixed prefix, which for the bundled configurations is
-    /// the account name they had while configurations were identified by position.
-    pub fn account(&self) -> String {
-        asr_account(&self.selected)
-    }
-
-    /// Id of the selected configuration, or of the first one when no configuration has the selected id.
-    pub fn selected_id(&self) -> &str {
-        self.selected_configuration().or(self.items.first()).map_or("", |configuration| configuration.id.as_str())
+        self.active().map(|configuration| configuration.name.as_str())
     }
 
     /// Make `id` the configuration in use. An unknown id changes nothing.
@@ -233,8 +218,21 @@ mod tests {
         let identities: Vec<_> = configurations.items.iter().map(|p| (p.id.as_str(), p.name.as_str())).collect();
         assert_eq!(identities, [("funasr", "FunASR"), ("qwen_asr", "Qwen ASR"), ("openrouter", "OpenRouter")]);
         assert_eq!(configurations.selected, "funasr");
-        assert_eq!(configurations.account(), "asr.funasr");
+        assert_eq!(configurations.active().unwrap().account(), "asr.funasr");
         assert_eq!(configurations.items[2].account(), "asr.openrouter");
+    }
+
+    #[test]
+    fn a_selection_that_names_no_configuration_is_not_replaced_by_the_first() {
+        let mut configurations = CloudAsrConfigurations { selected: "gone".into(), ..Default::default() };
+        assert!(configurations.active().is_none());
+        assert!(configurations.active_mut().is_none());
+        assert_eq!(configurations.active_name(), None);
+
+        configurations.selected = "openrouter".into();
+        let active = configurations.active().unwrap();
+        assert_eq!((active.id.as_str(), active.name.as_str()), ("openrouter", "OpenRouter"));
+        assert_eq!(active.account(), "asr.openrouter");
     }
 
     #[test]
@@ -243,12 +241,13 @@ mod tests {
         let template = CloudAsrTemplate::ALL[1];
         let added = configurations.add_from_template(template, "Mine");
         assert!(added.starts_with("qwen_asr-"), "{added}");
-        assert_eq!(configurations.active(), &template.config());
+        assert_eq!(configurations.active().unwrap().config, template.config());
 
         configurations.active_mut().unwrap()["connection"]["model"] = "edited".into();
         let copy = configurations.duplicate(&added, "Mine too").unwrap();
         assert!(copy.starts_with("qwen_asr-") && copy != added, "a copy of a copy starts from the template id: {copy}");
-        assert_eq!(configurations.active()["connection"]["model"], "edited");
-        assert_ne!(configurations.account(), format!("asr.{added}"), "the copy has a key of its own");
+        let active = configurations.active().unwrap();
+        assert_eq!(active.config["connection"]["model"], "edited");
+        assert_ne!(active.account(), format!("asr.{added}"), "the copy has a key of its own");
     }
 }

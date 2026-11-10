@@ -46,7 +46,8 @@ fn engine_key(engine: &EngineConfig, asr: bool) -> u64 {
             if asr {
                 // Cloud speech always runs the active configuration, the bundled set when none is saved.
                 let configurations = engine.cloud_asr.clone().unwrap_or_default();
-                ("configuration", &configurations.selected, configurations.active().to_string()).hash(&mut key);
+                let active = configurations.active().map(|c| (c.id.clone(), c.config.to_string()));
+                ("configuration", active).hash(&mut key);
             } else {
                 // Cloud polish always runs the active configuration, the templates' when none is saved. A new
                 // model or other parameters start a new estimate; the name does not.

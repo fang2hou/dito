@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use dito_core::config::{Appearance, restore_defaults};
@@ -13,6 +14,13 @@ use crate::startup;
 use crate::state::AppState;
 use crate::theme::{self, Palette};
 use crate::ui::{self, BtnKind, MotionScope, Root, cbk, text};
+
+/// Where the window leaves the error of a launch that failed with nothing to show, for [`run`](super::run) to return
+/// after the app has quit. The slot is shared: `run` keeps a handle to it before handing the global to the app.
+#[derive(Default)]
+pub(super) struct Ending(pub(super) Rc<RefCell<Option<anyhow::Error>>>);
+
+impl Global for Ending {}
 
 /// What the window needs to carry on with a normal launch once the settings are restored.
 #[derive(Clone)]
@@ -112,9 +120,9 @@ impl FailureView {
                     self.fit(window, cx);
                 }
                 None => {
-                    // The same ending as any other startup error: the message on stderr and a failing exit status.
-                    eprintln!("Error: {error:?}");
-                    std::process::exit(1);
+                    // No window for this one: leave it to `run`, which returns it once GPUI has shut down.
+                    *cx.default_global::<Ending>().0.borrow_mut() = Some(error);
+                    cx.quit();
                 }
             },
         }

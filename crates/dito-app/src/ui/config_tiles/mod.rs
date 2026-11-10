@@ -73,8 +73,7 @@ pub struct TilePlus {
     pub open: bool,
     /// The press, to open or close the menu.
     pub on_press: Cb,
-    /// The menu, drawn as a child of the button's own 36 pt box. Put it in [`float_menu`](super::float_menu) at
-    /// `CONTROL_H + 8` to hang it under the button with the right edges aligned.
+    /// The menu, drawn as a child of the button's own 36 pt box: pass `add_menu(...)`.
     pub menu: Option<AnyElement>,
 }
 

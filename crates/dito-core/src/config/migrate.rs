@@ -381,7 +381,7 @@ config = '{"connection":{"model":"m3"},"version":1}'
         let identities: Vec<_> = speech.items.iter().map(|c| (c.id.as_str(), c.name.as_str())).collect();
         assert_eq!(identities, [("funasr", "FunASR"), ("qwen_asr-3c9e", "Mine")]);
         assert_eq!(speech.selected, "qwen_asr-3c9e");
-        assert!(speech.active()["language_map"]["auto"].is_null(), "a null survives");
+        assert!(speech.active().unwrap().config["language_map"]["auto"].is_null(), "a null survives");
         let saved: Table = toml::to_string(&config).unwrap().parse().unwrap();
         assert_eq!(saved["asr"]["cloud_asr"]["items"], legacy["asr"]["cloud_asr"]["items"]);
         assert_eq!(saved["polish"]["cloud_asr"]["items"], legacy["polish"]["cloud_asr"]["items"]);

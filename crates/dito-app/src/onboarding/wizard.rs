@@ -22,6 +22,7 @@ mod probe;
 mod render;
 mod watchers;
 
+use connection::{connection_fields, starting_cloud_asr};
 pub(super) use prepare::PreparePhase;
 
 pub(super) const PERMS: [Permission; 2] = [Permission::Microphone, Permission::Accessibility];
@@ -80,7 +81,7 @@ impl Onboarding {
         Self {
             mode: cfg.general.record_mode,
             local: cfg.asr.source == Source::Local,
-            cloud_asr_id: configurations.selected_id().to_owned(),
+            cloud_asr_id: starting_cloud_asr(&configurations).map(|c| c.id.clone()).unwrap_or_default(),
             editor: None,
             endpoint,
             deployment,
@@ -118,11 +119,13 @@ impl Onboarding {
             ui::notify_on_focus(&state, window, cx);
             state
         };
-        let connection = |field: &str| configurations.active()["connection"][field].as_str().unwrap_or("").to_string();
+        let starting = starting_cloud_asr(configurations);
+        let (base_url, model) = connection_fields(starting);
+        let key = starting.and_then(|c| st.secrets.get(&c.account())).unwrap_or_default();
         [
-            input("https://…", &connection("base_url"), false),
-            input(lang.tr(Tr::ModelsModelPlaceholder), &connection("model"), false),
-            input("••••••••", &st.secrets.get(&configurations.account()).unwrap_or_default(), true),
+            input("https://…", &base_url, false),
+            input(lang.tr(Tr::ModelsModelPlaceholder), &model, false),
+            input("••••••••", &key, true),
         ]
     }
 

@@ -17,6 +17,7 @@ use crate::opts::Opts;
 use crate::startup;
 
 pub use failure::Failure;
+use view::Ending;
 pub use view::{Launch, open};
 
 /// Show the window for `error` and run until the person quits or the launch carries on. An error that has no window,
@@ -29,12 +30,16 @@ pub fn run(error: anyhow::Error, opts: Opts, rt: tokio::runtime::Handle) -> Resu
     // The window is all this process has, so closing it ends the process, until a carried-on launch takes over.
     let app = gpui_kit::application().with_assets(AppAssets).with_quit_mode(QuitMode::LastWindowClosed);
     app.on_reopen(startup::reopen);
+    let ending = Ending::default();
+    let left = ending.0.clone();
     app.run(move |cx| {
+        cx.set_global(ending);
         startup::init(cx);
         startup::set_app_menu(system_language(), cx);
         if open(failure, Appearance::System, Launch { opts, rt }, true, cx).is_none() {
             cx.quit();
         }
     });
-    Ok(())
+    // An error the window had no screen for (see `FailureView::carry_on`) ends the process as any startup error does.
+    left.take().map_or(Ok(()), Err)
 }

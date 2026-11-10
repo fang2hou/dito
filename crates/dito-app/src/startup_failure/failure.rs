@@ -90,7 +90,7 @@ impl Failure {
     pub fn reason(&self, lang: Lang) -> String {
         match self {
             Self::UnreadableSettings { position: Some((line, column)), message, .. } => {
-                fmt::asr_syntax_error(lang, &column.to_string(), message, &line.to_string())
+                fmt::line_column_error(lang, &column.to_string(), message, &line.to_string())
             }
             Self::UnreadableSettings { message, .. } => message.clone(),
             Self::NewerData { found, supported, .. } => {

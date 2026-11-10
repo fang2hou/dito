@@ -96,7 +96,7 @@ fn configuration_model<'a>(
     polish_configuration: Option<&'a CloudPolishConfiguration>,
 ) -> &'a str {
     if let Some(asr_configurations) = asr_configurations {
-        return asr_configurations.active()["connection"]["model"].as_str().unwrap_or("");
+        return asr_configurations.active().map_or("", |c| c.config["connection"]["model"].as_str().unwrap_or(""));
     }
     polish_configuration.map_or("", |c| c.target.model())
 }
@@ -110,7 +110,9 @@ fn endpoint_cell(
     if let Some(asr_configurations) = asr_configurations {
         return (
             c.t(Tr::ModelsEndpoint),
-            url_host(asr_configurations.active()["connection"]["base_url"].as_str().unwrap_or("")),
+            url_host(
+                asr_configurations.active().map_or("", |c| c.config["connection"]["base_url"].as_str().unwrap_or("")),
+            ),
         );
     }
     match polish_configuration.map(|c| &c.target) {

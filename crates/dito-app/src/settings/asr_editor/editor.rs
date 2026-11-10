@@ -155,9 +155,18 @@ impl AsrEditor {
         let config = self.st.cfg.get();
         let list = configuration_list::of(&config);
         self.drafts.retain(|id, _| list.items.iter().any(|configuration| configuration.id == *id));
-        let id = list.selected_id();
+        let id = match list.active() {
+            Some(active) => active.id.clone(),
+            // A hand-edited selection that names nothing: the form needs a configuration to show, so the first is
+            // selected for real and requests then run what the form shows.
+            None => {
+                let Some(first) = list.items.first() else { return };
+                self.saved(configuration_list::select(&self.st.cfg, &first.id), cx);
+                first.id.clone()
+            }
+        };
         if self.shown != id {
-            self.show(id, window, cx);
+            self.show(&id, window, cx);
         }
     }
 

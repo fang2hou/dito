@@ -50,8 +50,8 @@ impl CloudPolishTemplate {
         }
     }
 
-    /// Azure and OpenAI-compatible servers start with the reasoning effort the settings always began with and nothing
-    /// else. Bedrock starts with the sampling its engine used before it was configurable, and no reasoning effort.
+    /// Azure and OpenAI-compatible servers start with no parameters. Bedrock starts with temperature 0.2 and 2048 max
+    /// tokens, and no reasoning effort.
     fn params(self) -> CloudPolishParams {
         match self {
             Self::Compat | Self::Azure => CloudPolishParams::default(),
@@ -189,7 +189,7 @@ impl Entry for CloudPolishConfiguration {
     }
 }
 
-/// The templates a fresh list starts from, in the order of the tabs the form had before configurations existed. The first one is in use.
+/// The templates a fresh list starts from, in this order. The first one is in use.
 const STARTING: [CloudPolishTemplate; 3] =
     [CloudPolishTemplate::Azure, CloudPolishTemplate::Bedrock, CloudPolishTemplate::Compat];
 
@@ -204,8 +204,8 @@ pub struct CloudPolishConfigurations {
 }
 
 impl CloudPolishConfigurations {
-    /// The three templates as configurations, named after their templates in `lang`. Their ids keep the Keychain
-    /// accounts of the keys saved before configurations existed.
+    /// The three templates as configurations, named after their templates in `lang`. Their ids are the ones the
+    /// migration from version 2 gives the old forms, so a fresh list and a migrated one use the same Keychain accounts.
     pub fn new(lang: Lang) -> Self {
         let items: Vec<_> =
             STARTING.map(|template| template.configuration(template.id(), lang.tr(template.label()))).into();

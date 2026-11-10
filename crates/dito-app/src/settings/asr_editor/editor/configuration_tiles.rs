@@ -32,7 +32,7 @@ impl AsrEditor {
     pub(super) fn tile_row(&self, c: &Ctx, cx: &mut Context<Self>) -> AnyElement {
         let config = self.st.cfg.get();
         let list = configuration_list::of(&config);
-        let shown = list.selected_id();
+        let shown = list.active().map(|configuration| configuration.id.as_str());
         let tiles = list
             .items
             .iter()
@@ -40,7 +40,7 @@ impl AsrEditor {
                 id: configuration.id.clone().into(),
                 name: configuration.name.clone().into(),
                 detail: model_label(&configuration.config, c),
-                selected: configuration.id == shown,
+                selected: Some(configuration.id.as_str()) == shown,
             })
             .collect();
         ui::tile_row("asr-tiles", &c.p, &self.tiles, tiles)

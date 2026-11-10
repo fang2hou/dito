@@ -134,10 +134,12 @@ impl EngineConfig {
     pub fn label(&self) -> String {
         match (self.source, &self.cloud_asr) {
             (Source::Local, _) => format!("local:{}", self.local_model),
-            (Source::Provider, Some(configurations)) => {
-                let model = configurations.active()["connection"]["model"].as_str().unwrap_or("");
-                format!("{}:{model}", configurations.account())
-            }
+            (Source::Provider, Some(configurations)) => configurations
+                .active()
+                .map(|active| {
+                    format!("{}:{}", active.account(), active.config["connection"]["model"].as_str().unwrap_or(""))
+                })
+                .unwrap_or_default(),
             (Source::Provider, None) => self.active_polish().map(|active| active.label()).unwrap_or_default(),
         }
     }
@@ -211,5 +213,18 @@ mod tests {
         assert_eq!(engine.active_polish().unwrap().id, "compat");
         engine.polish_configurations_mut(Lang::En).selected = "gone".into();
         assert!(engine.active_polish().is_none(), "a selection that points nowhere is not replaced by a template");
+    }
+
+    #[test]
+    fn a_speech_label_names_the_selected_configuration_and_nothing_when_the_selection_points_nowhere() {
+        let mut engine = EngineConfig {
+            source: Source::Provider,
+            cloud_asr: Some(CloudAsrConfigurations::default()),
+            ..EngineConfig::default()
+        };
+        engine.cloud_asr.as_mut().unwrap().active_mut().unwrap()["connection"]["model"] = "paraformer-v2".into();
+        assert_eq!(engine.label(), "asr.funasr:paraformer-v2");
+        engine.cloud_asr.as_mut().unwrap().selected = "gone".into();
+        assert_eq!(engine.label(), "", "no configuration is substituted for the missing one");
     }
 }

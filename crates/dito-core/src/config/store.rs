@@ -208,7 +208,7 @@ mod tests {
         let encoded = toml::to_string(&config).unwrap();
         let decoded: Config = toml::from_str(&encoded).unwrap();
         assert_eq!(config, decoded);
-        assert!(decoded.asr.cloud_asr.unwrap().active()["language_map"]["auto"].is_null());
+        assert!(decoded.asr.cloud_asr.unwrap().active().unwrap().config["language_map"]["auto"].is_null());
     }
 
     #[test]
@@ -290,11 +290,12 @@ profiles = ['{untouched}', '{untouched}', '{edited}']
         let cfg = ConfigStore::open(&path).unwrap().get();
         let configurations = cfg.asr.cloud_asr.as_ref().unwrap();
         assert_eq!(configurations.selected, "openrouter");
-        assert_eq!(configurations.selected_id(), "openrouter");
-        assert_eq!(configurations.account(), "asr.openrouter", "the Keychain account is the one the position had");
+        let active = configurations.active().unwrap();
+        assert_eq!(active.id, "openrouter");
+        assert_eq!(active.account(), "asr.openrouter", "the Keychain account is the one the position had");
         assert_eq!(configurations.active_name(), Some("OpenRouter"));
         let expected: serde_json::Value = serde_json::from_str(edited).unwrap();
-        assert_eq!(configurations.active(), &expected, "edits and nulls stay");
+        assert_eq!(active.config, expected, "edits and nulls stay");
         assert!(dir.path().join("config.toml.v1.bak").exists(), "the original is kept");
 
         // The rewritten file is in the new shape and loads back unchanged.

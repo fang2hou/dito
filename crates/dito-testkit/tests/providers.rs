@@ -50,7 +50,7 @@ fn compat_cfg(base_url: &str) -> Config {
 fn factory(key: Option<&str>) -> EngineFactory {
     let secrets = Arc::new(MemorySecrets::default());
     if let Some(k) = key {
-        secrets.set(&CloudAsrConfigurations::default().account(), k).unwrap();
+        secrets.set(&CloudAsrConfigurations::default().active().unwrap().account(), k).unwrap();
         secrets.set(&polish_account("azure"), k).unwrap();
         secrets.set(&polish_account("compat"), k).unwrap();
     }

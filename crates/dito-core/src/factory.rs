@@ -143,8 +143,11 @@ impl EngineFactory {
                         &bundled
                     }
                 };
-                let key = self.secrets.get(&configurations.account()).unwrap_or_default();
-                Ok(Arc::new(ConfiguredAsr::new(configurations.active().clone(), key)?))
+                let active = configurations.active().ok_or_else(|| {
+                    ProviderError::new(ErrorKind::Unavailable, "no cloud speech configuration is selected")
+                })?;
+                let key = self.secrets.get(&active.account()).unwrap_or_default();
+                Ok(Arc::new(ConfiguredAsr::new(active.config.clone(), key)?))
             }
         }
     }

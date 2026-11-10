@@ -316,7 +316,6 @@ async fn scene(rig: &mut Rig<'_>, appearance: Appearance) {
 /// renaming, reordering and deleting persist, and each configuration keeps its draft, key, history and test result.
 async fn behavior(rig: &mut Rig<'_>, server: &str) {
     rig.start(Appearance::Light, WIDTH, HEIGHT).await;
-    let new_name = Lang::Ja.tr(Tr::ModelsNewConfiguration);
 
     // The form starts on the selected configuration; only that one has a draft.
     let form = rig.form();
@@ -482,7 +481,6 @@ async fn behavior(rig: &mut Rig<'_>, server: &str) {
     rig.assert_added(&copy);
     assert!(copy.starts_with(added.split('-').next().unwrap()), "a copy starts from the template of its source");
     assert_eq!(ids(rig.st).len(), 7);
-    let _ = new_name;
 
     // Deleting removes the configuration with its key and draft; the neighbour is shown.
     let (rows, _) = saved(rig.st);
