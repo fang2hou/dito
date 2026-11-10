@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use super::{EngineConfig, General, PolishConfig, ProviderKind, ReasoningEffort, SCHEMA_VERSION, Source};
+use super::{AsrProfiles, EngineConfig, General, PolishConfig, ProviderKind, ReasoningEffort, SCHEMA_VERSION, Source};
 use crate::prompts::Prompts;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -37,12 +37,12 @@ impl Default for Config {
 }
 
 impl Config {
-    /// First-run defaults for development: Azure MAI-Transcribe-2 + gpt-6.1-terra (low).
+    /// Development defaults: speech through the bundled cloud profiles, polishing through Azure (gpt-6.1-terra, low).
+    /// No endpoint is set; the caller points the active speech profile and the Azure polish endpoint at a server.
     pub fn dev_azure() -> Self {
         let mut c = Self::default();
         c.asr.source = Source::Provider;
-        c.asr.provider.kind = ProviderKind::Azure;
-        c.asr.provider.azure.deployment = "MAI-Transcribe-2".into();
+        c.asr.cloud_asr = Some(AsrProfiles::default());
         c.polish.engine.source = Source::Provider;
         c.polish.engine.provider.kind = ProviderKind::Azure;
         c.polish.engine.provider.azure.deployment = "gpt-6.1-terra".into();
