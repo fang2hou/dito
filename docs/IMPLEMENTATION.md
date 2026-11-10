@@ -124,6 +124,10 @@ Things that look removable or simplifiable but exist for a reason. Product-level
 
 The commit hooks run `./scripts/check.sh fast` and `mise run lint:rust`; run `./scripts/check.sh full` before a release build. A green run proves the commands passed, not that the behavior is right; check UI changes in the running app.
 
+### Changing the database schema
+
+The SQLite store behind `dito.db` versions its schema with `PRAGMA user_version`, which equals the number of entries in `MIGRATIONS` (`crates/dito-core/src/store.rs`) that have been applied. To change the schema, append a migration to that list; never edit or reorder one that has shipped, because existing databases have already run it. The store applies pending migrations when it opens the database and owns `user_version`, so nothing else writes it, and it refuses a database whose version is newer than the list. Add a test that opens a database at the previous version and checks that its rows survive and `user_version` reaches the new value.
+
 ### Adding a local model
 
 The catalog in `dito-local` owns model files, pinned URLs, sizes, checksums, memory estimates, language-focus hints and the inference layout. For another checkpoint of an existing `ModelFormat`, add one catalog entry; downloads, verification, selection and engine lifecycle reuse the existing path. `ModelFormat` declares exact filenames for each role, so a projector or unrelated ONNX file cannot be mistaken for the main model. Keep external data files such as Haas-ja's `encoder.data` in the same download entry and directory.

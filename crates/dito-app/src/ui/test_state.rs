@@ -12,7 +12,7 @@ impl From<TestOutcome> for TestState {
     fn from(outcome: TestOutcome) -> Self {
         match outcome {
             TestOutcome::Ok { latency_ms } => Self::Ok(latency_ms),
-            TestOutcome::Failed { kind, message } => Self::Failed(format!("{kind:?}: {message}")),
+            TestOutcome::Failed { kind, message } => Self::Failed(format!("{}: {message}", kind.code())),
         }
     }
 }
