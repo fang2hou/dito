@@ -4,6 +4,8 @@ mod appearance_seg;
 mod banner;
 mod button;
 mod callbacks;
+#[cfg_attr(not(feature = "screenshots"), expect(dead_code, reason = "the Models page adopts the tile row later"))]
+mod config_tiles;
 mod format;
 mod glass;
 mod history_tip;
@@ -24,6 +26,7 @@ mod scope;
 mod segmented;
 mod select;
 mod select_badge;
+mod selectable;
 mod switch;
 mod test_state;
 mod tip_bubble;
@@ -39,6 +42,11 @@ pub use button::{
     close_button, disabled_button, icon_button, icon_button_with,
 };
 pub use callbacks::{Cb, cbk, cbk_idx, click_cb};
+#[cfg_attr(
+    not(feature = "screenshots"),
+    expect(unused_imports, reason = "the Models page adopts the tile row later")
+)]
+pub use config_tiles::{ConfigTile, TilePlus, TileRowState, cbk_id, cbk_move, tile_row};
 pub use format::{error_line, error_summary, fmt_bytes, fmt_eta, history_style_label};
 pub use glass::{prepare as prepare_card_backdrop, wordmark as page_wordmark};
 pub use history_tip::history_tip;
@@ -65,14 +73,15 @@ pub use scope::{MotionScope, ScopeHandle, motion_scope, with_motion_scope};
 pub use segmented::{SegContent, SegOption, SegStyle, seg, seg_with};
 pub use select::{SelectItem, select, select_disabled, select_items, select_multi, select_trigger};
 pub use select_badge::SelectBadge;
+pub use selectable::selectable_text;
 pub use switch::switch;
 pub use test_state::TestState;
 pub use tip_bubble::TIP_BUBBLE_H;
 pub use tooltip::{dismiss_tips, tip_above, tip_label, tip_pop, tip_pop_with, tooltip_root};
 pub use tween::{spring, tweened, tweened_at};
 pub use typography::{
-    cjk_family, init_text_system, is_cjk, muted12, set_ui_language, text, text_tracked, text_width, tracked,
-    tracking_for,
+    cjk_family, family_for, init_text_system, is_cjk, muted12, set_ui_language, text, text_lines, text_tracked,
+    text_width, tracked, tracking_for,
 };
 pub use watch::{notify_on_change, observe};
 

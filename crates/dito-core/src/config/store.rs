@@ -75,14 +75,7 @@ impl ConfigStore {
     }
 
     fn write(&self, cfg: &Config) -> Result<()> {
-        if let Some(dir) = self.path.parent() {
-            std::fs::create_dir_all(dir)?;
-        }
-        let text = toml::to_string_pretty(cfg)?;
-        let tmp = self.path.with_extension("toml.tmp");
-        std::fs::write(&tmp, text)?;
-        std::fs::rename(&tmp, &self.path)?;
-        Ok(())
+        write_file(&self.path, cfg)
     }
 }
 
@@ -94,6 +87,19 @@ fn forget_key(account: Option<String>, secrets: &dyn SecretStore) -> bool {
         tracing::warn!("could not delete the API key of a removed entry: {error}");
     }
     true
+}
+
+/// Write `cfg` to `path` through a temporary file beside it, so a crash leaves the old file or the new one, never a
+/// half-written one.
+pub(super) fn write_file(path: &Path, cfg: &Config) -> Result<()> {
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir)?;
+    }
+    let text = toml::to_string_pretty(cfg)?;
+    let tmp = path.with_extension("toml.tmp");
+    std::fs::write(&tmp, text)?;
+    std::fs::rename(&tmp, path)?;
+    Ok(())
 }
 
 /// Parse `text`, upgrade it to the current schema and return the settings together with the version the file was at.
