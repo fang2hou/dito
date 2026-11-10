@@ -3,7 +3,6 @@ use std::sync::Arc;
 
 use dito_core::config::Source;
 use dito_core::i18n::{Lang, Tr};
-use gpui_kit::component::input::{InputEvent, InputState};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
@@ -15,7 +14,7 @@ use crate::services::{self, DictionaryWords};
 use crate::state::AppState;
 use crate::theme::Palette;
 use crate::timefmt::now;
-use crate::ui::{self, BtnKind, cbk, text};
+use crate::ui::{self, BtnKind, InputEvent, InputState, cbk, text};
 
 pub struct DictionaryPage {
     st: Arc<AppState>,

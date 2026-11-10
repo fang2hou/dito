@@ -3,7 +3,6 @@ use std::rc::Rc;
 use dito_core::config::ProviderKind;
 use dito_core::i18n::Tr;
 use dito_core::secrets::Role;
-use gpui_kit::component::input::InputState;
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
@@ -12,7 +11,7 @@ use super::page::ModelsPage;
 use crate::services;
 use crate::settings::{Ctx, role};
 use crate::theme::Palette;
-use crate::ui::{self, BtnKind, TestState, cbk, text};
+use crate::ui::{self, BtnKind, InputState, TestState, cbk, text};
 
 impl ModelsPage {
     pub(super) fn provider_tiles(&self, c: &Ctx, cx: &mut Context<Self>, role: Role, kind: ProviderKind) -> Div {

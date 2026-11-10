@@ -5,7 +5,6 @@ use std::time::Duration;
 use dito_core::i18n::Tr;
 use dito_core::prompts::Style;
 use dito_core::store::{HistoryEntry, HistoryFilter};
-use gpui_kit::component::input::{InputEvent, InputState};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
@@ -14,7 +13,7 @@ use crate::settings::page_query::{PageQuery, QueryPage};
 use crate::settings::query_state::SkeletonGate;
 use crate::state::AppState;
 use crate::timefmt::{local_day, now};
-use crate::ui;
+use crate::ui::{self, InputEvent, InputState};
 
 const POLL_INTERVAL: Duration = Duration::from_millis(1200);
 

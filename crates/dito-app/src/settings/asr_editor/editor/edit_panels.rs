@@ -1,7 +1,6 @@
 use dito_core::i18n::Tr;
 use dito_core::provider::configured_asr::AsrProfiles;
 use gpui_kit::base::input::{Redo, Undo};
-use gpui_kit::component::input::Editor;
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
@@ -9,7 +8,7 @@ use super::{AsrEditor, ISO_CODES, LOCALE_CODES};
 use crate::assets::Ic;
 use crate::settings::Ctx;
 use crate::theme::Palette;
-use crate::ui::{self, BtnKind, cbk, cbk_idx, text};
+use crate::ui::{self, BtnKind, Editor, cbk, cbk_idx, text};
 
 impl AsrEditor {
     pub(super) fn inline(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> Div {
