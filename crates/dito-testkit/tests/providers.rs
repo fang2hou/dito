@@ -4,7 +4,9 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use dito_core::audio::AudioClip;
-use dito_core::config::{AsrProfiles, Config, PolishConfiguration, ReasoningEffort, RequestParams, Source};
+use dito_core::config::{
+    CloudAsrConfigurations, CloudPolishConfiguration, CloudPolishParams, Config, ReasoningEffort, Source,
+};
 use dito_core::error::ErrorKind;
 use dito_core::factory::{EngineFactory, Engines};
 use dito_core::pipeline::CancellationToken;
@@ -20,7 +22,7 @@ fn tone() -> AudioClip {
 }
 
 /// The configuration the polish engine of `cfg` runs.
-fn active(cfg: &mut Config) -> &mut PolishConfiguration {
+fn active(cfg: &mut Config) -> &mut CloudPolishConfiguration {
     cfg.polish.engine.polish_configurations_mut(cfg.general.lang()).active_mut().expect("a configuration is selected")
 }
 
@@ -48,7 +50,7 @@ fn compat_cfg(base_url: &str) -> Config {
 fn factory(key: Option<&str>) -> EngineFactory {
     let secrets = Arc::new(MemorySecrets::default());
     if let Some(k) = key {
-        secrets.set(&AsrProfiles::default().account(), k).unwrap();
+        secrets.set(&CloudAsrConfigurations::default().account(), k).unwrap();
         secrets.set(&polish_account("azure"), k).unwrap();
         secrets.set(&polish_account("compat"), k).unwrap();
     }
@@ -192,7 +194,7 @@ async fn a_parameter_that_is_not_set_is_not_sent() {
     let srv = MockServer::start().await.unwrap();
     for mut cfg in [mock_cfg(&srv.url), compat_cfg(&format!("{}/v1", srv.url))] {
         active(&mut cfg).params =
-            RequestParams { reasoning_effort: ReasoningEffort::Custom(String::new()), ..Default::default() };
+            CloudPolishParams { reasoning_effort: ReasoningEffort::Custom(String::new()), ..Default::default() };
         let body = polish_body(&cfg, &srv).await;
         assert_eq!(body_keys(&body), ["messages", "model"], "nothing but the prompt and the model");
     }
@@ -201,7 +203,7 @@ async fn a_parameter_that_is_not_set_is_not_sent() {
 #[tokio::test]
 async fn set_parameters_are_sent_under_the_token_limit_name_of_their_api() {
     let srv = MockServer::start().await.unwrap();
-    let params = RequestParams {
+    let params = CloudPolishParams {
         temperature: Some(0.3),
         top_p: Some(0.9),
         max_tokens: Some(256),
@@ -232,7 +234,7 @@ async fn set_parameters_are_sent_under_the_token_limit_name_of_their_api() {
 async fn extra_is_merged_over_the_request_body_last() {
     let srv = MockServer::start().await.unwrap();
     let mut cfg = mock_cfg(&srv.url);
-    active(&mut cfg).params = RequestParams {
+    active(&mut cfg).params = CloudPolishParams {
         temperature: Some(0.3),
         extra: serde_json::from_value(json!({"temperature": 0.9, "seed": 42, "response_format": {"type": "text"}}))
             .unwrap(),

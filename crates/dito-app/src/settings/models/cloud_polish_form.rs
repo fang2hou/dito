@@ -3,7 +3,7 @@
 
 use std::ops::Index;
 
-use dito_core::config::{PolishConfiguration, PolishConfigurations, PolishTarget, PolishTemplate};
+use dito_core::config::{CloudPolishConfiguration, CloudPolishConfigurations, CloudPolishTarget, CloudPolishTemplate};
 use dito_core::i18n::{Lang, Tr};
 use dito_core::secrets::SecretStore;
 use gpui_kit::prelude::*;
@@ -24,7 +24,7 @@ pub(super) struct CloudPolishForm {
     /// Id of the configuration the inputs show.
     shown: Option<String>,
     /// What the placeholders were written for: they depend on the template and the language.
-    placeholders: Option<(PolishTemplate, Lang)>,
+    placeholders: Option<(CloudPolishTemplate, Lang)>,
 }
 
 impl CloudPolishForm {
@@ -54,7 +54,7 @@ impl CloudPolishForm {
     /// and the placeholders of its template. Setting a value is not an edit, so nothing is saved by this.
     pub(super) fn follow(
         &mut self,
-        active: Option<&PolishConfiguration>,
+        active: Option<&CloudPolishConfiguration>,
         lang: Lang,
         secrets: &dyn SecretStore,
         window: &mut Window,
@@ -99,15 +99,15 @@ impl Index<CloudPolishField> for CloudPolishForm {
 }
 
 /// The placeholder of `field` for a configuration of `template`.
-fn placeholder(field: CloudPolishField, template: PolishTemplate, lang: Lang) -> &'static str {
+fn placeholder(field: CloudPolishField, template: CloudPolishTemplate, lang: Lang) -> &'static str {
     match (field, template) {
         (CloudPolishField::Name, _) => "",
-        (CloudPolishField::Address, PolishTemplate::Azure) => "https://…openai.azure.com/",
-        (CloudPolishField::Address, PolishTemplate::Bedrock) => "ap-northeast-1",
-        (CloudPolishField::Address, PolishTemplate::Compat) => "https://…",
-        (CloudPolishField::Model, PolishTemplate::Azure) => "gpt-6.1-terra",
-        (CloudPolishField::Model, PolishTemplate::Bedrock) => "anthropic.claude-sonnet-4-…",
-        (CloudPolishField::Model, PolishTemplate::Compat) => lang.tr(Tr::ModelsModelPlaceholder),
+        (CloudPolishField::Address, CloudPolishTemplate::Azure) => "https://…openai.azure.com/",
+        (CloudPolishField::Address, CloudPolishTemplate::Bedrock) => "ap-northeast-1",
+        (CloudPolishField::Address, CloudPolishTemplate::Compat) => "https://…",
+        (CloudPolishField::Model, CloudPolishTemplate::Azure) => "gpt-6.1-terra",
+        (CloudPolishField::Model, CloudPolishTemplate::Bedrock) => "anthropic.claude-sonnet-4-…",
+        (CloudPolishField::Model, CloudPolishTemplate::Compat) => lang.tr(Tr::ModelsModelPlaceholder),
         (CloudPolishField::Key, _) => "••••••••",
         (CloudPolishField::Temperature | CloudPolishField::TopP | CloudPolishField::MaxTokens, _) => {
             lang.tr(Tr::ModelsCloudNumberPlaceholder)
@@ -119,7 +119,7 @@ fn placeholder(field: CloudPolishField, template: PolishTemplate, lang: Lang) ->
 
 /// What the selector shows of each cloud polish configuration, in the order of the list. The tile row takes exactly
 /// this, so the selector can be swapped for it without touching what feeds it.
-pub(super) fn cloud_polish_config_tiles(configurations: &PolishConfigurations) -> Vec<ui::ConfigTile> {
+pub(super) fn cloud_polish_config_tiles(configurations: &CloudPolishConfigurations) -> Vec<ui::ConfigTile> {
     configurations
         .items
         .iter()
@@ -176,10 +176,10 @@ impl ModelsPage {
                     .min_w(px(0.)),
             );
         let credential = match &active.target {
-            PolishTarget::Bedrock { profile, .. } => {
+            CloudPolishTarget::Bedrock { profile, .. } => {
                 ui::form_field(p, c.t(Tr::ModelsAwsProfile), self.cloud_polish_aws_profile_select(c, cx, profile))
             }
-            PolishTarget::Azure { .. } | PolishTarget::Compat { .. } => {
+            CloudPolishTarget::Azure { .. } | CloudPolishTarget::Compat { .. } => {
                 ui::form_field(p, c.t(Tr::ModelsApiKey), form_input(p, &form[CloudPolishField::Key]))
             }
         };
@@ -302,7 +302,7 @@ impl ModelsPage {
         };
         let saved = services::try_save_config(&self.st, |cfg| {
             let lang = cfg.general.lang();
-            if let Some(PolishConfiguration { target: PolishTarget::Bedrock { profile, .. }, .. }) =
+            if let Some(CloudPolishConfiguration { target: CloudPolishTarget::Bedrock { profile, .. }, .. }) =
                 cfg.polish.engine.polish_configurations_mut(lang).get_mut(&id)
             {
                 *profile = name;
@@ -422,33 +422,33 @@ fn form_input(p: &Palette, state: &Entity<InputState>) -> impl IntoElement {
 }
 
 /// The label of the first field of the form of a template.
-fn address_label(template: PolishTemplate) -> Tr {
+fn address_label(template: CloudPolishTemplate) -> Tr {
     match template {
-        PolishTemplate::Azure => Tr::ModelsEndpoint,
-        PolishTemplate::Bedrock => Tr::ModelsRegion,
-        PolishTemplate::Compat => Tr::ModelsBaseUrl,
+        CloudPolishTemplate::Azure => Tr::ModelsEndpoint,
+        CloudPolishTemplate::Bedrock => Tr::ModelsRegion,
+        CloudPolishTemplate::Compat => Tr::ModelsBaseUrl,
     }
 }
 
 /// The label of the model field of the form of a template.
-fn model_label(template: PolishTemplate) -> Tr {
+fn model_label(template: CloudPolishTemplate) -> Tr {
     match template {
-        PolishTemplate::Azure => Tr::ModelsDeployment,
-        PolishTemplate::Bedrock => Tr::ModelsModelId,
-        PolishTemplate::Compat => Tr::ModelsModel,
+        CloudPolishTemplate::Azure => Tr::ModelsDeployment,
+        CloudPolishTemplate::Bedrock => Tr::ModelsModelId,
+        CloudPolishTemplate::Compat => Tr::ModelsModel,
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use dito_core::config::PolishConfigurations;
+    use dito_core::config::CloudPolishConfigurations;
     use dito_core::i18n::Lang;
 
     use super::{CloudPolishField, cloud_polish_config_tiles};
 
     #[test]
     fn the_selector_feed_follows_the_name_and_model_as_they_are_typed() {
-        let mut list = PolishConfigurations::new(Lang::En);
+        let mut list = CloudPolishConfigurations::new(Lang::En);
         list.select("compat");
         let compat = list.get_mut("compat").unwrap();
         assert!(CloudPolishField::Name.apply(compat, "Fast"));

@@ -18,12 +18,12 @@ pub fn configuration_spec(language: Lang, name: &str, request_json: &str) -> Str
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::AsrTemplate;
+    use crate::config::CloudAsrTemplate;
 
     #[test]
     fn the_reference_describes_the_configuration_it_is_given_not_a_bundled_template() {
         let own = "{\n  \"version\": 1,\n  \"connection\": {\n    \"base_url\": \"https://asr.example/v1\",\n    \"model\": \"my-own-model\"\n  }\n}";
-        let first_template = serde_json::to_string_pretty(&AsrTemplate::ALL[0].config()).unwrap();
+        let first_template = serde_json::to_string_pretty(&CloudAsrTemplate::ALL[0].config()).unwrap();
         for (index, language) in Lang::ALL.into_iter().enumerate() {
             let text = configuration_spec(language, "Mine", own);
             assert!(text.starts_with("<dito_speech_model_config_spec>\n"), "language {index}");

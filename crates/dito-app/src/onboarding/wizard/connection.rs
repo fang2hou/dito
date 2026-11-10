@@ -75,7 +75,10 @@ impl Onboarding {
             self.deployment.read(cx).value().to_string(),
         );
         services::save_config(&self.st, |c| {
-            let p = c.asr.cloud_asr.get_or_insert_with(dito_core::provider::configured_asr::AsrProfiles::default);
+            let p = c
+                .asr
+                .cloud_asr
+                .get_or_insert_with(dito_core::provider::configured_asr::CloudAsrConfigurations::default);
             p.select(&id);
             if let Some(v) = p.active_mut() {
                 v["connection"]["base_url"] = base.into();

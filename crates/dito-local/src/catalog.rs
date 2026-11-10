@@ -1,6 +1,6 @@
 //! The models Dito can run on-device. Sizes and SHA-256 come from the Hugging Face file listings.
 
-use dito_core::config::LocalParams;
+use dito_core::config::LocalPolishParams;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ModelKind {
@@ -48,7 +48,7 @@ impl Sampling {
     pub const POLISH: Self = Self { temperature: 0.2, top_p: None, top_k: None, max_tokens: None };
 
     /// These values with every field the user set laid over them.
-    pub fn with_params(self, params: &LocalParams) -> Self {
+    pub fn with_params(self, params: &LocalPolishParams) -> Self {
         Self {
             temperature: params.temperature.unwrap_or(self.temperature),
             top_p: params.top_p.or(self.top_p),
@@ -366,8 +366,8 @@ mod tests {
     #[test]
     fn user_parameters_replace_the_recommended_sampling_field_by_field() {
         let recommended = Sampling { temperature: 0.2, top_p: Some(0.9), top_k: None, max_tokens: None };
-        assert_eq!(recommended.with_params(&LocalParams::default()), recommended, "nothing set, nothing changed");
-        let set = LocalParams { temperature: Some(0.7), top_p: None, top_k: Some(40), max_tokens: Some(100) };
+        assert_eq!(recommended.with_params(&LocalPolishParams::default()), recommended, "nothing set, nothing changed");
+        let set = LocalPolishParams { temperature: Some(0.7), top_p: None, top_k: Some(40), max_tokens: Some(100) };
         let expected = Sampling { temperature: 0.7, top_p: Some(0.9), top_k: Some(40), max_tokens: Some(100) };
         assert_eq!(recommended.with_params(&set), expected, "an unset field keeps the recommendation");
     }

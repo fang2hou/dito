@@ -5,7 +5,7 @@
 
 use std::ops::{RangeBounds, RangeFrom, RangeInclusive};
 
-use dito_core::config::{LocalParams, PolishConfiguration};
+use dito_core::config::{CloudPolishConfiguration, LocalPolishParams};
 use serde_json::{Map, Value};
 
 /// What the text of a number or object field means.
@@ -124,7 +124,7 @@ impl CloudPolishField {
     }
 
     /// What the form shows of this setting of `config`. The key is not part of it.
-    pub(super) fn show(self, config: &PolishConfiguration) -> String {
+    pub(super) fn show(self, config: &CloudPolishConfiguration) -> String {
         match self {
             Self::Name => config.name.clone(),
             Self::Address => config.target.address().to_owned(),
@@ -140,7 +140,7 @@ impl CloudPolishField {
 
     /// Put `text` into the setting of `config`. `false` when it is not [accepted](Self::accepts), and then `config`
     /// is as it was. The key lives in the Keychain, so there is nothing to put.
-    pub(super) fn apply(self, config: &mut PolishConfiguration, text: &str) -> bool {
+    pub(super) fn apply(self, config: &mut CloudPolishConfiguration, text: &str) -> bool {
         if !self.accepts(text) {
             return false;
         }
@@ -180,7 +180,7 @@ impl LocalPolishField {
         }
     }
 
-    pub(super) fn show(self, params: &LocalParams) -> String {
+    pub(super) fn show(self, params: &LocalPolishParams) -> String {
         match self {
             Self::Temperature => show_number(params.temperature),
             Self::TopP => show_number(params.top_p),
@@ -190,7 +190,7 @@ impl LocalPolishField {
     }
 
     /// Put `text` into `params`. `false` when it does not parse, and then `params` is as it was.
-    pub(super) fn apply(self, params: &mut LocalParams, text: &str) -> bool {
+    pub(super) fn apply(self, params: &mut LocalPolishParams, text: &str) -> bool {
         if self.invalid(text) {
             return false;
         }
@@ -212,12 +212,12 @@ pub(super) fn settled_cloud_polish_name<'a>(typed: &'a str, saved: &'a str) -> &
 
 #[cfg(test)]
 mod tests {
-    use dito_core::config::{PolishTemplate, ReasoningEffort};
+    use dito_core::config::{CloudPolishTemplate, ReasoningEffort};
 
     use super::*;
 
-    fn configuration() -> PolishConfiguration {
-        PolishTemplate::Compat.configuration("compat", "Mine")
+    fn configuration() -> CloudPolishConfiguration {
+        CloudPolishTemplate::Compat.configuration("compat", "Mine")
     }
 
     #[test]
@@ -361,7 +361,7 @@ mod tests {
 
     #[test]
     fn address_and_model_save_as_typed_into_the_field_of_the_template() {
-        for template in PolishTemplate::ALL {
+        for template in CloudPolishTemplate::ALL {
             let mut config = template.configuration("x", "X");
             assert!(CloudPolishField::Address.apply(&mut config, "typed address"));
             assert!(CloudPolishField::Model.apply(&mut config, "typed model"));
@@ -394,14 +394,14 @@ mod tests {
 
     #[test]
     fn local_parameters_follow_the_same_rules() {
-        let mut params = LocalParams::default();
+        let mut params = LocalPolishParams::default();
         assert!(LocalPolishField::Temperature.apply(&mut params, "0.3"));
         assert!(LocalPolishField::TopP.apply(&mut params, "0.9"));
         assert!(LocalPolishField::TopK.apply(&mut params, "40"));
         assert!(LocalPolishField::MaxTokens.apply(&mut params, "512"));
         assert_eq!(
             params,
-            LocalParams { temperature: Some(0.3), top_p: Some(0.9), top_k: Some(40), max_tokens: Some(512) }
+            LocalPolishParams { temperature: Some(0.3), top_p: Some(0.9), top_k: Some(40), max_tokens: Some(512) }
         );
 
         assert!(!LocalPolishField::TopK.apply(&mut params, "0"));
@@ -419,6 +419,6 @@ mod tests {
         for field in LocalPolishField::ALL {
             assert!(field.apply(&mut params, ""));
         }
-        assert_eq!(params, LocalParams::default(), "empty fields use the recommended values again");
+        assert_eq!(params, LocalPolishParams::default(), "empty fields use the recommended values again");
     }
 }

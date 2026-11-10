@@ -4,7 +4,7 @@ use std::{path::Path, sync::Arc, time::Duration};
 
 use dito_core::{
     config::{DisplayLanguage, Source},
-    provider::configured_asr::AsrProfiles,
+    provider::configured_asr::CloudAsrConfigurations,
     secrets::Role,
 };
 use gpui_kit::*;
@@ -48,7 +48,7 @@ fn draft(cx: &mut AsyncApp) -> String {
 
 pub async fn run(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     let server = st._mock_server.as_ref().expect("inline ASR verification requires --mock");
-    let mut profiles = AsrProfiles::default();
+    let mut profiles = CloudAsrConfigurations::default();
     profiles.select("qwen_asr");
     let config = profiles.active_mut().expect("the bundled templates include qwen_asr");
     config["connection"]["base_url"] = format!("{}/v1", server.url).into();

@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use super::{AsrProfiles, PolishConfiguration, PolishConfigurations};
+use super::{CloudAsrConfigurations, CloudPolishConfiguration, CloudPolishConfigurations};
 use crate::i18n::Lang;
 
 pub const DEFAULT_ASR_LOCAL: &str = "qwen3-asr-1.7b";
@@ -63,7 +63,7 @@ impl From<ReasoningEffort> for String {
 /// model.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default)]
 #[serde(default)]
-pub struct LocalParams {
+pub struct LocalPolishParams {
     pub temperature: Option<f32>,
     pub top_p: Option<f32>,
     pub top_k: Option<u32>,
@@ -73,15 +73,15 @@ pub struct LocalParams {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct EngineConfig {
-    pub cloud_asr: Option<AsrProfiles>,
+    pub cloud_asr: Option<CloudAsrConfigurations>,
     /// Polish only. `None` until a list is first saved; the three templates stand in, as the bundled profiles do for
     /// speech.
-    pub cloud_polish: Option<PolishConfigurations>,
+    pub cloud_polish: Option<CloudPolishConfigurations>,
     pub source: Source,
     pub local_model: String,
     /// Polish only: the sampling of each local model that has any set, by model id.
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
-    pub local_params: BTreeMap<String, LocalParams>,
+    pub local_params: BTreeMap<String, LocalPolishParams>,
 }
 
 impl EngineConfig {
@@ -97,32 +97,32 @@ impl EngineConfig {
 
     /// The saved polish configurations, or the templates' three while none are saved, named in `lang`: the language
     /// the UI is shown in, which is not necessarily the system's.
-    pub fn polish_configurations(&self, lang: Lang) -> Cow<'_, PolishConfigurations> {
-        self.cloud_polish.as_ref().map_or_else(|| Cow::Owned(PolishConfigurations::new(lang)), Cow::Borrowed)
+    pub fn polish_configurations(&self, lang: Lang) -> Cow<'_, CloudPolishConfigurations> {
+        self.cloud_polish.as_ref().map_or_else(|| Cow::Owned(CloudPolishConfigurations::new(lang)), Cow::Borrowed)
     }
 
     /// The saved polish configurations for editing; the first edit saves the templates' three, named in `lang`.
-    pub fn polish_configurations_mut(&mut self, lang: Lang) -> &mut PolishConfigurations {
-        self.cloud_polish.get_or_insert_with(|| PolishConfigurations::new(lang))
+    pub fn polish_configurations_mut(&mut self, lang: Lang) -> &mut CloudPolishConfigurations {
+        self.cloud_polish.get_or_insert_with(|| CloudPolishConfigurations::new(lang))
     }
 
     /// The configuration polish requests run: the selected one of the saved list, or the first template's while none
     /// is saved. For the code that sends requests, which reads no name and so needs no language.
-    pub fn active_polish(&self) -> Option<Cow<'_, PolishConfiguration>> {
+    pub fn active_polish(&self) -> Option<Cow<'_, CloudPolishConfiguration>> {
         match &self.cloud_polish {
             Some(saved) => saved.active().map(Cow::Borrowed),
-            None => Some(Cow::Owned(PolishConfigurations::stand_in_active())),
+            None => Some(Cow::Owned(CloudPolishConfigurations::stand_in_active())),
         }
     }
 
     /// The parameters set for the local model `model`; all unset when there are none.
-    pub fn local_params_for(&self, model: &str) -> LocalParams {
+    pub fn local_params_for(&self, model: &str) -> LocalPolishParams {
         self.local_params.get(model).copied().unwrap_or_default()
     }
 
     /// Save the parameters of the local model `model`. Parameters that set nothing are not kept.
-    pub fn set_local_params(&mut self, model: &str, params: LocalParams) {
-        if params == LocalParams::default() {
+    pub fn set_local_params(&mut self, model: &str, params: LocalPolishParams) {
+        if params == LocalPolishParams::default() {
             self.local_params.remove(model);
         } else {
             self.local_params.insert(model.to_owned(), params);

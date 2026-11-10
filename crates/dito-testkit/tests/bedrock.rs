@@ -2,7 +2,7 @@
 
 use std::sync::Once;
 
-use dito_core::config::{PolishTemplate, ReasoningEffort, RequestParams};
+use dito_core::config::{CloudPolishParams, CloudPolishTemplate, ReasoningEffort};
 use dito_core::error::ErrorKind;
 use dito_core::provider::bedrock::{BedrockEngine, BedrockParams};
 use dito_core::provider::{PolishRequest, Polisher};
@@ -26,7 +26,7 @@ fn creds() {
     });
 }
 
-async fn engine_with(url: &str, model: &str, params: RequestParams) -> BedrockEngine {
+async fn engine_with(url: &str, model: &str, params: CloudPolishParams) -> BedrockEngine {
     creds();
     BedrockEngine::connect(BedrockParams {
         profile: String::new(),
@@ -43,13 +43,13 @@ async fn engine(url: &str, model: &str) -> BedrockEngine {
     engine_with(
         url,
         model,
-        RequestParams { reasoning_effort: ReasoningEffort::Custom(String::new()), ..Default::default() },
+        CloudPolishParams { reasoning_effort: ReasoningEffort::Custom(String::new()), ..Default::default() },
     )
     .await
 }
 
 /// What the engine sent for one polish call with `params`: the Converse request body.
-async fn sent(model: &str, params: RequestParams) -> Value {
+async fn sent(model: &str, params: CloudPolishParams) -> Value {
     let srv = MockServer::start().await.unwrap();
     let e = engine_with(&srv.url, model, params).await;
     e.polish(&PolishRequest { system: "s", text: "ok" }).await.unwrap();
@@ -61,8 +61,8 @@ fn approx(value: &Value, expected: f64) -> bool {
 }
 
 /// The sampling the engine sent before it was configurable, which the Bedrock template starts with.
-fn template_params() -> RequestParams {
-    PolishTemplate::Bedrock.configuration("bedrock", "Amazon Bedrock").params
+fn template_params() -> CloudPolishParams {
+    CloudPolishTemplate::Bedrock.configuration("bedrock", "Amazon Bedrock").params
 }
 
 #[tokio::test]
@@ -84,9 +84,11 @@ async fn polish_uses_converse_with_the_system_prompt() {
 
 #[tokio::test]
 async fn nothing_is_sent_for_parameters_that_are_not_set() {
-    let body =
-        sent(CLAUDE, RequestParams { reasoning_effort: ReasoningEffort::Custom(String::new()), ..Default::default() })
-            .await;
+    let body = sent(
+        CLAUDE,
+        CloudPolishParams { reasoning_effort: ReasoningEffort::Custom(String::new()), ..Default::default() },
+    )
+    .await;
     assert!(body.get("inferenceConfig").is_none(), "{body}");
     assert!(body.get("additionalModelRequestFields").is_none(), "{body}");
 }
@@ -103,7 +105,7 @@ async fn the_template_starts_with_the_sampling_the_engine_always_sent() {
 
 #[tokio::test]
 async fn claude_with_an_effort_thinks_adaptively_and_is_sent_no_sampling() {
-    let params = RequestParams { top_p: Some(0.9), reasoning_effort: ReasoningEffort::Low, ..template_params() };
+    let params = CloudPolishParams { top_p: Some(0.9), reasoning_effort: ReasoningEffort::Low, ..template_params() };
     let body = sent(CLAUDE, params).await;
     assert_eq!(body["inferenceConfig"], json!({"maxTokens": 2048}), "Bedrock refuses sampling next to thinking");
     assert_eq!(
@@ -114,7 +116,7 @@ async fn claude_with_an_effort_thinks_adaptively_and_is_sent_no_sampling() {
 
 #[tokio::test]
 async fn other_models_get_the_effort_as_reasoning_effort_and_keep_their_sampling() {
-    let params = RequestParams { top_p: Some(0.9), reasoning_effort: ReasoningEffort::High, ..template_params() };
+    let params = CloudPolishParams { top_p: Some(0.9), reasoning_effort: ReasoningEffort::High, ..template_params() };
     let body = sent(OTHER, params).await;
     let config = &body["inferenceConfig"];
     assert!(approx(&config["temperature"], 0.2) && approx(&config["topP"], 0.9), "{config}");
@@ -123,7 +125,7 @@ async fn other_models_get_the_effort_as_reasoning_effort_and_keep_their_sampling
 
 #[tokio::test]
 async fn extra_goes_into_the_additional_model_request_fields_over_the_effort() {
-    let params = RequestParams {
+    let params = CloudPolishParams {
         reasoning_effort: ReasoningEffort::Low,
         extra: serde_json::from_value(json!({"top_k": 5, "output_config": {"effort": "high"}, "stop": [null, 1.5]}))
             .unwrap(),
@@ -153,7 +155,7 @@ async fn empty_model_id_is_rejected_up_front() {
         profile: String::new(),
         region: "ap-northeast-1".into(),
         model_id: "  ".into(),
-        params: RequestParams::default(),
+        params: CloudPolishParams::default(),
         endpoint_override: None,
     })
     .await

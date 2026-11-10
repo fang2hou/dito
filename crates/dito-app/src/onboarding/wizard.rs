@@ -104,7 +104,7 @@ impl Onboarding {
 
     fn connection_inputs(
         st: &AppState,
-        profiles: &dito_core::provider::configured_asr::AsrProfiles,
+        profiles: &dito_core::provider::configured_asr::CloudAsrConfigurations,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> [Entity<InputState>; 3] {

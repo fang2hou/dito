@@ -12,7 +12,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use dito_core::audio::AudioClip;
-use dito_core::config::{ConfigStore, LocalParams};
+use dito_core::config::{ConfigStore, LocalPolishParams};
 use dito_core::error::ErrorKind;
 use dito_core::factory::LocalBackend;
 use dito_core::health::EngineStatus;
@@ -106,7 +106,7 @@ async fn main() {
         dictionary: &["Acme".into()],
     });
     let started = Instant::now();
-    let llm = engines.polisher(&polish_id, &LocalParams::default()).await.expect("load polish model");
+    let llm = engines.polisher(&polish_id, &LocalPolishParams::default()).await.expect("load polish model");
     println!("{polish_id} loaded in {:?}", started.elapsed());
     let started = Instant::now();
     let polished = llm.polish(&PolishRequest { system: &system, text: transcript }).await.expect("polish");

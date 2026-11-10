@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use dito_core::config::AsrProfile;
+use dito_core::config::CloudAsrConfiguration;
 use gpui_kit::base::input::{Diagnostic, DiagnosticSeverity, Position};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
@@ -168,7 +168,7 @@ impl AsrEditor {
     }
 
     /// The draft of `profile`, from what is saved: its request JSON in an editor of its own, and its key.
-    fn start_draft(&mut self, profile: &AsrProfile, window: &mut Window, cx: &mut Context<Self>) {
+    fn start_draft(&mut self, profile: &CloudAsrConfiguration, window: &mut Window, cx: &mut Context<Self>) {
         if self.drafts.contains_key(&profile.id) {
             return;
         }

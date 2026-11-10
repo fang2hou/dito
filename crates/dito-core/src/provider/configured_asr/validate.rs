@@ -316,11 +316,11 @@ fn check_placeholders(s: &str, encoding: &str) -> Result<(), ValidationError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::provider::configured_asr::AsrProfiles;
+    use crate::provider::configured_asr::CloudAsrConfigurations;
 
     #[test]
     fn templates_require_model() {
-        for profile in AsrProfiles::default().profiles {
+        for profile in CloudAsrConfigurations::default().profiles {
             let mut v = profile.config;
             assert!(validate(&v).is_err());
             v["connection"]["model"] = "user-model".into();

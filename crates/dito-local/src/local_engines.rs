@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use async_trait::async_trait;
-use dito_core::config::LocalParams;
+use dito_core::config::LocalPolishParams;
 use dito_core::error::{ErrorKind, ProviderError, ProviderResult};
 use dito_core::factory::LocalBackend;
 use dito_core::health::EngineStatus;
@@ -255,7 +255,7 @@ impl LocalBackend for LocalEngines {
         }
     }
 
-    async fn polisher(&self, model_id: &str, params: &LocalParams) -> ProviderResult<Arc<dyn Polisher>> {
+    async fn polisher(&self, model_id: &str, params: &LocalPolishParams) -> ProviderResult<Arc<dyn Polisher>> {
         let recommended = self.manager.spec(model_id).and_then(|spec| spec.format.sampling());
         match (self.ensure_loaded(model_id).await?, recommended) {
             (Slot::Llm(rt), Some(recommended)) => Ok(Arc::new(LocalLlm {

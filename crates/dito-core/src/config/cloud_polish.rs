@@ -11,13 +11,13 @@ use crate::secrets::polish_account;
 
 /// The API formats a new configuration can start from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum PolishTemplate {
+pub enum CloudPolishTemplate {
     Compat,
     Azure,
     Bedrock,
 }
 
-impl PolishTemplate {
+impl CloudPolishTemplate {
     /// In the order the Add menu lists them.
     pub const ALL: [Self; 3] = [Self::Compat, Self::Azure, Self::Bedrock];
 
@@ -38,11 +38,11 @@ impl PolishTemplate {
         }
     }
 
-    fn target(self) -> PolishTarget {
+    fn target(self) -> CloudPolishTarget {
         match self {
-            Self::Compat => PolishTarget::Compat { base_url: String::new(), model: String::new() },
-            Self::Azure => PolishTarget::Azure { endpoint: String::new(), deployment: String::new() },
-            Self::Bedrock => PolishTarget::Bedrock {
+            Self::Compat => CloudPolishTarget::Compat { base_url: String::new(), model: String::new() },
+            Self::Azure => CloudPolishTarget::Azure { endpoint: String::new(), deployment: String::new() },
+            Self::Bedrock => CloudPolishTarget::Bedrock {
                 profile: String::new(),
                 region: "ap-northeast-1".into(),
                 model_id: String::new(),
@@ -52,28 +52,28 @@ impl PolishTemplate {
 
     /// Azure and OpenAI-compatible servers start with the reasoning effort the settings always began with and nothing
     /// else. Bedrock starts with the sampling its engine used before it was configurable, and no reasoning effort.
-    fn params(self) -> RequestParams {
+    fn params(self) -> CloudPolishParams {
         match self {
-            Self::Compat | Self::Azure => RequestParams::default(),
-            Self::Bedrock => RequestParams {
+            Self::Compat | Self::Azure => CloudPolishParams::default(),
+            Self::Bedrock => CloudPolishParams {
                 temperature: Some(0.2),
                 max_tokens: Some(2048),
                 reasoning_effort: ReasoningEffort::Custom(String::new()),
-                ..RequestParams::default()
+                ..CloudPolishParams::default()
             },
         }
     }
 
     /// A configuration of this template with the given identity.
-    pub fn configuration(self, id: &str, name: &str) -> PolishConfiguration {
-        PolishConfiguration { id: id.into(), name: name.into(), target: self.target(), params: self.params() }
+    pub fn configuration(self, id: &str, name: &str) -> CloudPolishConfiguration {
+        CloudPolishConfiguration { id: id.into(), name: name.into(), target: self.target(), params: self.params() }
     }
 }
 
 /// Where a configuration's requests go, and what they ask for: the fields its template fixes.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "template", rename_all = "snake_case")]
-pub enum PolishTarget {
+pub enum CloudPolishTarget {
     Azure {
         #[serde(default)]
         endpoint: String,
@@ -96,12 +96,12 @@ pub enum PolishTarget {
     },
 }
 
-impl PolishTarget {
-    pub fn template(&self) -> PolishTemplate {
+impl CloudPolishTarget {
+    pub fn template(&self) -> CloudPolishTemplate {
         match self {
-            Self::Azure { .. } => PolishTemplate::Azure,
-            Self::Bedrock { .. } => PolishTemplate::Bedrock,
-            Self::Compat { .. } => PolishTemplate::Compat,
+            Self::Azure { .. } => CloudPolishTemplate::Azure,
+            Self::Bedrock { .. } => CloudPolishTemplate::Bedrock,
+            Self::Compat { .. } => CloudPolishTemplate::Compat,
         }
     }
 
@@ -143,7 +143,7 @@ impl PolishTarget {
 /// What a request sends beyond the prompt. A parameter that is not set is left out of the request.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 #[serde(default)]
-pub struct RequestParams {
+pub struct CloudPolishParams {
     pub temperature: Option<f32>,
     pub top_p: Option<f32>,
     pub max_tokens: Option<u32>,
@@ -157,17 +157,17 @@ pub struct RequestParams {
 
 /// One saved cloud setup: a name, the fields of its template, the request parameters and, under `account()`, a key.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct PolishConfiguration {
+pub struct CloudPolishConfiguration {
     /// Stable identity; also the suffix of the configuration's Keychain account.
     pub id: String,
     pub name: String,
     #[serde(flatten)]
-    pub target: PolishTarget,
+    pub target: CloudPolishTarget,
     #[serde(default)]
-    pub params: RequestParams,
+    pub params: CloudPolishParams,
 }
 
-impl PolishConfiguration {
+impl CloudPolishConfiguration {
     /// Keychain account of this configuration's API key.
     pub fn account(&self) -> String {
         polish_account(&self.id)
@@ -179,7 +179,7 @@ impl PolishConfiguration {
     }
 }
 
-impl Entry for PolishConfiguration {
+impl Entry for CloudPolishConfiguration {
     fn id(&self) -> &str {
         &self.id
     }
@@ -190,19 +190,20 @@ impl Entry for PolishConfiguration {
 }
 
 /// The templates a fresh list starts from, in the order of the original provider tabs. The first one is in use.
-const STARTING: [PolishTemplate; 3] = [PolishTemplate::Azure, PolishTemplate::Bedrock, PolishTemplate::Compat];
+const STARTING: [CloudPolishTemplate; 3] =
+    [CloudPolishTemplate::Azure, CloudPolishTemplate::Bedrock, CloudPolishTemplate::Compat];
 
 /// The cloud polish configurations and the one in use. Only `new` makes a list with content: its names depend on the
 /// language the UI is shown in, which a default has no way to know.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 #[serde(default)]
-pub struct PolishConfigurations {
+pub struct CloudPolishConfigurations {
     /// Id of the configuration in use.
     pub selected: String,
-    pub items: Vec<PolishConfiguration>,
+    pub items: Vec<CloudPolishConfiguration>,
 }
 
-impl PolishConfigurations {
+impl CloudPolishConfigurations {
     /// The three templates as configurations, named after their templates in `lang`. Their ids keep the Keychain
     /// accounts of the keys saved before configurations existed.
     pub fn new(lang: Lang) -> Self {
@@ -213,29 +214,29 @@ impl PolishConfigurations {
 
     /// The configuration in use while no list is saved, as `new` makes it but without a name, since no request reads
     /// one.
-    pub(super) fn stand_in_active() -> PolishConfiguration {
+    pub(super) fn stand_in_active() -> CloudPolishConfiguration {
         let template = STARTING[0];
         template.configuration(template.id(), "")
     }
 
-    fn list(&mut self) -> List<'_, PolishConfiguration> {
+    fn list(&mut self) -> List<'_, CloudPolishConfiguration> {
         List::new(&mut self.selected, &mut self.items)
     }
 
-    pub fn get(&self, id: &str) -> Option<&PolishConfiguration> {
+    pub fn get(&self, id: &str) -> Option<&CloudPolishConfiguration> {
         self.items.iter().find(|item| item.id == id)
     }
 
-    pub fn get_mut(&mut self, id: &str) -> Option<&mut PolishConfiguration> {
+    pub fn get_mut(&mut self, id: &str) -> Option<&mut CloudPolishConfiguration> {
         self.items.iter_mut().find(|item| item.id == id)
     }
 
     /// The configuration in use. `None` when no configuration has the selected id.
-    pub fn active(&self) -> Option<&PolishConfiguration> {
+    pub fn active(&self) -> Option<&CloudPolishConfiguration> {
         self.get(&self.selected)
     }
 
-    pub fn active_mut(&mut self) -> Option<&mut PolishConfiguration> {
+    pub fn active_mut(&mut self) -> Option<&mut CloudPolishConfiguration> {
         let selected = &self.selected;
         self.items.iter_mut().find(|item| item.id == *selected)
     }
@@ -246,7 +247,7 @@ impl PolishConfigurations {
     }
 
     /// Append a configuration made from `template`, select it and return its id.
-    pub fn add_from_template(&mut self, template: PolishTemplate, name: &str) -> String {
+    pub fn add_from_template(&mut self, template: CloudPolishTemplate, name: &str) -> String {
         let id = self.list().fresh_id(template.id());
         self.list().push(template.configuration(&id, name));
         id
@@ -264,10 +265,10 @@ impl PolishConfigurations {
     }
 
     /// Take a configuration out of the list and return it. Its key is still under its `account()`:
-    /// `ConfigStore::remove_polish_configuration` removes both, deleting the key only once the list is saved. The last
+    /// `ConfigStore::remove_cloud_polish_configuration` removes both, deleting the key only once the list is saved. The last
     /// configuration stays, so this returns `None` for it. When the configuration in use goes, its neighbour is
     /// selected.
-    pub fn remove(&mut self, id: &str) -> Option<PolishConfiguration> {
+    pub fn remove(&mut self, id: &str) -> Option<CloudPolishConfiguration> {
         self.list().remove(id)
     }
 
@@ -302,7 +303,7 @@ mod tests {
     use super::*;
     use crate::config::list::contract::{Editable, check_editing};
 
-    impl Editable for PolishConfigurations {
+    impl Editable for CloudPolishConfigurations {
         fn ids(&self) -> Vec<String> {
             self.items.iter().map(|item| item.id.clone()).collect()
         }
@@ -313,41 +314,41 @@ mod tests {
             self.get(id).map(|item| item.name.clone())
         }
         fn select(&mut self, id: &str) -> bool {
-            PolishConfigurations::select(self, id)
+            CloudPolishConfigurations::select(self, id)
         }
         fn add(&mut self, name: &str) -> String {
-            self.add_from_template(PolishTemplate::Azure, name)
+            self.add_from_template(CloudPolishTemplate::Azure, name)
         }
         fn duplicate(&mut self, id: &str, name: &str) -> Option<String> {
-            PolishConfigurations::duplicate(self, id, name)
+            CloudPolishConfigurations::duplicate(self, id, name)
         }
         fn remove(&mut self, id: &str) -> bool {
-            PolishConfigurations::remove(self, id).is_some()
+            CloudPolishConfigurations::remove(self, id).is_some()
         }
         fn move_to(&mut self, id: &str, index: usize) -> bool {
-            PolishConfigurations::move_to(self, id, index)
+            CloudPolishConfigurations::move_to(self, id, index)
         }
         fn rename(&mut self, id: &str, name: &str) -> bool {
-            PolishConfigurations::rename(self, id, name)
+            CloudPolishConfigurations::rename(self, id, name)
         }
     }
 
     #[test]
     fn the_editing_api_behaves_as_documented() {
-        check_editing(&mut PolishConfigurations::new(Lang::Ja));
+        check_editing(&mut CloudPolishConfigurations::new(Lang::Ja));
     }
 
     #[test]
     fn a_fresh_list_is_the_three_templates_named_in_the_language() {
-        let ja = PolishConfigurations::new(Lang::Ja);
+        let ja = CloudPolishConfigurations::new(Lang::Ja);
         let identities: Vec<_> = ja.items.iter().map(|c| (c.id.as_str(), c.name.as_str())).collect();
         assert_eq!(
             identities,
             [("azure", "Azure OpenAI"), ("bedrock", "Amazon Bedrock"), ("compat", "OpenAI 互換 API")]
         );
         assert_eq!(ja.selected, "azure");
-        assert_eq!(PolishConfigurations::new(Lang::En).items[2].name, "OpenAI-compatible API");
-        assert_eq!(PolishConfigurations::new(Lang::Zh).items[2].name, "OpenAI 兼容 API");
+        assert_eq!(CloudPolishConfigurations::new(Lang::En).items[2].name, "OpenAI-compatible API");
+        assert_eq!(CloudPolishConfigurations::new(Lang::Zh).items[2].name, "OpenAI 兼容 API");
 
         let bedrock = ja.get("bedrock").unwrap();
         assert_eq!(bedrock.target.address(), "ap-northeast-1");
@@ -357,28 +358,28 @@ mod tests {
         for plain in [ja.get("azure").unwrap(), ja.get("compat").unwrap()] {
             assert_eq!(plain.target.address(), "");
             assert_eq!(plain.target.model(), "");
-            let RequestParams { temperature, top_p, max_tokens, extra, .. } = &plain.params;
+            let CloudPolishParams { temperature, top_p, max_tokens, extra, .. } = &plain.params;
             assert!(temperature.is_none() && top_p.is_none() && max_tokens.is_none() && extra.is_empty());
         }
     }
 
     #[test]
     fn templates_make_configurations_of_their_own_kind_with_account_and_label() {
-        for template in PolishTemplate::ALL {
+        for template in CloudPolishTemplate::ALL {
             let made = template.configuration("x-1", "Name");
             assert_eq!(made.target.template(), template);
             assert_eq!(made.account(), "polish.x-1");
             let saved = toml::Table::try_from(&made).unwrap();
             assert_eq!(saved["template"].as_str(), Some(template.id()), "the saved tag is the template id");
         }
-        let mut azure = PolishTemplate::Azure.configuration("a", "A");
+        let mut azure = CloudPolishTemplate::Azure.configuration("a", "A");
         *azure.target.model_mut() = "gpt-x".into();
         assert_eq!(azure.label(), "azure:gpt-x");
     }
 
     #[test]
     fn duplicating_copies_the_content_under_a_new_account() {
-        let mut list = PolishConfigurations::new(Lang::En);
+        let mut list = CloudPolishConfigurations::new(Lang::En);
         let source = list.get_mut("bedrock").unwrap();
         *source.target.model_mut() = "model-x".into();
         source.params.top_p = Some(0.9);
@@ -391,7 +392,7 @@ mod tests {
 
     #[test]
     fn configurations_survive_toml_with_their_parameters_and_extra_fields() {
-        let mut list = PolishConfigurations::new(Lang::Ja);
+        let mut list = CloudPolishConfigurations::new(Lang::Ja);
         let compat = list.get_mut("compat").unwrap();
         compat.params.temperature = Some(0.2);
         compat.params.top_p = Some(0.95);
@@ -401,7 +402,7 @@ mod tests {
 
         #[derive(Serialize, Deserialize)]
         struct Holder {
-            cloud_polish: PolishConfigurations,
+            cloud_polish: CloudPolishConfigurations,
         }
         let text = toml::to_string_pretty(&Holder { cloud_polish: list.clone() }).unwrap();
         assert!(text.contains("temperature = 0.2\n"), "an f32 is written as the number it was typed as:\n{text}");
@@ -419,7 +420,7 @@ mod tests {
     #[test]
     fn extra_must_be_a_json_object_and_an_absent_one_is_empty() {
         let load = |extra: &str| {
-            toml::from_str::<PolishConfiguration>(&format!(
+            toml::from_str::<CloudPolishConfiguration>(&format!(
                 "id = 'x'\nname = 'X'\ntemplate = 'compat'\n[params]\nextra = '{extra}'\n"
             ))
         };
@@ -427,8 +428,8 @@ mod tests {
         for bad in ["[1]", "5", "not json", ""] {
             assert!(load(bad).is_err(), "{bad:?}");
         }
-        let minimal: PolishConfiguration = toml::from_str("id = 'x'\nname = 'X'\ntemplate = 'azure'\n").unwrap();
-        assert_eq!(minimal.target, PolishTarget::Azure { endpoint: String::new(), deployment: String::new() });
-        assert_eq!(minimal.params, RequestParams::default());
+        let minimal: CloudPolishConfiguration = toml::from_str("id = 'x'\nname = 'X'\ntemplate = 'azure'\n").unwrap();
+        assert_eq!(minimal.target, CloudPolishTarget::Azure { endpoint: String::new(), deployment: String::new() });
+        assert_eq!(minimal.params, CloudPolishParams::default());
     }
 }

@@ -5,24 +5,24 @@
 use std::borrow::Cow;
 
 use anyhow::Result;
-use dito_core::config::{AsrProfiles, AsrTemplate, Config, ConfigStore};
+use dito_core::config::{CloudAsrConfigurations, CloudAsrTemplate, Config, ConfigStore};
 use dito_core::secrets::SecretStore;
 use serde_json::Value;
 
 /// The list in `config`: what was saved, or the bundled templates until something was saved (and for a list that was
 /// emptied by hand).
-pub(super) fn of(config: &Config) -> Cow<'_, AsrProfiles> {
+pub(super) fn of(config: &Config) -> Cow<'_, CloudAsrConfigurations> {
     match &config.asr.cloud_asr {
         Some(list) if !list.profiles.is_empty() => Cow::Borrowed(list),
-        _ => Cow::Owned(AsrProfiles::default()),
+        _ => Cow::Owned(CloudAsrConfigurations::default()),
     }
 }
 
 /// The list to change: the first change saves the bundled templates that stood in for it.
-fn of_mut(config: &mut Config) -> &mut AsrProfiles {
-    let list = config.asr.cloud_asr.get_or_insert_with(AsrProfiles::default);
+fn of_mut(config: &mut Config) -> &mut CloudAsrConfigurations {
+    let list = config.asr.cloud_asr.get_or_insert_with(CloudAsrConfigurations::default);
     if list.profiles.is_empty() {
-        *list = AsrProfiles::default();
+        *list = CloudAsrConfigurations::default();
     }
     list
 }
@@ -52,7 +52,7 @@ pub(super) fn move_to(cfg: &ConfigStore, id: &str, index: usize) -> Result<()> {
 }
 
 /// Append a configuration that starts from `template` and select it. Returns its id.
-pub(super) fn add(cfg: &ConfigStore, template: AsrTemplate, name: &str) -> Result<String> {
+pub(super) fn add(cfg: &ConfigStore, template: CloudAsrTemplate, name: &str) -> Result<String> {
     let mut added = String::new();
     cfg.update(|config| added = of_mut(config).add_from_template(template, name))?;
     Ok(added)
@@ -68,7 +68,7 @@ pub(super) fn duplicate(cfg: &ConfigStore, id: &str, name: &str) -> Result<Optio
 /// Remove `id` with its key, and select its neighbour when it was the one in use. `false` for the last configuration,
 /// which stays, and for an id nobody has.
 pub(super) fn remove(cfg: &ConfigStore, secrets: &dyn SecretStore, id: &str) -> Result<bool> {
-    Ok(cfg.remove_asr_profile(id, secrets)?)
+    Ok(cfg.remove_cloud_asr_configuration(id, secrets)?)
 }
 
 /// A key as typed and as the Keychain holds it.
@@ -143,7 +143,7 @@ mod tests {
     #[test]
     fn every_change_reaches_the_file_and_names_its_configuration_by_id() {
         let (dir, cfg) = store();
-        let added = add(&cfg, AsrTemplate::ALL[1], "Mine").unwrap();
+        let added = add(&cfg, CloudAsrTemplate::ALL[1], "Mine").unwrap();
         assert!(added.starts_with("qwen_asr-"), "{added}");
         let copy = duplicate(&cfg, "openrouter", "Copy").unwrap().unwrap();
         assert_eq!(duplicate(&cfg, "missing", "Copy").unwrap(), None);

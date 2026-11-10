@@ -4,7 +4,7 @@ use std::sync::Arc;
 use tokio::sync::watch;
 
 use super::migrate::{self, SCHEMA_VERSION, UpgradeError};
-use super::{AsrProfiles, Config, ConfigError};
+use super::{CloudAsrConfigurations, Config, ConfigError};
 use crate::secrets::SecretStore;
 
 type Result<T> = std::result::Result<T, ConfigError>;
@@ -61,16 +61,16 @@ impl ConfigStore {
 
     /// Remove a cloud polish configuration and the key it holds. The list is saved first, so a failed save keeps the
     /// configuration and its key together. The last configuration stays, and so does its key: `false`.
-    pub fn remove_polish_configuration(&self, id: &str, secrets: &dyn SecretStore) -> Result<bool> {
+    pub fn remove_cloud_polish_configuration(&self, id: &str, secrets: &dyn SecretStore) -> Result<bool> {
         let mut removed = None;
         self.update(|c| removed = c.polish.engine.polish_configurations_mut(c.general.lang()).remove(id))?;
         Ok(forget_key(removed.map(|configuration| configuration.account()), secrets))
     }
 
     /// The same for a cloud speech profile.
-    pub fn remove_asr_profile(&self, id: &str, secrets: &dyn SecretStore) -> Result<bool> {
+    pub fn remove_cloud_asr_configuration(&self, id: &str, secrets: &dyn SecretStore) -> Result<bool> {
         let mut removed = None;
-        self.update(|c| removed = c.asr.cloud_asr.get_or_insert_with(AsrProfiles::default).remove(id))?;
+        self.update(|c| removed = c.asr.cloud_asr.get_or_insert_with(CloudAsrConfigurations::default).remove(id))?;
         Ok(forget_key(removed.map(|profile| profile.account()), secrets))
     }
 
@@ -136,7 +136,7 @@ fn back_up(path: &Path, version: u32) -> std::io::Result<()> {
 mod tests {
     use super::*;
     use crate::config::{
-        Appearance, AsrProfiles, DEFAULT_POLISH_LOCAL, DEFAULT_SHORTCUT, MusicMuteMode, ReasoningEffort,
+        Appearance, CloudAsrConfigurations, DEFAULT_POLISH_LOCAL, DEFAULT_SHORTCUT, MusicMuteMode, ReasoningEffort,
     };
     use crate::i18n::Lang;
     use crate::prompts::{Style, default_set};
@@ -200,7 +200,7 @@ mod tests {
     #[test]
     fn profile_nulls_and_custom_requests_survive_toml_storage() {
         let mut config = Config::default();
-        let mut profiles = AsrProfiles::default();
+        let mut profiles = CloudAsrConfigurations::default();
         profiles.select("openrouter");
         profiles.profiles[2].config["connection"]["model"] = "my-model".into();
         profiles.profiles[2].config["language_map"]["ja"] = "JP".into();
@@ -378,19 +378,20 @@ reasoning_effort = "minimal"
 
     #[test]
     fn configurations_and_local_parameters_survive_toml_and_the_speech_section_stays_free_of_them() {
-        use crate::config::{LocalParams, PolishConfigurations, PolishTemplate};
+        use crate::config::{CloudPolishConfigurations, CloudPolishTemplate, LocalPolishParams};
         let mut config = Config::default();
-        let mut configurations = PolishConfigurations::new(Lang::En);
-        let added = configurations.add_from_template(PolishTemplate::Azure, "Mine");
+        let mut configurations = CloudPolishConfigurations::new(Lang::En);
+        let added = configurations.add_from_template(CloudPolishTemplate::Azure, "Mine");
         let mine = configurations.get_mut(&added).unwrap();
         *mine.target.model_mut() = "gpt-x".into();
         mine.params.temperature = Some(0.7);
         mine.params.max_tokens = Some(300);
         mine.params.extra = serde_json::from_str(r#"{"seed": 7, "stop": null}"#).unwrap();
         config.polish.engine.cloud_polish = Some(configurations);
-        let params = LocalParams { temperature: Some(0.3), top_p: Some(0.8), top_k: Some(40), max_tokens: Some(512) };
+        let params =
+            LocalPolishParams { temperature: Some(0.3), top_p: Some(0.8), top_k: Some(40), max_tokens: Some(512) };
         config.polish.engine.set_local_params("qwen3.5-9b-instruct", params);
-        config.polish.engine.set_local_params("qwen3.5-2b-instruct", LocalParams::default());
+        config.polish.engine.set_local_params("qwen3.5-2b-instruct", LocalPolishParams::default());
 
         let encoded = toml::to_string(&config).unwrap();
         assert_eq!(toml::from_str::<Config>(&encoded).unwrap(), config);
@@ -403,7 +404,7 @@ reasoning_effort = "minimal"
             "parameters that set nothing are not kept"
         );
         assert_eq!(config.polish.engine.local_params_for("qwen3.5-9b-instruct"), params);
-        assert_eq!(config.polish.engine.local_params_for("other"), LocalParams::default());
+        assert_eq!(config.polish.engine.local_params_for("other"), LocalPolishParams::default());
     }
 
     #[test]
@@ -418,7 +419,7 @@ reasoning_effort = "minimal"
         }
 
         // The configuration in use goes, its neighbour takes over, the other keys stay.
-        assert!(store.remove_polish_configuration("azure", &secrets).unwrap());
+        assert!(store.remove_cloud_polish_configuration("azure", &secrets).unwrap());
         let config = store.get();
         let list = config.polish.engine.polish_configurations(config.general.lang());
         assert_eq!(list.items.iter().map(|c| c.id.as_str()).collect::<Vec<_>>(), ["bedrock", "compat"]);
@@ -429,13 +430,13 @@ reasoning_effort = "minimal"
         assert_eq!(reopened.polish.engine.polish_configurations(reopened.general.lang()).items.len(), 2, "on disk");
 
         // The last one stays with its key; an unknown id is not a removal.
-        assert!(store.remove_polish_configuration("bedrock", &secrets).unwrap());
-        assert!(!store.remove_polish_configuration("compat", &secrets).unwrap());
-        assert!(!store.remove_polish_configuration("missing", &secrets).unwrap());
+        assert!(store.remove_cloud_polish_configuration("bedrock", &secrets).unwrap());
+        assert!(!store.remove_cloud_polish_configuration("compat", &secrets).unwrap());
+        assert!(!store.remove_cloud_polish_configuration("missing", &secrets).unwrap());
         assert_eq!(secrets.get("polish.compat").as_deref(), Some("key"));
 
         // Speech profiles go the same way.
-        assert!(store.remove_asr_profile("funasr", &secrets).unwrap());
+        assert!(store.remove_cloud_asr_configuration("funasr", &secrets).unwrap());
         assert_eq!(secrets.get("asr.funasr"), None);
         assert_eq!(secrets.get("asr.openrouter").as_deref(), Some("key"));
         assert_eq!(store.get().asr.cloud_asr.as_ref().unwrap().selected, "qwen_asr");
@@ -453,7 +454,7 @@ reasoning_effort = "minimal"
                 Err(SecretError::Backend("locked".into()))
             }
         }
-        assert!(store.remove_asr_profile("qwen_asr", &Locked).unwrap());
+        assert!(store.remove_cloud_asr_configuration("qwen_asr", &Locked).unwrap());
         assert_eq!(store.get().asr.cloud_asr.as_ref().unwrap().profiles.len(), 1);
     }
 

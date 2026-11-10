@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::Duration;
 
 use dito_core::audio::AudioClip;
-use dito_core::config::{ConfigStore, LocalParams};
+use dito_core::config::{ConfigStore, LocalPolishParams};
 use dito_core::error::ErrorKind;
 use dito_core::factory::LocalBackend;
 use dito_core::health::EngineStatus;
@@ -19,7 +19,8 @@ use dito_local::{
 /// What the user's parameters are not set for: the recommendation of the fixture's language model.
 const RECOMMENDED: Sampling = Sampling { temperature: 0.2, top_p: Some(0.9), top_k: None, max_tokens: None };
 
-const NO_PARAMS: LocalParams = LocalParams { temperature: None, top_p: None, top_k: None, max_tokens: None };
+const NO_PARAMS: LocalPolishParams =
+    LocalPolishParams { temperature: None, top_p: None, top_k: None, max_tokens: None };
 
 struct Fake {
     loads: AtomicUsize,
@@ -133,7 +134,7 @@ async fn a_polisher_samples_with_the_recommendation_under_the_parameters_of_its_
     engine.polisher("llm", &NO_PARAMS).await.unwrap().polish(&request).await.unwrap();
     assert_eq!(*seen.lock().unwrap(), Some(RECOMMENDED), "nothing set: the catalog's recommendation");
 
-    let params = LocalParams { temperature: Some(0.7), top_k: Some(40), max_tokens: Some(64), ..NO_PARAMS };
+    let params = LocalPolishParams { temperature: Some(0.7), top_k: Some(40), max_tokens: Some(64), ..NO_PARAMS };
     engine.polisher("llm", &params).await.unwrap().polish(&request).await.unwrap();
     let expected = Sampling { temperature: 0.7, top_p: Some(0.9), top_k: Some(40), max_tokens: Some(64) };
     assert_eq!(*seen.lock().unwrap(), Some(expected), "what is set wins, what is not keeps its recommendation");

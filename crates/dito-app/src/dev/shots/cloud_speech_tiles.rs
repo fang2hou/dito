@@ -7,7 +7,7 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
-use dito_core::config::{Appearance, AsrProfiles, AsrTemplate, ConfigStore, DisplayLanguage, Source};
+use dito_core::config::{Appearance, CloudAsrConfigurations, CloudAsrTemplate, ConfigStore, DisplayLanguage, Source};
 use dito_core::i18n::{Lang, Tr};
 use dito_core::secrets::{Role, asr_account};
 use gpui_kit::*;
@@ -165,7 +165,7 @@ impl Rig<'_> {
     /// Start from three configurations: the bundled templates with the models of the design's `20.05.1`, Qwen ASR
     /// selected and holding a key. Rebuilds the editor so that it starts from them.
     async fn start(&mut self, appearance: Appearance, width: f32, height: f32) {
-        let mut profiles = AsrProfiles::default();
+        let mut profiles = CloudAsrConfigurations::default();
         for (id, model) in
             [("funasr", "paraformer-v2"), ("qwen_asr", "my-asr-model"), ("openrouter", "openai/whisper-large-v3")]
         {
@@ -364,7 +364,7 @@ async fn behavior(rig: &mut Rig<'_>, server: &str) {
 
     // Adding from each template: a tile named 新しい設定 joins the end, selected, shown, and its name is selected.
     let list_before = ids(rig.st);
-    for (index, template) in AsrTemplate::ALL.iter().enumerate() {
+    for (index, template) in CloudAsrTemplate::ALL.iter().enumerate() {
         rig.add_through_menu(index).await;
         let list = ids(rig.st);
         assert_eq!(list.len(), list_before.len() + index + 1);

@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use super::{AsrProfiles, EngineConfig, General, PolishConfig, ReasoningEffort, SCHEMA_VERSION, Source};
+use super::{CloudAsrConfigurations, EngineConfig, General, PolishConfig, ReasoningEffort, SCHEMA_VERSION, Source};
 use crate::prompts::Prompts;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -43,7 +43,7 @@ impl Config {
     pub fn dev_azure() -> Self {
         let mut c = Self::default();
         c.asr.source = Source::Provider;
-        c.asr.cloud_asr = Some(AsrProfiles::default());
+        c.asr.cloud_asr = Some(CloudAsrConfigurations::default());
         c.polish.engine.source = Source::Provider;
         let configurations = c.polish.engine.polish_configurations_mut(c.general.lang());
         configurations.select("azure");

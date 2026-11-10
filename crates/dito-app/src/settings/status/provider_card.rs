@@ -1,6 +1,6 @@
-use dito_core::config::{EngineConfig, PolishConfiguration, PolishTarget, Source};
+use dito_core::config::{CloudPolishConfiguration, CloudPolishTarget, EngineConfig, Source};
 use dito_core::i18n::Tr;
-use dito_core::provider::configured_asr::AsrProfiles;
+use dito_core::provider::configured_asr::CloudAsrConfigurations;
 use dito_core::secrets::Role;
 use gpui_kit::*;
 
@@ -77,14 +77,20 @@ impl StatusPage {
 }
 
 /// The speech profile or polish configuration the engine runs, by the name it was given.
-fn provider_name<'a>(profiles: Option<&'a AsrProfiles>, configuration: Option<&'a PolishConfiguration>) -> &'a str {
+fn provider_name<'a>(
+    profiles: Option<&'a CloudAsrConfigurations>,
+    configuration: Option<&'a CloudPolishConfiguration>,
+) -> &'a str {
     match profiles {
         Some(profiles) => profiles.active_name().unwrap_or("—"),
         None => configuration.map_or("—", |c| c.name.as_str()),
     }
 }
 
-fn provider_model<'a>(profiles: Option<&'a AsrProfiles>, configuration: Option<&'a PolishConfiguration>) -> &'a str {
+fn provider_model<'a>(
+    profiles: Option<&'a CloudAsrConfigurations>,
+    configuration: Option<&'a CloudPolishConfiguration>,
+) -> &'a str {
     if let Some(profiles) = profiles {
         return profiles.active()["connection"]["model"].as_str().unwrap_or("");
     }
@@ -94,19 +100,19 @@ fn provider_model<'a>(profiles: Option<&'a AsrProfiles>, configuration: Option<&
 /// The card's second fact: where the provider is reached.
 fn endpoint_cell(
     c: &Ctx,
-    profiles: Option<&AsrProfiles>,
-    configuration: Option<&PolishConfiguration>,
+    profiles: Option<&CloudAsrConfigurations>,
+    configuration: Option<&CloudPolishConfiguration>,
 ) -> (SharedString, String) {
     if let Some(profiles) = profiles {
         return (c.t(Tr::ModelsEndpoint), url_host(profiles.active()["connection"]["base_url"].as_str().unwrap_or("")));
     }
     match configuration.map(|c| &c.target) {
-        Some(PolishTarget::Azure { endpoint, .. }) => {
+        Some(CloudPolishTarget::Azure { endpoint, .. }) => {
             let resource = azure_resource(endpoint);
             (c.t(Tr::ModelsResource), if resource.is_empty() { "—".into() } else { resource })
         }
-        Some(PolishTarget::Bedrock { region, .. }) => (c.t(Tr::ModelsRegion), region.clone()),
-        Some(PolishTarget::Compat { base_url, .. }) => {
+        Some(CloudPolishTarget::Bedrock { region, .. }) => (c.t(Tr::ModelsRegion), region.clone()),
+        Some(CloudPolishTarget::Compat { base_url, .. }) => {
             let host = url_host(base_url);
             (c.t(Tr::ModelsEndpoint), if host.is_empty() { "—".into() } else { host })
         }

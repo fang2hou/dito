@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use serde_json::{Number, Value, json};
 
 use super::{PolishRequest, Polisher, default_timeout};
-use crate::config::RequestParams;
+use crate::config::CloudPolishParams;
 use crate::error::{ErrorKind, ProviderError, ProviderResult};
 
 #[derive(Debug, Clone)]
@@ -19,7 +19,7 @@ pub enum Flavor {
 pub struct OpenAiEngine {
     flavor: Flavor,
     api_key: String,
-    params: RequestParams,
+    params: CloudPolishParams,
     client: reqwest::Client,
 }
 
@@ -35,7 +35,7 @@ fn json_number(value: f32) -> Option<Value> {
 }
 
 impl OpenAiEngine {
-    pub fn new(flavor: Flavor, api_key: impl Into<String>, params: RequestParams) -> ProviderResult<Self> {
+    pub fn new(flavor: Flavor, api_key: impl Into<String>, params: CloudPolishParams) -> ProviderResult<Self> {
         let (name, value) = match &flavor {
             Flavor::Azure { endpoint, deployment } => ("endpoint / deployment", (endpoint.trim(), deployment.trim())),
             Flavor::Compat { base_url, model } => ("base URL / model", (base_url.trim(), model.trim())),
@@ -158,7 +158,7 @@ mod tests {
     use super::*;
 
     fn compat(base: &str) -> OpenAiEngine {
-        OpenAiEngine::new(Flavor::Compat { base_url: base.into(), model: "m".into() }, "", RequestParams::default())
+        OpenAiEngine::new(Flavor::Compat { base_url: base.into(), model: "m".into() }, "", CloudPolishParams::default())
             .unwrap()
     }
 
@@ -174,7 +174,7 @@ mod tests {
         let e = OpenAiEngine::new(
             Flavor::Azure { endpoint: "https://x.openai.azure.com/".into(), deployment: "gpt-6.1-terra".into() },
             "k",
-            RequestParams::default(),
+            CloudPolishParams::default(),
         )
         .unwrap();
         assert_eq!(e.url("chat/completions"), "https://x.openai.azure.com/openai/v1/chat/completions");
@@ -192,10 +192,10 @@ mod tests {
 
     #[test]
     fn extra_wins_over_every_other_field_of_the_body() {
-        let params = RequestParams {
+        let params = CloudPolishParams {
             temperature: Some(0.2),
             extra: serde_json::from_str(r#"{"temperature": 0.9, "seed": 42, "model": "other"}"#).unwrap(),
-            ..RequestParams::default()
+            ..CloudPolishParams::default()
         };
         let engine =
             OpenAiEngine::new(Flavor::Compat { base_url: "http://h/v1".into(), model: "m".into() }, "", params)

@@ -3,7 +3,7 @@
 
 use std::ops::Index;
 
-use dito_core::config::LocalParams;
+use dito_core::config::LocalPolishParams;
 use dito_core::i18n::{Lang, Tr};
 use gpui_kit::*;
 
@@ -49,7 +49,7 @@ impl LocalPolishForm {
     pub(super) fn follow(
         &mut self,
         model: &str,
-        params: &LocalParams,
+        params: &LocalPolishParams,
         lang: Lang,
         window: &mut Window,
         cx: &mut Context<ModelsPage>,

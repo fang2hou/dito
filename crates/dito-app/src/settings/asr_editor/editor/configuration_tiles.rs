@@ -1,7 +1,7 @@
 //! The cloud speech configurations as tiles, the menu of the plus button that adds one, and what the tiles, the menu and
 //! the trash button do to the saved configurations.
 
-use dito_core::config::AsrTemplate;
+use dito_core::config::CloudAsrTemplate;
 use dito_core::i18n::Tr;
 use gpui_kit::prelude::*;
 use gpui_kit::*;
@@ -53,7 +53,7 @@ impl AsrEditor {
 
     /// The bundled templates a new configuration can start from, then a copy of the selected one.
     fn add_menu(&self, c: &Ctx, cx: &mut Context<Self>) -> AnyElement {
-        let templates = AsrTemplate::ALL
+        let templates = CloudAsrTemplate::ALL
             .iter()
             .map(|&template| ui::AddEntry {
                 label: template.name.into(),
@@ -93,7 +93,7 @@ impl AsrEditor {
     }
 
     /// Add a configuration that starts from `template`.
-    fn add_from_template(&mut self, template: AsrTemplate, window: &mut Window, cx: &mut Context<Self>) {
+    fn add_from_template(&mut self, template: CloudAsrTemplate, window: &mut Window, cx: &mut Context<Self>) {
         match configuration_list::add(&self.st.cfg, template, &self.new_configuration_name()) {
             Ok(id) => self.configuration_added(&id, window, cx),
             Err(error) => self.save_failed(&error, cx),

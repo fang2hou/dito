@@ -64,7 +64,7 @@ fn herdr_defaults(table: &mut Table) {
 }
 
 /// What each position of a version 1 profile list stood for: id, display name and the bundled template that completes
-/// a saved list lacking it. Spelled out here instead of read from `AsrProfiles`, so this step keeps its result when the
+/// a saved list lacking it. Spelled out here instead of read from `CloudAsrConfigurations`, so this step keeps its result when the
 /// bundled set grows or a name changes.
 const V1_PROFILES: &[(&str, &str, &str)] = &[
     ("funasr", "FunASR", include_str!("../../../../design/asr-templates/funasr.json")),
@@ -219,7 +219,7 @@ fn configuration<const FIELDS: usize, const PARAMS: usize>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{AsrProfiles, Config};
+    use crate::config::{CloudAsrConfigurations, Config};
     use crate::prompts::StylePrompt;
 
     fn parse(text: &str) -> Table {
@@ -279,7 +279,11 @@ profiles = ['{first}', '{second}']
         assert_eq!(profiles[0]["config"].as_str(), Some(first), "a saved profile keeps its text byte for byte");
         assert_eq!(profiles[1]["config"].as_str(), Some(second), "an edited profile keeps its text byte for byte");
         let completed: serde_json::Value = serde_json::from_str(profiles[2]["config"].as_str().unwrap()).unwrap();
-        assert_eq!(completed, AsrProfiles::default().profiles[2].config, "a missing profile starts from its template");
+        assert_eq!(
+            completed,
+            CloudAsrConfigurations::default().profiles[2].config,
+            "a missing profile starts from its template"
+        );
     }
 
     #[test]
@@ -385,14 +389,14 @@ reasoning_effort = ""
         let target = |id: &str| configurations.get(id).unwrap().target.clone();
         assert_eq!(
             target("azure"),
-            crate::config::PolishTarget::Azure {
+            crate::config::CloudPolishTarget::Azure {
                 endpoint: "https://dito.openai.azure.com/".into(),
                 deployment: "gpt-6.1-terra".into()
             }
         );
         assert_eq!(
             target("bedrock"),
-            crate::config::PolishTarget::Bedrock {
+            crate::config::CloudPolishTarget::Bedrock {
                 profile: "work".into(),
                 region: "us-east-1".into(),
                 model_id: "anthropic.claude-sonnet-4-5".into()
@@ -400,7 +404,7 @@ reasoning_effort = ""
         );
         assert_eq!(
             target("compat"),
-            crate::config::PolishTarget::Compat {
+            crate::config::CloudPolishTarget::Compat {
                 base_url: "https://router.example/v1".into(),
                 model: "vendor/model".into()
             }
@@ -436,7 +440,7 @@ reasoning_effort = "low"
         );
         assert_eq!(upgrade(&mut legacy), Ok(2));
         let config: Config = legacy.try_into().unwrap();
-        assert_eq!(config.polish.engine.cloud_polish, Some(crate::config::PolishConfigurations::new(Lang::Ja)));
+        assert_eq!(config.polish.engine.cloud_polish, Some(crate::config::CloudPolishConfigurations::new(Lang::Ja)));
     }
 
     #[test]

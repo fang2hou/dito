@@ -7,7 +7,7 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use dito_core::config::{Appearance, DisplayLanguage, LocalParams, PolishConfiguration, Source};
+use dito_core::config::{Appearance, CloudPolishConfiguration, DisplayLanguage, LocalPolishParams, Source};
 use dito_core::secrets::{Role, polish_account};
 use gpui_kit::*;
 
@@ -43,7 +43,7 @@ fn probe(cx: &mut AsyncApp) -> ModelsProbe {
 }
 
 /// The cloud polish configuration in use, as saved.
-fn active(st: &AppState) -> PolishConfiguration {
+fn active(st: &AppState) -> CloudPolishConfiguration {
     let cfg = st.cfg.get();
     cfg.polish.engine.polish_configurations(cfg.general.lang()).active().cloned().expect("one is selected")
 }
@@ -297,7 +297,7 @@ async fn local_parameters(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp, tag
     type_local(cx, "top_k", "abc");
     type_local(cx, "max_tokens", "0");
     let saved = st.cfg.get().polish.engine.local_params_for(&model);
-    assert_eq!(saved, LocalParams { temperature: Some(0.3), top_p: Some(0.9), top_k: None, max_tokens: None });
+    assert_eq!(saved, LocalPolishParams { temperature: Some(0.3), top_p: Some(0.9), top_k: None, max_tokens: None });
     assert_eq!(probe(cx).local_invalid, ["top_k", "max_tokens"], "the local fields flag what does not parse");
     page_shot(cx, dir, &shot_name("local-invalid", "ja", tag)).await;
 
@@ -305,7 +305,10 @@ async fn local_parameters(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp, tag
     type_local(cx, "max_tokens", "");
     type_local(cx, "temperature", "-1");
     let saved = st.cfg.get().polish.engine.local_params_for(&model);
-    assert_eq!(saved, LocalParams { temperature: Some(0.3), top_p: Some(0.9), top_k: Some(40), max_tokens: None });
+    assert_eq!(
+        saved,
+        LocalPolishParams { temperature: Some(0.3), top_p: Some(0.9), top_k: Some(40), max_tokens: None }
+    );
     type_local(cx, "temperature", "0.3");
     page_shot(cx, dir, &shot_name("local", "ja", tag)).await;
 

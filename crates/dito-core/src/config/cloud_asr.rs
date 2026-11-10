@@ -6,7 +6,7 @@ use crate::secrets::asr_account;
 
 /// A bundled request JSON a cloud speech profile can start from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct AsrTemplate {
+pub struct CloudAsrTemplate {
     /// Saved in the settings as the id of the profile made first from it, and part of that profile's Keychain account,
     /// so it never changes once shipped; a new template is a new row.
     pub id: &'static str,
@@ -14,20 +14,20 @@ pub struct AsrTemplate {
     config: &'static str,
 }
 
-impl AsrTemplate {
+impl CloudAsrTemplate {
     /// The templates that ship with the app, in tab order.
-    pub const ALL: [AsrTemplate; 3] = [
-        AsrTemplate {
+    pub const ALL: [CloudAsrTemplate; 3] = [
+        CloudAsrTemplate {
             id: "funasr",
             name: "FunASR",
             config: include_str!("../../../../design/asr-templates/funasr.json"),
         },
-        AsrTemplate {
+        CloudAsrTemplate {
             id: "qwen_asr",
             name: "Qwen ASR",
             config: include_str!("../../../../design/asr-templates/qwen-asr.json"),
         },
-        AsrTemplate {
+        CloudAsrTemplate {
             id: "openrouter",
             name: "OpenRouter",
             config: include_str!("../../../../design/asr-templates/openrouter.json"),
@@ -39,14 +39,14 @@ impl AsrTemplate {
         serde_json::from_str(self.config).expect("bundled ASR template")
     }
 
-    fn profile(self, id: &str, name: &str) -> AsrProfile {
-        AsrProfile { id: id.into(), name: name.into(), config: self.config() }
+    fn profile(self, id: &str, name: &str) -> CloudAsrConfiguration {
+        CloudAsrConfiguration { id: id.into(), name: name.into(), config: self.config() }
     }
 }
 
 /// One cloud speech connection the user can pick.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct AsrProfile {
+pub struct CloudAsrConfiguration {
     /// Stable identity; also the suffix of the profile's Keychain account.
     pub id: String,
     pub name: String,
@@ -54,14 +54,14 @@ pub struct AsrProfile {
     pub config: Value,
 }
 
-impl AsrProfile {
+impl CloudAsrConfiguration {
     /// Keychain account of this profile's API key.
     pub fn account(&self) -> String {
         asr_account(&self.id)
     }
 }
 
-impl Entry for AsrProfile {
+impl Entry for CloudAsrConfiguration {
     fn id(&self) -> &str {
         &self.id
     }
@@ -73,26 +73,26 @@ impl Entry for AsrProfile {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
-pub struct AsrProfiles {
+pub struct CloudAsrConfigurations {
     /// Id of the active profile.
     pub selected: String,
-    pub profiles: Vec<AsrProfile>,
+    pub profiles: Vec<CloudAsrConfiguration>,
 }
 
-impl Default for AsrProfiles {
+impl Default for CloudAsrConfigurations {
     fn default() -> Self {
-        let profiles: Vec<AsrProfile> =
-            AsrTemplate::ALL.iter().map(|template| template.profile(template.id, template.name)).collect();
+        let profiles: Vec<CloudAsrConfiguration> =
+            CloudAsrTemplate::ALL.iter().map(|template| template.profile(template.id, template.name)).collect();
         Self { selected: profiles[0].id.clone(), profiles }
     }
 }
 
-impl AsrProfiles {
-    fn selected_profile(&self) -> Option<&AsrProfile> {
+impl CloudAsrConfigurations {
+    fn selected_profile(&self) -> Option<&CloudAsrConfiguration> {
         self.profiles.iter().find(|profile| profile.id == self.selected)
     }
 
-    fn list(&mut self) -> List<'_, AsrProfile> {
+    fn list(&mut self) -> List<'_, CloudAsrConfiguration> {
         List::new(&mut self.selected, &mut self.profiles)
     }
 
@@ -128,7 +128,7 @@ impl AsrProfiles {
     }
 
     /// Append a profile that starts from `template`, select it and return its id.
-    pub fn add_from_template(&mut self, template: AsrTemplate, name: &str) -> String {
+    pub fn add_from_template(&mut self, template: CloudAsrTemplate, name: &str) -> String {
         let id = self.list().fresh_id(template.id);
         self.list().push(template.profile(&id, name));
         id
@@ -148,9 +148,9 @@ impl AsrProfiles {
     }
 
     /// Take a profile out of the list and return it. Its key is still under its `account()`:
-    /// `ConfigStore::remove_asr_profile` removes both, deleting the key only once the list is saved. The last profile
+    /// `ConfigStore::remove_cloud_asr_configuration` removes both, deleting the key only once the list is saved. The last profile
     /// stays, so this returns `None` for it. When the profile in use goes, its neighbour is selected.
-    pub fn remove(&mut self, id: &str) -> Option<AsrProfile> {
+    pub fn remove(&mut self, id: &str) -> Option<CloudAsrConfiguration> {
         self.list().remove(id)
     }
 
@@ -186,7 +186,7 @@ mod tests {
     use super::*;
     use crate::config::list::contract::{Editable, check_editing};
 
-    impl Editable for AsrProfiles {
+    impl Editable for CloudAsrConfigurations {
         fn ids(&self) -> Vec<String> {
             self.profiles.iter().map(|profile| profile.id.clone()).collect()
         }
@@ -197,33 +197,33 @@ mod tests {
             self.profiles.iter().find(|profile| profile.id == id).map(|profile| profile.name.clone())
         }
         fn select(&mut self, id: &str) -> bool {
-            AsrProfiles::select(self, id)
+            CloudAsrConfigurations::select(self, id)
         }
         fn add(&mut self, name: &str) -> String {
-            self.add_from_template(AsrTemplate::ALL[0], name)
+            self.add_from_template(CloudAsrTemplate::ALL[0], name)
         }
         fn duplicate(&mut self, id: &str, name: &str) -> Option<String> {
-            AsrProfiles::duplicate(self, id, name)
+            CloudAsrConfigurations::duplicate(self, id, name)
         }
         fn remove(&mut self, id: &str) -> bool {
-            AsrProfiles::remove(self, id).is_some()
+            CloudAsrConfigurations::remove(self, id).is_some()
         }
         fn move_to(&mut self, id: &str, index: usize) -> bool {
-            AsrProfiles::move_to(self, id, index)
+            CloudAsrConfigurations::move_to(self, id, index)
         }
         fn rename(&mut self, id: &str, name: &str) -> bool {
-            AsrProfiles::rename(self, id, name)
+            CloudAsrConfigurations::rename(self, id, name)
         }
     }
 
     #[test]
     fn the_editing_api_behaves_as_documented() {
-        check_editing(&mut AsrProfiles::default());
+        check_editing(&mut CloudAsrConfigurations::default());
     }
 
     #[test]
     fn the_defaults_are_the_bundled_templates_with_their_ids_as_accounts() {
-        let profiles = AsrProfiles::default();
+        let profiles = CloudAsrConfigurations::default();
         let identities: Vec<_> = profiles.profiles.iter().map(|p| (p.id.as_str(), p.name.as_str())).collect();
         assert_eq!(identities, [("funasr", "FunASR"), ("qwen_asr", "Qwen ASR"), ("openrouter", "OpenRouter")]);
         assert_eq!(profiles.selected, "funasr");
@@ -233,8 +233,8 @@ mod tests {
 
     #[test]
     fn a_new_profile_starts_from_its_template_and_a_duplicate_copies_the_edited_config() {
-        let mut profiles = AsrProfiles::default();
-        let template = AsrTemplate::ALL[1];
+        let mut profiles = CloudAsrConfigurations::default();
+        let template = CloudAsrTemplate::ALL[1];
         let added = profiles.add_from_template(template, "Mine");
         assert!(added.starts_with("qwen_asr-"), "{added}");
         assert_eq!(profiles.active(), &template.config());

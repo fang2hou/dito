@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 use dito_core::config::{Appearance, DisplayLanguage, HudPosition, Source};
 use dito_core::controller::{Command, HudState};
 use dito_core::factory::LocalBackend;
-use dito_core::provider::configured_asr::AsrProfiles;
+use dito_core::provider::configured_asr::CloudAsrConfigurations;
 use dito_core::secrets::Role;
 use dito_core::store::HistoryFilter;
 use gpui_kit::*;
@@ -441,7 +441,7 @@ fn apply_model_case(st: &AppState, appearance: Appearance, case: &ModelCase) {
         c.asr.source = if case.local { Source::Local } else { Source::Provider };
         c.polish.engine.source = c.asr.source;
         c.polish.engine.polish_configurations_mut(c.general.lang()).select(["azure", "bedrock", "compat"][case.preset]);
-        let mut profiles = AsrProfiles::default();
+        let mut profiles = CloudAsrConfigurations::default();
         profiles.select(["funasr", "qwen_asr", "openrouter"][case.preset]);
         for profile in &mut profiles.profiles {
             profile.config["connection"]["model"] = "my-asr-model".into();

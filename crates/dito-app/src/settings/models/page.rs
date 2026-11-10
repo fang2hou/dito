@@ -2,10 +2,10 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
 
-use dito_core::config::{EngineConfig, PolishTarget, Source};
+use dito_core::config::{CloudPolishTarget, EngineConfig, Source};
 use dito_core::factory::LocalBackend;
 use dito_core::i18n::{Lang, Tr};
-use dito_core::provider::configured_asr::AsrProfiles;
+use dito_core::provider::configured_asr::CloudAsrConfigurations;
 use dito_core::secrets::{Role, polish_account};
 use dito_local::catalog::ModelKind;
 use dito_local::{ModelState, Snapshot};
@@ -87,7 +87,7 @@ impl ModelsPage {
         let mut profiles = services::aws_profiles();
         let cfg = st.cfg.get();
         for configuration in &cfg.polish.engine.polish_configurations(cfg.general.lang()).items {
-            if let PolishTarget::Bedrock { profile, .. } = &configuration.target
+            if let CloudPolishTarget::Bedrock { profile, .. } = &configuration.target
                 && !profile.is_empty()
                 && !profiles.contains(profile)
             {
@@ -273,7 +273,7 @@ impl ModelsPage {
     pub(super) fn delete_cloud_polish(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(CloudPolishDeletion { id, .. }) = self.deleting_cloud_polish.take() else { return };
         window.blur(cx);
-        let removed = self.st.cfg.remove_polish_configuration(&id, &*self.st.secrets);
+        let removed = self.st.cfg.remove_cloud_polish_configuration(&id, &*self.st.secrets);
         if let Err(error) = &removed {
             tracing::warn!("could not delete a cloud polish configuration: {error:#}");
         }
@@ -468,7 +468,7 @@ impl ModelsPage {
                         let lang = cfg.general.lang();
                         match role {
                             Role::Asr => {
-                                cfg.asr.cloud_asr.get_or_insert_with(AsrProfiles::default);
+                                cfg.asr.cloud_asr.get_or_insert_with(CloudAsrConfigurations::default);
                             }
                             Role::Polish => {
                                 cfg.polish.engine.polish_configurations_mut(lang);
