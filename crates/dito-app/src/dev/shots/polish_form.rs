@@ -30,6 +30,9 @@ const HEIGHT: f32 = 978.;
 const LEFT: f32 = 315.;
 /// The tile row's scrolling area; the 36 pt plus button follows after a 12 pt gap.
 const VIEW: f32 = 672.;
+/// Every tile is 216 wide, left-aligned, and the next one starts a 12 gap later, whatever the number of tiles.
+const TILE_W: f32 = 216.;
+const TILE_PITCH: f32 = TILE_W + 12.;
 /// Top of the tile row, and the middle of its 64 high tiles.
 const ROW_TOP: f32 = 277.;
 const ROW_CENTRE: f32 = ROW_TOP + 32.;
@@ -71,15 +74,9 @@ fn dialog_cancel() -> Point<Pixels> {
     point(px(WIDTH / 2. + 131.), px(HEIGHT / 2. + 42.))
 }
 
-/// Where the tile `index` of `count` is centred in the row scrolled to `offset`.
-fn tile(count: usize, index: usize, offset: f32) -> Point<Pixels> {
-    let (width, pitch) = if count <= 3 {
-        let width = (VIEW - 12. * (count - 1) as f32) / count as f32;
-        (width, width + 12.)
-    } else {
-        (200., 212.)
-    };
-    point(px(LEFT + index as f32 * pitch + width / 2. - offset), px(ROW_CENTRE))
+/// Where the tile `index` is centred in the row scrolled to `offset`.
+fn tile(index: usize, offset: f32) -> Point<Pixels> {
+    point(px(LEFT + index as f32 * TILE_PITCH + TILE_W / 2. - offset), px(ROW_CENTRE))
 }
 
 /// Where a dragged tile is dropped in a row that scrolls: near its left edge, but outside the fade over it. A row that
@@ -88,7 +85,7 @@ const DROP_X: f32 = LEFT + 130.;
 
 /// The slot a tile of the scrolling row lands in when its centre is dropped at `x`.
 fn slot_at(x: f32, offset: f32, count: usize) -> usize {
-    (((x - LEFT + offset) / 212.).floor().max(0.) as usize).min(count - 1)
+    (((x - LEFT + offset) / TILE_PITCH).floor().max(0.) as usize).min(count - 1)
 }
 
 /// The order the tiles have after the tile at `from` was dropped in the slot `to`.
@@ -325,7 +322,7 @@ async fn scene(rig: &mut Rig<'_>, appearance: Appearance) {
     // Four tiles overflow the row: the right edge fades, the left one has nothing beyond it.
     rig.start(appearance, DisplayLanguage::Ja, Some(staged(true)), (WIDTH, HEIGHT)).await;
     let state = rig.probe();
-    assert_eq!((state.tiles.0, state.tiles.1 > 0.), (0., true), "four tiles of 200 overflow their row");
+    assert_eq!((state.tiles.0, state.tiles.1 > 0.), (0., true), "four tiles of 216 overflow their row");
     rig.shot(&shot_name("tiles-four", "ja", tag)).await;
 
     rig.click(plus());
@@ -348,7 +345,7 @@ async fn scene(rig: &mut Rig<'_>, appearance: Appearance) {
     let before = ids(rig.st);
     let count = before.len();
     let to = point(px(DROP_X), px(ROW_CENTRE));
-    rig.drag(tile(count, count - 1, offset), to, Some(&shot_name("tiles-dragging", "ja", tag))).await;
+    rig.drag(tile(count - 1, offset), to, Some(&shot_name("tiles-dragging", "ja", tag))).await;
     let slot = slot_at(DROP_X, offset, count);
     assert_eq!(ids(rig.st), moved(&before, count - 1, slot), "the dragged tile took the slot it was dropped in");
     rig.shot(&shot_name("tiles-reordered", "ja", tag)).await;
@@ -363,13 +360,13 @@ async fn behavior(rig: &mut Rig<'_>, server: &str) {
     // The form starts on the configuration in use; a click on a tile selects at once and the form follows.
     let state = rig.probe();
     assert_eq!((state.shown.as_deref(), state.text("name").as_str()), (Some("compat"), "ふだん使い"));
-    rig.click(tile(3, 1, 0.));
+    rig.click(tile(1, 0.));
     rig.wait(200).await;
     assert_eq!(saved(&st).selected, "azure");
     let state = rig.probe();
     assert_eq!((state.shown.as_deref(), state.text("name").as_str()), (Some("azure"), "高精度"));
     assert_eq!(state.text("key"), "azure-demo-key-0123456789", "each configuration shows its own key");
-    rig.click(tile(3, 0, 0.));
+    rig.click(tile(0, 0.));
     rig.wait(200).await;
     assert_eq!(rig.probe().text("key"), "sk-demo-0123456789abcdef");
 
@@ -452,7 +449,7 @@ async fn invalid_texts(rig: &mut Rig<'_>) {
 
 /// The connection test against the mock server, and against a port nothing listens on.
 async fn connection_tests(rig: &mut Rig<'_>, server: &str) {
-    rig.click(tile(3, 1, 0.));
+    rig.click(tile(1, 0.));
     rig.wait(200).await;
     rig.type_cloud("address", server);
     rig.click(test_button());
@@ -463,7 +460,7 @@ async fn connection_tests(rig: &mut Rig<'_>, server: &str) {
     rig.type_cloud("address", "https://dito-prod-japaneast.openai.azure.com/");
     rig.type_cloud("model", "gpt-6.1-terra");
 
-    rig.click(tile(3, 0, 0.));
+    rig.click(tile(0, 0.));
     rig.wait(200).await;
     rig.type_cloud("address", "http://127.0.0.1:9/v1");
     rig.click(test_button());
@@ -545,7 +542,7 @@ async fn adding_and_reordering(rig: &mut Rig<'_>) {
     let before = ids(&st);
     // The row is scrolled to its end, where the last tile sits under the fade: take the one before it.
     let from = before.len() - 2;
-    rig.drag(tile(before.len(), from, offset), point(px(DROP_X), px(ROW_CENTRE)), None).await;
+    rig.drag(tile(from, offset), point(px(DROP_X), px(ROW_CENTRE)), None).await;
     let after = ids(&st);
     let slot = slot_at(DROP_X, offset, before.len());
     assert_ne!(slot, from, "the drop is in another slot");
@@ -554,8 +551,8 @@ async fn adding_and_reordering(rig: &mut Rig<'_>) {
     assert_eq!(key_of(&st, &mine.id).as_deref(), Some("mine-key"), "keys stay with their configurations");
     // A plain click on the tile in the middle of the row still selects.
     let offset = rig.probe().tiles.0;
-    let middle = (((offset + VIEW / 2. - 100.) / 212.).round() as usize).min(after.len() - 1);
-    rig.click(tile(after.len(), middle, offset));
+    let middle = (((offset + VIEW / 2. - TILE_W / 2.) / TILE_PITCH).round() as usize).min(after.len() - 1);
+    rig.click(tile(middle, offset));
     rig.wait(300).await;
     assert_eq!(saved(&st).selected, after[middle], "a click after a drag still selects");
 
@@ -571,7 +568,7 @@ async fn deleting(rig: &mut Rig<'_>) {
     let st = rig.st.clone();
     // Back to the three of the design.
     rig.start(Appearance::Light, DisplayLanguage::Ja, Some(staged(false)), (WIDTH, HEIGHT)).await;
-    rig.click(tile(3, 1, 0.));
+    rig.click(tile(1, 0.));
     rig.wait(200).await;
     assert_eq!(saved(&st).selected, "azure");
     rig.click(trash());
@@ -668,7 +665,7 @@ async fn languages(rig: &mut Rig<'_>, appearance: Appearance) {
         rig.click(point(px(700.), px(900.)));
         rig.wait(200).await;
         assert!(!rig.probe().menu_open, "a click outside closes the menu");
-        rig.click(tile(3, 1, 0.));
+        rig.click(tile(1, 0.));
         rig.wait(200).await;
         rig.click(trash());
         rig.wait(300).await;

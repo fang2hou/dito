@@ -21,6 +21,8 @@ const ROW_CENTRE: f32 = 53.;
 /// The scrolling area is 672 wide: 720, less the 12 gap and the 36 plus button.
 const VIEW_W: f32 = 672.;
 const PLUS_CENTRE: f32 = ROW_LEFT + VIEW_W + 12. + 18.;
+/// What a tile's name has to fit in: 216, less the 1 px borders, 16 padding on each side, the 8 gap and the 18 radio.
+const NAME_W: f32 = 216. - 2. - 32. - 8. - 18.;
 const TEMPLATES: [Tr; 3] = [Tr::ModelsOpenaiCompatible, Tr::ModelsAzureOpenai, Tr::ModelsAmazonBedrock];
 
 struct Item {
@@ -265,19 +267,50 @@ impl<'a> Rig<'a> {
 
     async fn run(mut self) {
         let tag = self.tag.to_string();
+        let widths = self.cx.update(|_| {
+            let widths = [Lang::Ja, Lang::En, Lang::Zh]
+                .map(|lang| (lang, ui::set_ui_language(lang), lang.tr(Tr::ModelsOpenaiCompatible)))
+                .map(|(lang, (), name)| (lang, name, ui::text_width(name, 14., FontWeight::MEDIUM)));
+            ui::set_ui_language(Lang::Ja);
+            widths
+        });
+        for (lang, name, width) in widths {
+            assert!(width <= NAME_W, "{name:?} ({lang:?}) is {width:.1} wide and is cut off in a tile with {NAME_W}");
+        }
         self.park();
         self.shot("tile-row-3").await;
-        assert_eq!(self.probe().1, 0., "three tiles share the row and never scroll");
+        assert_eq!(self.probe().1, 0., "three 216 wide tiles fill the 672 wide row exactly and never scroll");
+
+        // Fewer tiles than fit: they keep 216, sit at the left and leave the rest of the row empty.
+        self.model(|v, cx| {
+            v.items.truncate(2);
+            cx.notify();
+        });
+        self.wait(300).await;
+        self.shot("tile-row-2").await;
+        assert_eq!(self.probe().1, 0., "two tiles never scroll");
+        let at = |x: f32| point(px(ROW_LEFT + x), px(ROW_CENTRE));
+        self.input(|w, cx| click(w, cx, at(228. + 4.)));
+        assert_eq!(self.selected(), "azure", "the second tile starts one pitch (216 + 12) in");
+        let clicks = self.log().len();
+        self.input(|w, cx| click(w, cx, at(216. + 6.)));
+        self.input(|w, cx| click(w, cx, at(444. + 6.)));
+        assert_eq!(self.log().len(), clicks, "the gap and the empty space after the last tile select nothing");
+        self.input(|w, cx| click(w, cx, at(444. - 4.)));
+        assert_eq!(self.selected(), "azure", "the second tile is 216 wide");
+        self.input(|w, cx| click(w, cx, at(216. - 4.)));
+        assert_eq!(self.selected(), "compat", "the first tile is 216 wide");
+        self.park();
         self.model(|v, cx| {
             v.items = samples();
             cx.notify();
         });
         self.wait(300).await;
         self.shot("tile-row-5-start").await;
-        assert_eq!(self.probe(), (0., 376., None), "five tiles: 200 wide, 376 to scroll");
+        assert_eq!(self.probe(), (0., 456., None), "five tiles: 216 wide, 456 to scroll");
 
         // A tile lights up under the pointer.
-        self.input(|w, cx| hover(w, cx, point(px(ROW_LEFT + 212. * 2. + 100.), px(ROW_CENTRE))));
+        self.input(|w, cx| hover(w, cx, point(px(ROW_LEFT + 228. * 2. + 100.), px(ROW_CENTRE))));
         self.wait(250).await;
         self.shot("tile-row-5-hover").await;
 
@@ -289,34 +322,34 @@ impl<'a> Rig<'a> {
         self.scroll(0., -1000.);
         self.park();
         self.shot("tile-row-5-end").await;
-        assert_eq!(self.probe().0, 376., "the row stops at its end");
+        assert_eq!(self.probe().0, 456., "the row stops at its end");
         self.scroll(200., -15.);
-        assert_eq!(self.probe().0, 176., "a sideways swipe scrolls by its stronger axis");
+        assert_eq!(self.probe().0, 256., "a sideways swipe scrolls by its stronger axis");
         self.scroll(0., 1000.);
         assert_eq!(self.probe().0, 0.);
 
         // Clicks select; a tile that is only half there is brought fully into view.
-        self.input(|w, cx| click(w, cx, point(px(ROW_LEFT + 212. + 100.), px(ROW_CENTRE))));
+        self.input(|w, cx| click(w, cx, point(px(ROW_LEFT + 228. + 100.), px(ROW_CENTRE))));
         assert_eq!((self.log().last().cloned(), self.selected()), (Some("select azure".into()), "azure".into()));
         self.input(|w, cx| click(w, cx, point(px(ROW_LEFT + VIEW_W - 16.), px(ROW_CENTRE))));
         self.wait(400).await;
-        assert_eq!(self.selected(), "long", "the sliver under the fade is clickable");
+        assert_eq!(self.selected(), "bedrock", "the part of a tile under the fade is clickable");
         self.park();
         self.shot("tile-row-5-reveal").await;
-        assert_eq!(self.probe().0, 212., "the fourth tile is shown whole, clear of the fade");
+        assert_eq!(self.probe().0, 48., "the third tile is shown whole, clear of the fade");
         self.scroll(0., 1000.);
         self.input(|w, cx| click(w, cx, point(px(ROW_LEFT + 100.), px(ROW_CENTRE))));
         assert_eq!(self.selected(), "compat");
 
         // Reorder: the design's drag specimen, then the drop.
         let grab = 60.;
-        let tile_1 = point(px(ROW_LEFT + 212. + grab), px(ROW_CENTRE));
+        let tile_1 = point(px(ROW_LEFT + 228. + grab), px(ROW_CENTRE));
         self.input(|w, cx| {
             hover(w, cx, tile_1);
             press(w, cx, tile_1);
         });
         for step in 1..=8 {
-            let x = ROW_LEFT + 212. + grab + (446. - 212.) * step as f32 / 8.;
+            let x = ROW_LEFT + 228. + grab + (446. - 228.) * step as f32 / 8.;
             self.input(|w, cx| drag_to(w, cx, point(px(x), px(ROW_CENTRE - 6.))));
         }
         self.wait(350).await;
@@ -342,10 +375,10 @@ impl<'a> Rig<'a> {
         }
         self.wait(300).await;
         let midway = self.probe();
-        assert!(midway.0 > 0. && midway.0 < 376., "held at the edge, the row is scrolling: {midway:?}");
+        assert!(midway.0 > 0. && midway.0 < 456., "held at the edge, the row is scrolling: {midway:?}");
         self.wait(1500).await;
         self.shot("tile-row-5-edge").await;
-        assert_eq!(self.probe(), (376., 376., Some(4)), "it scrolled to the end, over the last slot");
+        assert_eq!(self.probe(), (456., 456., Some(4)), "it scrolled to the end, over the last slot");
         self.input(|w, cx| release(w, cx, point(px(ROW_LEFT + VIEW_W - 12.), px(ROW_CENTRE))));
         assert_eq!(self.log().last().cloned(), Some("move compat to 4".into()));
 
@@ -368,7 +401,7 @@ impl<'a> Rig<'a> {
         self.shot("tile-row-added").await;
         let template = Lang::Ja.tr(Tr::ModelsOpenaiCompatible);
         assert_eq!(self.log().last().cloned(), Some(format!("add from {template}")));
-        assert_eq!(self.probe().0, 376. + 212., "the new tile is scrolled fully into view");
+        assert_eq!(self.probe().0, 456. + 228., "the new tile is scrolled fully into view");
         println!("verified tile row wheel, trackpad, click, reveal, drag, edge scroll and plus menu ({tag})");
         let window = self.window;
         close_window(self.cx, window);
