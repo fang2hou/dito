@@ -31,6 +31,16 @@ pub fn account(role: Role, kind: ProviderKind) -> String {
     format!("{r}.{}", kind.id())
 }
 
+/// Keychain account of the key of the cloud polish configuration `id`.
+pub fn polish_account(id: &str) -> String {
+    format!("polish.{id}")
+}
+
+/// Keychain account of the key of the cloud speech profile `id`.
+pub fn asr_account(id: &str) -> String {
+    format!("asr.{id}")
+}
+
 #[derive(Default)]
 pub struct MemorySecrets(Mutex<HashMap<String, String>>);
 
