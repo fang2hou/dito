@@ -194,6 +194,17 @@ pub fn icon_button_with(
     .on_click(click_cb(on_click))
 }
 
+/// An [`icon_button`] that is not available: the same circle at 45% opacity, with no hover and no click.
+pub fn disabled_icon_button(id: impl Into<ElementId>, p: &Palette, ic: Ic) -> Stateful<Div> {
+    circle_control(
+        id,
+        ic,
+        CircleSize::Regular,
+        CircleAppearance { background: None, foreground: p.text, border: Some(p.border_strong), hover: None },
+    )
+    .opacity(0.45)
+}
+
 /// Appearance changes by semantic role; geometry and hover behavior stay shared.
 pub struct CircleAppearance {
     pub background: Option<Hsla>,

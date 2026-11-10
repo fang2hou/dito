@@ -7,6 +7,7 @@ mod inline_asr;
 mod input;
 mod onboarding;
 mod pages;
+mod polish_form;
 mod runner;
 mod startup;
 mod tile_row;

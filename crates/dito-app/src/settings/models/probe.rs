@@ -4,9 +4,10 @@ use dito_core::secrets::Role;
 use gpui_kit::*;
 
 use crate::settings::asr_editor::EditorPreview;
-use crate::ui;
+use crate::ui::{self, InputEvent, InputState, TestState};
 
 use super::page::ModelsPage;
+use super::polish_field_rules::{CloudPolishField, LocalPolishField};
 
 impl ModelsPage {
     pub(in crate::settings) fn preview(
@@ -79,5 +80,160 @@ impl ModelsPage {
     /// The page's scope, for the screenshot harness.
     pub(in crate::settings) fn motion_scope(&self) -> ui::ScopeHandle {
         self.motion.handle()
+    }
+
+    /// One step of the polish form probes: typing into a field the way the user does, or pressing one of its
+    /// controls. `arg` names the field, the configuration or the model; `text` is what is typed.
+    pub(in crate::settings) fn probe(
+        &mut self,
+        case: &str,
+        arg: &str,
+        text: &str,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        match case {
+            "type" => {
+                let field = CloudPolishField::ALL.into_iter().find(|f| cloud_name(*f) == arg).expect("a field");
+                replace_text(&self.cloud_polish[field], text, window, cx);
+            }
+            "type-local" => {
+                let field = LocalPolishField::ALL.into_iter().find(|f| local_name(*f) == arg).expect("a field");
+                replace_text(&self.local_polish[field], text, window, cx);
+            }
+            // A window that is never shown moves no focus, so focus leaving the name is delivered as the input's own
+            // event, which is what the page listens to.
+            "blur-name" => self.cloud_polish[CloudPolishField::Name].update(cx, |_, cx| cx.emit(InputEvent::Blur)),
+            "select" => self.select_cloud_polish(arg, cx),
+            "trash" => self.ask_delete_cloud_polish(window, cx),
+            "confirm-delete" => self.delete_cloud_polish(window, cx),
+            "close-banner" => {
+                self.save_failed = false;
+                cx.notify();
+            }
+            "test" => self.run_cloud_polish_test(cx),
+            "local-states" => {
+                // The first polish model is in use and downloaded, the second is downloaded, the rest are not.
+                let specs: Vec<_> = self
+                    .st
+                    .models
+                    .catalog()
+                    .iter()
+                    .filter(|m| m.kind == dito_local::ModelKind::Polish)
+                    .map(|m| m.id.clone())
+                    .collect();
+                self.preview_snapshot = Some(std::sync::Arc::new(
+                    specs
+                        .iter()
+                        .enumerate()
+                        .map(|(index, id)| {
+                            let state = if index < 2 {
+                                dito_local::ModelState::Installed
+                            } else {
+                                dito_local::ModelState::NotInstalled
+                            };
+                            (id.clone(), state)
+                        })
+                        .collect(),
+                ));
+                if let Some(first) = specs.first().cloned() {
+                    crate::services::save_config(&self.st, |cfg| cfg.polish.engine.local_model = first);
+                }
+                cx.notify();
+            }
+            other => panic!("unknown Models probe step {other:?}"),
+        }
+    }
+
+    /// What the harness reads of the polish forms after a step.
+    pub(in crate::settings) fn probe_state(&self, cx: &App) -> ModelsProbe {
+        let cloud = &self.cloud_polish;
+        let local = &self.local_polish;
+        ModelsProbe {
+            save_failed: self.save_failed,
+            test: match &self.cloud_polish_test {
+                TestState::Idle => "idle",
+                TestState::Running => "running",
+                TestState::Ok(_) => "ok",
+                TestState::Failed(_) => "failed",
+            },
+            deleting: self.deleting_cloud_polish.as_ref().map(|deleting| deleting.name.clone()),
+            shown: cloud.shown().map(str::to_owned),
+            texts: CloudPolishField::ALL.map(|field| (cloud_name(field), cloud.text(field, cx))).into(),
+            invalid: CloudPolishField::ALL.into_iter().filter(|f| cloud.invalid(*f, cx)).map(cloud_name).collect(),
+            local_shown: local.shown().map(str::to_owned),
+            local_texts: LocalPolishField::ALL.map(|field| (local_name(field), local.text(field, cx))).into(),
+            local_invalid: LocalPolishField::ALL
+                .into_iter()
+                .filter(|f| local.invalid(*f, cx))
+                .map(local_name)
+                .collect(),
+            local_models: self
+                .st
+                .models
+                .catalog()
+                .iter()
+                .filter(|m| m.kind == dito_local::ModelKind::Polish)
+                .map(|m| m.id.clone())
+                .collect(),
+        }
+    }
+}
+
+/// What the harness reads of the polish forms.
+pub struct ModelsProbe {
+    pub save_failed: bool,
+    /// `idle`, `running`, `ok` or `failed`: the connection test of the cloud polish form.
+    pub test: &'static str,
+    /// The name the open delete dialog asks about.
+    pub deleting: Option<String>,
+    /// Id of the cloud polish configuration the form shows, and the text of each of its fields.
+    pub shown: Option<String>,
+    pub texts: Vec<(&'static str, String)>,
+    /// The cloud fields whose text does not parse.
+    pub invalid: Vec<&'static str>,
+    /// Id of the local polish model the parameters show, their texts and the ones that do not parse.
+    pub local_shown: Option<String>,
+    pub local_texts: Vec<(&'static str, String)>,
+    pub local_invalid: Vec<&'static str>,
+    /// Ids of the local polish models.
+    pub local_models: Vec<String>,
+}
+
+impl ModelsProbe {
+    pub fn text(&self, field: &str) -> String {
+        self.texts.iter().find(|(name, _)| *name == field).map(|(_, text)| text.clone()).expect("a cloud field")
+    }
+
+    pub fn local_text(&self, field: &str) -> String {
+        self.local_texts.iter().find(|(name, _)| *name == field).map(|(_, text)| text.clone()).expect("a local field")
+    }
+}
+
+/// Typing: what is in the field is selected and replaced, so the input emits its change as it does for the user.
+fn replace_text(input: &Entity<InputState>, text: &str, window: &mut Window, cx: &mut Context<ModelsPage>) {
+    input.update(cx, |state, cx| state.replace_all(text.to_owned(), window, cx));
+}
+
+fn cloud_name(field: CloudPolishField) -> &'static str {
+    match field {
+        CloudPolishField::Name => "name",
+        CloudPolishField::Address => "address",
+        CloudPolishField::Model => "model",
+        CloudPolishField::Key => "key",
+        CloudPolishField::Temperature => "temperature",
+        CloudPolishField::TopP => "top_p",
+        CloudPolishField::MaxTokens => "max_tokens",
+        CloudPolishField::Effort => "effort",
+        CloudPolishField::Extra => "extra",
+    }
+}
+
+fn local_name(field: LocalPolishField) -> &'static str {
+    match field {
+        LocalPolishField::Temperature => "temperature",
+        LocalPolishField::TopP => "top_p",
+        LocalPolishField::TopK => "top_k",
+        LocalPolishField::MaxTokens => "max_tokens",
     }
 }
