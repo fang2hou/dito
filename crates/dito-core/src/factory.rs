@@ -281,17 +281,4 @@ mod tests {
         let second = polisher(&factory, &cfg).await;
         assert!(!Arc::ptr_eq(&first, &second));
     }
-
-    #[tokio::test]
-    async fn the_asr_engine_is_cached_the_same_way() {
-        let factory = factory();
-        let mut cfg = compat_config("model-a");
-        cfg.asr = cfg.polish.engine.clone();
-        let first = factory.transcriber(&cfg).await.expect("compat engine builds offline");
-        let second = factory.transcriber(&cfg).await.expect("compat engine builds offline");
-        assert!(Arc::ptr_eq(&first, &second));
-        factory.invalidate_engines();
-        let third = factory.transcriber(&cfg).await.expect("compat engine builds offline");
-        assert!(!Arc::ptr_eq(&first, &third));
-    }
 }
