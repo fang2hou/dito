@@ -39,6 +39,22 @@ impl Settings {
         self.prompts.update(cx, |p, cx| p.preview(case, window, cx));
     }
 
+    pub fn probe_dictionary(&self, case: &str, arg: &str, window: &mut Window, cx: &mut Context<Self>) {
+        self.dictionary.update(cx, |d, cx| d.probe(case, arg, window, cx));
+    }
+
+    pub fn dictionary_failure(&self, cx: &App) -> Option<&'static str> {
+        self.dictionary.read(cx).failure_name()
+    }
+
+    pub fn probe_models(&self, case: &str, arg: &str, text: &str, window: &mut Window, cx: &mut Context<Self>) {
+        self.models.update(cx, |m, cx| m.probe(case, arg, text, window, cx));
+    }
+
+    pub fn models_probe(&self, window: &Window, cx: &App) -> crate::settings::ModelsProbe {
+        self.models.read(cx).probe_state(window, cx)
+    }
+
     pub fn preview_models(
         &self,
         role: Role,

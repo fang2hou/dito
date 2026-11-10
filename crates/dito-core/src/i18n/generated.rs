@@ -13,4 +13,11 @@ mod tests {
             assert!(fmt::about_seconds_left(lang, "9").contains('9'), "{:?} dropped n", lang);
         }
     }
+
+    #[test]
+    fn plain_copy_with_braces_is_shown_as_written() {
+        for lang in Lang::ALL {
+            assert!(lang.tr(Tr::ModelsExtraPlaceholder).contains(r#"{"seed": 42}"#), "{lang:?} changed the example");
+        }
+    }
 }

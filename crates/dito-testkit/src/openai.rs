@@ -43,6 +43,7 @@ pub(crate) async fn chat(State(s): SharedState, headers: HeaderMap, Json(body): 
         system: msg("system"),
         user: msg("user"),
         reasoning_effort: body["reasoning_effort"].as_str().map(str::to_string),
+        body: Some(body.clone()),
         headers: header_pairs(&headers),
         ..Default::default()
     });

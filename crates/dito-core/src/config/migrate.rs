@@ -3,18 +3,19 @@
 
 use toml::{Table, Value};
 
+use super::DisplayLanguage;
 use crate::i18n::Lang;
 use crate::prompts::{Style, default_set};
 
 /// Version of the persisted shape that this build reads and writes. Raise it together with appending one function to
 /// `MIGRATIONS`, and never edit or renumber a shipped migration: files in the field have already passed through it.
-pub const SCHEMA_VERSION: u32 = 2;
+pub const SCHEMA_VERSION: u32 = 3;
 
 const VERSION_KEY: &str = "schema_version";
 
 /// `MIGRATIONS[n]` upgrades a table from version `n` to version `n + 1`. The array length is tied to `SCHEMA_VERSION`,
 /// so the compiler rejects a version bump that comes without its migration.
-const MIGRATIONS: [fn(&mut Table); SCHEMA_VERSION as usize] = [herdr_defaults, asr_profile_ids];
+const MIGRATIONS: [fn(&mut Table); SCHEMA_VERSION as usize] = [herdr_defaults, asr_profile_ids, cloud_configurations];
 
 /// Why a table was not upgraded. Either way the file must stay as it is.
 #[derive(Debug, PartialEq)]
@@ -63,7 +64,7 @@ fn herdr_defaults(table: &mut Table) {
 }
 
 /// What each position of a version 1 profile list stood for: id, display name and the bundled template that completes
-/// a saved list lacking it. Spelled out here instead of read from `AsrProfiles`, so this step keeps its result when the
+/// a saved list lacking it. Spelled out here instead of read from `CloudAsrConfigurations`, so this step keeps its result when the
 /// bundled set grows or a name changes.
 const V1_PROFILES: &[(&str, &str, &str)] = &[
     ("funasr", "FunASR", include_str!("../../../../design/asr-templates/funasr.json")),
@@ -121,10 +122,130 @@ fn identify_profiles(cloud: &mut Table) {
     }
 }
 
+/// 2 to 3: cloud speech and cloud polish both keep their saved configurations as `items`. The two steps below do not
+/// depend on each other.
+fn cloud_configurations(table: &mut Table) {
+    speech_items(table);
+    polish_configurations(table);
+}
+
+/// In every `cloud_asr` table, the list version 2 wrote as `profiles` is renamed `items`, the key the polish
+/// configurations use. The entries are moved as they are, so every request JSON string stays byte for byte. A table
+/// that already has `items` is left alone.
+fn speech_items(table: &mut Table) {
+    for section in ["asr", "polish"] {
+        let cloud = table
+            .get_mut(section)
+            .and_then(Value::as_table_mut)
+            .and_then(|engine| engine.get_mut("cloud_asr"))
+            .and_then(Value::as_table_mut);
+        if let Some(cloud) = cloud
+            && !cloud.contains_key("items")
+            && let Some(list) = cloud.remove("profiles")
+        {
+            cloud.insert("items".into(), list);
+        }
+    }
+}
+
+/// The three provider forms of the polish engine become cloud polish configurations that carry their own
+/// request parameters, so several can be kept and the Bedrock sampling the engine hard-coded becomes a setting.
+/// `polish.provider` turns into `polish.cloud_polish`, holding `azure`, `bedrock` and `compat` in that order with `kind`
+/// as the selection; the ids keep the Keychain accounts `polish.azure` and `polish.compat` that hold the saved keys.
+/// Each configuration keeps its fields and its reasoning effort, and Bedrock gets the temperature and token limit its
+/// engine sent before, so a request does not change. A field the file lacks gets what the typed load of version 2
+/// gave it. `asr.provider` was never read by speech recognition and is dropped. A file without `polish.provider`
+/// keeps none: the typed load then starts from the templates. The names are spelled out here, as in the step before,
+/// so this one keeps its result when a label changes.
+fn polish_configurations(table: &mut Table) {
+    let lang = display_language(table);
+    if let Some(asr) = table.get_mut("asr").and_then(Value::as_table_mut) {
+        asr.remove("provider");
+    }
+    let Some(polish) = table.get_mut("polish").and_then(Value::as_table_mut) else { return };
+    let Some(provider) = polish.remove("provider") else { return };
+
+    let none = Table::new();
+    let provider = provider.as_table().unwrap_or(&none);
+    let form = |kind: &str| provider.get(kind).and_then(Value::as_table).unwrap_or(&none);
+    let text = |form: &Table, key: &str, default: &str| -> Value {
+        form.get(key).and_then(Value::as_str).unwrap_or(default).into()
+    };
+    let (azure, bedrock, compat) = (form("azure"), form("bedrock"), form("compat"));
+    let items = [
+        configuration(
+            ("azure", "Azure OpenAI"),
+            [("endpoint", text(azure, "endpoint", "")), ("deployment", text(azure, "deployment", ""))],
+            [("reasoning_effort", text(azure, "reasoning_effort", "low"))],
+        ),
+        configuration(
+            ("bedrock", "Amazon Bedrock"),
+            [
+                ("profile", text(bedrock, "profile", "")),
+                ("region", text(bedrock, "region", "ap-northeast-1")),
+                ("model_id", text(bedrock, "model_id", "")),
+            ],
+            [
+                ("temperature", Value::Float(0.2)),
+                ("max_tokens", Value::Integer(2048)),
+                ("reasoning_effort", text(bedrock, "reasoning_effort", "")),
+            ],
+        ),
+        configuration(
+            ("compat", compat_name(lang)),
+            [("base_url", text(compat, "base_url", "")), ("model", text(compat, "model", ""))],
+            [("reasoning_effort", text(compat, "reasoning_effort", "low"))],
+        ),
+    ];
+    let selected = provider.get("kind").and_then(Value::as_str).filter(|kind| matches!(*kind, "bedrock" | "compat"));
+
+    let mut cloud = Table::new();
+    cloud.insert("selected".into(), selected.unwrap_or("azure").into());
+    cloud.insert("items".into(), Value::Array(items.into()));
+    polish.insert("cloud_polish".into(), Value::Table(cloud));
+}
+
+/// The language the file's UI is shown in, which the name of the OpenAI-compatible configuration follows.
+fn display_language(table: &Table) -> Lang {
+    table
+        .get("general")
+        .and_then(Value::as_table)
+        .and_then(|general| general.get("display_language"))
+        .and_then(|value| value.clone().try_into::<DisplayLanguage>().ok())
+        .unwrap_or_default()
+        .resolve()
+}
+
+fn compat_name(lang: Lang) -> &'static str {
+    match lang {
+        Lang::Ja => "OpenAI 互換 API",
+        Lang::En => "OpenAI-compatible API",
+        Lang::Zh => "OpenAI 兼容 API",
+    }
+}
+
+/// One `[[polish.cloud_polish.items]]` table. The template is the id: each configuration is the one its form was.
+fn configuration<const FIELDS: usize, const PARAMS: usize>(
+    (id, name): (&str, &str),
+    fields: [(&str, Value); FIELDS],
+    params: [(&str, Value); PARAMS],
+) -> Value {
+    let mut item = Table::new();
+    item.insert("id".into(), id.into());
+    item.insert("name".into(), name.into());
+    item.insert("template".into(), id.into());
+    item.extend(fields.into_iter().map(|(key, value)| (key.to_owned(), value)));
+    item.insert(
+        "params".into(),
+        Value::Table(params.into_iter().map(|(key, value)| (key.to_owned(), value)).collect()),
+    );
+    Value::Table(item)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::AsrProfiles;
+    use crate::config::{CloudAsrConfigurations, Config};
     use crate::prompts::StylePrompt;
 
     fn parse(text: &str) -> Table {
@@ -172,8 +293,8 @@ profiles = ['{first}', '{second}']
 "#
         ));
 
-        assert_eq!(upgrade(&mut legacy), Ok(1));
-        assert_eq!(legacy[VERSION_KEY].as_integer(), Some(i64::from(SCHEMA_VERSION)));
+        // Only this step: the later ones rename the list this one writes.
+        asr_profile_ids(&mut legacy);
         assert_eq!(legacy["onboarded"].as_bool(), Some(true), "unrelated settings are untouched");
         let cloud = &legacy["asr"]["cloud_asr"];
         assert_eq!(cloud["selected"].as_str(), Some("qwen_asr"), "position 1 becomes the id at position 1");
@@ -184,7 +305,11 @@ profiles = ['{first}', '{second}']
         assert_eq!(profiles[0]["config"].as_str(), Some(first), "a saved profile keeps its text byte for byte");
         assert_eq!(profiles[1]["config"].as_str(), Some(second), "an edited profile keeps its text byte for byte");
         let completed: serde_json::Value = serde_json::from_str(profiles[2]["config"].as_str().unwrap()).unwrap();
-        assert_eq!(completed, AsrProfiles::default().profiles[2].config, "a missing profile starts from its template");
+        assert_eq!(
+            completed,
+            CloudAsrConfigurations::default().items[2].config,
+            "a missing profile starts from its template"
+        );
     }
 
     #[test]
@@ -193,13 +318,254 @@ profiles = ['{first}', '{second}']
         for selected in ["3", "-1"] {
             let mut legacy =
                 parse(&format!("schema_version = 1\n[polish.cloud_asr]\nselected = {selected}\n{saved}\n"));
-            assert_eq!(upgrade(&mut legacy), Ok(1));
+            asr_profile_ids(&mut legacy);
             let cloud = &legacy["polish"]["cloud_asr"];
             assert_eq!(cloud["selected"].as_str(), Some("funasr"), "selected = {selected}");
             let configs: Vec<_> =
                 cloud["profiles"].as_array().unwrap().iter().map(|p| p["config"].as_str().unwrap()).collect();
             assert_eq!(configs, [r#"{"a":1}"#, r#"{"b":2}"#, r#"{"c":3}"#], "selected = {selected}");
         }
+    }
+
+    /// What version 2 wrote for cloud speech: a `profiles` list of `{ id, name, config }` tables, the config as the
+    /// compact JSON the app saves. The polish section can carry a list too, left over from before polishing had its own.
+    const V2_SPEECH: &str = r#"
+schema_version = 2
+onboarded = true
+
+[asr]
+source = "provider"
+
+[asr.cloud_asr]
+selected = "qwen_asr-3c9e"
+
+[[asr.cloud_asr.profiles]]
+id = "funasr"
+name = "FunASR"
+config = '{"connection":{"base_url":"https://a.example/v1","model":"paraformer-v2"},"version":1}'
+
+[[asr.cloud_asr.profiles]]
+id = "qwen_asr-3c9e"
+name = "Mine"
+config = '{"connection":{"model":"my-model"},"language_map":{"auto":null,"ja":"JP"},"version":1}'
+
+[polish.cloud_asr]
+selected = "openrouter"
+
+[[polish.cloud_asr.profiles]]
+id = "openrouter"
+name = "OpenRouter"
+config = '{"connection":{"model":"m3"},"version":1}'
+"#;
+
+    #[test]
+    fn version_two_cloud_speech_list_moves_to_items_with_every_entry_and_request_json_untouched() {
+        let mut legacy = parse(V2_SPEECH);
+        let before = [
+            ("asr", legacy["asr"]["cloud_asr"]["profiles"].clone()),
+            ("polish", legacy["polish"]["cloud_asr"]["profiles"].clone()),
+        ];
+        assert_eq!(upgrade(&mut legacy), Ok(2));
+        assert_eq!(legacy["onboarded"].as_bool(), Some(true), "unrelated settings are untouched");
+        for (section, entries) in before {
+            let cloud = legacy[section]["cloud_asr"].as_table().unwrap();
+            assert!(cloud.get("profiles").is_none(), "{section}");
+            assert_eq!(cloud["items"], entries, "{section}: the same entries, each request JSON byte for byte");
+        }
+        assert_eq!(legacy["asr"]["cloud_asr"]["selected"].as_str(), Some("qwen_asr-3c9e"));
+        assert_eq!(legacy["polish"]["cloud_asr"]["selected"].as_str(), Some("openrouter"));
+
+        // The typed load reads the same entries and selection, and saves them again under the new key unchanged.
+        let config: Config = legacy.clone().try_into().unwrap();
+        let speech = config.asr.cloud_asr.as_ref().unwrap();
+        let identities: Vec<_> = speech.items.iter().map(|c| (c.id.as_str(), c.name.as_str())).collect();
+        assert_eq!(identities, [("funasr", "FunASR"), ("qwen_asr-3c9e", "Mine")]);
+        assert_eq!(speech.selected, "qwen_asr-3c9e");
+        assert!(speech.active().unwrap().config["language_map"]["auto"].is_null(), "a null survives");
+        let saved: Table = toml::to_string(&config).unwrap().parse().unwrap();
+        assert_eq!(saved["asr"]["cloud_asr"]["items"], legacy["asr"]["cloud_asr"]["items"]);
+        assert_eq!(saved["polish"]["cloud_asr"]["items"], legacy["polish"]["cloud_asr"]["items"]);
+    }
+
+    #[test]
+    fn a_version_one_cloud_speech_list_ends_up_under_items_too() {
+        let mut legacy = parse("schema_version = 1\n[asr.cloud_asr]\nselected = 1\nprofiles = ['{\"a\":1}']\n");
+        assert_eq!(upgrade(&mut legacy), Ok(1));
+        let cloud = legacy["asr"]["cloud_asr"].as_table().unwrap();
+        assert!(cloud.get("profiles").is_none());
+        let configs: Vec<_> =
+            cloud["items"].as_array().unwrap().iter().map(|c| c["config"].as_str().unwrap()).collect();
+        assert_eq!(configs[0], r#"{"a":1}"#, "the saved text is the first entry, untouched");
+        assert_eq!(configs.len(), 3, "the missing bundled entries are completed");
+        assert_eq!(cloud["selected"].as_str(), Some("qwen_asr"));
+    }
+
+    /// What version 2 wrote for the polish engine of a user who filled in all three forms.
+    const V2_POLISH: &str = r#"
+schema_version = 2
+onboarded = true
+
+[general]
+shortcut = "LeftOption"
+display_language = "en"
+
+[asr]
+source = "local"
+local_model = "sensevoice-small"
+
+[asr.provider]
+kind = "compat"
+
+[asr.provider.azure]
+endpoint = ""
+deployment = ""
+reasoning_effort = "low"
+
+[asr.provider.compat]
+base_url = "http://asr.example/v1"
+model = "whisper"
+reasoning_effort = "low"
+
+[polish]
+enabled = true
+source = "provider"
+local_model = "qwen3.5-2b-instruct"
+
+[polish.provider]
+kind = "bedrock"
+
+[polish.provider.azure]
+endpoint = "https://dito.openai.azure.com/"
+deployment = "gpt-6.1-terra"
+reasoning_effort = "high"
+
+[polish.provider.bedrock]
+profile = "work"
+region = "us-east-1"
+model_id = "anthropic.claude-sonnet-4-5"
+reasoning_effort = "low"
+
+[polish.provider.compat]
+base_url = "https://router.example/v1"
+model = "vendor/model"
+reasoning_effort = ""
+"#;
+
+    #[test]
+    fn version_two_provider_forms_become_three_configurations_that_behave_the_same() {
+        let mut legacy = parse(V2_POLISH);
+        assert_eq!(upgrade(&mut legacy), Ok(2));
+        assert_eq!(legacy[VERSION_KEY].as_integer(), Some(i64::from(SCHEMA_VERSION)));
+        assert_eq!(legacy["onboarded"].as_bool(), Some(true), "unrelated settings are untouched");
+        assert_eq!(legacy["general"]["shortcut"].as_str(), Some("LeftOption"));
+        assert_eq!(legacy["polish"]["source"].as_str(), Some("provider"));
+        assert_eq!(legacy["asr"]["local_model"].as_str(), Some("sensevoice-small"));
+        assert!(legacy["asr"].get("provider").is_none(), "speech never read the provider forms");
+        assert!(legacy["polish"].get("provider").is_none());
+
+        let cloud = &legacy["polish"]["cloud_polish"];
+        assert_eq!(cloud["selected"].as_str(), Some("bedrock"), "the old kind stays selected");
+        let items = cloud["items"].as_array().unwrap();
+        let identities: Vec<_> =
+            items.iter().map(|c| (c["id"].as_str().unwrap(), c["name"].as_str().unwrap())).collect();
+        assert_eq!(
+            identities,
+            [("azure", "Azure OpenAI"), ("bedrock", "Amazon Bedrock"), ("compat", "OpenAI-compatible API")]
+        );
+        let efforts: Vec<_> = items.iter().map(|c| c["params"]["reasoning_effort"].as_str().unwrap()).collect();
+        assert_eq!(efforts, ["high", "low", ""], "each form keeps its reasoning effort");
+        let bedrock = items[1]["params"].as_table().unwrap();
+        assert_eq!(bedrock["temperature"].as_float(), Some(0.2), "the sampling the engine hard-coded");
+        assert_eq!(bedrock["max_tokens"].as_integer(), Some(2048));
+        for plain in [&items[0], &items[2]] {
+            let keys: Vec<_> = plain["params"].as_table().unwrap().keys().collect();
+            assert_eq!(keys, ["reasoning_effort"], "nothing else is sent that was not sent before");
+        }
+
+        // The typed load sees the same fields the forms had.
+        let config: Config = legacy.try_into().unwrap();
+        let configurations = config.polish.engine.polish_configurations(config.general.lang());
+        let target = |id: &str| configurations.get(id).unwrap().target.clone();
+        assert_eq!(
+            target("azure"),
+            crate::config::CloudPolishTarget::Azure {
+                endpoint: "https://dito.openai.azure.com/".into(),
+                deployment: "gpt-6.1-terra".into()
+            }
+        );
+        assert_eq!(
+            target("bedrock"),
+            crate::config::CloudPolishTarget::Bedrock {
+                profile: "work".into(),
+                region: "us-east-1".into(),
+                model_id: "anthropic.claude-sonnet-4-5".into()
+            }
+        );
+        assert_eq!(
+            target("compat"),
+            crate::config::CloudPolishTarget::Compat {
+                base_url: "https://router.example/v1".into(),
+                model: "vendor/model".into()
+            }
+        );
+        assert_eq!(config.polish.engine.label(), "bedrock:anthropic.claude-sonnet-4-5", "history labels do not change");
+    }
+
+    #[test]
+    fn version_two_defaults_become_the_configurations_of_a_fresh_install() {
+        let mut legacy = parse(
+            r#"
+schema_version = 2
+[general]
+display_language = "ja"
+[polish]
+enabled = true
+[polish.provider]
+kind = "azure"
+[polish.provider.azure]
+endpoint = ""
+deployment = ""
+reasoning_effort = "low"
+[polish.provider.bedrock]
+profile = ""
+region = "ap-northeast-1"
+model_id = ""
+reasoning_effort = ""
+[polish.provider.compat]
+base_url = ""
+model = ""
+reasoning_effort = "low"
+"#,
+        );
+        assert_eq!(upgrade(&mut legacy), Ok(2));
+        let config: Config = legacy.try_into().unwrap();
+        assert_eq!(config.polish.engine.cloud_polish, Some(crate::config::CloudPolishConfigurations::new(Lang::Ja)));
+    }
+
+    #[test]
+    fn the_compatible_name_follows_the_files_language_and_odd_provider_tables_fall_back_to_the_old_defaults() {
+        let names = |general: &str| -> String {
+            let mut table = parse(&format!("schema_version = 2\n{general}\n[polish.provider]\n"));
+            upgrade(&mut table).unwrap();
+            table["polish"]["cloud_polish"]["items"][2]["name"].as_str().unwrap().to_owned()
+        };
+        assert_eq!(names("[general]\ndisplay_language = 'ja'"), "OpenAI 互換 API");
+        assert_eq!(names("[general]\ndisplay_language = 'en'"), "OpenAI-compatible API");
+        assert_eq!(names("[general]\ndisplay_language = 'zh'"), "OpenAI 兼容 API");
+        let system = compat_name(DisplayLanguage::System.resolve());
+        assert_eq!(names("[general]\ndisplay_language = 'system'"), system);
+        assert_eq!(names(""), system, "a file without the setting follows the system");
+
+        // An empty or unreadable provider table is what the typed load of version 2 made of it.
+        for provider in ["[polish.provider]\nkind = 'nowhere'", "[polish]\nprovider = 5"] {
+            let mut table = parse(&format!("schema_version = 2\n{provider}\n"));
+            upgrade(&mut table).unwrap();
+            let config: Config = table.try_into().unwrap();
+            assert_eq!(config.polish.engine.cloud_polish.unwrap().selected, "azure", "{provider}");
+        }
+        let mut without = parse("schema_version = 2\n[polish]\nenabled = false\n");
+        upgrade(&mut without).unwrap();
+        assert!(without["polish"].get("cloud_polish").is_none(), "nothing saved, so the templates stand in");
     }
 
     #[test]

@@ -237,37 +237,30 @@ impl PromptsPage {
             .find(|a| a.style == self.style)
             .map(|a| self.choice_label(&c, a).to_string())
             .unwrap_or_default();
-        let mut body = div()
-            .w(px(620.))
-            .max_w(window.viewport_size().width - px(48.))
-            .p(px(28.))
-            .rounded(px(20.))
-            .border_1()
-            .border_color(p.border_strong)
-            .bg(p.card)
-            .flex()
-            .flex_col()
-            .gap(px(16.))
-            .child(text(c.t(title), 20., FontWeight::BOLD, p.text));
+        let mut content: Vec<AnyElement> = Vec::new();
         if let Dialog::Reset(editor) = dialog {
             let language = self.lang.name(c.lang);
             let scope = match editor {
                 Editor::Common => dito_core::i18n::fmt::reset_common_scope(c.lang, language),
                 Editor::Application => dito_core::i18n::fmt::reset_app_scope(c.lang, &remove_name, language),
             };
-            body = body.child(text(scope, 13., FontWeight::NORMAL, p.text).line_height(px(20.)));
+            content.push(text(scope, 13., FontWeight::NORMAL, p.text).line_height(px(20.)).into_any_element());
         } else if dialog == Dialog::RemoveApp {
-            body = body
-                .child(
-                    text(
-                        dito_core::i18n::fmt::remove_application_scope(c.lang, &remove_name),
-                        13.,
-                        FontWeight::NORMAL,
-                        p.text,
-                    )
-                    .line_height(px(20.)),
+            content.push(
+                text(
+                    dito_core::i18n::fmt::remove_application_scope(c.lang, &remove_name),
+                    13.,
+                    FontWeight::NORMAL,
+                    p.text,
                 )
-                .child(text(c.t(Tr::PromptsRemoveHistory), 13., FontWeight::NORMAL, p.muted).line_height(px(20.)));
+                .line_height(px(20.))
+                .into_any_element(),
+            );
+            content.push(
+                text(c.t(Tr::PromptsRemoveHistory), 13., FontWeight::NORMAL, p.muted)
+                    .line_height(px(20.))
+                    .into_any_element(),
+            );
         } else {
             let mut target = div()
                 .w_full()
@@ -304,14 +297,13 @@ impl PromptsPage {
                 None,
                 cbk(cx, |this: &mut Self, window, cx| this.choose_application(window, cx)),
             ));
-            body = body.child(ui::field(&p, c.t(Tr::PromptsTargetApplication), target)).child(ui::field(
-                &p,
-                c.t(Tr::PromptsCopyFrom),
-                self.application_picker(&c, cx, true),
-            ));
+            content.push(ui::field(&p, c.t(Tr::PromptsTargetApplication), target).into_any_element());
+            content.push(
+                ui::field(&p, c.t(Tr::PromptsCopyFrom), self.application_picker(&c, cx, true)).into_any_element(),
+            );
         }
         if let Some(error) = &self.dialog_error {
-            body = body.child(text(error.clone(), 13., FontWeight::NORMAL, p.danger));
+            content.push(text(error.clone(), 13., FontWeight::NORMAL, p.danger).into_any_element());
         }
         let confirm = match dialog {
             Dialog::Reset(editor) => cbk(cx, move |this: &mut Self, w, cx| this.restore(editor, w, cx)),
@@ -323,49 +315,19 @@ impl PromptsPage {
             Dialog::RemoveApp => Tr::PromptsRemoveConfirm,
             Dialog::Add => Tr::PromptsAddConfirm,
         };
-        body = body.child(
-            div()
-                .w_full()
-                .flex()
-                .justify_end()
-                .gap(px(10.))
-                .child(ui::button(
-                    "prompt-dialog-cancel",
-                    &p,
-                    &c.t(Tr::AsrEditorCancel),
-                    BtnKind::Secondary,
-                    None,
-                    close,
-                ))
-                .child(if dialog == Dialog::Add && self.target.is_none() {
-                    ui::disabled_button(
-                        "prompt-dialog-confirm",
-                        &p,
-                        &c.t(confirm_label),
-                        BtnKind::Primary,
-                        ui::BtnSize::Regular,
-                        None,
-                        None,
-                    )
-                    .opacity(0.5)
-                } else {
-                    ui::button("prompt-dialog-confirm", &p, &c.t(confirm_label), BtnKind::Primary, None, confirm)
-                }),
-        );
-        Some(
-            ui::modal_layer("prompt-dialog-overlay", &self.dialog_focus)
-                .on_key_down(cx.listener(|this, e: &KeyDownEvent, w, cx| {
-                    if e.keystroke.key == "escape" {
-                        this.dialog = None;
-                        this.copy_menu_open = false;
-                        w.blur(cx);
-                        cx.notify();
-                        cx.stop_propagation();
-                    }
-                }))
-                .child(body)
-                .into_any_element(),
-        )
+        Some(ui::confirm_dialog(
+            window,
+            &p,
+            "prompt-dialog",
+            &self.dialog_focus,
+            c.t(title),
+            content,
+            ui::DialogAnswer { label: c.t(Tr::AsrEditorCancel), on_click: Some(close) },
+            ui::DialogAnswer {
+                label: c.t(confirm_label),
+                on_click: (dialog != Dialog::Add || self.target.is_some()).then_some(confirm),
+            },
+        ))
     }
 }
 

@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -16,6 +17,26 @@ use crate::theme::Palette;
 use crate::timefmt::now;
 use crate::ui::{self, BtnKind, InputEvent, InputState, cbk, text};
 
+/// The operation behind the failure banner. One at a time: the newest failure replaces the last.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Failure {
+    Add,
+    Delete,
+    Import,
+    Export,
+}
+
+impl Failure {
+    fn message(self) -> Tr {
+        match self {
+            Self::Add => Tr::DictionaryAddFailed,
+            Self::Delete => Tr::DictionaryDeleteFailed,
+            Self::Import => Tr::DictionaryImportFailed,
+            Self::Export => Tr::DictionaryExportFailed,
+        }
+    }
+}
+
 pub struct DictionaryPage {
     st: Arc<AppState>,
     add: Entity<InputState>,
@@ -24,6 +45,7 @@ pub struct DictionaryPage {
     words: PageQuery<DictionaryWords>,
     loaded: bool,
     placeholder_lang: Lang,
+    failure: Option<Failure>,
     /// The page's own motion scope: its controls' transient state, reset on navigation.
     motion: ui::MotionScope,
 }
@@ -87,6 +109,7 @@ impl DictionaryPage {
             words: PageQuery::new("dictionary", DictionaryWords::default()),
             loaded: false,
             placeholder_lang: lang,
+            failure: None,
         }
     }
 
@@ -95,17 +118,17 @@ impl DictionaryPage {
         let st = self.st.clone();
         cx.spawn_in(window, async move |this, cx| {
             let store = st.store.clone();
-            match off_main(&st, move || Ok(store.add_word(&word, now())?)).await {
+            let added = off_main(&st, move || Ok(store.add_word(&word, now())?)).await;
+            let _ = this.update_in(cx, |this, window, cx| match added {
                 Ok(true) => {
-                    let _ = this.update_in(cx, |this, window, cx| {
-                        this.add.update(cx, |s, cx| s.set_value("", window, cx));
-                        this.load(cx);
-                        cx.notify();
-                    });
+                    this.add.update(cx, |s, cx| s.set_value("", window, cx));
+                    this.succeeded(cx);
+                    this.load(cx);
                 }
+                // A blank or repeated word changes nothing, so it neither fails nor clears a banner.
                 Ok(false) => {}
-                Err(e) => tracing::warn!("dictionary: could not add a word: {e:#}"),
-            }
+                Err(e) => this.failed(Failure::Add, &e, cx),
+            });
         })
         .detach();
     }
@@ -114,12 +137,14 @@ impl DictionaryPage {
         let st = self.st.clone();
         cx.spawn(async move |this, cx| {
             let store = st.store.clone();
-            match off_main(&st, move || Ok(store.remove_word(&word)?)).await {
+            let removed = off_main(&st, move || Ok(store.remove_word(&word)?)).await;
+            let _ = this.update(cx, |this, cx| match removed {
                 Ok(()) => {
-                    let _ = this.update(cx, |this, cx| this.load(cx));
+                    this.succeeded(cx);
+                    this.load(cx);
                 }
-                Err(e) => tracing::warn!("dictionary: could not remove a word: {e:#}"),
-            }
+                Err(e) => this.failed(Failure::Delete, &e, cx),
+            });
         })
         .detach();
     }
@@ -127,43 +152,80 @@ impl DictionaryPage {
     fn import(&mut self, cx: &mut Context<Self>) {
         let rx =
             cx.prompt_for_paths(PathPromptOptions { files: true, directories: false, multiple: false, prompt: None });
-        let st = self.st.clone();
         cx.spawn(async move |this, cx| {
             if let Ok(Ok(Some(paths))) = rx.await
                 && let Some(path) = paths.into_iter().next()
             {
-                let store = st.store.clone();
-                let imported = off_main(&st, move || {
-                    let text = std::fs::read_to_string(&path)?;
-                    Ok(store.import_words(&text, now())?)
-                })
-                .await;
-                if let Err(e) = imported {
-                    tracing::warn!("dictionary: import failed: {e:#}");
-                }
+                let _ = this.update(cx, |this, cx| this.import_from(path, cx));
             }
-            let _ = this.update(cx, |this, cx| this.load(cx));
+        })
+        .detach();
+    }
+
+    fn import_from(&mut self, path: PathBuf, cx: &mut Context<Self>) {
+        let st = self.st.clone();
+        cx.spawn(async move |this, cx| {
+            let store = st.store.clone();
+            let imported = off_main(&st, move || {
+                let text = std::fs::read_to_string(&path)?;
+                Ok(store.import_words(&text, now())?)
+            })
+            .await;
+            let _ = this.update(cx, |this, cx| {
+                match imported {
+                    Ok(_) => this.succeeded(cx),
+                    Err(e) => this.failed(Failure::Import, &e, cx),
+                }
+                // A failed import may still have added the lines before the error.
+                this.load(cx);
+            });
         })
         .detach();
     }
 
     fn export(&mut self, cx: &mut Context<Self>) {
         let rx = cx.prompt_for_new_path(&downloads_dir(), Some("dito-dictionary.txt"));
-        let st = self.st.clone();
-        cx.spawn(async move |_, _| {
+        cx.spawn(async move |this, cx| {
             if let Ok(Ok(Some(path))) = rx.await {
-                let store = st.store.clone();
-                let exported = off_main(&st, move || {
-                    let text = store.export_words()?;
-                    Ok(std::fs::write(&path, text)?)
-                })
-                .await;
-                if let Err(e) = exported {
-                    tracing::warn!("dictionary: export failed: {e:#}");
-                }
+                let _ = this.update(cx, |this, cx| this.export_to(path, cx));
             }
         })
         .detach();
+    }
+
+    fn export_to(&mut self, path: PathBuf, cx: &mut Context<Self>) {
+        let st = self.st.clone();
+        cx.spawn(async move |this, cx| {
+            let store = st.store.clone();
+            let exported = off_main(&st, move || {
+                let text = store.export_words()?;
+                Ok(std::fs::write(&path, text)?)
+            })
+            .await;
+            let _ = this.update(cx, |this, cx| match exported {
+                Ok(()) => this.succeeded(cx),
+                Err(e) => this.failed(Failure::Export, &e, cx),
+            });
+        })
+        .detach();
+    }
+
+    /// The next successful action clears the banner.
+    fn succeeded(&mut self, cx: &mut Context<Self>) {
+        if self.failure.take().is_some() {
+            cx.notify();
+        }
+    }
+
+    fn failed(&mut self, failure: Failure, error: &anyhow::Error, cx: &mut Context<Self>) {
+        tracing::warn!("dictionary: {failure:?} failed: {error:#}");
+        self.failure = Some(failure);
+        cx.notify();
+    }
+
+    fn dismiss_failure(&mut self, cx: &mut Context<Self>) {
+        self.failure = None;
+        cx.notify();
     }
 }
 
@@ -219,6 +281,7 @@ impl DictionaryPage {
                 .flex_col()
                 .gap(px(20.))
                 .child(div().child(text(c.t(Tr::DictionaryWordsPassedToAsr), 14., FontWeight::NORMAL, p.muted)))
+                .children(self.failure_banner(&c, cx))
                 .child(self.add_card(&c, cx))
                 .child(self.polish_option(&c))
                 .child(self.toolbar(&c, total))
@@ -248,6 +311,17 @@ impl DictionaryPage {
                 cbk(cx, |this: &mut Self, _, cx| this.export(cx)),
             ))
             .into_any_element()
+    }
+
+    fn failure_banner(&self, c: &Ctx, cx: &mut Context<Self>) -> Option<Div> {
+        let failure = self.failure?;
+        Some(ui::dismissible_banner(
+            &c.p,
+            "dictionary-failure-close",
+            c.t(failure.message()),
+            c.t(Tr::HudClose),
+            cbk(cx, |this: &mut Self, _, cx| this.dismiss_failure(cx)),
+        ))
     }
 
     fn add_card(&self, c: &Ctx, cx: &mut Context<Self>) -> Div {
@@ -420,4 +494,32 @@ fn placeholder_grid(p: &Palette, window: &Window) -> Div {
 
 fn word_columns(window: &Window) -> u16 {
     if content_width(window) >= 720. { 4 } else { 3 }
+}
+
+/// What the screenshot harness drives and reads: the same handlers the controls call.
+#[cfg(feature = "screenshots")]
+impl DictionaryPage {
+    pub(super) fn probe(&mut self, case: &str, arg: &str, window: &mut Window, cx: &mut Context<Self>) {
+        match case {
+            "add" => {
+                self.add.update(cx, |s, cx| s.set_value(arg, window, cx));
+                self.add_word(window, cx);
+            }
+            "remove" => self.remove_word(arg.to_string(), cx),
+            "import" => self.import_from(arg.into(), cx),
+            "export" => self.export_to(arg.into(), cx),
+            "dismiss" => self.dismiss_failure(cx),
+            other => panic!("unknown dictionary probe {other:?}"),
+        }
+    }
+
+    /// The operation the banner reports, if any.
+    pub(super) fn failure_name(&self) -> Option<&'static str> {
+        self.failure.map(|f| match f {
+            Failure::Add => "add",
+            Failure::Delete => "delete",
+            Failure::Import => "import",
+            Failure::Export => "export",
+        })
+    }
 }

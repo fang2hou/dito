@@ -26,7 +26,7 @@ impl StatusPage {
         } else if e.source == Source::Local {
             self.local_engine_card(c, e)
         } else {
-            self.provider_engine_card(c, role, e)
+            self.cloud_engine_card(c, role, e)
         };
         let head_left = div()
             .h(px(24.))

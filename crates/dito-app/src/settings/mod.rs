@@ -2,6 +2,7 @@
 
 pub(crate) mod asr_editor;
 mod asr_highlight;
+mod configuration_panel;
 mod ctx;
 mod dictionary;
 mod downloads_dir;
@@ -24,6 +25,8 @@ mod status;
 mod window;
 
 pub use ctx::Ctx;
+#[cfg(feature = "screenshots")]
+pub use models::ModelsProbe;
 pub use page::Page;
 pub use page_layout::{content_width, page, page_fill};
 #[cfg(feature = "screenshots")]

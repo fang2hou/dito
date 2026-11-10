@@ -2,10 +2,10 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use dito_core::config::{Appearance, DisplayLanguage, HudPosition, ProviderKind, Source};
+use dito_core::config::{Appearance, DisplayLanguage, HudPosition, Source};
 use dito_core::controller::{Command, HudState};
 use dito_core::factory::LocalBackend;
-use dito_core::provider::configured_asr::AsrProfiles;
+use dito_core::provider::configured_asr::CloudAsrConfigurations;
 use dito_core::secrets::Role;
 use dito_core::store::HistoryFilter;
 use gpui_kit::*;
@@ -215,10 +215,12 @@ pub async fn status_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
                     c.asr.source = Source::Local;
                     c.polish.enabled = case != "disabled";
                     c.polish.engine.source = if case == "local" { Source::Local } else { Source::Provider };
-                    c.polish.engine.provider.kind = ProviderKind::Compat;
-                    c.polish.engine.provider.compat.base_url =
+                    let configurations = c.polish.engine.polish_configurations_mut(c.general.lang());
+                    configurations.select("compat");
+                    let compat = configurations.active_mut().expect("the templates include a compat configuration");
+                    *compat.target.address_mut() =
                         "https://regional-transcription-gateway.ap-northeast-1.example.com/v1".into();
-                    c.polish.engine.provider.compat.model = "gpt-4o-mini".into();
+                    *compat.target.model_mut() = "gpt-4o-mini".into();
                 });
                 open_page_sized(st, Page::Status, width, 1000., cx);
                 page_shot(cx, dir, &format!("status-{}-{size}-{case}.png", theme_tag(appearance))).await;
@@ -325,16 +327,27 @@ async fn general_hover_shots(dir: &Path, cx: &mut AsyncApp, shell: &ScopeHandle,
     ui::force_hover(general, ElementId::from("ui-lang"), false);
 }
 
-/// A provider card and a button on the Models page.
+/// A cloud polish tile and the test button on the Models page.
 async fn models_hover_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
+    services::save_config(st, |c| c.polish.engine.source = Source::Provider);
     let models = cx
         .update(|cx| {
             settings::open(st.clone(), Page::Models, cx);
             settings::page_motion(Page::Models, cx)
         })
         .expect("models page scope");
-    ui::force_hover(&models, ElementId::from("prov-0-bedrock"), true);
-    ui::force_hover(&models, ElementId::from("test-0"), true);
+    cx.update(|cx| {
+        let (window, view) = settings::handle(cx).expect("settings window");
+        let _ = window.update(cx, |_, window, cx| {
+            view.update(cx, |s, cx| s.preview_models(Role::Polish, None, window, cx));
+        });
+    });
+    ui::force_hover(
+        &models,
+        ElementId::from((ElementId::from("cloud-polish-tiles"), SharedString::from("bedrock"))),
+        true,
+    );
+    ui::force_hover(&models, ElementId::from("cloud-polish-test"), true);
     page_shot(cx, dir, "hover-warmup.png").await;
     page_shot(cx, dir, "models-hover.png").await;
 }
@@ -431,13 +444,13 @@ fn apply_model_case(st: &AppState, appearance: Appearance, case: &ModelCase) {
         c.general.appearance = appearance;
         c.asr.source = if case.local { Source::Local } else { Source::Provider };
         c.polish.engine.source = c.asr.source;
-        c.polish.engine.provider.kind = [ProviderKind::Azure, ProviderKind::Bedrock, ProviderKind::Compat][case.preset];
-        let mut profiles = AsrProfiles::default();
-        profiles.select_index(case.preset);
-        for profile in &mut profiles.profiles {
-            profile.config["connection"]["model"] = "my-asr-model".into();
+        c.polish.engine.polish_configurations_mut(c.general.lang()).select(["azure", "bedrock", "compat"][case.preset]);
+        let mut configurations = CloudAsrConfigurations::default();
+        configurations.select(["funasr", "qwen_asr", "openrouter"][case.preset]);
+        for configuration in &mut configurations.items {
+            configuration.config["connection"]["model"] = "my-asr-model".into();
         }
-        c.asr.cloud_asr = Some(profiles);
+        c.asr.cloud_asr = Some(configurations);
     });
 }
 

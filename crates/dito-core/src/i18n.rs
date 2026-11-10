@@ -9,11 +9,15 @@
 //!
 //! Adding a language = a column in the TOML + one entry in build.rs's `LANGS`.
 //! Call sites: `lang.tr(Tr::NavSettings)`; parameterized copy: `i18n::fmt::using_model(lang, name)`.
+//! Braces in copy: `template` has the rules.
 
 mod generated;
 mod lang;
 mod sample_utterance;
 mod system_language;
+// The build script validates messages with this module; here it is only tested.
+#[cfg(test)]
+mod template;
 
 pub use generated::{Tr, fmt};
 pub use lang::Lang;

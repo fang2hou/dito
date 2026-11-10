@@ -1,10 +1,13 @@
-use dito_core::config::Config;
+use dito_core::config::{Config, ConfigError};
 
 use crate::state::AppState;
 
-/// Apply a settings change and persist it; a failed write is logged and leaves the config as it was.
+/// Apply a settings change and persist it. A failed write is logged and returned, and leaves the config as it was.
+pub fn try_save_config(st: &AppState, update: impl FnOnce(&mut Config)) -> Result<(), ConfigError> {
+    st.cfg.update(update).inspect_err(|e| tracing::warn!("could not save settings: {e:#}"))
+}
+
+/// [`try_save_config`] for a change whose failure the caller has nothing to say about.
 pub fn save_config(st: &AppState, update: impl FnOnce(&mut Config)) {
-    if let Err(e) = st.cfg.update(update) {
-        tracing::warn!("could not save settings: {e:#}");
-    }
+    let _ = try_save_config(st, update);
 }

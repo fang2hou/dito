@@ -4,7 +4,7 @@ use std::{path::Path, sync::Arc, time::Duration};
 
 use dito_core::{
     config::{DisplayLanguage, Source},
-    provider::configured_asr::AsrProfiles,
+    provider::configured_asr::CloudAsrConfigurations,
     secrets::Role,
 };
 use gpui_kit::*;
@@ -24,18 +24,19 @@ use crate::{
     ui::TestState,
 };
 
-fn with_editor(cx: &mut AsyncApp, action: impl FnOnce(&Entity<AsrEditor>, &mut Window, &mut App)) {
+pub(super) fn with_editor(cx: &mut AsyncApp, action: impl FnOnce(&Entity<AsrEditor>, &mut Window, &mut App)) {
     on_settings_window(cx, |window, cx, view| {
         let editor = view.read(cx).asr_config_editor(cx);
         action(&editor, window, cx);
     });
 }
 
-async fn settle(cx: &mut AsyncApp) {
+/// Long enough for the editor's 200 ms pause before it checks and saves a draft.
+pub(super) async fn settle(cx: &mut AsyncApp) {
     cx.background_executor().timer(Duration::from_millis(450)).await;
 }
 
-fn command(cx: &mut AsyncApp, command: EditorCommand) {
+pub(super) fn command(cx: &mut AsyncApp, command: EditorCommand) {
     with_editor(cx, |editor, window, cx| editor.update(cx, |editor, cx| editor.probe_command(command, window, cx)));
 }
 
@@ -45,18 +46,26 @@ fn draft(cx: &mut AsyncApp) -> String {
     value
 }
 
+/// The request JSON of the configuration in use, as saved.
+fn saved(st: &AppState) -> Value {
+    st.cfg.get().asr.cloud_asr.as_ref().unwrap().active().expect("a configuration is selected").config.clone()
+}
+
 pub async fn run(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     let server = st._mock_server.as_ref().expect("inline ASR verification requires --mock");
-    let mut profiles = AsrProfiles::default();
-    profiles.select_index(1);
-    profiles.profiles[1].config["connection"]["base_url"] = format!("{}/v1", server.url).into();
-    profiles.profiles[1].config["connection"]["model"] = "inline-before".into();
-    st.secrets.set(&profiles.account(), "test-key").expect("isolated mock credentials");
+    let mut configurations = CloudAsrConfigurations::default();
+    configurations.select("qwen_asr");
+    let config = configurations.active_mut().expect("the bundled templates include qwen_asr");
+    config["connection"]["base_url"] = format!("{}/v1", server.url).into();
+    config["connection"]["model"] = "inline-before".into();
+    st.secrets
+        .set(&configurations.active().expect("qwen_asr is selected").account(), "test-key")
+        .expect("isolated mock credentials");
     st.factory.invalidate_engines();
     services::save_config(st, |config| {
         config.general.display_language = DisplayLanguage::Ja;
         config.asr.source = Source::Provider;
-        config.asr.cloud_asr = Some(profiles.clone());
+        config.asr.cloud_asr = Some(configurations.clone());
     });
     cx.update(|cx| {
         settings::open(st.clone(), Page::Models, cx);
@@ -67,14 +76,10 @@ pub async fn run(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
             .unwrap();
     });
     page_shot(cx, dir, "inline-asr-before.png").await;
-    let original = profiles.active().clone();
+    let original = saved(st);
     with_editor(cx, |editor, window, cx| editor.update(cx, |editor, cx| editor.probe_replace("{".into(), window, cx)));
     settle(cx).await;
-    assert_eq!(
-        st.cfg.get().asr.cloud_asr.as_ref().unwrap().active(),
-        &original,
-        "invalid edits must retain the last valid configuration"
-    );
+    assert_eq!(saved(st), original, "invalid edits must retain the last valid configuration");
     page_shot(cx, dir, "inline-asr-invalid.png").await;
     let mut valid = original.clone();
     valid["connection"]["model"] = "inline-after".into();
@@ -82,28 +87,20 @@ pub async fn run(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
         editor.update(cx, |editor, cx| editor.probe_replace(serde_json::to_string_pretty(&valid).unwrap(), window, cx))
     });
     settle(cx).await;
-    assert_eq!(
-        st.cfg.get().asr.cloud_asr.as_ref().unwrap().active(),
-        &valid,
-        "valid edits autosave without a Save action"
-    );
+    assert_eq!(saved(st), valid, "valid edits autosave without a Save action");
     command(cx, EditorCommand::Undo);
     settle(cx).await;
     assert_eq!(draft(cx), "{", "Undo must use the editor's real edit history");
-    assert_eq!(st.cfg.get().asr.cloud_asr.as_ref().unwrap().active(), &valid);
+    assert_eq!(saved(st), valid);
     command(cx, EditorCommand::Redo);
     settle(cx).await;
     assert_eq!(serde_json::from_str::<Value>(&draft(cx)).unwrap(), valid);
     command(cx, EditorCommand::MapLocales);
     settle(cx).await;
-    assert_eq!(st.cfg.get().asr.cloud_asr.as_ref().unwrap().active()["language_map"]["ja"], "ja-JP");
+    assert_eq!(saved(st)["language_map"]["ja"], "ja-JP");
     command(cx, EditorCommand::Undo);
     settle(cx).await;
-    assert_eq!(
-        st.cfg.get().asr.cloud_asr.as_ref().unwrap().active(),
-        &valid,
-        "language shortcuts must also be undoable and autosave the restored value"
-    );
+    assert_eq!(saved(st), valid, "language shortcuts must also be undoable and autosave the restored value");
     let before_help = draft(cx);
     command(cx, EditorCommand::OpenHelp);
     page_shot(cx, dir, "inline-asr-help.png").await;

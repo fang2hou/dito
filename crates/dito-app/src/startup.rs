@@ -14,12 +14,26 @@ use crate::{hotkeys, hud, menubar, onboarding, settings};
 
 actions!(dito, [Quit, OpenSettings, OpenHistory, OpenDictionary, OpenStatus]);
 
-/// Wire the global state, the application menu and the first windows once GPUI is running.
-pub fn run(st: Arc<AppState>, cx: &mut App) {
+/// Everything a window needs once GPUI is running, with or without the app state: the UI kit, the icon, the bundled
+/// fonts, text measurement, and Quit with its shortcut.
+pub fn init(cx: &mut App) {
     gpui_kit::init(cx);
     dito_platform::system::set_app_icon(include_bytes!("../../../assets/icon/AppIcon-1024.png"));
     cx.text_system().add_fonts(crate::assets::fonts()).expect("bundled fonts");
     crate::ui::init_text_system(cx);
+    cx.on_action(|_: &Quit, cx| cx.quit());
+    cx.bind_keys([KeyBinding::new("cmd-q", Quit, None)]);
+}
+
+/// A healthy launch: set GPUI up, then start the app.
+pub fn run(st: Arc<AppState>, cx: &mut App) {
+    init(cx);
+    launch(st, cx);
+}
+
+/// Wire the global state, the application menu and the first windows. Runs once the services are built, which is
+/// after GPUI started when the startup failure window had to be dealt with first.
+pub fn launch(st: Arc<AppState>, cx: &mut App) {
     cx.set_global(AppGlobal(st.clone()));
 
     unload_local_models_on_quit(&st, cx);
@@ -59,8 +73,6 @@ fn unload_local_models_on_quit(st: &AppState, cx: &mut App) {
 }
 
 fn install_app_menu(st: &Arc<AppState>, cx: &mut App) {
-    cx.on_action(|_: &Quit, cx| cx.quit());
-    cx.bind_keys([KeyBinding::new("cmd-q", Quit, None)]);
     on_open_page::<OpenSettings>(st, settings::Page::General, cx);
     on_open_page::<OpenHistory>(st, settings::Page::History, cx);
     on_open_page::<OpenDictionary>(st, settings::Page::Dictionary, cx);
@@ -85,13 +97,22 @@ fn on_open_page<A: Action>(st: &Arc<AppState>, page: settings::Page, cx: &mut Ap
     cx.on_action(move |_: &A, cx| settings::open(st.clone(), page, cx));
 }
 
-/// The application menu holds only Quit; the Dock menu repeats the menu bar item's page shortcuts, Settings first.
 fn set_menus(lang: Lang, cx: &mut App) {
+    set_app_menu(lang, cx);
+    set_dock_menu(lang, cx);
+}
+
+/// The application menu holds only Quit.
+pub fn set_app_menu(lang: Lang, cx: &mut App) {
     cx.set_menus(vec![Menu {
         name: "Dito".into(),
         items: vec![MenuItem::action(lang.tr(Tr::MenubarQuit), Quit)],
         disabled: false,
     }]);
+}
+
+/// The Dock menu repeats the menu bar item's page shortcuts, Settings first.
+fn set_dock_menu(lang: Lang, cx: &mut App) {
     cx.set_dock_menu(vec![
         MenuItem::action(lang.tr(Tr::MenubarSettings), OpenSettings),
         MenuItem::action(lang.tr(Tr::HistoryOpen), OpenHistory),
@@ -127,8 +148,10 @@ fn launch_window(
     }
 }
 
-/// Clicking the Dock icon, or opening Dito again from Finder or Spotlight, while it runs with no window open.
-pub fn reopen(st: Arc<AppState>, cx: &mut App) {
+/// Clicking the Dock icon, or opening Dito again from Finder or Spotlight, while it runs with no window open. Does
+/// nothing while the startup failure window is all there is: there is no app state to open a page of.
+pub fn reopen(cx: &mut App) {
+    let Some(st) = cx.try_global::<AppGlobal>().map(|g| g.0.clone()) else { return };
     if st.opts.is_headless() {
         return;
     }

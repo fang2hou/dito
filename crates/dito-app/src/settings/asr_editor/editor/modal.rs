@@ -6,6 +6,7 @@ use gpui_kit::*;
 
 use super::AsrEditor;
 use crate::settings::Ctx;
+use crate::settings::asr_editor::configuration_list;
 use crate::settings::asr_editor::help::help_body;
 use crate::settings::asr_highlight::JsonHighlight;
 use crate::settings::edge_fade::{Edge, edge_fade};
@@ -32,6 +33,9 @@ impl AsrEditor {
                 div(),
             )
         };
+        // The onboarding wizard draws this modal itself, so the delete dialog goes in it; on the Models page the
+        // shell draws the dialog over the window.
+        let delete_dialog = self.dialog.then(|| self.delete_dialog(window, cx)).flatten();
         ui::modal_layer("asr-help-modal", &self.help_focus)
             .on_key_down(cx.listener(|this, event: &KeyDownEvent, window, cx| {
                 if event.keystroke.key == "escape" {
@@ -56,17 +60,21 @@ impl AsrEditor {
                     .child(body)
                     .child(div().flex_none().child(footer)),
             )
+            .children(delete_dialog)
     }
 
+    /// Dress the editor of the configuration the form shows. Every configuration has an editor of its own, so each one
+    /// is dressed the first time it is shown and whenever the palette changed since.
     pub(super) fn style_source(&mut self, p: &Palette, cx: &mut Context<Self>) {
         let p = *p;
-        if self.highlighter_dark != Some(p.dark) {
-            self.highlighter_dark = Some(p.dark);
-            self.source.update(cx, |source, cx| {
+        let Some(draft) = self.drafts.get_mut(&self.shown) else { return };
+        if draft.styled_dark != Some(p.dark) {
+            draft.styled_dark = Some(p.dark);
+            draft.source.update(cx, |source, cx| {
                 source.set_highlighter_factory(Rc::new(move |_| Some(Box::new(JsonHighlight::new(p.dark)))), cx)
             });
         }
-        self.source.update(cx, |source, _| {
+        draft.source.update(cx, |source, _| {
             source.set_scrollbar_renderer(Some(Rc::new(move |geometry, _, _| {
                 let offset = -f32::from(geometry.offset().y);
                 let remaining =
@@ -136,16 +144,16 @@ impl AsrEditor {
             BtnKind::Primary,
             None,
             cbk(cx, |this: &mut Self, _, cx| {
-                let cfg = this.st.cfg.get();
-                let language = cfg.general.lang();
-                let id = cfg
-                    .asr
-                    .cloud_asr
-                    .as_ref()
-                    .and_then(|profiles| profiles.profiles.get(this.selected))
-                    .map_or("", |profile| profile.id.as_str());
+                let config = this.st.cfg.get();
+                let list = configuration_list::of(&config);
+                let name = list
+                    .items
+                    .iter()
+                    .find(|configuration| configuration.id == this.shown)
+                    .map_or("", |p| p.name.as_str());
+                let request = this.draft().source.read(cx).value().to_string();
                 cx.write_to_clipboard(ClipboardItem::new_string(
-                    dito_core::provider::configured_asr::configuration_spec(language, id),
+                    dito_core::provider::configured_asr::configuration_spec(config.general.lang(), name, &request),
                 ));
             }),
         ))

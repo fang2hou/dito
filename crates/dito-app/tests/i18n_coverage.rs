@@ -12,6 +12,8 @@ use std::path::PathBuf;
 const EXEMPT: &[(&str, &str)] = &[
     // Demo/seed history entries in full (user content, not UI copy).
     ("dev/seed.rs", "*"),
+    // Configuration names the polish form shots type into the form (user content, not UI copy).
+    ("dev/shots/polish_form.rs", "*"),
     // List separator chosen per language in code (、 only for Japanese).
     ("settings/models/page.rs", "、"),
     // Test fixture inside #[cfg(test)] (letter-spacing assertions).

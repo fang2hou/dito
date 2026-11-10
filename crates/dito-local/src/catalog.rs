@@ -1,5 +1,7 @@
 //! The models Dito can run on-device. Sizes and SHA-256 come from the Hugging Face file listings.
 
+use dito_core::config::LocalPolishParams;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ModelKind {
     Asr,
@@ -29,8 +31,35 @@ pub struct ModelSpec {
     pub language_focus: Option<dito_core::i18n::Lang>,
 }
 
+/// How a chat model samples its reply. The catalog gives each model the values recommended for it, and the user's
+/// parameters for the model replace them field by field.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Sampling {
+    pub temperature: f32,
+    pub top_p: Option<f32>,
+    pub top_k: Option<u32>,
+    /// A cap on the generated tokens. `None` keeps the budget the runtime computes from the input.
+    pub max_tokens: Option<u32>,
+}
+
+impl Sampling {
+    /// How polishing sampled before it was configurable: a little randomness, no top-p or top-k cut, and the budget the
+    /// runtime computes from the input.
+    pub const POLISH: Self = Self { temperature: 0.2, top_p: None, top_k: None, max_tokens: None };
+
+    /// These values with every field the user set laid over them.
+    pub fn with_params(self, params: &LocalPolishParams) -> Self {
+        Self {
+            temperature: params.temperature.unwrap_or(self.temperature),
+            top_p: params.top_p.or(self.top_p),
+            top_k: params.top_k.or(self.top_k),
+            max_tokens: params.max_tokens.or(self.max_tokens),
+        }
+    }
+}
+
 /// Supported inference layouts. Another checkpoint of an existing layout needs only a catalog entry.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ModelFormat {
     SenseVoice {
         model: &'static str,
@@ -49,10 +78,12 @@ pub enum ModelFormat {
     },
     /// A chat GGUF served by llama.cpp. The prompt comes from the chat template embedded in the file, so a file
     /// without one fails to load. `disable_thinking` is the Qwen hybrid-thinking prefill (an empty think block after
-    /// the generation prompt); set it to `false` for other families.
+    /// the generation prompt); set it to `false` for other families. `sampling` is what the model uses for every
+    /// parameter the user leaves empty.
     Chat {
         model: &'static str,
         disable_thinking: bool,
+        sampling: Sampling,
     },
 }
 
@@ -66,6 +97,14 @@ impl ModelFormat {
 
     pub fn supports_hotwords(self) -> bool {
         matches!(self, Self::QwenAsr { .. })
+    }
+
+    /// The recommended sampling of a chat model. Speech models decode greedily and have none.
+    pub fn sampling(self) -> Option<Sampling> {
+        match self {
+            Self::Chat { sampling, .. } => Some(sampling),
+            Self::SenseVoice { .. } | Self::NemoTdt { .. } | Self::QwenAsr { .. } => None,
+        }
     }
 
     pub fn files(self) -> Vec<&'static str> {
@@ -250,7 +289,11 @@ pub fn default_catalog() -> Vec<ModelSpec> {
                 Some("aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223"),
             )],
             memory_mb: 1600,
-            format: ModelFormat::Chat { model: "Qwen3.5-2B-Q4_K_M.gguf", disable_thinking: true },
+            format: ModelFormat::Chat {
+                model: "Qwen3.5-2B-Q4_K_M.gguf",
+                disable_thinking: true,
+                sampling: Sampling::POLISH,
+            },
             language_focus: None,
         },
         ModelSpec {
@@ -264,7 +307,11 @@ pub fn default_catalog() -> Vec<ModelSpec> {
                 Some("00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4"),
             )],
             memory_mb: 3400,
-            format: ModelFormat::Chat { model: "Qwen3.5-4B-Q4_K_M.gguf", disable_thinking: true },
+            format: ModelFormat::Chat {
+                model: "Qwen3.5-4B-Q4_K_M.gguf",
+                disable_thinking: true,
+                sampling: Sampling::POLISH,
+            },
             language_focus: None,
         },
         // Measured on M4 Pro (bench, 2026-11): 9B is the only tier where ASR-hotword →
@@ -281,7 +328,11 @@ pub fn default_catalog() -> Vec<ModelSpec> {
                 Some("03b74727a860a56338e042c4420bb3f04b2fec5734175f4cb9fa853daf52b7e8"),
             )],
             memory_mb: 7000,
-            format: ModelFormat::Chat { model: "Qwen3.5-9B-Q4_K_M.gguf", disable_thinking: true },
+            format: ModelFormat::Chat {
+                model: "Qwen3.5-9B-Q4_K_M.gguf",
+                disable_thinking: true,
+                sampling: Sampling::POLISH,
+            },
             language_focus: None,
         },
     ]
@@ -313,12 +364,22 @@ mod tests {
         assert!(unverified.is_empty(), "{unverified:?}");
     }
     #[test]
+    fn user_parameters_replace_the_recommended_sampling_field_by_field() {
+        let recommended = Sampling { temperature: 0.2, top_p: Some(0.9), top_k: None, max_tokens: None };
+        assert_eq!(recommended.with_params(&LocalPolishParams::default()), recommended, "nothing set, nothing changed");
+        let set = LocalPolishParams { temperature: Some(0.7), top_p: None, top_k: Some(40), max_tokens: Some(100) };
+        let expected = Sampling { temperature: 0.7, top_p: Some(0.9), top_k: Some(40), max_tokens: Some(100) };
+        assert_eq!(recommended.with_params(&set), expected, "an unset field keeps the recommendation");
+    }
+
+    #[test]
     fn catalog_layouts_reference_declared_files_and_match_the_task() {
         for spec in default_catalog() {
             for name in spec.format.files() {
                 assert!(spec.files.iter().any(|f| f.name == name), "{}: missing {name}", spec.id);
             }
             assert_eq!(spec.kind == ModelKind::Polish, matches!(spec.format, ModelFormat::Chat { .. }));
+            assert_eq!(spec.format.sampling().is_some(), spec.kind == ModelKind::Polish, "{}", spec.id);
         }
         let haas = default_catalog().into_iter().find(|s| s.id == "haas-ja").unwrap();
         assert!(haas.files.iter().any(|f| f.name == "encoder.data" && f.sha256.is_some()));

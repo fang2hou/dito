@@ -63,11 +63,14 @@ impl AppState {
         }
     }
 
-    pub fn build(opts: Opts, rt: &tokio::runtime::Runtime) -> Result<Arc<Self>> {
+    /// Start every service. A data file this build cannot use as it is fails the build with its `ConfigError` or
+    /// `StoreError` untouched inside the returned error; the caller decides which of those get a window of their own
+    /// (see `startup_failure`).
+    pub fn build(opts: Opts, rt: &tokio::runtime::Handle) -> Result<Arc<Self>> {
         let _guard = rt.enter();
         let data_dir = data_dir(&opts);
         std::fs::create_dir_all(&data_dir)?;
-        let cfg = Arc::new(ConfigStore::open(data_dir.join("config.toml"))?);
+        let cfg = Arc::new(ConfigStore::open(data_dir.join(CONFIG_FILE))?);
 
         #[cfg(feature = "mock")]
         let mock_server = start_mock_server(&opts, &cfg, rt)?;
@@ -78,14 +81,14 @@ impl AppState {
         let secrets: Arc<dyn SecretStore> =
             if opts.mock { Arc::new(MemorySecrets::default()) } else { Arc::new(KeychainSecrets::new()) };
         #[cfg(feature = "mock")]
-        let mock_speech = mock_server.as_ref().map(|server| dito_testkit::mock_asr_profile(&server.url));
+        let mock_speech = mock_server.as_ref().map(|server| dito_testkit::mock_cloud_asr_config(&server.url));
         #[cfg(not(feature = "mock"))]
         let mock_speech = None;
         let factory = Arc::new(
             EngineFactory::new(secrets.clone())
                 .with_local(local.clone())
                 .with_bedrock_endpoint(std::env::var("DITO_BEDROCK_ENDPOINT").ok())
-                .with_speech_profile(mock_speech),
+                .with_speech_config(mock_speech),
         );
         let capture = open_capture(&opts, &cfg);
         let recorder = pick_recorder(&opts, capture.as_ref())?;
@@ -117,12 +120,15 @@ impl AppState {
             capture,
             player: Player::default(),
             hotkeys: Arc::new(Hotkeys::new()),
-            rt: rt.handle().clone(),
+            rt: rt.clone(),
             #[cfg(feature = "mock")]
             _mock_server: mock_server,
         }))
     }
 }
+
+const CONFIG_FILE: &str = "config.toml";
+const DB_FILE: &str = "dito.db";
 
 fn data_dir(opts: &Opts) -> PathBuf {
     match &opts.data_dir {
@@ -132,12 +138,17 @@ fn data_dir(opts: &Opts) -> PathBuf {
     }
 }
 
+/// The history database of this run, for errors that do not name their file.
+pub(crate) fn database_path(opts: &Opts) -> PathBuf {
+    data_dir(opts).join(DB_FILE)
+}
+
 /// With `--mock`: start the in-process cloud endpoints and point both cloud stages at them.
 #[cfg(feature = "mock")]
 fn start_mock_server(
     opts: &Opts,
     cfg: &ConfigStore,
-    rt: &tokio::runtime::Runtime,
+    rt: &tokio::runtime::Handle,
 ) -> Result<Option<dito_testkit::MockServer>> {
     if !opts.mock {
         return Ok(None);
@@ -147,14 +158,16 @@ fn start_mock_server(
         let fresh = dito_core::config::Config::dev_azure();
         c.asr = fresh.asr;
         c.polish.engine = fresh.polish.engine;
-        c.polish.engine.provider.azure.endpoint = server.url.clone();
+        if let Some(azure) = c.polish.engine.polish_configurations_mut(c.general.lang()).active_mut() {
+            *azure.target.address_mut() = server.url.clone();
+        }
         c.onboarded = true;
     })?;
     Ok(Some(server))
 }
 
 fn open_store(opts: &Opts, data_dir: &std::path::Path) -> Result<Arc<Store>> {
-    let store = Arc::new(Store::open(data_dir.join("dito.db"), dito_platform::local_utc_offset_secs())?);
+    let store = Arc::new(Store::open(data_dir.join(DB_FILE), dito_platform::local_utc_offset_secs())?);
     #[cfg(feature = "mock")]
     if opts.mock {
         seed::demo(&store, crate::timefmt::now())?;
