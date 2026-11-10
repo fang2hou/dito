@@ -21,6 +21,7 @@ pub(crate) async fn converse(
         model: Some(model),
         system: body["system"][0]["text"].as_str().map(str::to_string),
         user: user.clone(),
+        body: Some(body.clone()),
         headers: header_pairs(&headers),
         ..Default::default()
     });

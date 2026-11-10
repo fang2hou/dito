@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Mutex;
 
-use crate::config::ProviderKind;
-
 #[derive(Debug, thiserror::Error)]
 pub enum SecretError {
     #[error("{0}")]
@@ -16,19 +14,11 @@ pub trait SecretStore: Send + Sync {
     fn delete(&self, account: &str) -> Result<(), SecretError>;
 }
 
+/// The two engines of a dictation, for code that treats speech recognition and polishing alike.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Role {
     Asr,
     Polish,
-}
-
-/// Keychain account name for the key of one role + provider kind.
-pub fn account(role: Role, kind: ProviderKind) -> String {
-    let r = match role {
-        Role::Asr => "asr",
-        Role::Polish => "polish",
-    };
-    format!("{r}.{}", kind.id())
 }
 
 /// Keychain account of the key of the cloud polish configuration `id`.

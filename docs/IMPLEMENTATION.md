@@ -143,7 +143,7 @@ The native sherpa binding is the official `sherpa-onnx-sys` 2.0.1 static package
 
 ### Changing the config schema
 
-Bump `SCHEMA_VERSION` in `crates/dito-core/src/config/migrate.rs` and append one migration function that rewrites the parsed TOML table from the previous version; migrations run in order before the typed load. Add one test per migration that feeds it a table in the old shape. Never edit or renumber a shipped migration, because files in the field have already passed through it. Before rewriting, `ConfigStore::open` saves the original as `config.toml.v<old>.bak`, and it refuses a file with a newer version (ADR-0015).
+Bump `SCHEMA_VERSION` in `crates/dito-core/src/config/migrate.rs` and append one migration function that rewrites the parsed TOML table from the previous version; migrations run in order before the typed load. Add one test per migration that feeds it a table in the old shape. Spell out the names and defaults a migration writes instead of reading them from live code (`asr_profile_ids` and `polish_configurations` are the pattern), so it keeps its result when a label or a template changes. Never edit or renumber a shipped migration, because files in the field have already passed through it. ADR-0015 lists the versions. Before rewriting, `ConfigStore::open` saves the original as `config.toml.v<old>.bak`, and it refuses a file with a newer version (ADR-0015).
 
 ### Adding a built-in writing style
 

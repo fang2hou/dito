@@ -4,7 +4,7 @@ use dito_core::config::{Config, EngineConfig};
 use dito_core::provider::configured_asr::AsrProfiles;
 use dito_core::secrets::Role;
 
-/// The cloud speech profiles in effect for `role`. Polish has none (it uses its provider settings). Speech uses the
+/// The cloud speech profiles in effect for `role`. Polish has none (it has its own configurations). Speech uses the
 /// saved profiles or, before any are saved, the bundled defaults the pipeline falls back to.
 pub fn cloud_profiles(role: Role, engine: &EngineConfig) -> Option<Cow<'_, AsrProfiles>> {
     match (role, &engine.cloud_asr) {

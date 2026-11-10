@@ -15,8 +15,8 @@ mod store;
 pub use asr_profiles::{AsrProfile, AsrProfiles, AsrTemplate};
 pub use data_dir::default_data_dir;
 pub use engine::{
-    AzureSettings, BedrockSettings, CompatSettings, DEFAULT_ASR_LOCAL, DEFAULT_POLISH_LOCAL, EngineConfig,
-    EngineLabels, PolishConfig, ProviderKind, ProviderSettings, ReasoningEffort, Source,
+    DEFAULT_ASR_LOCAL, DEFAULT_POLISH_LOCAL, EngineConfig, EngineLabels, LocalParams, PolishConfig, ReasoningEffort,
+    Source,
 };
 pub use error::ConfigError;
 pub use general::{

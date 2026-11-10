@@ -1,8 +1,8 @@
 use std::ops::Index;
 
-use dito_core::config::{EngineConfig, ProviderKind, ProviderSettings};
+use dito_core::config::{PolishConfiguration, PolishTemplate};
 use dito_core::i18n::{Lang, Tr};
-use dito_core::secrets::{Role, account};
+use dito_core::secrets::Role;
 use gpui_kit::*;
 
 use super::page::ModelsPage;
@@ -25,6 +25,15 @@ pub(super) enum Field {
     KeyCompat,
 }
 
+/// Which part of a configuration a field edits.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Part {
+    Address,
+    Model,
+    Effort,
+    Key,
+}
+
 impl Field {
     pub(super) const ALL: [Field; 11] = [
         Self::AzureEndpoint,
@@ -40,16 +49,27 @@ impl Field {
         Self::KeyCompat,
     ];
 
-    fn masked(self) -> bool {
-        self.key_provider().is_some()
+    /// The template whose form has this field.
+    fn template(self) -> PolishTemplate {
+        match self {
+            Self::AzureEndpoint | Self::AzureDeployment | Self::EffortAzure | Self::KeyAzure => PolishTemplate::Azure,
+            Self::BedrockRegion | Self::BedrockModel | Self::EffortBedrock => PolishTemplate::Bedrock,
+            Self::CompatBase | Self::CompatModel | Self::EffortCompat | Self::KeyCompat => PolishTemplate::Compat,
+        }
     }
 
-    pub(super) fn key_provider(self) -> Option<ProviderKind> {
+    fn part(self) -> Part {
         match self {
-            Self::KeyAzure => Some(ProviderKind::Azure),
-            Self::KeyCompat => Some(ProviderKind::Compat),
-            _ => None,
+            Self::AzureEndpoint | Self::BedrockRegion | Self::CompatBase => Part::Address,
+            Self::AzureDeployment | Self::BedrockModel | Self::CompatModel => Part::Model,
+            Self::EffortAzure | Self::EffortBedrock | Self::EffortCompat => Part::Effort,
+            Self::KeyAzure | Self::KeyCompat => Part::Key,
         }
+    }
+
+    /// Key fields live in the secret store, under the account of the configuration in use.
+    pub(super) fn is_key(self) -> bool {
+        self.part() == Part::Key
     }
 
     fn placeholder(self, lang: Lang) -> &'static str {
@@ -65,37 +85,29 @@ impl Field {
         }
     }
 
-    fn initial_value(self, engine: &EngineConfig, st: &AppState) -> String {
-        let provider = &engine.provider;
-        let key = |kind| st.secrets.get(&account(Role::Polish, kind)).unwrap_or_default();
-        match self {
-            Self::AzureEndpoint => provider.azure.endpoint.clone(),
-            Self::AzureDeployment => provider.azure.deployment.clone(),
-            Self::BedrockRegion => provider.bedrock.region.clone(),
-            Self::BedrockModel => provider.bedrock.model_id.clone(),
-            Self::CompatBase => provider.compat.base_url.clone(),
-            Self::CompatModel => provider.compat.model.clone(),
-            Self::EffortAzure => provider.azure.reasoning_effort.as_str().to_string(),
-            Self::EffortBedrock => provider.bedrock.reasoning_effort.as_str().to_string(),
-            Self::EffortCompat => provider.compat.reasoning_effort.as_str().to_string(),
-            Self::KeyAzure => key(ProviderKind::Azure),
-            Self::KeyCompat => key(ProviderKind::Compat),
+    /// What the field shows for `config`: empty for a configuration of another template, whose form this is not.
+    fn value(self, config: &PolishConfiguration, st: &AppState) -> String {
+        if self.template() != config.target.template() {
+            return String::new();
+        }
+        match self.part() {
+            Part::Address => config.target.address().to_owned(),
+            Part::Model => config.target.model().to_owned(),
+            Part::Effort => config.params.reasoning_effort.as_str().to_owned(),
+            Part::Key => st.secrets.get(&config.account()).unwrap_or_default(),
         }
     }
 
-    /// Store an edited value into the provider settings; key fields live in the secret store instead.
-    pub(super) fn write(self, provider: &mut ProviderSettings, value: String) {
-        match self {
-            Self::EffortAzure => provider.azure.reasoning_effort = value.into(),
-            Self::EffortBedrock => provider.bedrock.reasoning_effort = value.into(),
-            Self::EffortCompat => provider.compat.reasoning_effort = value.into(),
-            Self::AzureEndpoint => provider.azure.endpoint = value,
-            Self::AzureDeployment => provider.azure.deployment = value,
-            Self::BedrockRegion => provider.bedrock.region = value,
-            Self::BedrockModel => provider.bedrock.model_id = value,
-            Self::CompatBase => provider.compat.base_url = value,
-            Self::CompatModel => provider.compat.model = value,
-            Self::KeyAzure | Self::KeyCompat => {}
+    /// Store an edited value into the configuration; key fields live in the secret store instead.
+    pub(super) fn write(self, config: &mut PolishConfiguration, value: String) {
+        if self.template() != config.target.template() {
+            return;
+        }
+        match self.part() {
+            Part::Address => *config.target.address_mut() = value,
+            Part::Model => *config.target.model_mut() = value,
+            Part::Effort => config.params.reasoning_effort = value.into(),
+            Part::Key => {}
         }
     }
 
@@ -104,17 +116,35 @@ impl Field {
     }
 }
 
-/// One text input per provider field of the polish engine; speech is edited in the cloud ASR editor instead.
+/// One text input per field of the polish forms; speech is edited in the cloud ASR editor instead. They show the
+/// configuration in use.
 pub(super) struct ProviderInputs([Entity<InputState>; 11]);
 
 impl ProviderInputs {
     pub(super) fn new(st: &AppState, window: &mut Window, cx: &mut Context<ModelsPage>) -> Self {
         let cfg = st.cfg.get();
         let engine = role::engine(&cfg, Role::Polish);
+        let configurations = engine.polish_configurations();
+        let active = configurations.active();
         let lang = cfg.general.lang();
         Self(Field::ALL.map(|field| {
-            make_input(window, cx, field.placeholder(lang), &field.initial_value(engine, st), field.masked())
+            let value = active.map(|config| field.value(config, st)).unwrap_or_default();
+            make_input(window, cx, field.placeholder(lang), &value, field.is_key())
         }))
+    }
+
+    /// Show `config` in every input, after another configuration was selected. Setting a value is not an edit.
+    pub(super) fn show(
+        &self,
+        config: Option<&PolishConfiguration>,
+        st: &AppState,
+        window: &mut Window,
+        cx: &mut Context<ModelsPage>,
+    ) {
+        for field in Field::ALL {
+            let value = config.map(|config| field.value(config, st)).unwrap_or_default();
+            self[field].update(cx, |input, cx| input.set_value(value, window, cx));
+        }
     }
 }
 

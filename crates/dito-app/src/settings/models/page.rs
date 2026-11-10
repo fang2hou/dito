@@ -2,11 +2,11 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
 
-use dito_core::config::{EngineConfig, Source};
+use dito_core::config::{EngineConfig, PolishConfigurations, PolishTarget, Source};
 use dito_core::factory::LocalBackend;
 use dito_core::i18n::{Lang, Tr};
 use dito_core::provider::configured_asr::AsrProfiles;
-use dito_core::secrets::{Role, account};
+use dito_core::secrets::Role;
 use dito_local::catalog::ModelKind;
 use dito_local::{ModelState, Snapshot};
 use gpui_kit::prelude::*;
@@ -59,10 +59,15 @@ impl ModelsPage {
             })
             .detach();
         }
-        let bedrock_profile = st.cfg.get().polish.engine.provider.bedrock.profile.clone();
+        // A saved profile stays in the list even when the AWS files no longer name it.
         let mut profiles = services::aws_profiles();
-        if !profiles.contains(&bedrock_profile) && !bedrock_profile.is_empty() {
-            profiles.push(bedrock_profile);
+        for configuration in &st.cfg.get().polish.engine.polish_configurations().items {
+            if let PolishTarget::Bedrock { profile, .. } = &configuration.target
+                && !profile.is_empty()
+                && !profiles.contains(profile)
+            {
+                profiles.push(profile.clone());
+            }
         }
         let editor = Self::make_editor(st.clone(), window, cx);
         Self {
@@ -141,14 +146,34 @@ impl ModelsPage {
         k
     }
 
+    /// An edit of a field changes the configuration in use; its key goes to that configuration's Keychain account.
     fn field_changed(&mut self, field: Field, value: String, cx: &mut Context<Self>) {
         // A changed setting invalidates the previous test result.
         self.test = TestState::Idle;
-        if let Some(kind) = field.key_provider() {
-            services::store_secret(&self.st, &account(Role::Polish, kind), &value);
+        if field.is_key() {
+            let account = self.st.cfg.get().polish.engine.polish_configurations().active().map(|c| c.account());
+            if let Some(account) = account {
+                services::store_secret(&self.st, &account, &value);
+            }
         } else {
-            services::save_config(&self.st, |c| field.write(&mut c.polish.engine.provider, value));
+            services::save_config(&self.st, |c| {
+                if let Some(config) = c.polish.engine.polish_configurations_mut().active_mut() {
+                    field.write(config, value);
+                }
+            });
         }
+        cx.notify();
+    }
+
+    /// Make `id` the configuration in use and show it in the form.
+    pub(super) fn select_configuration(&mut self, id: &str, window: &mut Window, cx: &mut Context<Self>) {
+        self.update_engine(Role::Polish, |e| {
+            e.polish_configurations_mut().select(id);
+        });
+        let cfg = self.st.cfg.get();
+        let configurations = cfg.polish.engine.polish_configurations();
+        self.inputs.show(configurations.active(), &self.st, window, cx);
+        self.test = TestState::Idle;
         cx.notify();
     }
 
@@ -223,7 +248,7 @@ impl ModelsPage {
             card = card.child(self.editor.clone());
         } else {
             card = card
-                .child(self.provider_tiles(&c, cx, role, engine.provider.kind))
+                .child(self.provider_tiles(&c, cx, role))
                 .child(self.provider_fields(&c, cx, role))
                 .child(self.test_footer(&c, cx, role));
         }
@@ -298,8 +323,17 @@ impl ModelsPage {
             Rc::new(move |i, _, _| {
                 services::save_config(&st, |cfg| {
                     role::engine_mut(cfg, role).source = if i == 0 { Source::Local } else { Source::Provider };
-                    if role == Role::Asr && i == 1 {
-                        cfg.asr.cloud_asr.get_or_insert_with(AsrProfiles::default);
+                    if i == 1 {
+                        // The first save of the cloud list starts from the templates, named in the UI language.
+                        let lang = cfg.general.lang();
+                        match role {
+                            Role::Asr => {
+                                cfg.asr.cloud_asr.get_or_insert_with(AsrProfiles::default);
+                            }
+                            Role::Polish => {
+                                cfg.polish.engine.cloud_polish.get_or_insert_with(|| PolishConfigurations::new(lang));
+                            }
+                        }
                     }
                 });
             }),

@@ -270,6 +270,111 @@ profiles = ['{untouched}', '{untouched}', '{edited}']
     }
 
     #[test]
+    fn a_version_two_file_keeps_its_polish_behavior_as_configurations_and_the_original_is_kept() {
+        let original = r#"schema_version = 2
+onboarded = true
+
+[general]
+display_language = "ja"
+
+[asr]
+source = "local"
+local_model = "qwen3-asr-1.7b"
+
+[asr.provider]
+kind = "azure"
+
+[asr.provider.azure]
+endpoint = ""
+deployment = ""
+reasoning_effort = "low"
+
+[polish]
+enabled = true
+source = "provider"
+local_model = "qwen3.5-9b-instruct"
+
+[polish.provider]
+kind = "compat"
+
+[polish.provider.azure]
+endpoint = "https://dito.openai.azure.com/"
+deployment = "gpt-6.1-terra"
+reasoning_effort = "low"
+
+[polish.provider.bedrock]
+profile = "work"
+region = "ap-northeast-1"
+model_id = "jp.anthropic.claude-sonnet-4-5"
+reasoning_effort = "low"
+
+[polish.provider.compat]
+base_url = "https://router.example/v1"
+model = "vendor/model"
+reasoning_effort = "minimal"
+"#;
+        let (dir, path) = config_file(original);
+
+        let cfg = ConfigStore::open(&path).unwrap().get();
+        let configurations = cfg.polish.engine.polish_configurations();
+        assert_eq!(configurations.selected, "compat", "the selected form stays selected");
+        let compat = configurations.active().unwrap();
+        assert_eq!(
+            (compat.name.as_str(), compat.target.address(), compat.target.model()),
+            ("OpenAI 互換 API", "https://router.example/v1", "vendor/model")
+        );
+        assert_eq!(compat.params.reasoning_effort.as_str(), "minimal");
+        assert_eq!(compat.account(), "polish.compat", "the key saved under the old account keeps working");
+        assert_eq!(cfg.polish.engine.label(), "compat:vendor/model");
+        let bedrock = configurations.get("bedrock").unwrap();
+        assert_eq!((bedrock.params.temperature, bedrock.params.max_tokens), (Some(0.2), Some(2048)));
+        assert_eq!(bedrock.params.reasoning_effort.as_str(), "low");
+        assert_eq!(configurations.get("azure").unwrap().account(), "polish.azure");
+        assert!(cfg.onboarded && cfg.asr.cloud_asr.is_none(), "the rest of the file is as it was");
+
+        assert_eq!(std::fs::read(dir.path().join("config.toml.v2.bak")).unwrap(), original.as_bytes());
+        let upgraded = std::fs::read_to_string(&path).unwrap();
+        assert!(upgraded.starts_with("schema_version = 3\n"), "{upgraded}");
+        assert!(upgraded.contains("[polish.cloud_polish]"), "{upgraded}");
+        assert!(!upgraded.contains("[polish.provider") && !upgraded.contains("[asr.provider"), "{upgraded}");
+
+        // The upgraded file is current: opening it again changes nothing and adds no backup.
+        assert_eq!(ConfigStore::open(&path).unwrap().get(), cfg);
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), upgraded);
+        assert_eq!(file_count(&dir), 2);
+    }
+
+    #[test]
+    fn configurations_and_local_parameters_survive_toml_and_the_speech_section_stays_free_of_them() {
+        use crate::config::{LocalParams, PolishConfigurations, PolishTemplate};
+        let mut config = Config::default();
+        let mut configurations = PolishConfigurations::new(Lang::En);
+        let added = configurations.add_from_template(PolishTemplate::Azure, "Mine");
+        let mine = configurations.get_mut(&added).unwrap();
+        *mine.target.model_mut() = "gpt-x".into();
+        mine.params.temperature = Some(0.7);
+        mine.params.max_tokens = Some(300);
+        mine.params.extra = serde_json::from_str(r#"{"seed": 7, "stop": null}"#).unwrap();
+        config.polish.engine.cloud_polish = Some(configurations);
+        let params = LocalParams { temperature: Some(0.3), top_p: Some(0.8), top_k: Some(40), max_tokens: Some(512) };
+        config.polish.engine.set_local_params("qwen3.5-9b-instruct", params);
+        config.polish.engine.set_local_params("qwen3.5-2b-instruct", LocalParams::default());
+
+        let encoded = toml::to_string(&config).unwrap();
+        assert_eq!(toml::from_str::<Config>(&encoded).unwrap(), config);
+        let table: toml::Table = encoded.parse().unwrap();
+        assert!(table["asr"].get("cloud_polish").is_none() && table["asr"].get("local_params").is_none());
+        assert!(table["polish"].get("cloud_asr").is_none());
+        assert_eq!(
+            table["polish"]["local_params"].as_table().unwrap().len(),
+            1,
+            "parameters that set nothing are not kept"
+        );
+        assert_eq!(config.polish.engine.local_params("qwen3.5-9b-instruct"), params);
+        assert_eq!(config.polish.engine.local_params("other"), LocalParams::default());
+    }
+
+    #[test]
     fn a_newer_schema_is_refused_and_the_file_is_left_alone() {
         let newer = "schema_version = 999\nfuture_setting = true\n";
         let (dir, path) = config_file(newer);

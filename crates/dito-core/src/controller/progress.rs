@@ -4,7 +4,7 @@ use std::collections::VecDeque;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::time::Instant;
 
-use crate::config::{EngineConfig, ProviderKind, Source};
+use crate::config::{EngineConfig, Source};
 use crate::pipeline::Output;
 
 const LIMIT: usize = 10;
@@ -48,13 +48,11 @@ fn engine_key(engine: &EngineConfig, asr: bool) -> u64 {
                 let profiles = engine.cloud_asr.clone().unwrap_or_default();
                 ("profile", &profiles.selected, profiles.active().to_string()).hash(&mut key);
             } else {
-                let p = &engine.provider;
-                match p.kind {
-                    ProviderKind::Azure => ("azure", format!("{:?}", p.azure)),
-                    ProviderKind::Bedrock => ("bedrock", format!("{:?}", p.bedrock)),
-                    ProviderKind::Compat => ("compat", format!("{:?}", p.compat)),
-                }
-                .hash(&mut key);
+                // Provider polish always runs the active configuration, the templates' when none is saved. A new
+                // model or other parameters start a new estimate; the name does not.
+                let configurations = engine.polish_configurations();
+                let active = configurations.active().map(|c| (&c.id, format!("{:?}{:?}", c.target, c.params)));
+                ("configuration", active).hash(&mut key);
             }
         }
     }
