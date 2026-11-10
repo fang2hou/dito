@@ -8,12 +8,15 @@ use llama_cpp_2::context::LlamaContext;
 use llama_cpp_2::context::params::LlamaContextParams;
 use llama_cpp_2::llama_backend::LlamaBackend;
 use llama_cpp_2::llama_batch::LlamaBatch;
+use llama_cpp_2::model::LlamaChatMessage;
+use llama_cpp_2::model::LlamaChatTemplate;
 use llama_cpp_2::model::LlamaModel;
 use llama_cpp_2::model::params::LlamaModelParams;
 use llama_cpp_2::mtmd::{MtmdBitmap, MtmdContext, MtmdContextParams, MtmdInputText};
 use llama_cpp_2::sampling::LlamaSampler;
+use llama_cpp_2::token::LlamaToken;
 
-use crate::qwen_text::{asr_prompt, chat_prompt, is_vocabulary_echo, parse_output, strip_think};
+use crate::qwen_text::{asr_prompt, is_vocabulary_echo, parse_output, strip_think};
 
 fn backend() -> Result<&'static LlamaBackend, RuntimeError> {
     static BACKEND: OnceLock<Result<LlamaBackend, String>> = OnceLock::new();
@@ -23,11 +26,16 @@ fn backend() -> Result<&'static LlamaBackend, RuntimeError> {
         .map_err(|message| RuntimeError::Engine(message.clone()))
 }
 
-/// A Qwen3 chat model (ChatML) served by llama.cpp with Metal offload.
+/// Qwen hybrid-thinking checkpoints answer directly when the assistant turn opens with an empty think block.
+const EMPTY_THINK_BLOCK: &str = "<think>\n\n</think>\n\n";
+
+/// A chat model served by llama.cpp with Metal offload. Its prompt format is the chat template embedded in the GGUF.
 pub struct Chat {
     model: LlamaModel,
+    /// Resolved once at load: a GGUF without a template is refused, never given a guessed format.
+    template: LlamaChatTemplate,
     gate: Mutex<()>,
-    /// Hybrid-thinking checkpoints need an empty think block to answer directly.
+    /// Qwen hybrid-thinking prefill: [`EMPTY_THINK_BLOCK`] after the generation prompt. Other families pass `false`.
     disable_thinking: bool,
 }
 
@@ -35,7 +43,35 @@ impl Chat {
     pub fn load(path: &Path, disable_thinking: bool) -> Result<Self, RuntimeError> {
         let params = LlamaModelParams::default().with_n_gpu_layers(1000);
         let model = LlamaModel::load_from_file(backend()?, path, &params).map_err(RuntimeError::engine)?;
-        Ok(Self { model, gate: Mutex::new(()), disable_thinking })
+        let template = model.chat_template(None).map_err(|error| {
+            RuntimeError::engine(format!(
+                "{} has no chat template, so its prompt format is unknown ({error})",
+                path.display()
+            ))
+        })?;
+        Ok(Self { model, template, gate: Mutex::new(()), disable_thinking })
+    }
+
+    /// The system and user turns in the GGUF's own template, ending where the assistant turn opens.
+    fn render_prompt(&self, system: &str, user: &str) -> Result<String, RuntimeError> {
+        let messages = [
+            LlamaChatMessage::new("system".into(), system.into()).map_err(RuntimeError::engine)?,
+            LlamaChatMessage::new("user".into(), user.into()).map_err(RuntimeError::engine)?,
+        ];
+        let mut prompt = self.model.apply_chat_template(&self.template, &messages, true).map_err(|error| {
+            RuntimeError::engine(format!("the model's chat template could not be applied: {error}"))
+        })?;
+        if self.disable_thinking {
+            prompt.push_str(EMPTY_THINK_BLOCK);
+        }
+        Ok(prompt)
+    }
+
+    /// The template's turn markers are special tokens and must be parsed. `add_special` follows the GGUF's own
+    /// `add_bos_token` and `add_eos_token`: the Qwen3.5 files set neither, so they get no BOS, while families that
+    /// ask for one (Llama, Gemma) get it.
+    fn tokenize_prompt(&self, prompt: &str) -> Vec<LlamaToken> {
+        self.model.vocab().tokenize(prompt.as_bytes(), true, true)
     }
 }
 
@@ -47,9 +83,8 @@ impl LlmRuntime for Chat {
             return Err(RuntimeError::Cancelled);
         }
         let backend = backend()?;
-        // Special tokens (<|im_start|> ...) must be parsed; Qwen adds no BOS.
-        let tokens =
-            self.model.vocab().tokenize(chat_prompt(system, user, self.disable_thinking).as_bytes(), false, true);
+        let prompt = self.render_prompt(system, user)?;
+        let tokens = self.tokenize_prompt(&prompt);
         // A polish rewrite runs about as long as the input; long dictations need the headroom.
         let budget = (tokens.len() as u32 * 3 / 2).clamp(256, 4096);
         let n_ctx = (tokens.len() as u32 + budget).max(1024);
@@ -258,6 +293,27 @@ mod tests {
             }
             assert!(!out.contains("reference_vocabulary"));
         }
+    }
+
+    /// The embedded Qwen3.5 template must reproduce the hand-written ChatML prompt these models were tuned on.
+    #[test]
+    #[ignore = "requires DITO_POLISH_MODEL_DIR and a local Qwen3.5-4B GGUF"]
+    fn polish_chat_template_matches_legacy_chatml() {
+        let spec = dito_local::catalog::default_catalog().into_iter().find(|s| s.id == "qwen3.5-4b-instruct").unwrap();
+        let dito_local::catalog::ModelFormat::Chat { model, disable_thinking } = spec.format else { unreachable!() };
+        let path = std::path::PathBuf::from(std::env::var("DITO_POLISH_MODEL_DIR").unwrap()).join(model);
+        let chat = super::Chat::load(&path, disable_thinking).unwrap();
+        // Edge whitespace must survive: llama.cpp trims message content for some other families, never for ChatML.
+        let system = "Rewrite the dictation.\n\nKeep the language.\n";
+        let user = " えーと、明日の会議は三時です。\n";
+        let prompt = chat.render_prompt(system, user).unwrap();
+        let legacy = format!(
+            "<|im_start|>system\n{system}<|im_end|>\n<|im_start|>user\n{user}<|im_end|>\n\
+             <|im_start|>assistant\n<think>\n\n</think>\n\n"
+        );
+        assert_eq!(prompt, legacy);
+        // The old call: special tokens parsed, never a BOS.
+        assert_eq!(chat.tokenize_prompt(&prompt), chat.model.vocab().tokenize(legacy.as_bytes(), false, true));
     }
 
     /// Run explicitly against local GGUF files; no downloads or paid provider calls.
