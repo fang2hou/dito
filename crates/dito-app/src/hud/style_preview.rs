@@ -15,17 +15,17 @@ use super::{CAPSULE_H, CAPSULE_W, Capsule, OUTCOME_END, OUTCOME_FADE_S, OUTCOME_
 use super::{fill_at, static_button};
 
 const LISTEN_END: f32 = 1.6;
-const RECOGNIZE_END: f32 = 2.5;
+const TRANSCRIBE_END: f32 = 2.5;
 const POLISH_END: f32 = 3.4;
 const END: f32 = POLISH_END + OUTCOME_END;
 
 fn phase(t: f32) -> (HudState, f32) {
     if t < LISTEN_END {
         (HudState::Listening { mode: RecordMode::Toggle }, 0.)
-    } else if t < RECOGNIZE_END {
-        (HudState::Recognizing, LISTEN_END)
+    } else if t < TRANSCRIBE_END {
+        (HudState::Transcribing, LISTEN_END)
     } else if t < POLISH_END {
-        (HudState::Polishing, RECOGNIZE_END)
+        (HudState::Polishing, TRANSCRIBE_END)
     } else {
         (HudState::Inserted, POLISH_END)
     }
@@ -85,12 +85,12 @@ impl Render for StylePreview {
     }
 }
 
-fn recognizing_end() -> Option<f32> {
-    fill_at(&HudState::Recognizing, RECOGNIZE_END - LISTEN_END, None)
+fn transcribing_end() -> Option<f32> {
+    fill_at(&HudState::Transcribing, TRANSCRIBE_END - LISTEN_END, None)
 }
 
 fn polishing_end() -> Option<f32> {
-    fill_at(&HudState::Polishing, POLISH_END - RECOGNIZE_END, recognizing_end())
+    fill_at(&HudState::Polishing, POLISH_END - TRANSCRIBE_END, transcribing_end())
 }
 
 struct Frame {
@@ -129,7 +129,7 @@ impl Frame {
     }
 
     fn capsule(&self, state: HudState, since: f32, completion: Option<f32>) -> Div {
-        let carried = if state == HudState::Polishing { recognizing_end() } else { None };
+        let carried = if state == HudState::Polishing { transcribing_end() } else { None };
         let fill = fill_at(&state, since, carried);
         let wave = if matches!(state, HudState::Listening { .. }) {
             Wave::Ocean(Waveform::demo(self.time))

@@ -59,14 +59,14 @@ fn hud_cases() -> Vec<HudCase> {
         HudCase::new("hover-cancel", toggle(), 1.0).hovering(PreviewHover::Dismiss),
         HudCase::new("hold", hold(), 1.0),
         HudCase::new("hold-countdown", hold(), 240.2),
-        HudCase::new("hold-release-0", HudState::Recognizing, 0.0).after_hold(),
-        HudCase::new("hold-release-mid", HudState::Recognizing, 0.07).after_hold(),
-        HudCase::new("hold-release-end", HudState::Recognizing, 0.25).after_hold(),
-        HudCase::new("recognizing", HudState::Recognizing, 1.48),
-        HudCase::new("recognizing-hover", HudState::Recognizing, 1.48).hovering(PreviewHover::Zone),
+        HudCase::new("hold-release-0", HudState::Transcribing, 0.0).after_hold(),
+        HudCase::new("hold-release-mid", HudState::Transcribing, 0.07).after_hold(),
+        HudCase::new("hold-release-end", HudState::Transcribing, 0.25).after_hold(),
+        HudCase::new("recognizing", HudState::Transcribing, 1.48),
+        HudCase::new("recognizing-hover", HudState::Transcribing, 1.48).hovering(PreviewHover::Zone),
         HudCase::new("polishing", HudState::Polishing, 1.03),
         HudCase::new("polishing-late", HudState::Polishing, 5.0),
-        HudCase::new("recognizing-early", HudState::Recognizing, 0.15),
+        HudCase::new("recognizing-early", HudState::Transcribing, 0.15),
         HudCase::new("inserted", HudState::Inserted, 0.0),
         HudCase::new("copied", HudState::Copied, 0.0),
         HudCase::new("error-auth", error(ErrorKind::Auth, ErrorAction::Retry), 0.0),
@@ -377,7 +377,7 @@ pub async fn hud_interaction_shots(st: &Arc<AppState>, dir: &Path, cx: &mut Asyn
         close_window(cx, window);
         let preview = st.clone();
         let window = open_hud_window(cx, move |_| {
-            HudView::preview(preview, HudState::Recognizing, 1., PreviewHover::Away, None)
+            HudView::preview(preview, HudState::Transcribing, 1., PreviewHover::Away, None)
         })
         .expect("Stop HUD");
         for (name, x, y, delay) in [

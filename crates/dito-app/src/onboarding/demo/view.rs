@@ -144,7 +144,7 @@ fn hud_slot(p: &Palette, lang: Lang, hud: Option<&HudAt>, still: bool) -> Div {
     let capsule = build(at.state.clone(), at.w, at.since, None);
     let mut slot = slot.child(capsule);
     if let Some((capsule, blend)) = inserted {
-        // On top of the recognizing capsule, at the spot where it sits: the cross-fade to green.
+        // On top of the transcribing capsule, at the spot where it sits: the cross-fade to green.
         let left = (SLOT_W - hud::CAPSULE_W) / 2.;
         slot = slot.child(capsule.absolute().left(px(left)).bottom(px(5.)).opacity(blend));
     }

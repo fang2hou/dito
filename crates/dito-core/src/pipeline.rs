@@ -1,5 +1,5 @@
-//! Recognize → polish for one recorded clip. No recording, no delivery: those belong to the controller.
-//! The polish step is also available alone ([`polish_text`]) for text that is already recognized.
+//! Transcribe → polish for one recorded clip. No recording, no delivery: those belong to the controller.
+//! The polish step is also available alone ([`polish_text`]) for text that is already transcribed.
 
 use std::time::Instant;
 
@@ -14,8 +14,8 @@ use crate::prompts::{PromptInput, Prompts, Style, build_system_prompt, build_sys
 use crate::provider::{AsrRequest, PolishRequest, Polisher};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Phase {
-    Recognizing,
+pub enum PipelinePhase {
+    Transcribing,
     Polishing { input_chars: usize, started: Instant },
 }
 
@@ -42,7 +42,7 @@ pub enum PipelineError {
     Failed(ProviderError),
 }
 
-pub struct Job<'a> {
+pub struct PipelineJob<'a> {
     pub clip: &'a AudioClip,
     pub style: Style,
     pub dictionary: &'a [String],
@@ -56,17 +56,17 @@ async fn or_cancel<T>(cancel: &CancellationToken, fut: impl Future<Output = T>) 
     }
 }
 
-/// Recognize and (if enabled) polish. A polish failure never loses the recognized text.
+/// Transcribe and (if enabled) polish. A polish failure never loses the transcript.
 pub async fn run(
     engines: &dyn Engines,
     cfg: &Config,
-    job: &Job<'_>,
-    on_phase: &(dyn Fn(Phase) + Send + Sync),
+    job: &PipelineJob<'_>,
+    on_phase: &(dyn Fn(PipelinePhase) + Send + Sync),
     cancel: &CancellationToken,
 ) -> Result<Output, PipelineError> {
     reject_silent(job.clip)?;
-    on_phase(Phase::Recognizing);
-    let mut out = recognize(engines, cfg, job, cancel).await?;
+    on_phase(PipelinePhase::Transcribing);
+    let mut out = transcribe(engines, cfg, job, cancel).await?;
     polish(engines, cfg, job, on_phase, cancel, &mut out).await?;
     Ok(out)
 }
@@ -79,10 +79,10 @@ fn reject_silent(clip: &AudioClip) -> Result<(), PipelineError> {
     Err(PipelineError::Failed(ProviderError::new(ErrorKind::NoSpeech, "silent or too short")))
 }
 
-async fn recognize(
+async fn transcribe(
     engines: &dyn Engines,
     cfg: &Config,
-    job: &Job<'_>,
+    job: &PipelineJob<'_>,
     cancel: &CancellationToken,
 ) -> Result<Output, PipelineError> {
     let started = Instant::now();
@@ -109,8 +109,8 @@ async fn recognize(
 async fn polish(
     engines: &dyn Engines,
     cfg: &Config,
-    job: &Job<'_>,
-    on_phase: &(dyn Fn(Phase) + Send + Sync),
+    job: &PipelineJob<'_>,
+    on_phase: &(dyn Fn(PipelinePhase) + Send + Sync),
     cancel: &CancellationToken,
     out: &mut Output,
 ) -> Result<(), PipelineError> {
@@ -124,7 +124,7 @@ async fn polish(
     };
 
     let started = Instant::now();
-    on_phase(Phase::Polishing { input_chars: out.raw.chars().count(), started });
+    on_phase(PipelinePhase::Polishing { input_chars: out.raw.chars().count(), started });
     let polish_job = PolishJob {
         prompts: &cfg.prompts,
         style: job.style.clone(),
@@ -197,7 +197,8 @@ mod tests {
     }
 
     async fn go(e: &FixedEngines, cfg: &Config, clip: &AudioClip) -> Result<Output, PipelineError> {
-        run(e, cfg, &Job { clip, style: Style::General, dictionary: &[] }, &|_| {}, &CancellationToken::new()).await
+        run(e, cfg, &PipelineJob { clip, style: Style::General, dictionary: &[] }, &|_| {}, &CancellationToken::new())
+            .await
     }
 
     #[tokio::test]
@@ -207,7 +208,7 @@ mod tests {
         let out = run(
             &e,
             &Config::default(),
-            &Job { clip: &tone(), style: Style::General, dictionary: &[] },
+            &PipelineJob { clip: &tone(), style: Style::General, dictionary: &[] },
             &|p| phases.lock().unwrap().push(p),
             &CancellationToken::new(),
         )
@@ -215,7 +216,7 @@ mod tests {
         .unwrap();
         assert!(matches!(
             phases.lock().unwrap().as_slice(),
-            [Phase::Recognizing, Phase::Polishing { input_chars: 8, .. }]
+            [PipelinePhase::Transcribing, PipelinePhase::Polishing { input_chars: 8, .. }]
         ));
         assert_eq!(out.raw, "えーと 会議です");
         assert_eq!(out.text(), "会議です。");
@@ -281,8 +282,8 @@ mod tests {
         let cancel = CancellationToken::new();
         let seen = Arc::new(AtomicUsize::new(0));
         let (c2, s2) = (cancel.clone(), seen.clone());
-        let on_phase = move |p: Phase| {
-            if matches!(p, Phase::Polishing { .. }) {
+        let on_phase = move |p: PipelinePhase| {
+            if matches!(p, PipelinePhase::Polishing { .. }) {
                 s2.fetch_add(1, Ordering::SeqCst);
                 c2.cancel();
             }
@@ -290,7 +291,7 @@ mod tests {
         let r = run(
             &e,
             &Config::default(),
-            &Job { clip: &tone(), style: Style::General, dictionary: &[] },
+            &PipelineJob { clip: &tone(), style: Style::General, dictionary: &[] },
             &on_phase,
             &cancel,
         )
@@ -313,7 +314,7 @@ mod tests {
         let e = FixedEngines { asr: Arc::new(MockTranscriber::new("Acme")), polish: spy.clone() };
         let dict = vec!["Acme".to_string()];
         let clip = tone();
-        let job = Job { clip: &clip, style: Style::General, dictionary: &dict };
+        let job = PipelineJob { clip: &clip, style: Style::General, dictionary: &dict };
         let mut cfg = Config::default();
         run(&e, &cfg, &job, &|_| {}, &CancellationToken::new()).await.unwrap();
         assert!(!spy.0.lock().unwrap().contains("<reference_vocabulary>"));

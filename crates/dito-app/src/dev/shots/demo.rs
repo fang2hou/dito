@@ -144,7 +144,7 @@ fn demo_jobs() -> Vec<DemoJob> {
 
 /// The wizard's usage demo held at several moments of its loop, both modes, light and dark
 /// (`demo-<mode>-<theme>-t<ms>.png`), the Reduce Motion still (`…-still.png`, the design's static frame), and the
-/// still and the recognizing capsule in English and Chinese (`demo-<mode>-<theme>-<lang>-…`).
+/// still and the transcribing capsule in English and Chinese (`demo-<mode>-<theme>-<lang>-…`).
 pub async fn demo_shots(dir: &Path, cx: &mut AsyncApp) {
     let mut open: Option<((RecordMode, bool, Lang), WindowHandle<DemoShot>)> = None;
     for job in demo_jobs() {

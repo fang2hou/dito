@@ -247,7 +247,7 @@ async fn recording_limit_finishes_both_modes_and_ignores_old_timers() {
         tokio::task::yield_now().await;
         assert!(matches!(*r.h.hud().borrow(), HudState::Listening { .. }));
         tokio::time::advance(Duration::from_secs(1)).await;
-        wait_for(&r.h, |s| *s == HudState::Recognizing).await;
+        wait_for(&r.h, |s| *s == HudState::Transcribing).await;
         assert!(r.h.recording_started().is_none());
     }
 
@@ -264,7 +264,7 @@ async fn recording_limit_finishes_both_modes_and_ignores_old_timers() {
 }
 
 #[tokio::test(start_paused = true)]
-async fn toggle_mode_runs_listen_recognize_polish_insert_then_hides() {
+async fn toggle_mode_runs_listen_transcribe_polish_insert_then_hides() {
     let r = simple_rig("えーと 会議です");
     r.h.send(Command::KeyDown);
     wait_for(&r.h, |s| matches!(s, HudState::Listening { mode: RecordMode::Toggle })).await;
@@ -334,7 +334,7 @@ async fn stop_during_processing_cancels_and_records_it() {
     let r = rig(asr, MockPolisher::default(), RigOptions::default());
     r.h.send(Command::KeyDown);
     r.h.send(Command::Finish);
-    wait_for(&r.h, |s| *s == HudState::Recognizing).await;
+    wait_for(&r.h, |s| *s == HudState::Transcribing).await;
     r.h.send(Command::Stop);
     wait_for(&r.h, |s| *s == HudState::Hidden).await;
     assert!(r.sink.delivered.lock().unwrap().is_empty());
@@ -404,7 +404,7 @@ async fn a_key_press_during_delivery_starts_listening_only_after_its_result() {
     r.h.send(Command::KeyDown);
     r.h.send(Command::KeyUp); // releasing a toggle shortcut must not take the press back
     tokio::task::yield_now().await;
-    assert!(matches!(*r.h.hud().borrow(), HudState::Recognizing | HudState::Polishing));
+    assert!(matches!(*r.h.hud().borrow(), HudState::Transcribing | HudState::Polishing));
     assert!(r.h.recording_started().is_none(), "the press waits for the first dictation to finish");
 
     r.release_delivery();
@@ -456,7 +456,7 @@ async fn commands_during_delivery_cannot_change_its_outcome() {
         r.h.send(c);
     }
     tokio::task::yield_now().await;
-    assert!(matches!(*r.h.hud().borrow(), HudState::Recognizing | HudState::Polishing));
+    assert!(matches!(*r.h.hud().borrow(), HudState::Transcribing | HudState::Polishing));
 
     r.release_delivery();
     wait_for(&r.h, |s| *s == HudState::Inserted).await;

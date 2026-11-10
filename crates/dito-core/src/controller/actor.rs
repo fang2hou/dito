@@ -13,7 +13,7 @@ use super::progress::{Models, ProcessingEstimate, TimingHistory};
 use crate::audio::AudioClip;
 use crate::config::{EngineLabels, MusicMuteMode, RecordMode};
 use crate::error::{ErrorKind, ProviderError};
-use crate::pipeline::{self, Job, Output, Phase, PipelineError};
+use crate::pipeline::{self, Output, PipelineError, PipelineJob, PipelinePhase};
 use crate::prompts::Style;
 use crate::store::{HistoryKind, NewHistory, Store};
 
@@ -153,7 +153,7 @@ impl Actor {
     fn handle(&mut self, m: Msg) {
         match m {
             Msg::Cmd(c) => self.command(c),
-            Msg::Phase(g, Phase::Polishing { input_chars, started }) if g == self.epoch => {
+            Msg::PipelinePhase(g, PipelinePhase::Polishing { input_chars, started }) if g == self.epoch => {
                 if let State::Processing { models, .. } = self.state {
                     let estimate = self.timings.polishing(models.polish, input_chars);
                     self.processing.send_modify(|p| p.polishing = Some((started, estimate)));
@@ -285,24 +285,24 @@ impl Actor {
         let models = Models::new(&cfg.asr, &cfg.polish.engine);
         let labels = cfg.engine_labels();
         self.processing.send_replace(ProcessingEstimate {
-            recognition_secs: self.timings.recognition(models.asr, clip.duration_ms() as f32 / 1000.),
+            transcription_secs: self.timings.recognition(models.asr, clip.duration_ms() as f32 / 1000.),
             polishing: None,
         });
-        self.set_hud(HudState::Recognizing);
+        self.set_hud(HudState::Transcribing);
         let (tx, engines, store) = (self.tx.clone(), self.deps.engines.clone(), self.deps.store.clone());
         let (job_clip, style, token) = (clip.clone(), meta.style.clone(), cancel.clone());
         tokio::spawn(async move {
             let words = load_dictionary(store).await;
             let phase_tx = tx.clone();
-            let on_phase = move |p: Phase| {
-                if matches!(p, Phase::Polishing { .. }) {
-                    let _ = phase_tx.send(Msg::Phase(epoch, p));
+            let on_phase = move |p: PipelinePhase| {
+                if matches!(p, PipelinePhase::Polishing { .. }) {
+                    let _ = phase_tx.send(Msg::PipelinePhase(epoch, p));
                 }
             };
             let r = pipeline::run(
                 engines.as_ref(),
                 &cfg,
-                &Job { clip: &job_clip, style, dictionary: &words },
+                &PipelineJob { clip: &job_clip, style, dictionary: &words },
                 &on_phase,
                 &token,
             )

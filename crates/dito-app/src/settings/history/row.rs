@@ -34,7 +34,7 @@ impl HistoryPage {
                 icon: Some(Ic::Mic),
                 label: c.t(Tr::HistoryRecognizeAgain),
                 tone: MenuTone::Default,
-                on_click: wrap(cx, Box::new(move |t, cx| t.run_job(id, cx, services::recognize_again))),
+                on_click: wrap(cx, Box::new(move |t, cx| t.run_job(id, cx, services::transcribe_again))),
             },
             MenuItem {
                 icon: Some(Ic::Sparkles),
@@ -184,7 +184,7 @@ impl HistoryPage {
             &label,
             BtnKind::Secondary,
             Some(icon),
-            cbk(cx, move |t: &mut Self, _, cx| t.run_job(id, cx, services::recognize_again)),
+            cbk(cx, move |t: &mut Self, _, cx| t.run_job(id, cx, services::transcribe_again)),
         )
         .into_any_element()
     }

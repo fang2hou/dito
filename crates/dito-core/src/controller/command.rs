@@ -7,7 +7,7 @@ pub enum Command {
     Cancel,
     /// The ✓ button.
     Finish,
-    /// "中止" while recognizing or polishing.
+    /// "中止" while transcribing or polishing.
     Stop,
     /// Retry button on an error.
     Retry,

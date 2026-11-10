@@ -32,7 +32,7 @@ async fn server() -> (String, Capture, tokio::task::JoinHandle<()>) {
     (format!("http://{address}/relay/v1"), c, task)
 }
 #[tokio::test]
-async fn all_presets_send_their_own_format_preserve_relay_prefix_and_extract_text() {
+async fn all_templates_send_their_own_format_preserve_relay_prefix_and_extract_text() {
     let (url, c, task) = server().await;
     let clip = AudioClip::silence(0.1);
     for (index, configuration) in CloudAsrConfigurations::default().items.into_iter().enumerate() {

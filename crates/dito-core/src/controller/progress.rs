@@ -15,14 +15,14 @@ const POLISH_RATE: f32 = 1. / 80.;
 
 #[derive(Clone, Copy)]
 pub struct ProcessingEstimate {
-    pub recognition_secs: f32,
+    pub transcription_secs: f32,
     /// The actual polishing start and its estimated duration, including time spent during the HUD catch-up.
     pub polishing: Option<(Instant, f32)>,
 }
 
 impl Default for ProcessingEstimate {
     fn default() -> Self {
-        Self { recognition_secs: OVERHEAD_S + ASR_RATE, polishing: None }
+        Self { transcription_secs: OVERHEAD_S + ASR_RATE, polishing: None }
     }
 }
 

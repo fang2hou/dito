@@ -89,7 +89,7 @@ impl HudView {
     /// The hover zone: the capsule plus the controls above it and the gap between, so the pointer can travel up.
     pub(super) fn zone(&self, p: &Palette, lang: Lang, capsule: AnyElement, cx: &mut Context<Self>) -> Stateful<Div> {
         let listening = matches!(self.state, HudState::Listening { mode: RecordMode::Toggle });
-        let processing = matches!(self.state, HudState::Recognizing | HudState::Polishing);
+        let processing = matches!(self.state, HudState::Transcribing | HudState::Polishing);
         let mut zone = div().id("hud-zone").flex().flex_col().items_center().gap(px(ZONE_GAP));
         let chip_on = listening
             && self.hover_btn.is_none()

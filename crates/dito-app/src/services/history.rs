@@ -5,7 +5,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use dito_core::audio::AudioClip;
 use dito_core::factory::Engines;
-use dito_core::pipeline::{self, CancellationToken, Job, PipelineError, PolishJob};
+use dito_core::pipeline::{self, CancellationToken, PipelineError, PipelineJob, PolishJob};
 use dito_core::store::HistoryEntry;
 
 use crate::state::AppState;
@@ -37,7 +37,7 @@ pub async fn delete_history_entry(st: Arc<AppState>, id: i64) -> Result<()> {
 }
 
 /// Run recognition + polish again on a saved recording and update the history entry.
-pub async fn recognize_again(st: Arc<AppState>, entry: HistoryEntry) -> Result<(), String> {
+pub async fn transcribe_again(st: Arc<AppState>, entry: HistoryEntry) -> Result<(), String> {
     let path = entry.audio_path.clone().ok_or("no audio was kept for this entry")?;
     // File read + WAV decode are synchronous; keep them off the async executor.
     let clip = st
@@ -62,7 +62,7 @@ pub async fn recognize_again(st: Arc<AppState>, entry: HistoryEntry) -> Result<(
             let out = pipeline::run(
                 engines,
                 &cfg,
-                &Job { clip: &clip, style: entry.style.clone(), dictionary: &words },
+                &PipelineJob { clip: &clip, style: entry.style.clone(), dictionary: &words },
                 &|_| {},
                 &CancellationToken::new(),
             )

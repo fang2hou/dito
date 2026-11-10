@@ -98,7 +98,7 @@ impl Capsule {
         let mut cap = self.shell(height);
         if let Some(frac) = self.fill.filter(|&frac| frac > 0.) {
             let near_ceiling = match self.state {
-                HudState::Recognizing => (0.47..=0.485).contains(&frac),
+                HudState::Transcribing => (0.47..=0.485).contains(&frac),
                 HudState::Polishing => (0.97..=0.985).contains(&frac),
                 _ => false,
             };
@@ -161,7 +161,7 @@ impl Capsule {
                 cap.child(buttons(Btn::Cancel, button_scale)).child(buttons(Btn::Finish, button_scale))
             }
             HudState::Listening { mode: RecordMode::Hold } => cap,
-            HudState::Recognizing => cap.justify_center().child(shimmer::shimmer_label(
+            HudState::Transcribing => cap.justify_center().child(shimmer::shimmer_label(
                 lang.tr(Tr::HudTranscribing),
                 since,
                 scale,
@@ -284,7 +284,7 @@ mod tests {
         let listening = |mode| HudState::Listening { mode };
         assert_eq!(rest_width(&listening(RecordMode::Hold)), NARROW_W);
         assert_eq!(rest_width(&listening(RecordMode::Toggle)), CAPSULE_W);
-        for state in [HudState::Recognizing, HudState::Polishing, HudState::Inserted, HudState::Copied] {
+        for state in [HudState::Transcribing, HudState::Polishing, HudState::Inserted, HudState::Copied] {
             assert_eq!(rest_width(&state), CAPSULE_W, "{state:?}");
         }
     }

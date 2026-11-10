@@ -11,7 +11,7 @@ pub enum ErrorAction {
 pub enum HudState {
     Hidden,
     Listening { mode: RecordMode },
-    Recognizing,
+    Transcribing,
     Polishing,
     Inserted,
     Copied,

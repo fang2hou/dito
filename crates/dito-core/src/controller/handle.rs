@@ -6,11 +6,11 @@ use super::command::Command;
 use super::env::Delivery;
 use super::hud::HudState;
 use super::progress::ProcessingEstimate;
-use crate::pipeline::{Output, Phase, PipelineError};
+use crate::pipeline::{Output, PipelineError, PipelinePhase};
 
 pub(super) enum Msg {
     Cmd(Command),
-    Phase(u64, Phase),
+    PipelinePhase(u64, PipelinePhase),
     Done(u64, Result<Output, PipelineError>),
     /// The insertion that `Done` started on the blocking pool has finished.
     Delivered(u64, Delivery),

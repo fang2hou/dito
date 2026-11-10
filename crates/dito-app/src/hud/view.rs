@@ -162,7 +162,7 @@ impl HudView {
         }
         // A result can arrive during the midpoint chase, while the user still sees Transcribing.
         self.previous = Some(if self.state == HudState::Polishing && elapsed < self.catch_up() + LABEL_FADE_S / 2. {
-            HudState::Recognizing
+            HudState::Transcribing
         } else {
             self.state.clone()
         });

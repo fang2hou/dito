@@ -22,7 +22,7 @@ impl HudView {
         let reduced = Motion::system().is_reduced();
         let forecast = self.st.dictation.processing_estimate();
         self.processing = match self.state {
-            HudState::Recognizing => Some(ProcessingMotion::recognizing(forecast.recognition_secs, reduced)),
+            HudState::Transcribing => Some(ProcessingMotion::transcribing(forecast.transcription_secs, reduced)),
             HudState::Polishing => {
                 let (running, estimate) =
                     forecast.polishing.map_or((0., 1.5), |(start, secs)| (start.elapsed().as_secs_f32(), secs));
@@ -36,9 +36,9 @@ impl HudView {
         // The watch channel may coalesce very fast stages. The fill still starts at zero and the processing
         // shell remains visible while it catches up, even if the view first receives a later state.
         if matches!(self.state, HudState::Polishing | HudState::Inserted | HudState::Copied)
-            && !matches!(self.previous, Some(HudState::Recognizing | HudState::Polishing))
+            && !matches!(self.previous, Some(HudState::Transcribing | HudState::Polishing))
         {
-            self.previous = Some(HudState::Recognizing);
+            self.previous = Some(HudState::Transcribing);
         }
     }
 
@@ -79,7 +79,7 @@ impl HudView {
                 self.error_reason.advance(error_target, dt, 0.72, 22.);
             }
         }
-        let moving = matches!(self.state, HudState::Recognizing | HudState::Polishing);
+        let moving = matches!(self.state, HudState::Transcribing | HudState::Polishing);
         let ocean_moving = listening && self.waveform.needs_redraw(motion.is_reduced());
         let entry = self.opened.elapsed().as_millis() < POP_MS as u128;
         let countdown = self.remaining();

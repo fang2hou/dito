@@ -16,7 +16,7 @@ pub(super) const SETTLE_S: f32 = 0.18;
 /// Use the shared fill curve with a fixed forecast for synthetic HUD previews.
 pub(crate) fn fill_at(state: &HudState, t: f32, carry: Option<f32>) -> Option<f32> {
     let motion = match state {
-        HudState::Recognizing => ProcessingMotion::recognizing(1.5, false),
+        HudState::Transcribing => ProcessingMotion::transcribing(1.5, false),
         HudState::Polishing => ProcessingMotion::polishing(Fill::at_rest(carry.unwrap_or(0.5)), 1.5, 0., false),
         _ => return None,
     };

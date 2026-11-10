@@ -24,7 +24,7 @@ pub(super) const KEY_UP_S: f32 = 0.16;
 pub(super) const TAP_HOLD_S: f32 = 0.10;
 /// The key shrinks to this scale when pressed.
 pub(super) const KEY_SCALE: f32 = 0.94;
-/// The recognizing capsule cross-fades to the inserted one over this.
+/// The transcribing capsule cross-fades to the inserted one over this.
 pub(super) const INSERT_FADE_S: f32 = 0.16;
 /// A phase chip fades its plate in and out over this.
 pub(super) const CHIP_FADE_S: f32 = 0.16;
@@ -95,7 +95,7 @@ impl Scene {
             let (state, began, w) = if at < process_at {
                 (listening, listen_at, narrow)
             } else {
-                (HudState::Recognizing, process_at, hud::eased_width(narrow, hud::CAPSULE_W, at - process_at))
+                (HudState::Transcribing, process_at, hud::eased_width(narrow, hud::CAPSULE_W, at - process_at))
             };
             let pop = (at - listen_at) / (hud::POP_MS as f32 / 1000.);
             HudAt {

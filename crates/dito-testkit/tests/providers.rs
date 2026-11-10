@@ -10,7 +10,7 @@ use dito_core::config::{
 use dito_core::error::ErrorKind;
 use dito_core::factory::{EngineFactory, Engines};
 use dito_core::pipeline::CancellationToken;
-use dito_core::pipeline::{self, Job, PipelineError};
+use dito_core::pipeline::{self, PipelineError, PipelineJob};
 use dito_core::prompts::Style;
 use dito_core::provider::{AsrRequest, PolishRequest, TestOutcome, test_polisher, test_transcriber};
 use dito_core::secrets::{MemorySecrets, SecretStore, polish_account};
@@ -338,7 +338,7 @@ async fn full_pipeline_over_http_with_polish_outage_still_delivers_raw_text() {
     let out = pipeline::run(
         &engines,
         &cfg,
-        &Job { clip: &clip, style: Style::General, dictionary: &[] },
+        &PipelineJob { clip: &clip, style: Style::General, dictionary: &[] },
         &|_| {},
         &CancellationToken::new(),
     )

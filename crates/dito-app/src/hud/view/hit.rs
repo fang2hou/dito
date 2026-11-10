@@ -41,7 +41,7 @@ pub(super) fn pointer_hit(
     let on_capsule = x >= left && x <= left + width && y >= top && y <= top + CAPSULE_H;
     let toggle = matches!(state, HudState::Listening { mode: RecordMode::Toggle });
     let error = matches!(state, HudState::Error { .. });
-    let processing = matches!(state, HudState::Recognizing | HudState::Polishing);
+    let processing = matches!(state, HudState::Transcribing | HudState::Polishing);
     let inside_circle = |cx: f32| (x - cx).powi(2) + (y - (top + CAPSULE_H / 2.)).powi(2) <= (BTN / 2.).powi(2);
     let left_button = (toggle || error) && inside_circle(center - CAPSULE_W / 2. + CAPSULE_PAD + BTN / 2.);
     let right_button = (toggle || error) && inside_circle(center + CAPSULE_W / 2. - CAPSULE_PAD - BTN / 2.);
@@ -127,7 +127,7 @@ mod tests {
         assert!(!interactive(&hold, 72., false, button_x, top + 16.5));
         assert!(!interactive(&toggle, CAPSULE_W, true, center, top + 50.));
         assert!(interactive(&toggle, CAPSULE_W, true, center, top - 20.));
-        assert!(interactive(&HudState::Recognizing, CAPSULE_W, true, center, top - 20.));
-        assert!(!interactive(&HudState::Recognizing, CAPSULE_W, true, center + 80., top - 20.));
+        assert!(interactive(&HudState::Transcribing, CAPSULE_W, true, center, top - 20.));
+        assert!(!interactive(&HudState::Transcribing, CAPSULE_W, true, center + 80., top - 20.));
     }
 }

@@ -37,7 +37,7 @@ impl Onboarding {
         let hold = self.mode == RecordMode::Hold;
         match state {
             HudState::Listening { .. } => self.seen[0] = true,
-            HudState::Recognizing => {
+            HudState::Transcribing => {
                 self.seen[1] = true;
                 self.seen[2] |= hold;
             }

@@ -54,7 +54,7 @@ impl HudView {
 
     fn layers(&self, p: &Palette, clock: FrameClock, terminal: bool, cx: &mut Context<Self>) -> Div {
         let elapsed = clock.elapsed;
-        if self.state == HudState::Recognizing
+        if self.state == HudState::Transcribing
             && elapsed < LABEL_FADE_S
             && let Some(listening @ HudState::Listening { .. }) = &self.previous
         {
@@ -65,7 +65,7 @@ impl HudView {
             return crossfade(old, next, (elapsed / LABEL_FADE_S).clamp(0., 1.));
         }
         let processing_before =
-            self.previous.as_ref().filter(|s| matches!(s, HudState::Recognizing | HudState::Polishing));
+            self.previous.as_ref().filter(|s| matches!(s, HudState::Transcribing | HudState::Polishing));
         let changing_phase = self.state == HudState::Polishing && self.processing.is_some();
         let catch_up = self.catch_up();
         let transition = if terminal { SUCCESS_FADE_S } else { LABEL_FADE_S };
