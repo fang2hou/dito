@@ -93,15 +93,36 @@ impl DictionaryPage {
 
     fn add_word(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let word = self.add.read(cx).value().to_string();
-        match self.st.store.add_word(&word, now()) {
-            Ok(true) => {
-                self.add.update(cx, |s, cx| s.set_value("", window, cx));
-                self.load(cx);
+        let st = self.st.clone();
+        cx.spawn_in(window, async move |this, cx| {
+            let store = st.store.clone();
+            match off_main(&st, move || Ok(store.add_word(&word, now())?)).await {
+                Ok(true) => {
+                    let _ = this.update_in(cx, |this, window, cx| {
+                        this.add.update(cx, |s, cx| s.set_value("", window, cx));
+                        this.load(cx);
+                        cx.notify();
+                    });
+                }
+                Ok(false) => {}
+                Err(e) => tracing::warn!("dictionary: could not add a word: {e:#}"),
             }
-            Ok(false) => {}
-            Err(e) => tracing::warn!("dictionary: {e}"),
-        }
-        cx.notify();
+        })
+        .detach();
+    }
+
+    fn remove_word(&mut self, word: String, cx: &mut Context<Self>) {
+        let st = self.st.clone();
+        cx.spawn(async move |this, cx| {
+            let store = st.store.clone();
+            match off_main(&st, move || Ok(store.remove_word(&word)?)).await {
+                Ok(()) => {
+                    let _ = this.update(cx, |this, cx| this.load(cx));
+                }
+                Err(e) => tracing::warn!("dictionary: could not remove a word: {e:#}"),
+            }
+        })
+        .detach();
     }
 
     fn import(&mut self, cx: &mut Context<Self>) {
@@ -112,13 +133,14 @@ impl DictionaryPage {
             if let Ok(Ok(Some(paths))) = rx.await
                 && let Some(path) = paths.into_iter().next()
             {
-                match std::fs::read_to_string(&path) {
-                    Ok(text) => {
-                        if let Err(e) = st.store.import_words(&text, now()) {
-                            tracing::warn!("import: {e}");
-                        }
-                    }
-                    Err(e) => tracing::warn!("import: {e}"),
+                let store = st.store.clone();
+                let imported = off_main(&st, move || {
+                    let text = std::fs::read_to_string(&path)?;
+                    Ok(store.import_words(&text, now())?)
+                })
+                .await;
+                if let Err(e) = imported {
+                    tracing::warn!("dictionary: import failed: {e:#}");
                 }
             }
             let _ = this.update(cx, |this, cx| this.load(cx));
@@ -130,15 +152,28 @@ impl DictionaryPage {
         let rx = cx.prompt_for_new_path(&downloads_dir(), Some("dito-dictionary.txt"));
         let st = self.st.clone();
         cx.spawn(async move |_, _| {
-            if let Ok(Ok(Some(path))) = rx.await
-                && let Ok(text) = st.store.export_words()
-                && let Err(e) = std::fs::write(&path, text)
-            {
-                tracing::warn!("export: {e}");
+            if let Ok(Ok(Some(path))) = rx.await {
+                let store = st.store.clone();
+                let exported = off_main(&st, move || {
+                    let text = store.export_words()?;
+                    Ok(std::fs::write(&path, text)?)
+                })
+                .await;
+                if let Err(e) = exported {
+                    tracing::warn!("dictionary: export failed: {e:#}");
+                }
             }
         })
         .detach();
     }
+}
+
+/// Run store or file work on the blocking pool so it never stalls the UI thread.
+async fn off_main<T: Send + 'static>(
+    st: &AppState,
+    work: impl FnOnce() -> anyhow::Result<T> + Send + 'static,
+) -> anyhow::Result<T> {
+    st.rt.spawn_blocking(work).await.map_err(|e| anyhow::anyhow!("blocking task failed: {e}"))?
 }
 
 impl DictionaryPage {
@@ -354,7 +389,6 @@ impl DictionaryPage {
         word: String,
         group: SharedString,
     ) -> Stateful<Div> {
-        let st = self.st.clone();
         div()
             .id(SharedString::from(format!("del-{index}")))
             .size(px(24.))
@@ -367,10 +401,7 @@ impl DictionaryPage {
             .opacity(0.)
             .group_hover(group, |s| s.opacity(1.))
             .hover(|s| s.bg(p.seg))
-            .on_click(ui::click_cb(cbk(cx, move |this: &mut Self, _, cx| match st.store.remove_word(&word) {
-                Ok(()) => this.load(cx),
-                Err(e) => tracing::warn!("dictionary: could not remove a word: {e:#}"),
-            })))
+            .on_click(ui::click_cb(cbk(cx, move |this: &mut Self, _, cx| this.remove_word(word.clone(), cx))))
             .child(ui::icon(Ic::X, 14., p.muted))
     }
 }
