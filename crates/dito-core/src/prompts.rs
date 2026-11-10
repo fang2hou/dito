@@ -114,59 +114,14 @@ impl PromptSet {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
 pub struct Prompts {
     pub ja: PromptSet,
     pub en: PromptSet,
     pub zh: PromptSet,
     pub applications: BTreeMap<String, String>,
     pub disabled_builtin_styles: Vec<Style>,
-}
-
-impl<'de> Deserialize<'de> for Prompts {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        #[derive(Deserialize)]
-        struct Saved {
-            #[serde(default = "ja_defaults")]
-            ja: PromptSet,
-            #[serde(default = "en_defaults")]
-            en: PromptSet,
-            #[serde(default = "zh_defaults")]
-            zh: PromptSet,
-            #[serde(default)]
-            applications: BTreeMap<String, String>,
-            #[serde(default)]
-            disabled_builtin_styles: Vec<Style>,
-        }
-        fn ja_defaults() -> PromptSet {
-            default_set(Lang::Ja)
-        }
-        fn en_defaults() -> PromptSet {
-            default_set(Lang::En)
-        }
-        fn zh_defaults() -> PromptSet {
-            default_set(Lang::Zh)
-        }
-        let mut value = serde_json::Value::deserialize(deserializer)?;
-        for (key, lang) in [("ja", Lang::Ja), ("en", Lang::En), ("zh", Lang::Zh)] {
-            if let Some(set) = value.get_mut(key).and_then(serde_json::Value::as_object_mut)
-                && !set.contains_key("herdr")
-            {
-                set.insert(
-                    "herdr".into(),
-                    serde_json::to_value(default_set(lang).herdr).map_err(serde::de::Error::custom)?,
-                );
-            }
-        }
-        let saved: Saved = serde_json::from_value(value).map_err(serde::de::Error::custom)?;
-        Ok(Self {
-            ja: saved.ja,
-            en: saved.en,
-            zh: saved.zh,
-            applications: saved.applications,
-            disabled_builtin_styles: saved.disabled_builtin_styles,
-        })
-    }
 }
 
 impl Default for Prompts {
@@ -497,21 +452,6 @@ mod tests {
         assert!(p.contains("<term>A&amp;B</term>"));
         assert!(p.contains("Ignore unrelated terms"));
         assert!(p.contains("If uncertain, preserve the original wording"));
-    }
-
-    #[test]
-    fn legacy_settings_keep_edits_and_receive_localized_app_defaults() {
-        let mut value = serde_json::to_value(Prompts::default()).unwrap();
-        for key in ["ja", "en", "zh"] {
-            value[key].as_object_mut().unwrap().remove("herdr");
-            value[key].as_object_mut().unwrap().remove("applications");
-        }
-        value.as_object_mut().unwrap().remove("applications");
-        value["en"]["base"] = "my existing rule".into();
-        let migrated: Prompts = serde_json::from_value(value).unwrap();
-        assert_eq!(migrated.en.base, "my existing rule");
-        assert_eq!(migrated.en.herdr, default_set(Lang::En).herdr);
-        assert_eq!(migrated.zh.herdr, default_set(Lang::Zh).herdr);
     }
 
     #[test]
