@@ -15,5 +15,5 @@ pub use command::Command;
 pub use env::{AppInfo, Delivery, Deps, Env, FocusWarmer, Frontmost, MusicMute, MuteSession, Recorder, Sink};
 pub use handle::DictationHandle;
 pub use hud::{ErrorAction, HudState};
-pub use progress::ProcessingEstimate;
+pub use progress::{ProcessingEstimate, StepTimes};
 pub use recorder_error::RecorderError;

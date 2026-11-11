@@ -68,6 +68,7 @@ impl Settings {
             }),
             Page::Stats => self.stats.update(cx, |s, cx| s.set_active(true, cx)),
             Page::Wordbook => self.wordbook.update(cx, |d, cx| d.set_active(true, cx)),
+            Page::Status => self.status.update(cx, |s, cx| s.set_active(true, cx)),
             _ => {}
         }
     }
@@ -77,6 +78,7 @@ impl Settings {
             Page::History => self.history.update(cx, |h, cx| h.set_active(false, cx)),
             Page::Stats => self.stats.update(cx, |s, cx| s.set_active(false, cx)),
             Page::Wordbook => self.wordbook.update(cx, |d, cx| d.set_active(false, cx)),
+            Page::Status => self.status.update(cx, |s, cx| s.set_active(false, cx)),
             _ => {}
         }
     }

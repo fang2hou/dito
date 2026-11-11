@@ -5,7 +5,7 @@ use tokio::sync::{mpsc, watch};
 use super::command::Command;
 use super::env::Delivery;
 use super::hud::HudState;
-use super::progress::ProcessingEstimate;
+use super::progress::{ProcessingEstimate, StepTimes};
 use crate::pipeline::{Output, PipelineError, PipelinePhase};
 
 pub(super) enum Msg {
@@ -23,6 +23,7 @@ pub struct DictationHandle {
     hud: watch::Receiver<HudState>,
     recording_started: watch::Receiver<Option<Instant>>,
     processing: watch::Receiver<ProcessingEstimate>,
+    step_times: watch::Receiver<StepTimes>,
 }
 
 impl DictationHandle {
@@ -31,8 +32,9 @@ impl DictationHandle {
         hud: watch::Receiver<HudState>,
         recording_started: watch::Receiver<Option<Instant>>,
         processing: watch::Receiver<ProcessingEstimate>,
+        step_times: watch::Receiver<StepTimes>,
     ) -> Self {
-        Self { tx, hud, recording_started, processing }
+        Self { tx, hud, recording_started, processing, step_times }
     }
 
     pub fn send(&self, c: Command) {
@@ -49,5 +51,9 @@ impl DictationHandle {
 
     pub fn processing_estimate(&self) -> ProcessingEstimate {
         *self.processing.borrow()
+    }
+
+    pub fn step_times(&self) -> StepTimes {
+        *self.step_times.borrow()
     }
 }

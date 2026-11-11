@@ -1,32 +1,30 @@
 use std::sync::Arc;
-use std::time::Duration;
 
 use dito_core::config::Source;
-use dito_core::i18n::Tr;
+use dito_core::i18n::{Tr, fmt};
 use dito_core::secrets::Role;
-use dito_platform::Status;
+use dito_platform::{Permission, Status, permissions};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
-use super::permissions::read_perms;
+use super::steps::{Dot, Step};
+use super::usage::{SAMPLE_EVERY, UsageMeter};
 use crate::assets::Ic;
 use crate::services;
-use crate::settings::{self, Ctx, Page, role};
+use crate::settings::{self, Ctx, role};
 use crate::state::AppState;
 use crate::ui::{self, BtnKind, TestState, cbk, text};
 
-/// Status cards are read-only: starting, restarting, retrying and enabling live in Models or
-/// General settings. This page reports engine state, provider facts, permissions — nothing else.
+/// `design:settings/status`: can the user dictate now, and if not, what to fix.
 pub struct StatusPage {
     pub(super) st: Arc<AppState>,
     pub(super) checks: [TestState; 2],
-    pub(super) checked_at: [Option<u64>; 2],
-    pub(super) perms: [Status; 2],
-    pub(super) motion: ui::MotionScope,
-}
-
-fn now_epoch() -> u64 {
-    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
+    pub(super) microphone_allowed: bool,
+    pub(super) accessibility_allowed: bool,
+    pub(super) usage: UsageMeter,
+    /// Lives only while the page is on screen: dropping it stops the permission and usage readings.
+    refresh: Option<Task<()>>,
+    motion: ui::MotionScope,
 }
 
 impl StatusPage {
@@ -51,35 +49,49 @@ impl Render for StatusPage {
 impl StatusPage {
     pub fn new(st: Arc<AppState>, _window: &mut Window, cx: &mut Context<Self>) -> Self {
         services::watch_config(&st, cx);
-        cx.spawn(async move |this, cx| {
-            loop {
-                cx.background_executor().timer(Duration::from_millis(1500)).await;
-                let perms = read_perms();
-                if this
-                    .update(cx, |t, cx| {
-                        t.perms = perms;
-                        cx.notify();
-                    })
-                    .is_err()
-                {
-                    break;
-                }
-            }
-        })
-        .detach();
-        // Probe provider connections once so cards can show latency without a manual recheck.
-        cx.spawn(async move |this, cx| {
-            cx.background_executor().timer(Duration::from_millis(350)).await;
-            let _ = this.update(cx, |t, cx| t.probe_providers(cx));
-        })
-        .detach();
         Self {
             motion: ui::MotionScope::new(),
             st,
             checks: [TestState::Idle, TestState::Idle],
-            checked_at: [None, None],
-            perms: read_perms(),
+            microphone_allowed: true,
+            accessibility_allowed: true,
+            usage: UsageMeter::default(),
+            refresh: None,
         }
+    }
+
+    /// Nothing is read or measured while the page is off screen.
+    pub fn set_active(&mut self, active: bool, cx: &mut Context<Self>) {
+        if !active {
+            self.refresh = None;
+            self.usage.stop();
+            return;
+        }
+        self.read();
+        if self.checks.iter().all(|check| *check == TestState::Idle) {
+            self.probe_providers(cx);
+        }
+        self.refresh = Some(cx.spawn(async move |this, cx| {
+            loop {
+                cx.background_executor().timer(SAMPLE_EVERY).await;
+                let alive = this.update(cx, |page, cx| {
+                    page.read();
+                    cx.notify();
+                });
+                if alive.is_err() {
+                    break;
+                }
+            }
+        }));
+        cx.notify();
+    }
+
+    fn read(&mut self) {
+        // Without a real capture the recorder is synthetic and needs no permission.
+        self.microphone_allowed =
+            self.st.capture.is_none() || permissions::status(Permission::Microphone) == Status::Granted;
+        self.accessibility_allowed = permissions::status(Permission::Accessibility) == Status::Granted;
+        self.usage.sample(&self.st);
     }
 
     fn probe_providers(&mut self, cx: &mut Context<Self>) {
@@ -103,9 +115,7 @@ impl StatusPage {
         cx.spawn(async move |this, cx| {
             let outcome = services::test_connection(st, role).await;
             let _ = this.update(cx, |t, cx| {
-                let idx = role::index(role);
-                t.checked_at[idx] = Some(now_epoch());
-                t.checks[idx] = outcome.into();
+                t.checks[role::index(role)] = outcome.into();
                 cx.notify();
             });
         })
@@ -113,7 +123,7 @@ impl StatusPage {
     }
 
     fn check_all(&mut self, cx: &mut Context<Self>) {
-        self.perms = read_perms();
+        self.read();
         self.probe_providers(cx);
         cx.notify();
     }
@@ -121,6 +131,8 @@ impl StatusPage {
     fn view(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let c = Ctx::new(&self.st, cx);
         let p = c.p;
+        let steps = self.steps(&c);
+        let ready = steps.iter().all(|step| step.dot != Dot::Attention);
         settings::page(
             p,
             "status",
@@ -131,51 +143,71 @@ impl StatusPage {
                 .flex()
                 .flex_col()
                 .gap(px(28.))
-                .child(
-                    div()
-                        .w_full()
-                        .flex()
-                        .flex_col()
-                        .gap(px(10.))
-                        .child(text(c.t(Tr::NavModels), 13., FontWeight::BOLD, p.muted))
-                        .child(
-                            div()
-                                .w_full()
-                                .flex()
-                                .flex_col()
-                                .gap(px(12.))
-                                .child(self.engine_card(&c, Role::Asr))
-                                .child(self.engine_card(&c, Role::Polish)),
-                        ),
-                )
-                .child(self.permissions_card(&c, cx)),
+                .child(self.verdict(&c, ready))
+                .child(self.flow(&c, cx, steps))
+                .children(self.usage.table(&c)),
         )
     }
 
     fn actions(&self, c: &Ctx, cx: &mut Context<Self>) -> AnyElement {
+        ui::button(
+            "check-all",
+            &c.p,
+            &c.t(Tr::StatusCheckAll),
+            BtnKind::Secondary,
+            Some(Ic::Refresh),
+            cbk(cx, |this: &mut Self, _, cx| this.check_all(cx)),
+        )
+        .into_any_element()
+    }
+
+    fn verdict(&self, c: &Ctx, ready: bool) -> Div {
         let p = c.p;
-        div()
-            .flex()
-            .gap(px(10.))
-            .child(ui::button(
-                "manage-models",
-                &p,
-                &c.t(Tr::StatusManageModels),
-                BtnKind::Secondary,
-                Some(Ic::Cpu),
-                std::rc::Rc::new(|_, cx| {
-                    let st = settings::global_state(cx);
-                    settings::open(st, Page::Models, cx);
-                }),
-            ))
-            .child(ui::button(
-                "check-all",
-                &p,
-                &c.t(Tr::StatusCheckAll),
-                BtnKind::Secondary,
-                Some(Ic::Refresh),
-                cbk(cx, |this: &mut Self, _, cx| this.check_all(cx)),
-            ))
-            .into_any_element()
+        let (color, title, summary) = if ready {
+            let summary = fmt::status_ready_summary(c.lang, &self.shortcut_label(c));
+            (p.success, c.t(Tr::StatusReady), SharedString::from(summary))
+        } else {
+            (p.danger, c.t(Tr::StatusNeedsAttention), c.t(Tr::StatusFixRedItems))
+        };
+        ui::card(&p).child(
+            div()
+                .w_full()
+                .px(px(24.))
+                .py(px(22.))
+                .flex()
+                .items_start()
+                .gap(px(14.))
+                .child(
+                    div()
+                        .h(px(30.))
+                        .flex()
+                        .flex_none()
+                        .items_center()
+                        .child(div().size(px(14.)).rounded_full().bg(color)),
+                )
+                .child(
+                    div()
+                        .flex_1()
+                        .min_w(px(0.))
+                        .flex()
+                        .flex_col()
+                        .gap(px(4.))
+                        .child(text(title, 20., FontWeight::BOLD, p.text).line_height(px(30.)))
+                        .child(
+                            text(summary, 14., FontWeight::NORMAL, p.muted).whitespace_normal().line_height(px(22.)),
+                        ),
+                ),
+        )
+    }
+
+    fn flow(&self, c: &Ctx, cx: &mut Context<Self>, steps: [Step; 5]) -> Div {
+        let mut card = ui::card(&c.p);
+        for (index, step) in steps.into_iter().enumerate() {
+            if index > 0 {
+                card = card.child(div().w_full().h(px(1.)).bg(c.p.border));
+            }
+            card = card.child(self.step_row(c, cx, step));
+        }
+        card
     }
 }

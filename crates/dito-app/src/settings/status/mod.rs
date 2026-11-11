@@ -1,6 +1,5 @@
-mod cloud_card;
-mod engine_card;
 mod page;
-mod permissions;
+mod steps;
+mod usage;
 
 pub use page::StatusPage;
