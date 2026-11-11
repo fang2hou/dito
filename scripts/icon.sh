@@ -59,14 +59,14 @@ case "${1:-}" in
     compile_icon "${2:?usage: icon.sh compile <resources-dir>}"
     ;;
   compile-cached)
-    # Same output as compile, reusing target/icon-cache unless assets/icon/Dito.icon changed
-    # (actool takes ~5s; dev-runner.sh calls this on every cargo run).
+    # Same output as compile, reusing target/icon-cache unless assets/icon/Dito.icon, the flat
+    # artwork or the selected actool changed (actool takes ~5s; dev-runner.sh calls this on every cargo run).
     out="${2:?usage: icon.sh compile-cached <resources-dir>}"
     cache=target/icon-cache
-    # include actool, so an Xcode change invalidates the cache
     actool="$DEVELOPER_DIR/usr/bin/actool"
-    sum="$(find "$icon" -type f -exec shasum {} + | sort | shasum | awk '{print $1}')-$(stat -f '%m%z' "$actool" 2>/dev/null || echo no-actool)"
-    if [[ "$(cat "$cache/.stamp" 2>/dev/null)" != "$sum" ]] || [[ ! -e "$cache/Assets.car" && ! -e "$cache/Dito.icns" ]]; then
+    source_sum="$(find "$icon" assets/icon/AppIcon-1024.png -type f -exec shasum {} + | sort | shasum | awk '{print $1}')"
+    sum="$source_sum-$(/usr/bin/stat -f '%m%z' "$actool" 2>/dev/null || echo no-actool)"
+    if [[ "$(cat "$cache/.stamp" 2>/dev/null)" != "$sum" || ! -e "$cache/Dito.icns" ]]; then
       rm -rf "$cache"
       compile_icon "$cache"
       echo "$sum" > "$cache/.stamp"
@@ -75,6 +75,8 @@ case "${1:-}" in
     if [[ -e "$cache/Assets.car" ]]; then
       cp "$cache/Assets.car" "$cache/Dito.icns" "$out/"
     else
+      # a stale Assets.car from an earlier layered compile would bring the layered icon back
+      rm -f "$out/Assets.car"
       cp "$cache/Dito.icns" "$out/"
     fi
     ;;

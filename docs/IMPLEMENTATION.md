@@ -12,7 +12,7 @@ How to build, run, test and change Dito, for people and AI agents. Product behav
 | cmake | llama.cpp and sherpa-onnx builds | Homebrew |
 | `dito-dev` signing identity | Stable permissions across rebuilds (see Engineering Traps) | `mise run certs` (also run by `release:install`), once per machine |
 
-Release and dev builds resolve Xcode themselves: the full Xcode selected by `xcode-select`, or `/Applications/Xcode.app` when only the Command Line Tools are selected. Set `DEVELOPER_DIR` to use a specific installation, for example `/Applications/Xcode-26.app/Contents/Developer`. The Xcode Metal Toolchain is still required to compile the app. When the selected Xcode cannot compile the layered icon (an older Xcode 26, or Command Line Tools only), builds fall back to a flat `Dito.icns` from the checked-in 1024 px artwork and print a warning instead of failing.
+`scripts/bundle.sh` (release) and `scripts/icon.sh` (icon step, also in dev runs) resolve Xcode themselves: the full Xcode selected by `xcode-select`, or `/Applications/Xcode.app` when only the Command Line Tools are selected. Plain `cargo` runs such as `mise run dev` do not, so with only the Command Line Tools selected export `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` (or another installation, for example `/Applications/Xcode-26.app/Contents/Developer`) before the first build. The Xcode Metal Toolchain is still required to compile the app. When the selected Xcode cannot compile the layered icon (an older Xcode 26, or Command Line Tools only), builds fall back to a flat `Dito.icns` from the checked-in 1024 px artwork and print a warning instead of failing.
 
 ## Commands
 
