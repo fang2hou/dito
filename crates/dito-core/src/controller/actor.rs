@@ -9,7 +9,7 @@ use super::env::{AppInfo, Delivery, Deps, MuteSession};
 use super::handle::{DictationHandle, Msg};
 use super::history::History;
 use super::hud::{ErrorAction, HudState};
-use super::progress::{Models, ProcessingEstimate, TimingHistory};
+use super::progress::{Models, ProcessingEstimate, StepTimes, TimingHistory};
 use crate::audio::AudioClip;
 use crate::config::{EngineLabels, MusicMuteMode, RecordMode};
 use crate::error::{ErrorKind, ProviderError};
@@ -68,6 +68,7 @@ struct Actor {
     recording_started: watch::Sender<Option<Instant>>,
     processing: watch::Sender<ProcessingEstimate>,
     timings: TimingHistory,
+    step_times: watch::Sender<StepTimes>,
     hide_generation: u64,
     hide_paused: bool,
 }
@@ -77,6 +78,7 @@ pub fn spawn(deps: Deps) -> DictationHandle {
     let (hud_tx, hud_rx) = watch::channel(HudState::Hidden);
     let (started_tx, started_rx) = watch::channel(None);
     let (processing_tx, processing_rx) = watch::channel(ProcessingEstimate::default());
+    let (step_times_tx, step_times_rx) = watch::channel(StepTimes::default());
     let mut actor = Actor {
         history: History::new(deps.store.clone(), deps.audio_dir.clone()),
         deps,
@@ -87,6 +89,7 @@ pub fn spawn(deps: Deps) -> DictationHandle {
         recording_started: started_tx,
         processing: processing_tx,
         timings: TimingHistory::default(),
+        step_times: step_times_tx,
         hide_generation: 0,
         hide_paused: false,
     };
@@ -95,7 +98,7 @@ pub fn spawn(deps: Deps) -> DictationHandle {
             actor.handle(m);
         }
     });
-    DictationHandle::new(tx, hud_rx, started_rx, processing_rx)
+    DictationHandle::new(tx, hud_rx, started_rx, processing_rx, step_times_rx)
 }
 
 fn now() -> i64 {
@@ -319,6 +322,7 @@ impl Actor {
         match result {
             Ok(out) => {
                 self.timings.record(models, clip.duration_ms() as f32 / 1000., &out);
+                self.step_times.send_modify(|times| times.record(models, &out));
                 self.deliver(&meta, &clip, &labels, &out);
             }
             Err(PipelineError::Cancelled) => {

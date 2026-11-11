@@ -1,38 +1,45 @@
 models.stopping = { ja = "停止中", en = "Stopping", zh = "正在停止" }
 models.connection_lost = { ja = "ネットワーク接続が切れました", en = "Network connection lost", zh = "网络连接已断开" }
 models.storage_used = { ja = "使用容量", en = "Storage used", zh = "占用空间" }
-asr_editor.input_codes = { ja = "日本語: ja  /  英語: en  /  中国語: zh", en = "Japanese: ja  /  English: en  /  Chinese: zh", zh = "日语: ja  /  英语: en  /  中文: zh" }
-asr_editor.input_auto = { ja = "自動: 未指定 → auto", en = "Auto: unspecified → auto", zh = "自动识别: 未指定 → auto" }
 models.model_placeholder = { ja = "モデル ID を入力", en = "Enter a model ID", zh = "输入模型 ID" }
 models.effort_placeholder = { ja = "例：low（自由入力）", en = "e.g. low (any value)", zh = "例如：low（可自由输入）" }
 fmt.asr_line_count = { ja = "{count} 行", en = "{count} lines", zh = "{count} 行" }
 fmt.line_column_error = { ja = "{line} 行目、{column} 列目：{detail}", en = "Line {line}, column {column}: {detail}", zh = "第 {line} 行，第 {column} 列：{detail}" }
 fmt.asr_field_error = { ja = "{line} 行目：{detail}", en = "Line {line}: {detail}", zh = "第 {line} 行：{detail}" }
+fmt.asr_help_path_key = { ja = "API キーを書く場所には {variable} と書きます。キーそのものは書きません。", en = "Where the API key belongs, write {variable}, never the key itself.", zh = "需要填 API 密钥的地方写 {variable}，不要写密钥本身。" }
+fmt.asr_help_error_variable = { ja = "{variable} など、一覧にない変数がある", en = "A variable that isn't listed, such as {variable}", zh = "用了 {variable} 这类未列出的变量" }
+fmt.asr_help_fix_variable = { ja = "使える変数は 3 の 5 つと {variable} だけです。", en = "Only the five variables in step 3 and {variable} are available.", zh = "只能使用第 3 步的 5 个变量和 {variable}。" }
 models.download_available = { ja = "ダウンロードして利用できます", en = "Available to download", zh = "下载后即可使用" }
 asr_editor.title = { ja = "接続設定", en = "Connection settings", zh = "连接设置" }
 asr_editor.help_title = { ja = "設定の書き方", en = "Configuration help", zh = "配置帮助" }
+asr_editor.help_lead = { ja = "接続先の API ドキュメントを見ながら、次の 4 か所を書き換えます。", en = "With the provider's API documentation open, rewrite these four parts.", zh = "对照服务商的 API 文档，改写下面 4 处。" }
+asr_editor.help_language_title = { ja = "言語コードを合わせる", en = "Match the language codes", zh = "对应语言代码" }
+asr_editor.help_language_body = { ja = "左が Dito の言語、右が接続先に送る値です。右側を、接続先のドキュメントにある書き方に合わせます。", en = "The left side is Dito's language and the right side is the value sent to the provider. Write the right side the way the provider's documentation does.", zh = "左边是 Dito 的语言，右边是发送给服务商的值。右边按服务商文档中的写法填写。" }
+asr_editor.help_language_auto = { ja = "auto を null にすると、自動認識のときは言語を送りません。", en = "Set auto to null to send no language during automatic recognition.", zh = "把 auto 设为 null，自动识别时就不发送语言。" }
+asr_editor.help_language_other = { ja = "other は、一覧にない言語のときに送る値です。必ず指定します。", en = "other is the value sent for a language that isn't listed. It is always required.", zh = "other 是遇到未列出的语言时发送的值，必须填写。" }
+asr_editor.help_path_title = { ja = "送信先を書く", en = "Write the endpoint", zh = "填写请求地址" }
+asr_editor.help_path_body = { ja = "path には、ベース URL の後ろに続く部分だけを書きます。URL 全体は書きません。", en = "In path, write only the part that follows the base URL, not the full URL.", zh = "path 只写基础 URL 后面的部分，不要写完整的 URL。" }
+asr_editor.help_body_title = { ja = "送信するデータを書く", en = "Write the request data", zh = "填写请求数据" }
+asr_editor.help_body_body = { ja = "ドキュメントのリクエスト例をそのまま書き、次の値が入るところを変数に置き換えます。", en = "Copy the request example from the documentation as it is, then replace the following values with variables.", zh = "照抄文档中的请求示例，再把下列值所在的位置换成变量。" }
+asr_editor.help_body_multipart = { ja = "ファイルとして送る API では、encoding を multipart にして、body の代わりに fields に書きます。", en = "For an API that takes the audio as a file, set encoding to multipart and use fields instead of body.", zh = "以文件形式上传的 API，把 encoding 设为 multipart，并用 fields 代替 body。" }
+asr_editor.help_var_model = { ja = "モデル ID", en = "Model ID", zh = "模型 ID" }
+asr_editor.help_var_language = { ja = "1 で変換した言語コード", en = "Language code mapped in step 1", zh = "第 1 步转换后的语言代码" }
+asr_editor.help_var_base64 = { ja = "音声（Base64）", en = "Audio (Base64)", zh = "音频（Base64）" }
+asr_editor.help_var_data_uri = { ja = "音声（Data URI）", en = "Audio (Data URI)", zh = "音频（Data URI）" }
+asr_editor.help_var_file = { ja = "音声ファイル（multipart のみ）", en = "Audio file (multipart only)", zh = "音频文件（仅 multipart）" }
+asr_editor.help_pointer_title = { ja = "認識結果の場所を書く", en = "Write where the transcript is", zh = "填写识别结果的位置" }
+asr_editor.help_pointer_body = { ja = "レスポンスの中で、認識した文章が入っている場所を / で区切って書きます。配列は 0 から数えます。", en = "Write where the transcript sits in the response, separated by /. Arrays count from 0.", zh = "用 / 分隔，写出识别文字在响应中的位置。数组从 0 开始计数。" }
+asr_editor.help_errors_title = { ja = "エラーが出たときは", en = "When you see an error", zh = "出现错误时" }
+asr_editor.help_error_other = { ja = "other がない", en = "other is missing", zh = "缺少 other" }
+asr_editor.help_fix_other = { ja = 'language_map に "other": "en" のように追加します。', en = 'Add it to language_map, for example "other": "en".', zh = '在 language_map 中添加，例如 "other": "en"。' }
+asr_editor.help_error_path = { ja = "path に URL 全体を書いた", en = "path holds a full URL", zh = "path 写成了完整的 URL" }
+asr_editor.help_fix_path = { ja = "/ から始まる部分だけにします。", en = "Keep only the part that starts with /.", zh = "只保留以 / 开头的部分。" }
+asr_editor.help_error_audio_file = { ja = "JSON の body に {{audio.file}} がある", en = "{{audio.file}} is in a JSON body", zh = "JSON 的 body 中用了 {{audio.file}}" }
+asr_editor.help_fix_audio_file = { ja = "{{audio.base64}} か {{audio.data_uri}} を使います。", en = "Use {{audio.base64}} or {{audio.data_uri}}.", zh = "改用 {{audio.base64}} 或 {{audio.data_uri}}。" }
+asr_editor.help_copy_hint = { ja = "AI に作ってもらうときは、この説明と接続先のドキュメントを一緒に渡します。\nAPI キーと録音は含まれません。", en = "To have an AI write it, hand over this reference together with the provider's documentation.\nIt contains no API key or recordings.", zh = "让 AI 代写时，请把这份说明和服务商的文档一起交给它。\n其中不包含 API 密钥和录音。" }
 asr_editor.edit = { ja = "編集", en = "Edit", zh = "编辑" }
 asr_editor.check = { ja = "自動チェック", en = "Automatic check", zh = "自动检查" }
 asr_editor.save = { ja = "保存", en = "Save", zh = "保存" }
-asr_editor.structure = { ja = "設定の構成", en = "Configuration structure", zh = "配置结构" }
-asr_editor.version = { ja = "形式のバージョン", en = "Format version", zh = "格式版本" }
-asr_editor.connection = { ja = "接続先とモデル", en = "Endpoint and model", zh = "地址与模型" }
-asr_editor.language_map = { ja = "言語コードの変換", en = "Language mapping", zh = "语言映射" }
-asr_editor.request = { ja = "送信するデータ", en = "Request data", zh = "请求数据" }
-asr_editor.response = { ja = "認識結果の取得先", en = "Transcript location", zh = "识别结果位置" }
-asr_editor.example = { ja = "接続先が JP / EN / ZH を使う場合の例", en = "Example for endpoints using JP / EN / ZH", zh = "接口使用 JP / EN / ZH 时的示例" }
-asr_editor.order = { ja = "完全なタグ → 言語コード → other", en = "Full tag \u2192 language code \u2192 other", zh = "完整标签 → 语言代码 → other" }
-asr_editor.auto = { ja = "auto が null なら、言語を指定しません。", en = "When auto is null, omit the language.", zh = "auto 为 null 时省略语言参数。" }
-asr_editor.variables = { ja = "使用できる変数", en = "Available variables", zh = "可用变量" }
-asr_editor.model = { ja = "モデル ID", en = "Model ID", zh = "模型 ID" }
-asr_editor.mapped = { ja = "変換後の言語コード", en = "Mapped language code", zh = "映射后的语言代码" }
-asr_editor.key = { ja = "API キー", en = "API key", zh = "API 密钥" }
-asr_editor.base64 = { ja = "Base64 の音声", en = "Base64 audio", zh = "Base64 音频" }
-asr_editor.data_uri = { ja = "Data URI の音声", en = "Data URI audio", zh = "Data URI 音频" }
-asr_editor.wav = { ja = "WAV ファイル", en = "WAV file", zh = "WAV 文件" }
-asr_editor.io = { ja = "送信内容と認識結果", en = "Request and transcript", zh = "请求与识别结果" }
-asr_editor.path = { ja = "ベース URL の末尾に追加します。", en = "Appended to the base URL.", zh = "追加到基础 URL 末尾。" }
-asr_editor.pointer = { ja = "認識した文章の場所を指定します。", en = "Points to the transcript.", zh = "指定识别文字的位置。" }
 asr_editor.copy_help = { ja = "AI 用の説明をコピー", en = "Copy instructions for AI", zh = "复制 AI 配置说明" }
 asr_editor.language = { ja = "言語コード", en = "Language codes", zh = "语言代码" }
 asr_editor.undo = { ja = "元に戻す", en = "Undo", zh = "撤销" }
@@ -213,7 +220,6 @@ models.provider = { ja = "クラウド", en = "Cloud", zh = "云端" }
 models.azure_openai = { ja = "Azure OpenAI", en = "Azure OpenAI", zh = "Azure OpenAI" }
 models.amazon_bedrock = { ja = "Amazon Bedrock", en = "Amazon Bedrock", zh = "Amazon Bedrock" }
 models.openai_compatible = { ja = "OpenAI 互換 API", en = "OpenAI-compatible API", zh = "OpenAI 兼容 API" }
-models.system_permissions = { ja = "システム権限", en = "System permissions", zh = "系统权限" }
 models.not_installed = { ja = "未インストール", en = "Not installed", zh = "未安装" }
 models.startup_error = { ja = "起動エラー", en = "Startup error", zh = "启动错误" }
 models.connected = { ja = "接続済み", en = "Connected", zh = "已连接" }
@@ -235,15 +241,10 @@ models.delete_configuration_title = { ja = "設定を削除しますか？", en 
 models.checking = { ja = "接続確認中", en = "Checking", zh = "正在检查连接" }
 models.connection_error = { ja = "接続エラー", en = "Connection error", zh = "连接错误" }
 models.latency = { ja = "応答時間", en = "Response time", zh = "响应时间" }
-models.last_checked = { ja = "最終確認", en = "Last checked", zh = "上次检查" }
-models.resource = { ja = "リソース", en = "Resource", zh = "资源" }
-models.processing_time = { ja = "処理時間", en = "Processing time", zh = "处理时间" }
 models.memory = { ja = "メモリ", en = "Memory", zh = "内存" }
 models.in_use = { ja = "使用中", en = "In use", zh = "使用中" }
 models.running = { ja = "稼働中", en = "Running", zh = "运行中" }
 models.configured = { ja = "設定済み", en = "Configured", zh = "已配置" }
-models.no_local_running = { ja = "実行中のローカルモデルはありません。", en = "No local model is running.", zh = "当前没有运行中的本地模型。" }
-models.turn_on_in_general = { ja = "一般設定でオンにできます。", en = "Turn it on in General settings.", zh = "可在通用设置中开启。" }
 models.endpoint = { ja = "エンドポイント", en = "Endpoint", zh = "端点" }
 models.deployment = { ja = "デプロイ名", en = "Deployment", zh = "部署名称" }
 models.api_key = { ja = "API キー", en = "API key", zh = "API 密钥" }
@@ -324,11 +325,37 @@ history.no_history_yet = { ja = "履歴はまだありません", en = "No histo
 history.open = { ja = "履歴を開く", en = "Open History", zh = "打开历史" }
 
 # --- status page --------------------------------------------------------------
-status.asr_model = { ja = "音声認識モデル", en = "Speech recognition model", zh = "语音识别模型" }
-status.polish_model = { ja = "文章整形モデル", en = "Polish model", zh = "润色模型" }
-status.provider = { ja = "プロバイダー", en = "Provider", zh = "服务商" }
 status.check_all = { ja = "再確認", en = "Recheck", zh = "重新检查" }
-status.manage_models = { ja = "モデル", en = "Models", zh = "模型" }
+status.ready = { ja = "準備ができています", en = "Ready to dictate", zh = "已准备就绪" }
+fmt.status_ready_summary = { ja = "{key} を押して話すと、文章が入力されます。", en = "Press {key} and speak, and the text is typed for you.", zh = "按下 {key} 说话，文字就会输入。" }
+status.needs_attention = { ja = "対応が必要な項目があります", en = "Some items need attention", zh = "有需要处理的项目" }
+status.fix_red_items = { ja = "赤い項目を直すと、入力できるようになります。", en = "Fix the red items and you can dictate.", zh = "处理红色项目后即可输入。" }
+status.shortcut = { ja = "ショートカット", en = "Shortcut", zh = "快捷键" }
+status.shortcut_toggle = { ja = "押すと録音が始まり、もう一度押すと終わります。", en = "Press to start recording, press again to stop.", zh = "按一下开始录音，再按一下结束。" }
+status.shortcut_hold = { ja = "押している間、録音します。", en = "Records while you hold it.", zh = "按住期间录音。" }
+status.shortcut_blocked = { ja = "アクセシビリティが許可されていないため、ショートカットを検知できません。", en = "Accessibility is not allowed, so the shortcut cannot be detected.", zh = "未允许辅助功能，无法检测快捷键。" }
+status.microphone_detail = { ja = "声を録音します。", en = "Records your voice.", zh = "录下你的声音。" }
+status.microphone_blocked = { ja = "マイクが許可されていないため、録音できません。", en = "The microphone is not allowed, so nothing can be recorded.", zh = "未允许使用麦克风，无法录音。" }
+fmt.status_local_model = { ja = "{name}（ローカル）", en = "{name} (local)", zh = "{name}（本地）" }
+fmt.status_cloud_model = { ja = "{name}（クラウド）", en = "{name} (cloud)", zh = "{name}（云端）" }
+status.recent_time = { ja = "直近の処理時間", en = "Last processing time", zh = "最近一次处理用时" }
+status.model_stopped = { ja = "ローカルモデルが停止しています。", en = "The local model is stopped.", zh = "本地模型已停止。" }
+status.model_missing = { ja = "モデルがダウンロードされていません。", en = "The model has not been downloaded.", zh = "模型尚未下载。" }
+status.model_load_failed = { ja = "モデルの読み込みに失敗しました。ストレージとメモリの空きを確認してください。", en = "The model failed to load. Check the free storage and memory.", zh = "模型加载失败。请检查可用的存储空间和内存。" }
+status.start = { ja = "起動", en = "Start", zh = "启动" }
+status.retry = { ja = "再試行", en = "Retry", zh = "重试" }
+status.open_model_settings = { ja = "モデル設定を開く", en = "Open model settings", zh = "打开模型设置" }
+status.polish_off = { ja = "オフです。一般設定でオンにできます。", en = "Off. Turn it on in General settings.", zh = "已关闭。可在通用设置中开启。" }
+status.auth_error = { ja = "認証エラー", en = "Authentication error", zh = "认证错误" }
+status.check_api_key = { ja = "API キーを確認してください。", en = "Check the API key.", zh = "请检查 API 密钥。" }
+status.request_timed_out = { ja = "リクエストがタイムアウトしました。ネットワークとプロキシ設定を確認してください。", en = "The request timed out. Check the network and proxy settings.", zh = "请求超时。请检查网络和代理设置。" }
+status.insert_detail = { ja = "文章をカーソル位置に入力します。", en = "Types the text at your cursor.", zh = "把文字输入到光标处。" }
+status.insert_blocked = { ja = "アクセシビリティの許可が必要です。", en = "Accessibility permission is required.", zh = "需要辅助功能权限。" }
+status.usage_title = { ja = "この Mac での使用量", en = "Usage on this Mac", zh = "在这台 Mac 上的占用" }
+status.usage_app = { ja = "アプリ本体", en = "The app itself", zh = "应用本身" }
+status.usage_asr_model = { ja = "音声認識モデル（ローカル）", en = "Speech recognition model (local)", zh = "语音识别模型（本地）" }
+status.usage_polish_model = { ja = "文章整形モデル（ローカル）", en = "Polish model (local)", zh = "润色模型（本地）" }
+status.usage_total = { ja = "合計", en = "Total", zh = "合计" }
 status.local_stopped = { ja = "ローカルモデルが停止しています", en = "Local model stopped", zh = "本地模型已停止" }
 status.running_locally = { ja = "ローカルで稼働中", en = "Running locally", zh = "本地运行中" }
 status.running_via_provider = { ja = "プロバイダーで稼働中", en = "Running via provider", zh = "通过服务商运行中" }
@@ -367,7 +394,6 @@ menubar.show_in_finder = { ja = "Finder で表示", en = "Show in Finder", zh = 
 menubar.free = { ja = "空き", en = "Free", zh = "可用" }
 menubar.connecting = { ja = "接続中…", en = "Connecting…", zh = "连接中…" }
 menubar.working = { ja = "処理中…", en = "Working…", zh = "处理中…" }
-status.queued_requests = { ja = "待機中のリクエスト", en = "Queued requests", zh = "排队中的请求" }
 
 # --- startup failure window (opens instead of exiting when settings or history cannot be used) ---
 startup.unreadable_title = { ja = "設定を読み込めませんでした", en = "Could not load settings", zh = "无法读取设置" }
@@ -394,7 +420,6 @@ onboarding.allow_permissions = { ja = "権限を許可する", en = "Allow permi
 onboarding.permissions_desc = { ja = "Dito を使うには、次の 2 つを許可してください。", en = "Dito needs these two permissions to work.", zh = "使用 Dito 需要以下两项权限。" }
 onboarding.card.mic = { ja = "声を録音して音声認識に使います。", en = "Records your voice for speech recognition.", zh = "录制声音用于语音识别。" }
 onboarding.card.accessibility = { ja = "文章をカーソル位置に入力します。", en = "Types the text at your cursor.", zh = "把文字输入到光标处。" }
-onboarding.card.polish = { ja = "整形した文章をカーソル位置に入力します。", en = "Types the polished text at the cursor.", zh = "把润色后的文字输入到光标处。" }
 onboarding.choose_mode = { ja = "使い方を選ぶ", en = "Choose how to record", zh = "选择使用方式" }
 onboarding.choose_mode_desc = { ja = "あなたに合う録音方式を選びます。あとから「一般」で変更できます。", en = "Pick the recording mode that suits you. You can change it later in General.", zh = "选择适合你的录音方式，之后可在「通用」中更改。" }
 onboarding.toggle_desc = { ja = "キーを押して開始、もう一度押して終了", en = "Press once to start, press again to stop", zh = "按一下开始，再按一下结束" }

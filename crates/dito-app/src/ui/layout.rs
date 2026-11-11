@@ -69,7 +69,6 @@ pub fn status_tag(p: &Palette, ok: bool, label: impl Into<SharedString>) -> Div 
 /// Colors from `design:components/controls` and `design:settings/status`.
 #[derive(Clone, Copy)]
 pub enum StatusTone {
-    Success,
     Warning,
     Danger,
     Neutral,
@@ -77,7 +76,6 @@ pub enum StatusTone {
 
 pub fn status_chip(p: &Palette, label: impl Into<SharedString>, tone: StatusTone) -> Div {
     let (bg, fg) = match tone {
-        StatusTone::Success => (p.success, white()),
         StatusTone::Warning => (p.warning_text, p.warning_soft),
         StatusTone::Danger => (p.danger, white()),
         StatusTone::Neutral => (p.muted, p.card),
