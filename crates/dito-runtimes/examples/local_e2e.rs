@@ -103,7 +103,7 @@ async fn main() {
         prompts: &prompts,
         style: Style::General,
         text: transcript,
-        dictionary: &["Acme".into()],
+        wordbook: &["Acme".into()],
     });
     let started = Instant::now();
     let llm = engines.polisher(&polish_id, &LocalPolishParams::default()).await.expect("load polish model");

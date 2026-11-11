@@ -1,4 +1,4 @@
-//! SQLite-backed history and dictionary, plus the aggregate queries behind the stats page.
+//! SQLite-backed history and the wordbook, plus the aggregate queries behind the stats page.
 
 use std::path::Path;
 use std::sync::{Mutex, MutexGuard};
@@ -225,19 +225,27 @@ impl Store {
         }
         let n = self
             .conn()
-            .execute("INSERT OR IGNORE INTO dictionary (term, created) VALUES (?1, ?2)", params![term, now])?;
+            .execute("INSERT OR IGNORE INTO wordbook (term, created) VALUES (?1, ?2)", params![term, now])?;
         Ok(n > 0)
     }
 
-    pub fn remove_word(&self, term: &str) -> Result<()> {
-        self.conn().execute("DELETE FROM dictionary WHERE term=?1", [term])?;
+    pub fn remove_words(&self, terms: &[String]) -> Result<()> {
+        let mut conn = self.conn();
+        let tx = conn.transaction()?;
+        {
+            let mut delete = tx.prepare("DELETE FROM wordbook WHERE term=?1")?;
+            for term in terms {
+                delete.execute([term])?;
+            }
+        }
+        tx.commit()?;
         Ok(())
     }
 
     pub fn words(&self, query: Option<&str>) -> Result<Vec<String>> {
         let c = self.conn();
         let like = format!("%{}%", query.unwrap_or("").trim());
-        let mut stmt = c.prepare("SELECT term FROM dictionary WHERE term LIKE ?1 ORDER BY created DESC, term")?;
+        let mut stmt = c.prepare("SELECT term FROM wordbook WHERE term LIKE ?1 ORDER BY created DESC, term")?;
         Ok(stmt.query_map([like], |r| r.get(0))?.collect::<std::result::Result<_, _>>()?)
     }
 
@@ -302,6 +310,7 @@ impl Store {
 
 #[cfg(test)]
 mod tests {
+    use super::schema::MIGRATIONS;
     use super::*;
 
     fn builtin(id: &str) -> Style {
@@ -487,15 +496,30 @@ mod tests {
     }
 
     #[test]
-    fn dictionary_dedupes_trims_and_round_trips_import_export() {
+    fn wordbook_dedupes_trims_and_round_trips_import_export() {
         let s = Store::open_in_memory().unwrap();
         assert!(s.add_word("  Acme ", 1).unwrap());
         assert!(!s.add_word("Acme", 2).unwrap());
         assert!(!s.add_word("   ", 3).unwrap());
         assert_eq!(s.import_words("Contoso\nAcme\n\nBedrock\n", 4).unwrap(), 2);
         assert_eq!(s.export_words().unwrap(), "Acme\nBedrock\nContoso");
-        s.remove_word("Contoso").unwrap();
-        assert_eq!(s.words(Some("B")).unwrap(), ["Bedrock"]);
+        s.remove_words(&["Contoso".into(), "Acme".into(), "missing".into()]).unwrap();
+        assert_eq!(s.words(None).unwrap(), ["Bedrock"]);
+    }
+
+    #[test]
+    fn wordbook_batch_deletion_rolls_back_on_error() {
+        let s = Store::open_in_memory().unwrap();
+        s.import_words("Acme\nContoso", 1).unwrap();
+        s.conn()
+            .execute_batch(
+                "CREATE TRIGGER reject_delete BEFORE DELETE ON wordbook
+                 WHEN OLD.term = 'Contoso' BEGIN SELECT RAISE(ABORT, 'test failure'); END;",
+            )
+            .unwrap();
+
+        assert!(s.remove_words(&["Acme".into(), "Contoso".into()]).is_err());
+        assert_eq!(s.words(None).unwrap(), ["Acme", "Contoso"]);
     }
 
     #[test]
@@ -558,26 +582,30 @@ mod tests {
 
     #[test]
     fn an_older_database_keeps_its_rows_and_reaches_the_latest_version() {
-        // Version 0 is a database from before versioning, version 1 one the first versioned build created. Both hold
-        // the frozen schema, and the migrations after theirs must leave their rows readable.
-        for applied in [0u32, 1] {
+        // Version 0 predates versioning, version 1 adopted that schema, and version 2 added engine columns.
+        for applied in [0u32, 1, 2] {
             let dir = tempfile::tempdir().unwrap();
             let path = dir.path().join("h.db");
             {
                 let old = Connection::open(&path).unwrap();
                 old.execute_batch(PRE_VERSIONING_SCHEMA).unwrap();
+                if applied == 2 {
+                    old.execute_batch(MIGRATIONS[1]).unwrap();
+                }
                 old.execute(
                     "INSERT INTO history (ts, day, kind, style, app, lang, duration_ms, raw)
                      VALUES (10, '1970-01-01', 'dictation', 'general', 'Notes', 'ja', 6000, 'from the old build')",
                     (),
                 )
                 .unwrap();
+                old.execute("INSERT INTO dictionary (term, created) VALUES ('Acme', 10)", ()).unwrap();
                 old.pragma_update(None, "user_version", applied).unwrap();
                 assert_eq!(user_version(&old).unwrap(), applied);
             }
 
             let s = Store::open(&path, 0).unwrap();
             assert_eq!(user_version(&s.conn()).unwrap(), SCHEMA_VERSION, "upgrading from version {applied}");
+            assert_eq!(s.words(None).unwrap(), ["Acme"]);
             let rows = s.list_history(&HistoryFilter::default()).unwrap();
             assert_eq!(rows.iter().map(|e| e.raw.as_str()).collect::<Vec<_>>(), ["from the old build"]);
             assert_eq!(rows[0].engines, EngineLabels::default(), "a row from before the engine columns is unlabelled");

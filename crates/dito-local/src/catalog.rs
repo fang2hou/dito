@@ -315,7 +315,7 @@ pub fn default_catalog() -> Vec<ModelSpec> {
             language_focus: None,
         },
         // Measured on M4 Pro (bench, 2026-11): 9B is the only tier where ASR-hotword →
-        // polish-dictionary injection stays stable (4B drops entries); 2B keeps English
+        // polish-wordbook injection stays stable (4B drops entries); 2B keeps English
         // terms at 0.25–0.32 s latency.
         ModelSpec {
             id: "qwen3.5-9b-instruct".into(),

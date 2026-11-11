@@ -192,6 +192,7 @@ impl ConfigurationPanel {
                 label: c.t(Tr::PromptsRemoveConfirm),
                 on_click: Some(cbk(cx, move |this: &mut V, window, cx| confirm_delete(this, delete, window, cx))),
             },
+            ui::ConfirmStyle::Standard,
         ))
     }
 }

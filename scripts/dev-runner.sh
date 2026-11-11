@@ -57,6 +57,10 @@ if [[ "$(basename "$bin")" == dito ]]; then
 </dict>
 </plist>
 PLIST
+  # without Assets.car, CFBundleIconName would name a missing icon
+  if [[ ! -s "$app/Contents/Resources/Assets.car" ]]; then
+    /usr/libexec/PlistBuddy -c "Delete :CFBundleIconName" "$app/Contents/Info.plist"
+  fi
   if have_identity; then
     codesign --force --identifier "$bundle_id" --sign "$identity" "$app"
   else

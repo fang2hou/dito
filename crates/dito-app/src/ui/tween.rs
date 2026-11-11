@@ -15,17 +15,46 @@ pub(super) fn ease(t: f32) -> f32 {
 /// it has settled, so a control drawn again later does not replay it. A handle whose scope has expired settles at
 /// once and reinserts nothing.
 pub(super) fn tween_to_at(scope: &ScopeHandle, id: &ElementId, target: f32, dur: Duration) -> (f32, f32, bool, usize) {
-    let Some(reg) = scope.registry() else { return (target, target, false, 0) };
+    let (from, to, start, key) = retarget(scope, id, target, dur, Instant::now(), ease);
+    (from, to, start.elapsed() < dur, key)
+}
+
+fn retarget(
+    scope: &ScopeHandle,
+    id: &ElementId,
+    target: f32,
+    dur: Duration,
+    now: Instant,
+    curve: fn(f32) -> f32,
+) -> (f32, f32, Instant, usize) {
+    let Some(reg) = scope.registry() else { return (target, target, now - dur, 0) };
     let mut m = reg.borrow_mut();
     let key = id.clone();
-    let now = Instant::now();
     let e = m.tweens.entry(key).or_insert((target, target, now - dur, 0));
     if (e.1 - target).abs() > f32::EPSILON {
         let progress = (now.duration_since(e.2).as_secs_f32() / dur.as_secs_f32()).clamp(0., 1.);
-        let current = e.0 + (e.1 - e.0) * ease(progress);
+        let current = e.0 + (e.1 - e.0) * curve(progress);
         *e = (current, target, now, e.3 + 1);
     }
-    (e.0, e.1, now.duration_since(e.2) < dur, e.3)
+    *e
+}
+
+/// Sample an ease-out fade while keeping the interactive element that uses it mounted.
+pub fn fade_value(id: &ElementId, target: f32, ms: u64) -> (f32, bool) {
+    fn ease_out(t: f32) -> f32 {
+        1. - (1. - t).powi(2)
+    }
+
+    let scope = scope::motion_scope();
+    let dur = Duration::from_millis(ms);
+    let now = Instant::now();
+    let (from, to, start, _) = retarget(&scope, id, target, dur, now, ease_out);
+    let elapsed = now.duration_since(start);
+    if elapsed >= dur {
+        return (to, false);
+    }
+    let progress = elapsed.as_secs_f32() / dur.as_secs_f32();
+    (from + (to - from) * ease_out(progress), true)
 }
 
 /// An element whose look follows an animated number: `build(v)` draws it for the value `v`, which eases to

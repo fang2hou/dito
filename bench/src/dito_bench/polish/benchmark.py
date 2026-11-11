@@ -23,7 +23,7 @@ class PolishCase:
     lang: str
     note: str
     text: str
-    dictionary: tuple[str, ...] = ()
+    wordbook: tuple[str, ...] = ()
 
 
 def load_cases() -> list[PolishCase]:
@@ -34,14 +34,14 @@ def load_cases() -> list[PolishCase]:
             lang=item["lang"],
             note=item["note"],
             text=item["text"],
-            dictionary=tuple(item.get("dictionary", ())),
+            wordbook=tuple(item.get("wordbook", ())),
         )
         for item in raw
     ]
 
 
 def _prompt(case: PolishCase) -> str:
-    return system_prompt(case.lang, STYLE, list(case.dictionary))
+    return system_prompt(case.lang, STYLE, list(case.wordbook))
 
 
 def build_cases(cases: Sequence[PolishCase]) -> list[Case[PolishCase]]:

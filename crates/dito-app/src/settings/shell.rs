@@ -7,7 +7,7 @@ use gpui_kit::*;
 
 use super::models;
 use super::page::{RAIL_COLLAPSE, RAIL_EXPAND, traffic_light_position};
-use super::{Ctx, Page, dictionary, general, history, prompts, stats, status};
+use super::{Ctx, Page, general, history, prompts, stats, status, wordbook};
 use crate::services;
 use crate::state::AppState;
 use crate::theme::{self, Palette};
@@ -24,7 +24,7 @@ pub struct Settings {
     pub(super) motion: ui::MotionScope,
     pub(super) general: Entity<general::GeneralPage>,
     pub(super) models: Entity<models::ModelsPage>,
-    pub(super) dictionary: Entity<dictionary::DictionaryPage>,
+    pub(super) wordbook: Entity<wordbook::WordbookPage>,
     pub(super) prompts: Entity<prompts::PromptsPage>,
     pub(super) history: Entity<history::HistoryPage>,
     pub(super) stats: Entity<stats::StatsPage>,
@@ -41,7 +41,7 @@ impl Settings {
         let this = Self {
             general: cx.new(|cx| general::GeneralPage::new(s.clone(), cx)),
             models: cx.new(|cx| models::ModelsPage::new(s.clone(), window, cx)),
-            dictionary: cx.new(|cx| dictionary::DictionaryPage::new(s.clone(), window, cx)),
+            wordbook: cx.new(|cx| wordbook::WordbookPage::new(s.clone(), window, cx)),
             prompts: cx.new(|cx| prompts::PromptsPage::new(s.clone(), window, cx)),
             history: cx.new(|cx| history::HistoryPage::new(s.clone(), window, cx)),
             stats: cx.new(|cx| stats::StatsPage::new(s.clone(), cx)),
@@ -54,6 +54,7 @@ impl Settings {
         };
         // The modal is painted by the window shell, above the sidebar as well as the page.
         cx.subscribe(&this.models, |_, _, _: &models::ModalChanged, cx| cx.notify()).detach();
+        cx.subscribe(&this.wordbook, |_, _, _: &wordbook::ModalChanged, cx| cx.notify()).detach();
         cx.observe(&this.prompts, |_, _, cx| cx.notify()).detach();
         this.activate(page, cx);
         this
@@ -68,7 +69,7 @@ impl Settings {
                 h.set_active(true, cx);
             }),
             Page::Stats => self.stats.update(cx, |s, cx| s.set_active(true, cx)),
-            Page::Dictionary => self.dictionary.update(cx, |d, cx| d.set_active(true, cx)),
+            Page::Wordbook => self.wordbook.update(cx, |d, cx| d.set_active(true, cx)),
             _ => {}
         }
     }
@@ -78,7 +79,7 @@ impl Settings {
         match page {
             Page::History => self.history.update(cx, |h, cx| h.set_active(false, cx)),
             Page::Stats => self.stats.update(cx, |s, cx| s.set_active(false, cx)),
-            Page::Dictionary => self.dictionary.update(cx, |d, cx| d.set_active(false, cx)),
+            Page::Wordbook => self.wordbook.update(cx, |d, cx| d.set_active(false, cx)),
             _ => {}
         }
     }
@@ -106,7 +107,7 @@ impl Settings {
         match page {
             Page::General => self.general.update(cx, |g, _| g.reset_motion()),
             Page::Models => self.models.update(cx, |m, cx| m.reset_motion(cx)),
-            Page::Dictionary => self.dictionary.update(cx, |d, _| d.reset_motion()),
+            Page::Wordbook => self.wordbook.update(cx, |d, _| d.reset_motion()),
             Page::Prompts => self.prompts.update(cx, |p, cx| p.reset_motion(cx)),
             Page::History => self.history.update(cx, |h, _| h.reset_motion()),
             Page::Stats => self.stats.update(cx, |s, _| s.reset_motion()),
@@ -153,7 +154,7 @@ impl Settings {
         match self.page {
             Page::General => self.general.clone().into_any_element(),
             Page::Models => self.models.clone().into_any_element(),
-            Page::Dictionary => self.dictionary.clone().into_any_element(),
+            Page::Wordbook => self.wordbook.clone().into_any_element(),
             Page::Prompts => self.prompts.clone().into_any_element(),
             Page::History => self.history.clone().into_any_element(),
             Page::Stats => self.stats.clone().into_any_element(),
@@ -204,6 +205,11 @@ impl Settings {
         } else {
             None
         };
+        let wordbook_overlay = if self.page == Page::Wordbook {
+            self.wordbook.update(cx, |wordbook, cx| wordbook.overlay(window, cx))
+        } else {
+            None
+        };
         div()
             .size_full()
             .flex()
@@ -220,5 +226,6 @@ impl Settings {
             .child(self.health_overlay(&c))
             .children(prompt_overlay)
             .children(models_overlay)
+            .children(wordbook_overlay)
     }
 }

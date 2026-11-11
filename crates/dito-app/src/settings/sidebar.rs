@@ -203,7 +203,7 @@ impl Settings {
                     .child(plate)
                     .child(nav_section(c, rail, Tr::NavSettings))
                     .children(
-                        [Page::General, Page::Models, Page::Dictionary, Page::Prompts]
+                        [Page::General, Page::Models, Page::Wordbook, Page::Prompts]
                             .map(|pg| self.nav_item(c, cx, rail, pg)),
                     )
                     .child(nav_section(c, rail, Tr::NavActivity))

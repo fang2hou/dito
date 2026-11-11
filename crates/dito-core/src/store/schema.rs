@@ -7,6 +7,7 @@ use serde::de::{DeserializeOwned, IntoDeserializer};
 
 use super::model::Result;
 
+/// Schema migrations in the order they shipped. `PRAGMA user_version` holds how many have been applied, so a shipped
 /// entry is never edited or reordered: a schema change is a new entry at the end.
 pub(super) const MIGRATIONS: &[&str] = &[
     // 1: the schema from before versioning. `IF NOT EXISTS` lets a database created by that build adopt it unchanged.
@@ -32,6 +33,8 @@ pub(super) const MIGRATIONS: &[&str] = &[
     // 2: which engines produced an entry. Nullable, so entries from before it stay unlabelled.
     "ALTER TABLE history ADD COLUMN asr_engine TEXT;
      ALTER TABLE history ADD COLUMN polish_engine TEXT;",
+    // 3: use the product name without rewriting the saved words.
+    "ALTER TABLE dictionary RENAME TO wordbook;",
 ];
 
 /// The schema version this build creates and the newest one it can open.

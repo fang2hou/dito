@@ -15,8 +15,8 @@ pub struct Config {
     pub asr: EngineConfig,
     pub polish: PolishConfig,
     pub prompts: Prompts,
-    /// Also pass dictionary words to the polish model.
-    pub dictionary_for_polish: bool,
+    /// Also pass wordbook words to the polish model.
+    pub wordbook_for_polish: bool,
     pub onboarded: bool,
     pub models_dir: Option<PathBuf>,
 }
@@ -29,7 +29,7 @@ impl Default for Config {
             asr: EngineConfig::default(),
             polish: PolishConfig::default(),
             prompts: Prompts::default(),
-            dictionary_for_polish: false,
+            wordbook_for_polish: false,
             onboarded: false,
             models_dir: None,
         }

@@ -70,11 +70,11 @@ RULES: dict[str, tuple[str, str, str]] = {
 }
 
 
-def system_prompt(lang: str, style: str = "general", dictionary: list[str] | None = None) -> str:
+def system_prompt(lang: str, style: str = "general", wordbook: list[str] | None = None) -> str:
     layers = PROMPTS[lang]
     source_rule, vocabulary_rule, output_rule = RULES[lang]
     out = f"{layers['base'].strip()}\n\n{layers[style].strip()}\n\n{source_rule}"
-    terms = [term.strip() for term in dictionary or [] if term.strip()]
+    terms = [term.strip() for term in wordbook or [] if term.strip()]
     if terms:
         out += f"\n\n{vocabulary_rule}\n<reference_vocabulary>\n"
         out += "".join(f"<term>{escape(term, quote=False)}</term>\n" for term in terms)

@@ -45,7 +45,7 @@ pub enum PipelineError {
 pub struct PipelineJob<'a> {
     pub clip: &'a AudioClip,
     pub style: Style,
-    pub dictionary: &'a [String],
+    pub wordbook: &'a [String],
 }
 
 async fn or_cancel<T>(cancel: &CancellationToken, fut: impl Future<Output = T>) -> Result<T, PipelineError> {
@@ -92,7 +92,7 @@ async fn transcribe(
         asr.transcribe(&AsrRequest {
             clip: job.clip,
             language: cfg.general.preferred_language.code(),
-            hotwords: job.dictionary,
+            hotwords: job.wordbook,
         }),
     )
     .await?
@@ -129,7 +129,7 @@ async fn polish(
         prompts: &cfg.prompts,
         style: job.style.clone(),
         text: &out.raw,
-        dictionary: polish_dictionary(cfg, job.dictionary),
+        wordbook: polish_wordbook(cfg, job.wordbook),
         lang: None,
     };
     match or_cancel(cancel, polish_text(polisher.as_ref(), polish_job)).await? {
@@ -146,23 +146,23 @@ pub struct PolishJob<'a> {
     pub prompts: &'a Prompts,
     pub style: Style,
     pub text: &'a str,
-    /// Spelling references for the prompt: the saved dictionary run through [`polish_dictionary`], or none.
-    pub dictionary: &'a [String],
+    /// Spelling references for the prompt: the saved wordbook run through [`polish_wordbook`], or none.
+    pub wordbook: &'a [String],
     /// Prompt language; `None` detects it from `text`, as dictation does.
     pub lang: Option<Lang>,
 }
 
-/// The dictionary words the polish prompt may carry: all of `words` when the user turned on
-/// `dictionary_for_polish`, none otherwise. Recognition hotwords are not subject to it.
-pub fn polish_dictionary<'a>(cfg: &Config, words: &'a [String]) -> &'a [String] {
-    if cfg.dictionary_for_polish { words } else { &[] }
+/// The wordbook words the polish prompt may carry: all of `words` when the user turned on
+/// `wordbook_for_polish`, none otherwise. Recognition hotwords are not subject to it.
+pub fn polish_wordbook<'a>(cfg: &Config, words: &'a [String]) -> &'a [String] {
+    if cfg.wordbook_for_polish { words } else { &[] }
 }
 
 /// Polish `job.text` with `polisher`. The one place that builds the system prompt and calls the model; dictation,
 /// polishing a history entry again and the Prompts page preview all use it.
 pub async fn polish_text(polisher: &dyn Polisher, job: PolishJob<'_>) -> ProviderResult<String> {
-    let PolishJob { prompts, style, text, dictionary, lang } = job;
-    let input = PromptInput { prompts, style, text, dictionary };
+    let PolishJob { prompts, style, text, wordbook, lang } = job;
+    let input = PromptInput { prompts, style, text, wordbook };
     let system = match lang {
         Some(lang) => build_system_prompt_for_language(&input, lang),
         None => build_system_prompt(&input),
@@ -197,7 +197,7 @@ mod tests {
     }
 
     async fn go(e: &FixedEngines, cfg: &Config, clip: &AudioClip) -> Result<Output, PipelineError> {
-        run(e, cfg, &PipelineJob { clip, style: Style::General, dictionary: &[] }, &|_| {}, &CancellationToken::new())
+        run(e, cfg, &PipelineJob { clip, style: Style::General, wordbook: &[] }, &|_| {}, &CancellationToken::new())
             .await
     }
 
@@ -208,7 +208,7 @@ mod tests {
         let out = run(
             &e,
             &Config::default(),
-            &PipelineJob { clip: &tone(), style: Style::General, dictionary: &[] },
+            &PipelineJob { clip: &tone(), style: Style::General, wordbook: &[] },
             &|p| phases.lock().unwrap().push(p),
             &CancellationToken::new(),
         )
@@ -291,7 +291,7 @@ mod tests {
         let r = run(
             &e,
             &Config::default(),
-            &PipelineJob { clip: &tone(), style: Style::General, dictionary: &[] },
+            &PipelineJob { clip: &tone(), style: Style::General, wordbook: &[] },
             &on_phase,
             &cancel,
         )
@@ -301,7 +301,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn dictionary_reaches_polish_only_when_enabled() {
+    async fn wordbook_reaches_polish_only_when_enabled() {
         struct Spy(std::sync::Mutex<String>);
         #[async_trait::async_trait]
         impl crate::provider::Polisher for Spy {
@@ -314,11 +314,11 @@ mod tests {
         let e = FixedEngines { asr: Arc::new(MockTranscriber::new("Acme")), polish: spy.clone() };
         let dict = vec!["Acme".to_string()];
         let clip = tone();
-        let job = PipelineJob { clip: &clip, style: Style::General, dictionary: &dict };
+        let job = PipelineJob { clip: &clip, style: Style::General, wordbook: &dict };
         let mut cfg = Config::default();
         run(&e, &cfg, &job, &|_| {}, &CancellationToken::new()).await.unwrap();
         assert!(!spy.0.lock().unwrap().contains("<reference_vocabulary>"));
-        cfg.dictionary_for_polish = true;
+        cfg.wordbook_for_polish = true;
         run(&e, &cfg, &job, &|_| {}, &CancellationToken::new()).await.unwrap();
         assert!(spy.0.lock().unwrap().contains("Acme"));
     }
@@ -336,7 +336,7 @@ mod tests {
         let capture = Capture(Default::default());
         let prompts = Prompts::default();
         let text = "hello there";
-        let job = |lang| PolishJob { prompts: &prompts, style: Style::General, text, dictionary: &[], lang };
+        let job = |lang| PolishJob { prompts: &prompts, style: Style::General, text, wordbook: &[], lang };
 
         polish_text(&capture, job(None)).await.unwrap();
         let (system, sent) = capture.0.lock().unwrap().clone();

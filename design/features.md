@@ -37,7 +37,7 @@ What the app is for and what it does, from the user's side. How it looks and mov
 | --- | --- |
 | 一般 (General) | Shortcut, record mode, insert method, music mute, microphone (automatic or fixed), speech language, display language, appearance, HUD appearance and position, launch at login, restart onboarding |
 | モデル (Models) | Local models (download, pause, resume, verify, delete, switch with 使用する, move the folder), with request parameters per local polish model; cloud configurations for speech and for polishing, shown as a scrolling row of tiles that can be added from a template (FunASR, Qwen ASR, OpenRouter for speech; Azure OpenAI, Amazon Bedrock, OpenAI-compatible for polishing), duplicated, renamed, reordered by dragging and deleted; cloud speech edits the full request in the inline JSON editor with valid-draft autosave, native undo and redo, and a single documentation help dialog with four scrollable reference cards; cloud polishing has request parameters (temperature, top-p, max tokens, reasoning effort, extra JSON); connection tests |
-| 辞書 (Dictionary) | Words passed to recognition as hotwords, optionally also to polishing; import and export; a banner when an action fails |
+| 単語帳 (Wordbook) | Words passed to recognition as hotwords, optionally also to polishing; import, export and confirmed bulk deletion; a banner when an action fails |
 | プロンプト (Prompts) | Shared rules and app writing profiles per language, installed-app icons, add or remove an app profile, copy settings to another app, optional style examples and a safe preview. `design:settings/prompts`: taller editors, grouped undo and redo, draft autosave, scoped reset confirmation and plain-text before and after panes |
 | 履歴 (History) | Search and filter by period, text or app; entries from configured apps carry the app name and the rest read as Other; each entry shows the polished text and the original; re-recognize, re-polish, copy, play audio, delete |
 | 統計 (Stats) | Characters, speaking speed, time saved, recordings, top apps and languages |
@@ -53,7 +53,7 @@ The sidebar shows a health dot (green when ready, red with the reason when a loc
 
 ## Menu Bar
 
-A waveform icon showing the engine status and today's character count, with shortcuts to History, Dictionary, Status, Settings and Quit. It never changes settings.
+A waveform icon showing the engine status and today's character count, with shortcuts to History, Wordbook, Status, Settings and Quit. It never changes settings.
 
 ## Dock
 

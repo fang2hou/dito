@@ -87,7 +87,7 @@ nav.settings = { ja = "設定", en = "Settings", zh = "设置" }
 nav.activity = { ja = "利用状況", en = "Activity", zh = "使用情况" }
 nav.general = { ja = "一般", en = "General", zh = "通用" }
 nav.models = { ja = "モデル", en = "Models", zh = "模型" }
-nav.dictionary = { ja = "辞書", en = "Dictionary", zh = "词典" }
+nav.wordbook = { ja = "単語帳", en = "Wordbook", zh = "单词本" }
 nav.prompts = { ja = "プロンプト", en = "Prompts", zh = "提示词" }
 nav.history = { ja = "履歴", en = "History", zh = "历史" }
 nav.stats = { ja = "統計", en = "Stats", zh = "统计" }
@@ -110,8 +110,8 @@ general.preferred_language = { ja = "優先言語", en = "Preferred language", z
 general.simplified_chinese = { ja = "簡体字中国語", en = "Simplified Chinese", zh = "简体中文" }
 general.japanese = { ja = "日本語", en = "Japanese", zh = "日语" }
 general.english = { ja = "英語", en = "English", zh = "英语" }
-general.hud_language_shortcuts = { ja = "HUD の言語切替", en = "HUD language shortcuts", zh = "HUD 语言快捷切换" }
-general.hud_language_all = { ja = "すべての言語", en = "All languages", zh = "所有语言" }
+general.hud_language_shortcuts = { ja = "言語切替", en = "Language shortcuts", zh = "语言切换" }
+general.hud_language_all = { ja = "すべて", en = "All", zh = "全部" }
 general.hud_language_hidden = { ja = "表示しない", en = "Hidden", zh = "不显示" }
 general.auto = { ja = "自動", en = "Auto", zh = "自动" }
 general.system = { ja = "システム", en = "System", zh = "系统" }
@@ -119,11 +119,11 @@ general.launch_at_login = { ja = "ログイン時に起動", en = "Launch at log
 general.show_dock_icon = { ja = "Dock にアイコンを表示", en = "Show icon in Dock", zh = "在 Dock 中显示图标" }
 general.appearance = { ja = "外観", en = "Appearance", zh = "外观" }
 general.hud = { ja = "HUD", en = "HUD", zh = "HUD" }
-general.hud_appearance = { ja = "HUD の外観", en = "HUD appearance", zh = "HUD 外观" }
-general.hud_position = { ja = "HUD の位置", en = "HUD position", zh = "HUD 位置" }
+general.hud_appearance = { ja = "外観", en = "Appearance", zh = "外观" }
+general.hud_position = { ja = "位置", en = "Position", zh = "位置" }
 general.hud_centered = { ja = "中央", en = "Centered", zh = "屏幕居中" }
 general.hud_pointer = { ja = "マウスに追従", en = "Follow pointer", zh = "跟随鼠标" }
-general.hud_height = { ja = "HUD の高さ", en = "HUD height", zh = "HUD 高度" }
+general.hud_height = { ja = "高さ", en = "Height", zh = "高度" }
 general.hud_lower = { ja = "低い", en = "Lower", zh = "低" }
 general.hud_higher = { ja = "高い", en = "Higher", zh = "高" }
 general.light = { ja = "ライト", en = "Light", zh = "浅色" }
@@ -254,20 +254,25 @@ models.restart = { ja = "再起動", en = "Restart", zh = "重新启动" }
 models.download_again = { ja = "再ダウンロード", en = "Download again", zh = "重新下载" }
 models.delete = { ja = "削除", en = "Delete", zh = "删除" }
 
-# --- dictionary page ----------------------------------------------------------
-dictionary.word = { ja = "単語", en = "Word", zh = "词条" }
-dictionary.add = { ja = "追加", en = "Add", zh = "添加" }
-dictionary.import = { ja = "インポート", en = "Import", zh = "导入" }
-dictionary.export = { ja = "エクスポート", en = "Export", zh = "导出" }
-dictionary.same_spelling = { ja = "整形でも同じ表記を使う", en = "Use the same spelling when polishing", zh = "润色时也使用相同写法" }
-dictionary.no_words_yet = { ja = "まだ単語がありません", en = "No words yet", zh = "还没有词条" }
-dictionary.words_passed_to_asr = { ja = "登録した単語は音声認識に渡されます。", en = "Added words are passed to speech recognition.", zh = "添加的词条会传给语音识别。" }
-dictionary.words_sent_to_polish = { ja = "整形モデルにも単語を渡し、表記をそろえます。", en = "Also sends your words to the polish model to keep spelling consistent.", zh = "同时把词条传给润色模型，统一写法。" }
-dictionary.add_failed = { ja = "単語を追加できませんでした。", en = "Could not add the word.", zh = "无法添加词语。" }
-dictionary.delete_failed = { ja = "単語を削除できませんでした。", en = "Could not delete the word.", zh = "无法删除词语。" }
-dictionary.import_failed = { ja = "インポートできませんでした。ファイルの内容を確認してください。", en = "Could not import. Check the file's contents.", zh = "导入失败，请检查文件内容。" }
-dictionary.export_failed = { ja = "エクスポートできませんでした。保存先を確認してください。", en = "Could not export. Check the destination.", zh = "导出失败，请检查保存位置。" }
-dictionary.no_hotword_support = { ja = "現在のモデルはホットワードに対応していません。対応する音声認識モデルを選ぶと有効になります。", en = "The current model does not support hotwords. Select a speech recognition model that supports them to use this feature.", zh = "当前模型不支持热词，选择支持热词的语音识别模型后即可生效。" }
+# --- wordbook page ----------------------------------------------------------
+wordbook.word = { ja = "単語", en = "Word", zh = "单词" }
+wordbook.add = { ja = "追加", en = "Add", zh = "添加" }
+wordbook.import = { ja = "インポート", en = "Import", zh = "导入" }
+wordbook.export = { ja = "エクスポート", en = "Export", zh = "导出" }
+wordbook.same_spelling = { ja = "整形でも同じ表記を使う", en = "Use the same spelling when polishing", zh = "润色时也使用相同写法" }
+wordbook.no_words_yet = { ja = "まだ単語がありません", en = "No words yet", zh = "还没有单词" }
+wordbook.words_passed_to_asr = { ja = "登録した単語は音声認識に渡されます。", en = "Added words are passed to speech recognition.", zh = "添加的单词会传给语音识别。" }
+wordbook.words_sent_to_polish = { ja = "整形モデルにも単語を渡し、表記をそろえます。", en = "Also sends your words to the polish model to keep spelling consistent.", zh = "同时把单词传给润色模型，统一写法。" }
+wordbook.add_failed = { ja = "単語を追加できませんでした。", en = "Could not add the word.", zh = "无法添加词语。" }
+wordbook.delete_failed = { ja = "単語を削除できませんでした。", en = "Could not delete the selected words.", zh = "无法删除所选单词。" }
+wordbook.exit_selection = { ja = "選択を終了", en = "Exit selection", zh = "退出选择" }
+wordbook.delete_selected = { ja = "選択した単語を削除", en = "Delete selected words", zh = "删除所选单词" }
+wordbook.delete_description = { ja = "選択した単語を単語帳から削除します。", en = "The selected words will be removed from your wordbook.", zh = "将从单词本中删除所选单词。" }
+fmt.wordbook_selected = { ja = "{count} 件を選択中", en = "{count} selected", zh = "已选 {count} 项" }
+fmt.wordbook_delete_title = { ja = "{count} 件の単語を削除しますか？", en = "Delete selected words ({count})?", zh = "删除选中的 {count} 个单词？" }
+wordbook.import_failed = { ja = "インポートできませんでした。ファイルの内容を確認してください。", en = "Could not import. Check the file's contents.", zh = "导入失败，请检查文件内容。" }
+wordbook.export_failed = { ja = "エクスポートできませんでした。保存先を確認してください。", en = "Could not export. Check the destination.", zh = "导出失败，请检查保存位置。" }
+wordbook.no_hotword_support = { ja = "現在のモデルはホットワードに対応していません。対応する音声認識モデルを選ぶと有効になります。", en = "The current model does not support hotwords. Select a speech recognition model that supports them to use this feature.", zh = "当前模型不支持热词，选择支持热词的语音识别模型后即可生效。" }
 
 # --- prompts page -------------------------------------------------------------
 prompts.base = { ja = "共通ルール", en = "Common rules", zh = "通用规则" }
@@ -328,7 +333,7 @@ hud.open_settings = { ja = "設定を開く", en = "Open settings", zh = "打开
 
 # --- menubar / tray -----------------------------------------------------------
 menubar.view_status = { ja = "ステータスを見る", en = "View status", zh = "查看状态" }
-menubar.add_word = { ja = "辞書に単語を追加…", en = "Add Word to Dictionary…", zh = "向词典添加词条…" }
+menubar.add_word = { ja = "単語帳に単語を追加…", en = "Add Word to Wordbook…", zh = "向单词本添加单词…" }
 menubar.settings = { ja = "設定…", en = "Settings…", zh = "设置…" }
 menubar.quit = { ja = "Dito を終了", en = "Quit Dito", zh = "退出 Dito" }
 menubar.what_you_said = { ja = "話した内容", en = "What you said", zh = "口述内容" }
@@ -346,7 +351,7 @@ status.queued_requests = { ja = "待機中のリクエスト", en = "Queued requ
 # --- startup failure window (opens instead of exiting when settings or history cannot be used) ---
 startup.unreadable_title = { ja = "設定を読み込めませんでした", en = "Could not load settings", zh = "无法读取设置" }
 startup.unreadable_body = { ja = "設定ファイルの内容に誤りがあります。修正して開き直すか、初期設定に戻してください。", en = "The settings file has an error. Fix it and reopen Dito, or restore the default settings.", zh = "设置文件内容有误。请修正后重新打开，或恢复默认设置。" }
-startup.unreadable_hint = { ja = "今の設定ファイルはバックアップとして残ります。履歴、辞書、API キーは変わりません。", en = "The current file is kept as a backup. History, dictionary and API keys do not change.", zh = "当前的设置文件会保留为备份。历史记录、词典和 API 密钥不受影响。" }
+startup.unreadable_hint = { ja = "今の設定ファイルはバックアップとして残ります。履歴、単語帳、API キーは変わりません。", en = "The current file is kept as a backup. History, the wordbook and API keys do not change.", zh = "当前的设置文件会保留为备份。历史记录、单词本和 API 密钥不受影响。" }
 startup.newer_title = { ja = "Dito のアップデートが必要です", en = "Dito needs an update", zh = "需要更新 Dito" }
 startup.newer_body = { ja = "このデータは新しい Dito で保存されています。アップデートしてから開いてください。", en = "This data was saved by a newer Dito. Update Dito, then open it again.", zh = "这些数据由更新版本的 Dito 保存。请更新后再打开。" }
 fmt.startup_newer_version = { ja = "形式のバージョン：{found}（この Dito が開けるのは {supported} まで）", en = "Format version: {found} (this Dito opens up to {supported})", zh = "格式版本：{found}（此版本的 Dito 最高支持 {supported}）" }

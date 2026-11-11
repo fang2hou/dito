@@ -16,7 +16,7 @@ use crate::state::AppState;
 use crate::timefmt::{day_start, local_day, now};
 
 const ID_HISTORY: &str = "history";
-const ID_DICTIONARY: &str = "dictionary";
+const ID_WORDBOOK: &str = "wordbook";
 const ID_STATUS: &str = "status";
 const ID_SETTINGS: &str = "settings";
 const ID_QUIT: &str = "quit";
@@ -25,7 +25,7 @@ struct Items {
     status: MenuItem,
     today: MenuItem,
     history: MenuItem,
-    dictionary: MenuItem,
+    wordbook: MenuItem,
     status_page: MenuItem,
     settings: MenuItem,
     quit: MenuItem,
@@ -47,31 +47,20 @@ fn build() -> (Tray, Menu) {
     // Placeholder texts: refresh() (called right after build, and every ~2s) localizes every
     // item via t(), so the user only ever sees the localized strings.
     let history = MenuItem::with_id(ID_HISTORY, "…", true, accel("cmd+h"));
-    let dictionary = MenuItem::with_id(ID_DICTIONARY, "…", true, accel("cmd+d"));
+    let wordbook = MenuItem::with_id(ID_WORDBOOK, "…", true, accel("cmd+d"));
     let status_page = MenuItem::with_id(ID_STATUS, "…", true, accel("cmd+i"));
     let settings = MenuItem::with_id(ID_SETTINGS, "…", true, accel("cmd+,"));
     let quit = MenuItem::with_id(ID_QUIT, "…", true, accel("cmd+q"));
     let sep = || PredefinedMenuItem::separator();
-    menu.append_items(&[
-        &status,
-        &today,
-        &sep(),
-        &history,
-        &dictionary,
-        &status_page,
-        &sep(),
-        &settings,
-        &sep(),
-        &quit,
-    ])
-    .expect("menu");
+    menu.append_items(&[&status, &today, &sep(), &history, &wordbook, &status_page, &sep(), &settings, &sep(), &quit])
+        .expect("menu");
     let icon = TrayIconBuilder::new()
         .with_menu(Box::new(menu.clone()))
         .with_icon_templated(tray_glyph())
         .with_tooltip("Dito")
         .build()
         .expect("tray icon");
-    (Tray { _icon: icon, items: Items { status, today, history, dictionary, status_page, settings, quit } }, menu)
+    (Tray { _icon: icon, items: Items { status, today, history, wordbook, status_page, settings, quit } }, menu)
 }
 
 fn refresh(tray: &Tray, st: &AppState) {
@@ -91,7 +80,7 @@ fn refresh(tray: &Tray, st: &AppState) {
     let chars = st.store.stats(Some(since)).map(|s| s.chars).unwrap_or(0);
     tray.items.today.set_text(format!("{} {} {}", lang.tr(Tr::HistoryToday), chars, lang.tr(Tr::UnitsChars)));
     tray.items.history.set_text(lang.tr(Tr::HistoryOpen));
-    tray.items.dictionary.set_text(lang.tr(Tr::MenubarAddWord));
+    tray.items.wordbook.set_text(lang.tr(Tr::MenubarAddWord));
     tray.items.status_page.set_text(lang.tr(Tr::NavStatus));
     tray.items.settings.set_text(lang.tr(Tr::MenubarSettings));
     tray.items.quit.set_text(lang.tr(Tr::MenubarQuit));
@@ -111,7 +100,7 @@ pub fn run(st: Arc<AppState>, cx: &mut App) {
                 let id = ev.id.0.clone();
                 cx.update(|cx| match id.as_str() {
                     ID_HISTORY => settings::open(st2, Page::History, cx),
-                    ID_DICTIONARY => settings::open(st2, Page::Dictionary, cx),
+                    ID_WORDBOOK => settings::open(st2, Page::Wordbook, cx),
                     ID_STATUS => settings::open(st2, Page::Status, cx),
                     ID_SETTINGS => settings::open(st2, Page::General, cx),
                     ID_QUIT => cx.quit(),
