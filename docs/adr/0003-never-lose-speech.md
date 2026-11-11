@@ -9,9 +9,9 @@ A dictation is effort the user can't repeat exactly. Every failure mode (polish 
 
 ## Decision
 
-Once speech is recognized, it reaches the user one way or another.
+Once speech is transcribed, it reaches the user one way or another.
 
-- A polish failure inserts the recognized text and records the error in History.
+- A polish failure inserts the transcript and records the error in History.
 - With nowhere to type, the text goes to the clipboard and the HUD says Copied.
 - The 5-minute limit finishes and processes the recording; it never discards it.
 - Every result is kept in History with its audio; cancelled recordings that contain speech are kept as Cancelled; errors keep the clip so Retry can run it again.
@@ -43,4 +43,4 @@ Storage use becomes a problem for users; a retention setting is designed.
 
 ## Code
 
-`crates/dito-core/src/pipeline.rs` (`run`), `crates/dito-core/src/controller/` (`MAX_RECORDING_DURATION` and the actor in `actor.rs`), `crates/dito-core/src/store.rs`.
+`crates/dito-core/src/pipeline.rs` (`run`), `crates/dito-core/src/controller/` (`MAX_RECORDING_DURATION` and the actor in `actor.rs`), `crates/dito-core/src/store/`.

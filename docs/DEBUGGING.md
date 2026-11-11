@@ -41,4 +41,5 @@ Run, inspect and diagnose Dito locally. Setup and commands are in [IMPLEMENTATIO
 | Build fails after moving a file under `design/` or `provider/asr-help/` | Those files are compiled into `dito-core` | `design/asr-templates/`, `crates/dito-core/src/provider/asr-help/` |
 | Startup window instead of the app | `config.toml` or `dito.db` is unreadable or newer than this build | `design:settings/startup-failure`; the file path is shown in the window |
 | `config.toml` rewritten on launch | A schema migration ran; the original is saved as `config.toml.v<old>.bak` | `crates/dito-core/src/config/migrate.rs` |
-| `scripts/check-design-refs.py` reports an unknown id | A section was renamed or removed in the design | `design/sections.toml` |
+| `mise run check:design-refs` reports an unknown design id | A `design:<id>` reference has a typo, or its id is missing from `design/sections.toml` | The reported file and line, `design/sections.toml` |
+| `mise run check:design-refs` reports a layer that is not found | The section was renamed, renumbered or removed in the design | `board`, `item` and `layer` of that id in `design/sections.toml` |

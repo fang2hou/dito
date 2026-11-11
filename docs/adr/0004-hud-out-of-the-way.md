@@ -9,7 +9,7 @@ The HUD floats over the app the user is typing into. If it takes focus, text goe
 
 ## Decision
 
-The HUD is a non-activating panel that can't become key on click, sits above app windows but below menus and tooltips, lets clicks pass through everywhere except its controls, and closes when the dictation ends. Hover and click-through come from polling the pointer, because the panel receives no mouse events while it lets clicks through. Its main surfaces are opaque with one soft shadow. Cancel and Finish use the scoped material approved in FigCraft 21.09. GPUI has no native backdrop filter, so the renderer uses the approved 96% resting tint and opaque hover fallback, with a local spread of the procedural ocean underneath; foreground icons remain opaque. Do not replace the panel with a system-wide blur backdrop.
+The HUD is a non-activating panel that can't become key on click, sits above app windows but below menus and tooltips, lets clicks pass through everywhere except its controls, and closes when the dictation ends. Hover and click-through come from polling the pointer, because the panel receives no mouse events while it lets clicks through. Its main surfaces are opaque with one soft shadow. Cancel and Finish use the scoped material approved in `design:hud/buttons`. GPUI has no native backdrop filter, so the renderer uses the approved 96% resting tint and opaque hover fallback, with a local spread of the procedural ocean underneath; foreground icons remain opaque. Do not replace the panel with a system-wide blur backdrop.
 
 ## Alternatives Considered
 

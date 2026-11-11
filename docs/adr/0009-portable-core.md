@@ -1,4 +1,4 @@
-# ADR-0009: The core is independent of UI and macOS; one actor owns the session
+# ADR-0009: The core is independent of UI and macOS; one actor owns the dictation
 
 - **Status**: accepted
 - **Date**: 2026-11-05
@@ -9,11 +9,11 @@ Hotkeys, the HUD, the menu bar, timers and late results all act on one dictation
 
 ## Decision
 
-`dito-core` holds the session, pipeline, providers, config and store, and depends on no GPUI or macOS crate. macOS enters through traits (`Recorder`, `Sink`, `Frontmost`, `FocusWarmer`, `MusicMute`, `SecretStore`). One controller actor owns the session; transitions carry an epoch so late results are ignored; the UI only observes `HudState`.
+`dito-core` holds the dictation flow, pipeline, providers, config and store, and depends on no GPUI or macOS crate. macOS enters through traits (`Recorder`, `Sink`, `Frontmost`, `FocusWarmer`, `MusicMute`, `SecretStore`). One controller actor owns the dictation; transitions carry an epoch so late results are ignored; the UI only observes `HudState`.
 
 ## Alternatives Considered
 
-### Session logic in the app
+### Dictation logic in the app
 
 - Pros: Fewer layers
 - Cons: Races and untestable code
@@ -27,7 +27,7 @@ New behavior is added to the core and tested with fakes; the app only renders an
 
 Moves that look reasonable but go against this decision:
 
-- Putting session logic or state in UI code.
+- Putting dictation logic or state in UI code.
 - Importing GPUI or AppKit types into `dito-core`.
 - Dropping epoch checks.
 

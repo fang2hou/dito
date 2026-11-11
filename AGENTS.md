@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Guidance for AI agents working in this repository. Read this before making changes. Terms and where each concept lives: `docs/GLOSSARY.md`; run and diagnose: `docs/DEBUGGING.md`.
+Guidance for AI agents working in this repository. Read this before making changes.
 
 Dito is a macOS dictation app in Rust and GPUI: press a shortcut, speak, and polished text is typed at the cursor. It is a personal, daily-use tool in fast early development.
 
@@ -20,8 +20,8 @@ cargo fmt --all -- --check                   # format check
 mise run lint:rust                           # clippy, also with the mock and screenshots features (the one lint command)
 ./scripts/check.sh fast                      # fmt and fast tests (`mise run check`); the commit hooks run it
 ./scripts/check.sh full                      # adds compile checks of every build flavor
-figcraft-cli render design/dito.figcraft -o out.png --page "<page>"  # render a design page headlessly
 mise run check:design-refs                   # every design:<id> reference resolves against design/sections.toml
+figcraft-cli render design/dito.figcraft -o out.png --page "<page>"  # render a design page headlessly
 ```
 
 First-time setup (Xcode Metal toolchain, signing certificate) is in `docs/IMPLEMENTATION.md`.
@@ -45,8 +45,8 @@ Project-specific overrides:
 - `crates/dito-audio`, `crates/dito-local`, `crates/dito-runtimes`: capture, local model management, on-device inference.
 - `crates/dito-testkit`: mock cloud servers.
 - `bench/`: Python benchmark harness for ASR and polish models (`dito-bench`), with stored results per chip. See `bench/README.md`.
-- `design/`: `dito.figcraft` (source of truth for UI and motion), its conventions, `features.md` (goals and features), and `asr-templates/` (compiled into the app; never move or delete).
-- `docs/`: architecture, implementation, contributing and ADRs. `docs/workflow/`: step-by-step workflows. `scripts/`: bundling, install, signing, checks.
+- `design/`: `dito.figcraft` (source of truth for UI and motion), its conventions, `sections.toml` (the ids behind `design:<id>`), `features.md` (goals and features), and `asr-templates/` (compiled into the app; never move or delete).
+- `docs/`: architecture, glossary, implementation, debugging, contributing and ADRs. `docs/workflow/`: step-by-step workflows. `scripts/`: bundling, install, signing, checks.
 
 ## Boundaries
 
@@ -94,4 +94,4 @@ Do not infer UI language from conversation language.
 - Design file structure, naming, note cards and where shared versus screen-specific changes go: `design/README.md`.
 - Before changing code an ADR covers, read it in `docs/adr/`; update or supersede it in the same change instead of working around it.
 
-Depth: `docs/workflow/` for the UI and code-fix workflows, `docs/README.md` for architecture, implementation, contributing and ADRs, `design/README.md` and `design/features.md` for design.
+Depth: `docs/GLOSSARY.md` for terms and where each concept lives, `docs/DEBUGGING.md` to run and diagnose, `docs/workflow/` for the UI and code-fix workflows, `docs/README.md` for architecture, implementation, contributing and ADRs, `design/README.md` and `design/features.md` for design.

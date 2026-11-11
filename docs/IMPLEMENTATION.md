@@ -54,12 +54,12 @@ The Python benchmark harness has its own tasks: `mise run bench:sync`, `bench:te
 ## Layout
 
 - `crates/`: the workspace crates (see [ARCHITECTURE.md](ARCHITECTURE.md)).
-- `design/`: `dito.figcraft` (UI and motion), `features.md`, the cloud speech request JSON contract, and `asr-templates/` (compiled into the app).
+- `design/`: `dito.figcraft` (UI and motion), `sections.toml` (the ids behind `design:<id>`), `features.md`, the cloud speech request JSON contract, and `asr-templates/` (compiled into the app).
 - `assets/icon/`: the Icon Composer document.
 - `bench/`: Python benchmark harness for ASR and polish models, with stored results.
 - `mise.toml`: tool versions and the project tasks. `prek.toml`: commit hooks. `.github/`: PR rules, and the release workflow (see [CONTRIBUTING.md](CONTRIBUTING.md)).
-- `scripts/`: `bundle.sh` (release app), `install.sh` (install to `~/Applications`), `quit.sh` (quit the running release Dito), `certs.sh` (signing identity), `check.sh` (checks), `dev-runner.sh` (wraps runs in `DitoDev.app`), `icon.sh` (icon build and preview), `setup-macos.sh` (Metal toolchain), `check-design-icons.py` (geometry check of the saved design) and `check-design-refs.py` (`design:<id>` references against `design/sections.toml`), `check-flow.sh` and `check-release-tag.sh` (branch and tag rules for CI). `.agents/skills/` holds the project skills, including `icon-keylines`.
-- `docs/`: this document, architecture, contributing and ADRs. `docs/workflow/`: step-by-step workflows.
+- `scripts/`: `bundle.sh` (release app), `install.sh` (install to `~/Applications`), `quit.sh` (quit the running release Dito), `certs.sh` (signing identity), `check.sh` (checks), `dev-runner.sh` (wraps runs in `DitoDev.app`), `icon.sh` (icon build and preview), `setup-macos.sh` (Metal toolchain), `check-design-icons.py` (geometry check of the saved design), `check-design-refs.py` (`design:<id>` references against `design/sections.toml`), `check-flow.sh` and `check-release-tag.sh` (branch and tag rules for CI). `.agents/skills/` holds the project skills, including `icon-keylines`.
+- `docs/`: this document, architecture, glossary, debugging, contributing and ADRs. `docs/workflow/`: step-by-step workflows.
 
 ## Coding Standards
 
@@ -121,7 +121,7 @@ A chat model of another family (Gemma, Llama, Phi) is a catalog entry with `Mode
 
 For a new architecture, add a `ModelFormat` variant and its adapter in `dito-runtimes`, declare its hotword capability, and extend the loader. Update ADR-0002 when introducing another backend library. A language-focus hint is descriptive and must not reject other input languages; return no detected language when the decoder cannot provide one. Check the license and attribution of each conversion. Haas-ja uses `oboroge0/Haas-ja-v1.0-onnx-quantized`, a community Apache-2.0 conversion of Third Intelligence's model, pinned at `7f5ab0a4b1bf39db78afd6691eeecbc4f9d42e39`.
 
-For an actual sherpa ASR check, use `cargo run -p dito-runtimes --no-default-features --features sherpa --example asr_e2e -- /tmp/dito-asr-e2e haas-ja /path/to/bench/audio`. This downloads and verifies real weights, checks Japanese recognition, accepts other language hints, processes long audio, checks silence and exercises stop/restart without microphone access or text insertion.
+For an actual sherpa ASR check, use `cargo run -p dito-runtimes --no-default-features --features sherpa --example asr_e2e -- /tmp/dito-asr-e2e haas-ja /path/to/bench/audio`. This downloads and verifies real weights, checks Japanese transcription, accepts other language hints, processes long audio, checks silence and exercises stop/restart without microphone access or text insertion.
 
 The native sherpa binding is the official `sherpa-onnx-sys` 2.0.1 static package. Its build script downloads matching libraries automatically. Keep the binding and native version aligned; do not override `SHERPA_ONNX_LIB_DIR` with an older binary. The C ABI adapter reads the full result JSON because the upstream high-level Rust result type currently omits SenseVoice's language field. For model-page screenshots with a real running engine, set `DITO_MODEL_WARM=haas-ja` with `DITO_SHOTS_ONLY=models` and `DITO_MODEL_SHOTS=local-asr`; use an isolated `--data-dir` containing verified weights. No synthetic running status is created.
 

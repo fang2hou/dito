@@ -1,6 +1,6 @@
 # Glossary
 
-One word per concept, in code, docs and conversation. When a name in the code disagrees with this table, the table wins and the code is renamed. Persisted keys (TOML, SQLite, Keychain items) and `messages.toml` keys keep their shipped spelling: renaming them needs a migration ([ADR 0015](adr/0015-versioned-persistence.md)).
+One word per concept, in code, docs and conversation. When a name in the code disagrees with this table, the table wins and the code is renamed. Persisted keys (TOML, SQLite, Keychain items) keep their shipped spelling: renaming them needs a migration ([ADR 0015](adr/0015-versioned-persistence.md)). `messages.toml` keys follow the screen copy they name, not this table ([ADR 0011](adr/0011-japanese-first.md)).
 
 ## Dictation flow
 
@@ -8,14 +8,14 @@ One word per concept, in code, docs and conversation. When a name in the code di
 | --- | --- | --- | --- |
 | Dictation | One run from shortcut to inserted text | `controller` actor, `DictationHandle` | session, job (for the whole run) |
 | Clip | The audio of one recording, 16 kHz mono | `AudioClip`, `Recorder` | recording (as a noun for the audio), sample |
-| ASR | Speech recognition as a stage and a model kind | `Transcriber`, `AsrRequest`, `asr_*` | STT, recognizer (except sherpa-onnx's native `Recognizer`) |
-| Transcribe | The verb for the ASR stage; its result is the transcript (`Output::raw`) | `Transcriber::transcribe`, `PipelinePhase::Transcribing`, `HudState::Transcribing` | recognize, recognition |
+| ASR | Speech recognition, as a stage and as a model kind; "speech recognition" is its spelled-out name | `Transcriber`, `AsrRequest`, `asr_*` | STT, recognizer (except sherpa-onnx's native `Recognizer`) |
+| Transcribe | The verb for the ASR stage; its result is the transcript (`Output::raw`) | `Transcriber::transcribe`, `PipelinePhase::Transcribing`, `HudState::Transcribing` | recognize, recognition (except in "speech recognition"), recognized text |
 | Polish | Rewriting the transcript with a language model; also the stage's name | `Polisher`, `PolishRequest`, `PolishJob` | rewrite, refine, clean up |
 | Pipeline | Transcribe, then polish, for one clip; no recording and no insertion | `pipeline::run`, `PipelineJob`, `PipelinePhase` | |
 | Insertion | Putting the final text into the focused app, by typing or paste | `Sink`, `InsertMethod`, `Delivery` | typing-in, output |
 | Delivery | The result of an insertion: inserted, copied to the clipboard, or failed | `Delivery` | |
-| Style | The writing profile that shapes a polish prompt; built in (Slack, Teams, Herdr) or per app | `Style`, `BuiltinStyle`, `StylePrompt` | profile, preset |
-| Dictionary | Words the user wants recognized, passed as hotwords and optionally to polish | `store` dictionary, `dictionary` field | glossary (that is this file), vocabulary |
+| Style | The writing rules that shape a polish prompt: General, built in (Slack, Teams, Herdr) or per app | `Style`, `BuiltinStyle`, `StylePrompt` | profile, preset |
+| Wordbook | Words the user wants spelled correctly, passed to ASR as hotwords and optionally to polish | `Store::words`, `PipelineJob::wordbook`, `wordbook_for_polish` | dictionary, glossary (that is this file), vocabulary |
 | History | Stored dictation results with their audio | `HistoryEntry`, `HistoryKind` | log |
 
 ## Engines and models
@@ -46,7 +46,7 @@ One word per concept, in code, docs and conversation. When a name in the code di
 
 ## Design references
 
-Code, docs and skills name a design section as `design:<id>` (for example `design:models/cloud/tile-row`), never by number. `design/sections.toml` maps each id to its board and layer name, so renumbering the design file means editing one file. `mise run check:design-refs` checks that every reference resolves and that the layer names still exist in the saved design.
+Code, docs and skills name a design section as `design:<id>` (for example `design:settings/cloud-models/tile-row`), never by number. `design/sections.toml` maps each id to its board and layer name, so renumbering the design file means editing that file and `design/README.md`. `design/README.md` is the one exception to the rule: it documents the file's own numbering and cites layers by the names they carry. `mise run check:design-refs` checks that every reference resolves and that the layer names still exist in the saved design.
 
 ## Where each concept lives
 
@@ -58,6 +58,6 @@ Code, docs and skills name a design section as `design:<id>` (for example `desig
 | Microphone | `dito-audio` | |
 | Shortcuts, permissions, insertion, Keychain | `dito-platform` | [6](adr/0006-minimal-permissions.md) |
 | Settings, schema versions | `dito-core` (`config`) | [10](adr/0010-one-home-per-setting.md), [15](adr/0015-versioned-persistence.md) |
-| History, dictionary, stats | `dito-core` (`store`) | [8](adr/0008-data-stays-local.md) |
+| History, wordbook, stats | `dito-core` (`store`) | [8](adr/0008-data-stays-local.md) |
 | UI copy | `dito-core` (`i18n/messages.toml`) | [11](adr/0011-japanese-first.md) |
 | HUD, settings, onboarding | `dito-app` | [4](adr/0004-hud-out-of-the-way.md), [13](adr/0013-ui-state-ownership.md), [14](adr/0014-silent-launch.md) |

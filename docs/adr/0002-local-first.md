@@ -9,7 +9,7 @@ Dictation handles whatever the user says, often at work. Requiring a cloud accou
 
 ## Decision
 
-Recognition and polishing each run either on the Mac or through a provider, chosen separately. Local is the default and the complete flow works without any account.
+Speech recognition and polishing each run either on the Mac or through a provider, chosen separately. Local is the default and the complete flow works without any account.
 
 - Local runtimes are llama.cpp (Metal) and sherpa-onnx, linked into one binary behind `RuntimeLoader`.
 - When a local engine is unavailable, the app says so and shows red; it never returns placeholder text.
