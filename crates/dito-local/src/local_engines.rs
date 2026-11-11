@@ -1,9 +1,9 @@
 //! Loading and running local models behind the core `Transcriber` / `Polisher` traits.
 
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
+use std::time::Duration;
 
 use async_trait::async_trait;
 use dito_core::config::LocalPolishParams;
@@ -14,6 +14,7 @@ use dito_core::provider::{AsrRequest, PolishRequest, Polisher, Transcriber, Tran
 
 use crate::catalog::{ModelKind, Sampling};
 use crate::manager::ModelManager;
+use crate::process::{cpu_time, footprint_bytes};
 use crate::runtime::{AsrRuntime, LlmRuntime, RuntimeLoader};
 use crate::runtime_error::RuntimeError;
 
@@ -26,16 +27,25 @@ enum Slot {
     Failed(String),
 }
 
+/// Models run inside the app's process, so the kernel reports no figures of their own: a model is charged the
+/// process CPU time spent while it works and the memory the process gained while it loaded.
 #[derive(Default)]
-struct Metrics {
-    inflight: AtomicUsize,
-    last_ms: AtomicU64,
+struct Usage {
+    cpu_ns: AtomicU64,
+    /// Process CPU time when the call in flight began; 0 while idle.
+    working_since_ns: AtomicU64,
+    memory_bytes: AtomicU64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct EngineMetrics {
-    pub inflight: usize,
-    pub last_ms: u64,
+pub struct EngineUsage {
+    /// Cumulative, including the call in flight.
+    pub cpu: Duration,
+    pub memory_bytes: u64,
+}
+
+fn cpu_now_ns() -> u64 {
+    cpu_time().as_nanos() as u64
 }
 
 pub struct LocalEngines {
@@ -43,7 +53,7 @@ pub struct LocalEngines {
     loader: Arc<dyn RuntimeLoader>,
     slots: Mutex<HashMap<String, Slot>>,
     load_lock: tokio::sync::Mutex<()>,
-    metrics: Mutex<HashMap<String, Arc<Metrics>>>,
+    usage: Mutex<HashMap<String, Arc<Usage>>>,
 }
 
 impl LocalEngines {
@@ -53,7 +63,7 @@ impl LocalEngines {
             loader,
             slots: Mutex::default(),
             load_lock: tokio::sync::Mutex::new(()),
-            metrics: Mutex::default(),
+            usage: Mutex::default(),
         })
     }
 
@@ -61,13 +71,18 @@ impl LocalEngines {
         &self.manager
     }
 
-    fn metrics_for(&self, id: &str) -> Arc<Metrics> {
-        self.metrics.lock().expect("engine state mutex poisoned").entry(id.to_string()).or_default().clone()
+    fn usage_for(&self, id: &str) -> Arc<Usage> {
+        self.usage.lock().expect("engine state mutex poisoned").entry(id.to_string()).or_default().clone()
     }
 
-    pub fn metrics(&self, id: &str) -> EngineMetrics {
-        let m = self.metrics_for(id);
-        EngineMetrics { inflight: m.inflight.load(Ordering::Relaxed), last_ms: m.last_ms.load(Ordering::Relaxed) }
+    pub fn usage(&self, id: &str) -> EngineUsage {
+        let usage = self.usage_for(id);
+        let since = usage.working_since_ns.load(Ordering::Relaxed);
+        let in_flight = if since == 0 { 0 } else { cpu_now_ns().saturating_sub(since) };
+        EngineUsage {
+            cpu: Duration::from_nanos(usage.cpu_ns.load(Ordering::Relaxed) + in_flight),
+            memory_bytes: usage.memory_bytes.load(Ordering::Relaxed),
+        }
     }
 
     /// The runtime is reloaded on next use.
@@ -129,6 +144,7 @@ impl LocalEngines {
             slots.insert(id.to_string(), Slot::Loading);
         }
         let (loader, dir) = (self.loader.clone(), self.manager.model_dir(id));
+        let memory_before = footprint_bytes();
         let loaded = tokio::task::spawn_blocking(move || match spec.kind {
             ModelKind::Asr => loader.load_asr(&spec, &dir).map(Slot::Asr),
             ModelKind::Polish => loader.load_llm(&spec, &dir).map(Slot::Llm),
@@ -147,6 +163,8 @@ impl LocalEngines {
         }
         match loaded {
             Ok(slot) => {
+                let gained = footprint_bytes().saturating_sub(memory_before);
+                self.usage_for(id).memory_bytes.store(gained, Ordering::Relaxed);
                 slots.insert(id.to_string(), slot.clone());
                 Ok(slot)
             }
@@ -161,26 +179,28 @@ impl LocalEngines {
 
 struct LocalAsr {
     rt: Arc<dyn AsrRuntime>,
-    metrics: Arc<Metrics>,
+    usage: Arc<Usage>,
 }
 
 struct LocalLlm {
     rt: Arc<dyn LlmRuntime>,
-    metrics: Arc<Metrics>,
+    usage: Arc<Usage>,
     sampling: Sampling,
 }
 
-struct InflightGuard<'a>(&'a Metrics, Instant);
-impl<'a> InflightGuard<'a> {
-    fn new(m: &'a Metrics) -> Self {
-        m.inflight.fetch_add(1, Ordering::Relaxed);
-        Self(m, Instant::now())
+struct Working<'a>(&'a Usage);
+impl<'a> Working<'a> {
+    fn new(usage: &'a Usage) -> Self {
+        usage.working_since_ns.store(cpu_now_ns().max(1), Ordering::Relaxed);
+        Self(usage)
     }
 }
-impl Drop for InflightGuard<'_> {
+impl Drop for Working<'_> {
     fn drop(&mut self) {
-        self.0.inflight.fetch_sub(1, Ordering::Relaxed);
-        self.0.last_ms.store(self.1.elapsed().as_millis() as u64, Ordering::Relaxed);
+        let since = self.0.working_since_ns.swap(0, Ordering::Relaxed);
+        if since != 0 {
+            self.0.cpu_ns.fetch_add(cpu_now_ns().saturating_sub(since), Ordering::Relaxed);
+        }
     }
 }
 
@@ -204,7 +224,7 @@ fn runtime_failure(error: RuntimeError) -> ProviderError {
 #[async_trait]
 impl Transcriber for LocalAsr {
     async fn transcribe(&self, req: &AsrRequest<'_>) -> ProviderResult<Transcript> {
-        let _g = InflightGuard::new(&self.metrics);
+        let _working = Working::new(&self.usage);
         let (rt, samples) = (self.rt.clone(), req.clip.samples.clone());
         let (lang, words) = (req.language.map(str::to_string), req.hotwords.to_vec());
         let stop = Arc::new(AtomicBool::new(false));
@@ -225,7 +245,7 @@ impl Transcriber for LocalAsr {
 #[async_trait]
 impl Polisher for LocalLlm {
     async fn polish(&self, req: &PolishRequest<'_>) -> ProviderResult<String> {
-        let _g = InflightGuard::new(&self.metrics);
+        let _working = Working::new(&self.usage);
         let (rt, system, user) = (self.rt.clone(), req.system.to_string(), req.text.to_string());
         let sampling = self.sampling;
         let stop = Arc::new(AtomicBool::new(false));
@@ -246,7 +266,7 @@ impl Polisher for LocalLlm {
 impl LocalBackend for LocalEngines {
     async fn transcriber(&self, model_id: &str) -> ProviderResult<Arc<dyn Transcriber>> {
         match self.ensure_loaded(model_id).await? {
-            Slot::Asr(rt) => Ok(Arc::new(LocalAsr { rt, metrics: self.metrics_for(model_id) })),
+            Slot::Asr(rt) => Ok(Arc::new(LocalAsr { rt, usage: self.usage_for(model_id) })),
             _ => Err(ProviderError::new(ErrorKind::Unavailable, format!("{model_id} is not a speech model"))),
         }
     }
@@ -256,7 +276,7 @@ impl LocalBackend for LocalEngines {
         match (self.ensure_loaded(model_id).await?, recommended) {
             (Slot::Llm(rt), Some(recommended)) => Ok(Arc::new(LocalLlm {
                 rt,
-                metrics: self.metrics_for(model_id),
+                usage: self.usage_for(model_id),
                 sampling: recommended.with_params(params),
             })),
             _ => Err(ProviderError::new(ErrorKind::Unavailable, format!("{model_id} is not a language model"))),

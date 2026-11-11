@@ -1,4 +1,4 @@
-//! In-memory timing estimates for the HUD, keyed by the engines in use.
+//! In-memory timings keyed by the engines in use: estimates for the HUD and the most recent step times.
 
 use std::collections::VecDeque;
 use std::hash::{DefaultHasher, Hash, Hasher};
@@ -64,6 +64,31 @@ struct Sample {
     polish: Option<(usize, f32)>,
 }
 
+/// How long each step of the most recent dictation took. Kept per engine, so a newly selected model has no time
+/// until it has run.
+#[derive(Clone, Copy, Default)]
+pub struct StepTimes {
+    asr: Option<(u64, f32)>,
+    polish: Option<(u64, f32)>,
+}
+
+impl StepTimes {
+    pub(super) fn record(&mut self, models: Models, out: &Output) {
+        self.asr = Some((models.asr, out.asr_ms as f32 / 1000.));
+        if out.polished.is_some() {
+            self.polish = Some((models.polish, out.polish_ms as f32 / 1000.));
+        }
+    }
+
+    pub fn transcription_secs(&self, engine: &EngineConfig) -> Option<f32> {
+        self.asr.filter(|(key, _)| *key == engine_key(engine, true)).map(|(_, secs)| secs)
+    }
+
+    pub fn polishing_secs(&self, engine: &EngineConfig) -> Option<f32> {
+        self.polish.filter(|(key, _)| *key == engine_key(engine, false)).map(|(_, secs)| secs)
+    }
+}
+
 #[derive(Default)]
 pub(super) struct TimingHistory(VecDeque<Sample>);
 
@@ -107,7 +132,7 @@ fn estimate(default_rate: f32, work: f32, samples: impl Iterator<Item = (f32, f3
 mod tests {
     use crate::i18n::Lang;
 
-    use super::{Models, Output, TimingHistory};
+    use super::{EngineConfig, Models, Output, Source, StepTimes, TimingHistory};
 
     #[test]
     fn uses_only_recent_successful_timings_for_the_matching_stage_model() {
@@ -130,5 +155,33 @@ mod tests {
         }
         assert_eq!(history.transcription(1, 10.), 3.1);
         assert_eq!(history.polishing(2, 80), 1.6);
+    }
+
+    #[test]
+    fn step_times_belong_to_the_engine_that_ran_and_survive_a_failed_polish() {
+        let engine = |model: &str| EngineConfig {
+            cloud_asr: None,
+            cloud_polish: None,
+            source: Source::Local,
+            local_model: model.into(),
+            local_params: Default::default(),
+        };
+        let (asr, polish) = (engine("speech"), engine("writer"));
+        let mut out = Output {
+            raw: "raw".into(),
+            polished: Some("text".into()),
+            polish_error: None,
+            lang: Lang::En,
+            asr_ms: 400,
+            polish_ms: 700,
+        };
+        let mut times = StepTimes::default();
+        times.record(Models::new(&asr, &polish), &out);
+        (out.polished, out.asr_ms, out.polish_ms) = (None, 900, 50);
+        times.record(Models::new(&asr, &polish), &out);
+        assert_eq!(times.transcription_secs(&asr), Some(0.9));
+        assert_eq!(times.polishing_secs(&polish), Some(0.7));
+        assert_eq!(times.transcription_secs(&engine("other")), None);
+        assert_eq!(times.polishing_secs(&engine("other")), None);
     }
 }

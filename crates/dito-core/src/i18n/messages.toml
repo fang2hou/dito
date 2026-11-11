@@ -192,7 +192,6 @@ models.provider = { ja = "クラウド", en = "Cloud", zh = "云端" }
 models.azure_openai = { ja = "Azure OpenAI", en = "Azure OpenAI", zh = "Azure OpenAI" }
 models.amazon_bedrock = { ja = "Amazon Bedrock", en = "Amazon Bedrock", zh = "Amazon Bedrock" }
 models.openai_compatible = { ja = "OpenAI 互換 API", en = "OpenAI-compatible API", zh = "OpenAI 兼容 API" }
-models.system_permissions = { ja = "システム権限", en = "System permissions", zh = "系统权限" }
 models.not_installed = { ja = "未インストール", en = "Not installed", zh = "未安装" }
 models.startup_error = { ja = "起動エラー", en = "Startup error", zh = "启动错误" }
 models.connected = { ja = "接続済み", en = "Connected", zh = "已连接" }
@@ -214,15 +213,10 @@ models.delete_configuration_title = { ja = "設定を削除しますか？", en 
 models.checking = { ja = "接続確認中", en = "Checking", zh = "正在检查连接" }
 models.connection_error = { ja = "接続エラー", en = "Connection error", zh = "连接错误" }
 models.latency = { ja = "応答時間", en = "Response time", zh = "响应时间" }
-models.last_checked = { ja = "最終確認", en = "Last checked", zh = "上次检查" }
-models.resource = { ja = "リソース", en = "Resource", zh = "资源" }
-models.processing_time = { ja = "処理時間", en = "Processing time", zh = "处理时间" }
 models.memory = { ja = "メモリ", en = "Memory", zh = "内存" }
 models.in_use = { ja = "使用中", en = "In use", zh = "使用中" }
 models.running = { ja = "稼働中", en = "Running", zh = "运行中" }
 models.configured = { ja = "設定済み", en = "Configured", zh = "已配置" }
-models.no_local_running = { ja = "実行中のローカルモデルはありません。", en = "No local model is running.", zh = "当前没有运行中的本地模型。" }
-models.turn_on_in_general = { ja = "一般設定でオンにできます。", en = "Turn it on in General settings.", zh = "可在通用设置中开启。" }
 models.endpoint = { ja = "エンドポイント", en = "Endpoint", zh = "端点" }
 models.deployment = { ja = "デプロイ名", en = "Deployment", zh = "部署名称" }
 models.api_key = { ja = "API キー", en = "API key", zh = "API 密钥" }
@@ -303,11 +297,37 @@ history.no_history_yet = { ja = "履歴はまだありません", en = "No histo
 history.open = { ja = "履歴を開く", en = "Open History", zh = "打开历史" }
 
 # --- status page --------------------------------------------------------------
-status.asr_model = { ja = "音声認識モデル", en = "Speech recognition model", zh = "语音识别模型" }
-status.polish_model = { ja = "文章整形モデル", en = "Polish model", zh = "润色模型" }
-status.provider = { ja = "プロバイダー", en = "Provider", zh = "服务商" }
 status.check_all = { ja = "再確認", en = "Recheck", zh = "重新检查" }
-status.manage_models = { ja = "モデル", en = "Models", zh = "模型" }
+status.ready = { ja = "準備ができています", en = "Ready to dictate", zh = "已准备就绪" }
+fmt.status_ready_summary = { ja = "{key} を押して話すと、文章が入力されます。", en = "Press {key} and speak, and the text is typed for you.", zh = "按下 {key} 说话，文字就会输入。" }
+status.needs_attention = { ja = "対応が必要な項目があります", en = "Some items need attention", zh = "有需要处理的项目" }
+status.fix_red_items = { ja = "赤い項目を直すと、入力できるようになります。", en = "Fix the red items and you can dictate.", zh = "处理红色项目后即可输入。" }
+status.shortcut = { ja = "ショートカット", en = "Shortcut", zh = "快捷键" }
+status.shortcut_toggle = { ja = "押すと録音が始まり、もう一度押すと終わります。", en = "Press to start recording, press again to stop.", zh = "按一下开始录音，再按一下结束。" }
+status.shortcut_hold = { ja = "押している間、録音します。", en = "Records while you hold it.", zh = "按住期间录音。" }
+status.shortcut_blocked = { ja = "アクセシビリティが許可されていないため、ショートカットを検知できません。", en = "Accessibility is not allowed, so the shortcut cannot be detected.", zh = "未允许辅助功能，无法检测快捷键。" }
+status.microphone_detail = { ja = "声を録音します。", en = "Records your voice.", zh = "录下你的声音。" }
+status.microphone_blocked = { ja = "マイクが許可されていないため、録音できません。", en = "The microphone is not allowed, so nothing can be recorded.", zh = "未允许使用麦克风，无法录音。" }
+fmt.status_local_model = { ja = "{name}（ローカル）", en = "{name} (local)", zh = "{name}（本地）" }
+fmt.status_cloud_model = { ja = "{name}（クラウド）", en = "{name} (cloud)", zh = "{name}（云端）" }
+status.recent_time = { ja = "直近の処理時間", en = "Last processing time", zh = "最近一次处理用时" }
+status.model_stopped = { ja = "ローカルモデルが停止しています。", en = "The local model is stopped.", zh = "本地模型已停止。" }
+status.model_missing = { ja = "モデルがダウンロードされていません。", en = "The model has not been downloaded.", zh = "模型尚未下载。" }
+status.model_load_failed = { ja = "モデルの読み込みに失敗しました。ストレージとメモリの空きを確認してください。", en = "The model failed to load. Check the free storage and memory.", zh = "模型加载失败。请检查可用的存储空间和内存。" }
+status.start = { ja = "起動", en = "Start", zh = "启动" }
+status.retry = { ja = "再試行", en = "Retry", zh = "重试" }
+status.open_model_settings = { ja = "モデル設定を開く", en = "Open model settings", zh = "打开模型设置" }
+status.polish_off = { ja = "オフです。一般設定でオンにできます。", en = "Off. Turn it on in General settings.", zh = "已关闭。可在通用设置中开启。" }
+status.auth_error = { ja = "認証エラー", en = "Authentication error", zh = "认证错误" }
+status.check_api_key = { ja = "API キーを確認してください。", en = "Check the API key.", zh = "请检查 API 密钥。" }
+status.request_timed_out = { ja = "リクエストがタイムアウトしました。ネットワークとプロキシ設定を確認してください。", en = "The request timed out. Check the network and proxy settings.", zh = "请求超时。请检查网络和代理设置。" }
+status.insert_detail = { ja = "文章をカーソル位置に入力します。", en = "Types the text at your cursor.", zh = "把文字输入到光标处。" }
+status.insert_blocked = { ja = "アクセシビリティの許可が必要です。", en = "Accessibility permission is required.", zh = "需要辅助功能权限。" }
+status.usage_title = { ja = "この Mac での使用量", en = "Usage on this Mac", zh = "在这台 Mac 上的占用" }
+status.usage_app = { ja = "アプリ本体", en = "The app itself", zh = "应用本身" }
+status.usage_asr_model = { ja = "音声認識モデル（ローカル）", en = "Speech recognition model (local)", zh = "语音识别模型（本地）" }
+status.usage_polish_model = { ja = "文章整形モデル（ローカル）", en = "Polish model (local)", zh = "润色模型（本地）" }
+status.usage_total = { ja = "合計", en = "Total", zh = "合计" }
 status.local_stopped = { ja = "ローカルモデルが停止しています", en = "Local model stopped", zh = "本地模型已停止" }
 status.running_locally = { ja = "ローカルで稼働中", en = "Running locally", zh = "本地运行中" }
 status.running_via_provider = { ja = "プロバイダーで稼働中", en = "Running via provider", zh = "通过服务商运行中" }
@@ -346,7 +366,6 @@ menubar.show_in_finder = { ja = "Finder で表示", en = "Show in Finder", zh = 
 menubar.free = { ja = "空き", en = "Free", zh = "可用" }
 menubar.connecting = { ja = "接続中…", en = "Connecting…", zh = "连接中…" }
 menubar.working = { ja = "処理中…", en = "Working…", zh = "处理中…" }
-status.queued_requests = { ja = "待機中のリクエスト", en = "Queued requests", zh = "排队中的请求" }
 
 # --- startup failure window (opens instead of exiting when settings or history cannot be used) ---
 startup.unreadable_title = { ja = "設定を読み込めませんでした", en = "Could not load settings", zh = "无法读取设置" }
@@ -373,7 +392,6 @@ onboarding.allow_permissions = { ja = "権限を許可する", en = "Allow permi
 onboarding.permissions_desc = { ja = "Dito を使うには、次の 2 つを許可してください。", en = "Dito needs these two permissions to work.", zh = "使用 Dito 需要以下两项权限。" }
 onboarding.card.mic = { ja = "声を録音して音声認識に使います。", en = "Records your voice for speech recognition.", zh = "录制声音用于语音识别。" }
 onboarding.card.accessibility = { ja = "文章をカーソル位置に入力します。", en = "Types the text at your cursor.", zh = "把文字输入到光标处。" }
-onboarding.card.polish = { ja = "整形した文章をカーソル位置に入力します。", en = "Types the polished text at the cursor.", zh = "把润色后的文字输入到光标处。" }
 onboarding.choose_mode = { ja = "使い方を選ぶ", en = "Choose how to record", zh = "选择使用方式" }
 onboarding.choose_mode_desc = { ja = "あなたに合う録音方式を選びます。あとから「一般」で変更できます。", en = "Pick the recording mode that suits you. You can change it later in General.", zh = "选择适合你的录音方式，之后可在「通用」中更改。" }
 onboarding.toggle_desc = { ja = "キーを押して開始、もう一度押して終了", en = "Press once to start, press again to stop", zh = "按一下开始，再按一下结束" }
