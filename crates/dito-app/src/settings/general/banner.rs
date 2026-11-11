@@ -4,7 +4,7 @@ use gpui_kit::*;
 
 use super::page::GeneralPage;
 use crate::settings::Ctx;
-use crate::ui::{self, BannerAction, BtnKind, cbk};
+use crate::ui::{self, BannerAction, cbk};
 
 impl GeneralPage {
     pub(super) fn banner(&self, c: &Ctx, cx: &mut Context<Self>) -> Option<Div> {
@@ -17,7 +17,6 @@ impl GeneralPage {
             Some(BannerAction {
                 id: "allow".into(),
                 label: c.t(Tr::GeneralAllow),
-                kind: if c.p.dark { BtnKind::Secondary } else { BtnKind::Primary },
                 on_click: cbk(cx, |_, _, _| permissions::request(Permission::Accessibility)),
             }),
         ))

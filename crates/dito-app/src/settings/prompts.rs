@@ -21,7 +21,7 @@ use crate::ui::{self, InputEvent, InputState, Textarea, TextareaState};
 enum Try {
     Idle,
     Running,
-    Done(String, u64),
+    Done(u64),
     Failed(String),
 }
 
@@ -33,6 +33,8 @@ pub struct PromptsPage {
     instruction: Entity<TextareaState>,
     samples: Vec<Entity<InputState>>,
     try_in: Entity<TextareaState>,
+    try_out: Entity<TextareaState>,
+    placeholder_lang: Lang,
     try_state: Try,
     histories: HashMap<(Lang, Option<Style>), History>,
     save_revision: u64,
@@ -69,7 +71,9 @@ impl PromptsPage {
         let base = textarea(window, cx, &set.base);
         let instruction = textarea(window, cx, &set.style(&style).instruction);
         let try_in = textarea(window, cx, dito_core::i18n::sample_utterance(lang));
-        for ent in [&base, &instruction, &try_in] {
+        let placeholder = SharedString::from(lang.tr(Tr::PromptsPreviewPlaceholder));
+        let try_out = cx.new(|cx| TextareaState::new(window, cx).placeholder(placeholder));
+        for ent in [&base, &instruction, &try_in, &try_out] {
             let handle = ent.read(cx).focus_handle(cx);
             cx.on_focus_in(&handle, window, |_, _, cx| cx.notify()).detach();
             cx.on_focus_out(&handle, window, |_, _, _, cx| cx.notify()).detach();
@@ -89,7 +93,10 @@ impl PromptsPage {
         cx.subscribe_in(&try_in, window, |this: &mut Self, _, ev: &InputEvent, _, cx| {
             if matches!(ev, InputEvent::Change) {
                 this.preview_revision += 1;
-                this.try_state = Try::Idle;
+                // The result stays until the next run replaces it; only an unfinished or failed run is dropped.
+                if !matches!(this.try_state, Try::Done(_)) {
+                    this.try_state = Try::Idle;
+                }
                 cx.notify();
             }
         })
@@ -105,6 +112,8 @@ impl PromptsPage {
             instruction,
             samples: Vec::new(),
             try_in,
+            try_out,
+            placeholder_lang: lang,
             try_state: Try::Idle,
             drafts: cfg.prompts.clone(),
             apps: app_choices(&cfg.prompts),
@@ -332,6 +341,7 @@ impl PromptsPage {
         self.instruction.update(cx, |s, cx| s.set_value(instr, window, cx));
         self.rebuild_samples(window, cx);
         self.ensure_histories();
+        self.try_out.update(cx, |s, cx| s.set_value("", window, cx));
         self.try_state = Try::Idle;
         cx.notify();
     }
@@ -354,7 +364,7 @@ impl PromptsPage {
         self.load(window, cx);
     }
 
-    fn run_try(&mut self, cx: &mut Context<Self>) {
+    fn run_try(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let text = self.try_in.read(cx).value().to_string();
         if text.trim().is_empty() || matches!(self.try_state, Try::Running) {
             return;
@@ -364,20 +374,42 @@ impl PromptsPage {
         let (st, prompts, style, lang) = (self.st.clone(), self.drafts.clone(), self.style.clone(), self.lang);
         let request_style = style.clone();
         let revision = self.preview_revision;
-        cx.spawn(async move |this, cx| {
+        cx.spawn_in(window, async move |this, cx| {
             let r = services::try_polish(st, prompts, style, lang, text).await;
-            let _ = this.update(cx, |t, cx| {
+            let _ = this.update_in(cx, |t, window, cx| {
                 if t.preview_revision != revision || t.style != request_style || t.lang != lang {
                     return;
                 }
                 t.try_state = match r {
-                    Ok((out, ms)) => Try::Done(out, ms),
+                    Ok((out, ms)) => {
+                        t.try_out.update(cx, |s, cx| s.set_value(out, window, cx));
+                        Try::Done(ms)
+                    }
                     Err(e) => Try::Failed(e),
                 };
                 cx.notify();
             });
         })
         .detach();
+    }
+
+    fn copy_result(&self, cx: &App) {
+        let text = self.try_out.read(cx).value();
+        if text.is_empty() {
+            return;
+        }
+        if let Err(e) = dito_platform::insert::copy_to_clipboard(&text) {
+            tracing::warn!("copy failed: {e}");
+        }
+    }
+
+    fn sync_result_placeholder(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let lang = self.st.cfg.get().general.lang();
+        if self.placeholder_lang != lang {
+            self.placeholder_lang = lang;
+            let placeholder = SharedString::from(lang.tr(Tr::PromptsPreviewPlaceholder));
+            self.try_out.update(cx, |s, cx| s.set_placeholder(placeholder, window, cx));
+        }
     }
 }
 
@@ -401,6 +433,7 @@ impl Render for PromptsPage {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         // Own scope: after a page switch the controls mount statically instead of sliding to values remembered from an
         // earlier visit.
+        self.sync_result_placeholder(window, cx);
         ui::with_motion_scope(self.motion.handle(), || self.view(window, cx))
     }
 }
@@ -599,7 +632,11 @@ impl PromptsPage {
                 self.redo(Editor::Application, window, cx);
                 assert_eq!(self.snapshot(Editor::Application), edited);
             }
-            "preview" => self.try_state = Try::Done(dito_core::i18n::sample_utterance(self.lang).into(), 420),
+            "preview" => {
+                let sample = dito_core::i18n::sample_utterance(self.lang);
+                self.try_out.update(cx, |s, cx| s.set_value(sample, window, cx));
+                self.try_state = Try::Done(420);
+            }
             "help" => ui::force_hover(&self.motion.handle(), ElementId::from("prompt-examples-help"), true),
             "herdr" => self.switch(self.lang, Style::builtin("herdr").expect("built-in style"), window, cx),
             "custom" | "removeapp" => {

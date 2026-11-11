@@ -16,7 +16,6 @@ pub enum BtnKind {
     Secondary,
     Danger,
     Destructive,
-    Download,
     Subtle,
 }
 
@@ -45,7 +44,6 @@ impl BtnColors {
                 (p.button_danger_bg, p.button_danger_text, Some(p.button_danger_border), p.button_danger_hover)
             }
             BtnKind::Destructive => (p.danger, super::primitives::white(), None, p.button_primary_hover),
-            BtnKind::Download => (p.model_download, p.model_on_download, None, p.button_primary_hover),
             BtnKind::Subtle => (p.sub, p.text, Some(p.field_border), p.seg),
         };
         Self { bg, fg, border, tint }
@@ -147,10 +145,14 @@ pub fn icon_button(id: impl Into<ElementId>, p: &Palette, ic: Ic, active: bool, 
 
 /// The design's disabled state: the same instance at 45% opacity.
 pub fn disabled_icon_button(id: impl Into<ElementId>, p: &Palette, ic: Ic) -> Stateful<Div> {
+    disabled_icon_button_with(id, p, ic, CircleSize::Regular)
+}
+
+pub fn disabled_icon_button_with(id: impl Into<ElementId>, p: &Palette, ic: Ic, size: CircleSize) -> Stateful<Div> {
     circle_control(
         id,
         ic,
-        CircleSize::Regular,
+        size,
         CircleAppearance { background: None, foreground: p.text, border: Some(p.border_strong), hover: None },
     )
     .opacity(0.45)
