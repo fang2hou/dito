@@ -25,11 +25,9 @@ impl EngineLine {
     fn new(c: &Ctx, status: &EngineStatus) -> Self {
         let p = &c.p;
         match status {
-            EngineStatus::Running => {
-                Self { dot: p.model_running_dot, text: c.t(Tr::ModelsRunning), fg: p.model_running_text }
-            }
+            EngineStatus::Running => Self { dot: p.success, text: c.t(Tr::ModelsRunning), fg: p.success },
             EngineStatus::Stopping => Self { dot: p.model_meta, text: c.t(Tr::ModelsStopping), fg: p.model_meta },
-            EngineStatus::Loading => Self { dot: p.primary, text: c.t(Tr::MenubarLoading), fg: p.primary },
+            EngineStatus::Loading => Self { dot: p.warning_text, text: c.t(Tr::MenubarLoading), fg: p.warning_text },
             EngineStatus::Failed(reason) => Self {
                 dot: p.danger,
                 text: SharedString::from(format!("{}：{reason}", c.t(Tr::ModelsFailed))),
