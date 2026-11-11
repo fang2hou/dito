@@ -7,8 +7,9 @@ use gpui_kit::*;
 
 use super::button::{CircleAppearance, CircleSize, circle_shell};
 use super::callbacks::CopyCb;
+use super::hover::hover_fill;
 use super::motion::Motion;
-use super::primitives::icon;
+use super::primitives::{icon, mix_rgb};
 use super::scope::{self, ScopeHandle};
 use super::tween::ease;
 use crate::assets::Ic;
@@ -106,32 +107,34 @@ impl CopyRun {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 struct Look {
+    id: ElementId,
     primary: Hsla,
     on_primary: Hsla,
     text: Hsla,
+    border: Hsla,
+    hover: Hsla,
     glyph: f32,
 }
 
 impl Look {
-    /// Everything that changes sits in this layer over the circle, so the button itself stays mounted and keeps its
-    /// size, hover and hit area. The layer reaches 1 pt out to cover the circle's border.
-    fn draw(self, frame: CopyFrame) -> Div {
-        let Self { primary, on_primary, text, glyph } = self;
+    /// The circle's face is one shape: its border, fill and halo are drawn together, so the confirmation keeps the
+    /// edge of the resting button instead of stacking a second circle over it.
+    fn draw(&self, frame: CopyFrame) -> Div {
+        let Self { primary, on_primary, text, border, hover, glyph, .. } = *self;
         let fade = |color: Hsla, v: f32| Hsla { a: color.a * v, ..color };
-        let mut layer = div()
+        let mut face = div()
             .absolute()
-            .top(px(-1.))
-            .right(px(-1.))
-            .bottom(px(-1.))
-            .left(px(-1.))
+            .inset_0()
             .flex()
             .items_center()
             .justify_center()
-            .rounded_full();
+            .rounded_full()
+            .border_1()
+            .border_color(mix_rgb(border, primary, frame.invert));
         if frame.invert > 0. {
-            layer = layer.bg(fade(primary, frame.invert));
+            face = face.bg(fade(primary, frame.invert));
         }
         if frame.halo > 0. {
             let glow = |opacity: f32, blur: f32, spread: f32| BoxShadow {
@@ -141,7 +144,7 @@ impl Look {
                 spread_radius: px(spread),
                 inset: false,
             };
-            layer = layer.shadow(vec![glow(0.6, 3., 0.), glow(0.4, 10., 1.)]);
+            face = face.shadow(vec![glow(0.6, 3., 0.), glow(0.4, 10., 1.)]);
         }
         let mut glyphs = div().relative().size(px(glyph)).flex_none();
         if frame.invert < 1. {
@@ -150,7 +153,7 @@ impl Look {
         if frame.invert > 0. {
             glyphs = glyphs.child(icon(Ic::Check, glyph, fade(on_primary, frame.invert)).absolute().top_0().left_0());
         }
-        layer.child(glyphs)
+        face.child(hover_fill(&self.id, None, hover)).child(glyphs)
     }
 }
 
@@ -171,7 +174,15 @@ pub fn copy_button_with(id: impl Into<ElementId>, p: &Palette, size: CircleSize,
     let id = id.into();
     let scope = scope::motion_scope();
     let motion = Motion::system();
-    let look = Look { primary: p.primary, on_primary: p.on_primary, text: p.text, glyph: size.dimensions().1 };
+    let look = Look {
+        id: id.clone(),
+        primary: p.primary,
+        on_primary: p.on_primary,
+        text: p.text,
+        border: p.border_strong,
+        hover: p.seg,
+        glyph: size.dimensions().1,
+    };
     let now = Instant::now();
     let run = scope
         .registry()
@@ -180,6 +191,7 @@ pub fn copy_button_with(id: impl Into<ElementId>, p: &Palette, size: CircleSize,
     let layer = match run {
         None => look.draw(CopyFrame::REST).into_any_element(),
         Some(run) => look
+            .clone()
             .draw(run.frame(now, motion))
             .with_animation(
                 (id.clone(), SharedString::from(format!("copy-{}", run.key))),
@@ -189,19 +201,15 @@ pub fn copy_button_with(id: impl Into<ElementId>, p: &Palette, size: CircleSize,
             .into_any_element(),
     };
     let key = id.clone();
-    circle_shell(
-        id,
-        size,
-        CircleAppearance { background: None, foreground: p.text, border: Some(p.border_strong), hover: Some(p.seg) },
-    )
-    .cursor_pointer()
-    .on_click(move |_, window, cx| {
-        if on_copy(window, cx) {
-            begin_run(&scope, &key);
-            window.refresh();
-        }
-    })
-    .child(layer)
+    circle_shell(id, size, CircleAppearance { background: None, foreground: p.text, border: None, hover: None })
+        .cursor_pointer()
+        .on_click(move |_, window, cx| {
+            if on_copy(window, cx) {
+                begin_run(&scope, &key);
+                window.refresh();
+            }
+        })
+        .child(layer)
 }
 
 #[cfg(test)]
