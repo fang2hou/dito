@@ -19,16 +19,20 @@ impl AsrEditor {
         let p = c.p;
         self.style_source(&p, cx);
 
-        let height =
-            (f32::from(window.viewport_size().height) - 48.).min(if self.help { 836. } else { 900. }).max(400.);
+        let available = (f32::from(window.viewport_size().height) - 48.).max(400.);
         let width = (f32::from(window.viewport_size().width) - 48.).clamp(320., 900.);
-        // A short window trims its vertical padding so the close cross keeps its golden-ratio offsets.
-        let pad_v = if height < 700. { 14. } else { 28. };
-        let body = div().w_full().flex_1().min_h(px(0.)).flex().flex_col().gap(px(14.));
-        let (body, footer) = if self.help {
-            (self.help_panel(body, &c, cx).into_any_element(), self.help_footer(&c, cx))
+        let shell = div().w(px(width)).px(px(28.)).flex().flex_col();
+        let (shell, body, footer) = if self.help {
+            // design:settings/cloud-models: the help keeps 28 above its title at every height and follows its content.
+            let shell = shell.max_h(px(available)).pt(px(28.)).pb(px(24.)).gap(px(16.));
+            (shell, self.help_panel(&c, cx).into_any_element(), self.help_footer(&c, cx))
         } else {
+            let height = available.min(900.);
+            // A short window trims its vertical padding so the close cross keeps its golden-ratio offsets.
+            let pad_v = if height < 700. { 14. } else { 28. };
+            let body = div().w_full().flex_1().min_h(px(0.)).flex().flex_col().gap(px(14.));
             (
+                shell.h(px(height)).py(px(pad_v)).gap(px(14.)),
                 body.id("onboarding-asr-editor").overflow_y_scroll().child(self.inline(window, cx)).into_any_element(),
                 div(),
             )
@@ -44,18 +48,11 @@ impl AsrEditor {
                 }
             }))
             .child(
-                div()
-                    .w(px(width))
-                    .h(px(height))
-                    .px(px(28.))
-                    .py(px(pad_v))
+                shell
                     .rounded(px(20.))
                     .bg(p.bg)
                     .border_1()
                     .border_color(p.border_strong)
-                    .flex()
-                    .flex_col()
-                    .gap(px(14.))
                     .child(self.header(&c, cx))
                     .child(body)
                     .child(div().flex_none().child(footer)),
@@ -109,35 +106,40 @@ impl AsrEditor {
             ))
     }
 
-    pub(super) fn help_panel(&self, body: Div, c: &Ctx, cx: &mut Context<Self>) -> Div {
+    fn help_panel(&self, c: &Ctx, cx: &mut Context<Self>) -> Div {
         let p = &c.p;
         let scroll = self.help_scroll.clone();
         let offset = -f32::from(scroll.offset().y);
         let max = f32::from(scroll.max_offset().y);
-        body.child(
-            div()
-                .relative()
-                .flex_1()
-                .min_h(px(0.))
-                .child(
-                    div()
-                        .id("asr-help-scroll")
-                        .h_full()
-                        .overflow_y_scroll()
-                        .track_scroll(&scroll)
-                        .on_scroll(cx.listener(|_, _, _, cx| {
-                            cx.emit(super::Changed);
-                            cx.notify();
-                        }))
-                        .child(help_body(p, c.lang)),
-                )
-                .when(offset > 1., |d| d.child(edge_fade(Edge::Top, p.bg, 24., 0.)))
-                .when(max - offset > 1., |d| d.child(edge_fade(Edge::Bottom, p.bg, 24., 0.))),
-        )
+        div()
+            .relative()
+            .w_full()
+            .min_h(px(0.))
+            .flex()
+            .flex_col()
+            .child(
+                div()
+                    .id("asr-help-scroll")
+                    .w_full()
+                    .min_h(px(0.))
+                    .overflow_y_scroll()
+                    .track_scroll(&scroll)
+                    .on_scroll(cx.listener(|_, _, _, cx| {
+                        cx.emit(super::Changed);
+                        cx.notify();
+                    }))
+                    .child(help_body(p, c.lang)),
+            )
+            .when(offset > 1., |d| {
+                d.child(edge_fade(Edge::Top, p.bg, 24., 0.))
+                    .child(div().absolute().top_0().left_0().right_0().h(px(1.)).bg(p.border))
+            })
+            .when(max - offset > 1., |d| d.child(edge_fade(Edge::Bottom, p.bg, 24., 0.)))
     }
 
-    pub(super) fn help_footer(&self, c: &Ctx, cx: &mut Context<Self>) -> Div {
-        div().flex().justify_end().child(ui::button(
+    fn help_footer(&self, c: &Ctx, cx: &mut Context<Self>) -> Div {
+        let hint = text(c.t(Tr::AsrEditorHelpCopyHint), 12., FontWeight::NORMAL, c.p.muted).line_height(px(18.));
+        div().flex().items_center().gap(px(24.)).child(hint.flex_1().min_w(px(0.))).child(ui::button(
             "asr-copy-help",
             &c.p,
             &c.t(Tr::AsrEditorCopyHelp),
