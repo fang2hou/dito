@@ -393,14 +393,16 @@ impl PromptsPage {
         .detach();
     }
 
-    fn copy_result(&self, cx: &App) {
+    fn copy_result(&self, cx: &App) -> bool {
         let text = self.try_out.read(cx).value();
         if text.is_empty() {
-            return;
+            return false;
         }
-        if let Err(e) = dito_platform::insert::copy_to_clipboard(&text) {
+        let copied = dito_platform::insert::copy_to_clipboard(&text);
+        if let Err(e) = &copied {
             tracing::warn!("copy failed: {e}");
         }
+        copied.is_ok()
     }
 
     fn sync_result_placeholder(&mut self, window: &mut Window, cx: &mut Context<Self>) {

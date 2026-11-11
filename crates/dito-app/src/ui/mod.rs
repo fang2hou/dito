@@ -5,6 +5,7 @@ mod banner;
 mod button;
 mod callbacks;
 mod config_tiles;
+mod copy_button;
 mod dialog;
 mod form_footer;
 mod format;
@@ -43,8 +44,9 @@ pub use button::{
     BtnKind, BtnSize, CONTROL_H, CircleAppearance, CircleSize, bare_icon_button, button, button_with, circle_control,
     close_button, disabled_button, disabled_icon_button, disabled_icon_button_with, icon_button, icon_button_with,
 };
-pub use callbacks::{Cb, cbk, cbk_idx, click_cb};
+pub use callbacks::{Cb, cbk, cbk_copy, cbk_idx, click_cb};
 pub use config_tiles::{ConfigTile, TilePlus, TileRowState, cbk_id, cbk_move, tile_row};
+pub use copy_button::{copy_button, copy_button_with};
 pub use dialog::{ConfirmStyle, DialogAnswer, confirm_dialog};
 pub use form_footer::{FooterTrash, TestButton, form_footer};
 pub use format::{error_line, error_summary, fmt_bytes, fmt_eta, history_style_label};
