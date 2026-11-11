@@ -107,7 +107,7 @@ general.off = { ja = "オフ", en = "Off", zh = "关闭" }
 general.speech_recognition = { ja = "音声認識", en = "Speech recognition", zh = "语音识别" }
 general.microphone = { ja = "マイク", en = "Microphone", zh = "麦克风" }
 general.preferred_language = { ja = "優先言語", en = "Preferred language", zh = "优先语言" }
-general.simplified_chinese = { ja = "簡体字中国語", en = "Simplified Chinese", zh = "简体中文" }
+general.simplified_chinese = { ja = "中国語", en = "Simplified Chinese", zh = "简体中文" }
 general.japanese = { ja = "日本語", en = "Japanese", zh = "日语" }
 general.english = { ja = "英語", en = "English", zh = "英语" }
 general.hud_language_shortcuts = { ja = "言語切替", en = "Language shortcuts", zh = "语言切换" }

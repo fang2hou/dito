@@ -40,8 +40,8 @@ What the app is for and what it does, from the user's side. How it looks and mov
 | 単語帳 (Wordbook) | Words passed to speech recognition as hotwords, optionally also to polishing; import, export and confirmed bulk deletion; a banner when an action fails |
 | プロンプト (Prompts) | Shared rules and app writing styles per language, installed-app icons, add or remove an app style, copy settings to another app, optional style examples and a safe preview. `design:settings/prompts`: taller editors, grouped undo and redo, draft autosave, scoped reset confirmation and plain-text before and after panes |
 | 履歴 (History) | Search and filter by period, text or app; entries from configured apps carry the app name and the rest read as Other; each entry shows the polished text and the original; transcribe again, polish again, copy, play audio, delete |
-| 統計 (Stats) | Characters, speaking speed, time saved, recordings, top apps and languages |
-| ステータス (Status) | Engine state, connection tests, macOS permissions (Microphone and Accessibility) |
+| 統計 (Stats) | Time saved first, then characters, recordings and speaking speed; characters per day as a week of tiles, a month calendar or a heatmap since first use, following the period, top apps and languages |
+| ステータス (Status) | Whether dictation works right now: a verdict, then shortcut, microphone, speech recognition, polishing and insertion in order, each with what it uses or how long it takes, and the reason and one fix when it fails |
 
 The sidebar shows a health dot (green when ready, red with the reason when a local model is stopped) and collapses to a rail in narrow windows.
 
