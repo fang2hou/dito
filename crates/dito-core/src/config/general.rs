@@ -184,7 +184,7 @@ mod tests {
     }
 
     #[test]
-    fn shortcut_changes_are_independent_of_the_recognition_language() {
+    fn shortcut_changes_are_independent_of_the_preferred_language() {
         let mut general: General = toml::from_str(
             "preferred_language = 'en'
 hud_languages = ['zh', 'auto', 'auto']",

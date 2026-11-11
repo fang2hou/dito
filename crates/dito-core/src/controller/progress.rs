@@ -70,7 +70,7 @@ struct Sample {
 pub(super) struct TimingHistory(VecDeque<Sample>);
 
 impl TimingHistory {
-    pub fn recognition(&self, model: u64, audio_secs: f32) -> f32 {
+    pub fn transcription(&self, model: u64, audio_secs: f32) -> f32 {
         let samples = self.0.iter().filter(|s| s.models.asr == model).map(|s| (s.audio_secs.max(1.), s.asr_secs));
         estimate(ASR_RATE, audio_secs, samples)
     }
@@ -124,13 +124,13 @@ mod tests {
             polish_ms: 4600,
         };
         history.record(models, 10., &out);
-        assert!(history.recognition(1, 10.) > history.recognition(3, 10.));
+        assert!(history.transcription(1, 10.) > history.transcription(3, 10.));
         assert!(history.polishing(2, 80) > history.polishing(4, 80));
         out.polished = None;
         for _ in 0..10 {
             history.record(Models { asr: 3, polish: 2 }, 10., &out);
         }
-        assert_eq!(history.recognition(1, 10.), 3.1);
+        assert_eq!(history.transcription(1, 10.), 3.1);
         assert_eq!(history.polishing(2, 80), 1.6);
     }
 }

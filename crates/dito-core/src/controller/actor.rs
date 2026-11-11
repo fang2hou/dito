@@ -285,7 +285,7 @@ impl Actor {
         let models = Models::new(&cfg.asr, &cfg.polish.engine);
         let labels = cfg.engine_labels();
         self.processing.send_replace(ProcessingEstimate {
-            transcription_secs: self.timings.recognition(models.asr, clip.duration_ms() as f32 / 1000.),
+            transcription_secs: self.timings.transcription(models.asr, clip.duration_ms() as f32 / 1000.),
             polishing: None,
         });
         self.set_hud(HudState::Transcribing);

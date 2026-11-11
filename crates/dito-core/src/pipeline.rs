@@ -202,7 +202,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn recognizes_then_polishes_in_order() {
+    async fn transcribes_then_polishes_in_order() {
         let e = engines(MockTranscriber::new("えーと 会議です"), MockPolisher::default());
         let phases = std::sync::Mutex::new(Vec::new());
         let out = run(
@@ -235,7 +235,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn polish_failure_falls_back_to_the_recognized_text() {
+    async fn polish_failure_falls_back_to_the_transcript() {
         let e = engines(MockTranscriber::new("hello"), MockPolisher::default().script([Err(ErrorKind::RateLimit)]));
         let out = go(&e, &Config::default(), &tone()).await.unwrap();
         assert_eq!(out.text(), "hello");
