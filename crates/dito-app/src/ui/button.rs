@@ -16,7 +16,6 @@ pub enum BtnKind {
     Secondary,
     Danger,
     Destructive,
-    Download,
     Subtle,
 }
 
@@ -45,7 +44,6 @@ impl BtnColors {
                 (p.button_danger_bg, p.button_danger_text, Some(p.button_danger_border), p.button_danger_hover)
             }
             BtnKind::Destructive => (p.danger, super::primitives::white(), None, p.button_primary_hover),
-            BtnKind::Download => (p.model_download, p.model_on_download, None, p.button_primary_hover),
             BtnKind::Subtle => (p.sub, p.text, Some(p.field_border), p.seg),
         };
         Self { bg, fg, border, tint }
