@@ -32,7 +32,7 @@ The settings window opens and a menu bar icon appears. Put the cursor in a text 
 - `mise run dev` uses the real microphone, local models and providers. Download local models under Models → Local, or set up a provider under Models.
 - `mise run release` builds the optimized `target/bundle/Dito.app` and launches it.
 - `mise run release:install` builds the release bundle and installs it to `~/Applications`. It creates the `dito-dev` signing identity first when it is missing (one macOS authorization prompt).
-- If only the Command Line Tools are selected, export `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` and run `xcodebuild -downloadComponent MetalToolchain` once.
+- Full Xcode is needed for the Metal Toolchain (`mise run setup:macos`, once) and the Liquid Glass icon. Release bundles and the icon step find it through `xcode-select` or `/Applications/Xcode.app`; `mise run dev` needs `DEVELOPER_DIR` exported (for example `/Applications/Xcode.app/Contents/Developer`) when only the Command Line Tools are selected. When the selected Xcode cannot compile the layered icon, builds fall back to a flat icon and print a warning.
 
 </details>
 
