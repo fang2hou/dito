@@ -80,7 +80,7 @@ pub fn confirm_dialog(
 fn answer(p: &Palette, id: ElementId, kind: BtnKind, answer: DialogAnswer) -> Stateful<Div> {
     let DialogAnswer { label, on_click } = answer;
     let Some(on_click) = on_click else {
-        return disabled_button(id, p, &label, kind, BtnSize::Regular, None, None).opacity(0.5);
+        return disabled_button(id, p, &label, kind, BtnSize::Regular, None, None);
     };
     // The dialog goes away under the pointer, which never reports the end of the hover. Forget it here so the next
     // dialog does not open with this button lit.

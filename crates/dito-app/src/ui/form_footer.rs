@@ -10,9 +10,6 @@ use super::tooltip::{tip_above, tip_label};
 use crate::assets::Ic;
 use crate::theme::Palette;
 
-/// The design's `opacity/disabled`: a disabled control is the same instance at 45 percent.
-const DISABLED: f32 = 0.45;
-
 pub struct FooterTrash {
     pub id: &'static str,
     pub tip: Option<SharedString>,
@@ -64,7 +61,7 @@ fn test_button(p: &Palette, test: TestButton) -> Stateful<Div> {
     let TestButton { id, label, width, on_click } = test;
     let control = match on_click {
         Some(on_click) => button(id, p, &label, BtnKind::Subtle, None, on_click),
-        None => disabled_button(id, p, &label, BtnKind::Subtle, BtnSize::Regular, None, None).opacity(DISABLED),
+        None => disabled_button(id, p, &label, BtnKind::Subtle, BtnSize::Regular, None, None),
     };
     control.when_some(width, |control, width| control.w(px(width)))
 }

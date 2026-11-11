@@ -28,7 +28,7 @@ pub fn test_status(p: &Palette, lang: Lang, state: &TestState) -> Div {
     let (label, bg, fg, weight) = match state {
         TestState::Idle => (lang.tr(Tr::ModelsUnchecked), p.seg, p.muted, FontWeight::NORMAL),
         TestState::Running => (lang.tr(Tr::ModelsChecking), p.seg, p.muted, FontWeight::NORMAL),
-        TestState::Ok(_) => (lang.tr(Tr::ModelsTestOk), p.model_running_bg, p.model_running_text, FontWeight::MEDIUM),
+        TestState::Ok(_) => (lang.tr(Tr::ModelsTestOk), p.success_soft, p.success_text, FontWeight::MEDIUM),
         TestState::Failed(_) => {
             (lang.tr(Tr::ModelsConnectionError), p.button_danger_bg, p.button_danger_text, FontWeight::MEDIUM)
         }
