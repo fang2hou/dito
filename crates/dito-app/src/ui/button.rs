@@ -147,10 +147,14 @@ pub fn icon_button(id: impl Into<ElementId>, p: &Palette, ic: Ic, active: bool, 
 
 /// The design's disabled state: the same instance at 45% opacity.
 pub fn disabled_icon_button(id: impl Into<ElementId>, p: &Palette, ic: Ic) -> Stateful<Div> {
+    disabled_icon_button_with(id, p, ic, CircleSize::Regular)
+}
+
+pub fn disabled_icon_button_with(id: impl Into<ElementId>, p: &Palette, ic: Ic, size: CircleSize) -> Stateful<Div> {
     circle_control(
         id,
         ic,
-        CircleSize::Regular,
+        size,
         CircleAppearance { background: None, foreground: p.text, border: Some(p.border_strong), hover: None },
     )
     .opacity(0.45)

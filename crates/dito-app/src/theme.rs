@@ -265,7 +265,6 @@ impl Palette {
             Tint::Danger => (self.danger_soft, self.danger_text),
             Tint::Warning => (self.warning_soft, self.warning_text),
             Tint::Blue => (self.blue_soft, self.blue_text),
-            Tint::Neutral => (self.seg, self.muted),
         }
     }
 }
@@ -275,7 +274,6 @@ pub enum Tint {
     Danger,
     Warning,
     Blue,
-    Neutral,
 }
 
 /// Push the palette into gpui-component so its inputs match the design.
