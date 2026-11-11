@@ -110,7 +110,7 @@ fn prepare_footer(w: &Onboarding, c: &Ctx, cx: &mut Context<Onboarding>, phase: 
     let (note, action) = match phase {
         PreparePhase::Downloading => (
             c.t(Tr::OnboardingDownloading).to_string(),
-            static_primary(p, &c.t(Tr::OnboardingPreparing), None, None).opacity(0.45).into_any_element(),
+            static_primary(p, &c.t(Tr::OnboardingPreparing), None, None).into_any_element(),
         ),
         _ => {
             let (label, ic) = if phase == PreparePhase::Failed {

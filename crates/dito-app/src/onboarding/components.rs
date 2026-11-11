@@ -11,7 +11,7 @@ use crate::ui::{self, BtnKind, BtnSize, cbk, text};
 
 use super::{Onboarding, Step};
 
-/// Does nothing; the caller dims it.
+/// The disabled Primary action of a step.
 pub(super) fn static_primary(p: &Palette, label: &str, lead: Option<Ic>, trail: Option<Ic>) -> Stateful<Div> {
     ui::disabled_button("wizard-disabled-primary", p, label, BtnKind::Primary, BtnSize::Large, lead, trail)
 }
@@ -201,7 +201,7 @@ pub(super) fn footer(
         .into_any_element()
     } else {
         ui::reset_hover(&ElementId::from("wizard-next"));
-        static_primary(p, &next_label, lead, trail).opacity(0.45).into_any_element()
+        static_primary(p, &next_label, lead, trail).into_any_element()
     };
     div()
         .w_full()
