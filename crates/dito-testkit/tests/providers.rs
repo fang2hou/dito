@@ -1,4 +1,4 @@
-//! Cloud speech and polish engines against the mock server: success, auth, rate limit, outage, fallbacks.
+//! Cloud speech and polish engines against the mock server.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -21,12 +21,10 @@ fn tone() -> AudioClip {
     AudioClip::new(vec![0.3; 16_000])
 }
 
-/// The configuration the polish engine of `cfg` runs.
 fn active(cfg: &mut Config) -> &mut CloudPolishConfiguration {
     cfg.polish.engine.polish_configurations_mut(cfg.general.lang()).active_mut().expect("a configuration is selected")
 }
 
-/// The dev defaults with the cloud speech configuration and the Azure polish configuration both pointed at the mock at `url`.
 fn mock_cfg(url: &str) -> Config {
     let mut c = Config::dev_azure();
     let configurations = c.asr.cloud_asr.as_mut().expect("the dev defaults use a cloud speech configuration");
@@ -35,7 +33,6 @@ fn mock_cfg(url: &str) -> Config {
     c
 }
 
-/// Default settings with the polish engine on its OpenAI-compatible configuration, pointed at `base_url`.
 fn compat_cfg(base_url: &str) -> Config {
     let mut cfg = Config::default();
     cfg.polish.engine.source = Source::Provider;
@@ -45,8 +42,6 @@ fn compat_cfg(base_url: &str) -> Config {
     cfg
 }
 
-/// A keychain holding `key` for the cloud speech configuration `mock_cfg` selects and for the Azure and compatible polish
-/// configurations the templates start with.
 fn factory(key: Option<&str>) -> EngineFactory {
     let secrets = Arc::new(MemorySecrets::default());
     if let Some(k) = key {
@@ -138,7 +133,7 @@ async fn connection_test_reports_latency_and_treats_no_speech_as_reachable() {
     let srv = MockServer::start().await.unwrap();
     srv.behavior(|b| {
         b.latency = Duration::from_millis(5);
-        b.transcript = String::new(); // the engine answers with an empty transcript for silence
+        b.transcript = String::new();
     });
     let f = factory(None);
     let asr = f.transcriber(&mock_cfg(&srv.url)).await.unwrap();
@@ -261,7 +256,6 @@ async fn every_configuration_authenticates_with_the_key_under_its_own_account() 
     secrets.set(&polish_account(&copy), "key-of-the-copy").unwrap();
     let request = PolishRequest { system: "s", text: "ok" };
 
-    // The copy is selected, and the server wants its key.
     f.polisher(&cfg).await.unwrap().unwrap().polish(&request).await.unwrap();
     cfg.polish.engine.polish_configurations_mut(cfg.general.lang()).select(&original);
     let err = f.polisher(&cfg).await.unwrap().unwrap().polish(&request).await.unwrap_err();

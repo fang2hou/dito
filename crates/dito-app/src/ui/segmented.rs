@@ -16,7 +16,6 @@ const SEG_PAD: f32 = 3.;
 const SEG_GAP: f32 = 2.;
 const SEG_CELL_PAD: f32 = 16.;
 
-/// Metrics and hover treatment for [`seg_with`].
 pub struct SegStyle {
     pub h: f32,
     pub label: f32,
@@ -28,7 +27,6 @@ pub struct SegStyle {
     pub hover: Option<(Hsla, Hsla)>,
 }
 
-/// Shared default feedback for text and icon segmented controls.
 pub(super) fn segment_hover_colors(p: &Palette) -> (Hsla, Hsla) {
     (p.segment_hover, p.segment_hover_label)
 }
@@ -109,9 +107,7 @@ struct LabelPaint {
     scope: ScopeHandle,
 }
 
-/// Segmented control. `on_select` receives the chosen index. The selected plate slides from the previous
-/// option to the new one, changing width along the way; every cell has a fixed width (its label at the heavier
-/// weight) so choosing never resizes the control.
+/// Every cell has a fixed width (its label at the heavier weight) so choosing never resizes the control.
 pub fn seg(
     id: impl Into<ElementId>,
     p: &Palette,
@@ -134,7 +130,6 @@ pub fn seg(
     )
 }
 
-/// [`seg`] with explicit [`SegStyle`] metrics.
 pub fn seg_with(
     id: impl Into<ElementId>,
     p: &Palette,
@@ -148,11 +143,9 @@ pub fn seg_with(
     let (hover_fill, hover_label) = style.hover.unwrap_or_else(|| segment_hover_colors(p));
     let el = div().id(id.clone()).h(px(layout.h)).w(px(layout.total())).flex_none().relative().rounded_full().bg(p.seg);
 
-    // One motion state drives the plate and the labels.
     let motion = plate_state(ElementId::from((id.clone(), "plate")), layout.plate_target(selected));
     let (seg_on, inset, h) = (p.seg_on, layout.inset, layout.h);
     let mut el = el.child(motion.animate("plate", move |a, b, energy| {
-        // Lit from within while it travels (a touch brighter).
         let lit = mix(seg_on, hsla(0., 0., 1., 1.), 0.18 * energy);
         div().absolute().top(px(inset)).left(px(a)).w(px(b - a)).h(px(h - 2. * inset)).rounded_full().bg(lit)
     }));

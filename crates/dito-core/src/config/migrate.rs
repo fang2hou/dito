@@ -1,5 +1,5 @@
-//! Versioned upgrades of `config.toml` (ADR-0015). Each migration rewrites the parsed TOML table from one schema
-//! version to the next, before the table becomes a typed `Config`; serde defaults only describe the current shape.
+//! Versioned upgrades of `config.toml` (ADR-0015). Each migration rewrites the parsed TOML table before it becomes a
+//! typed `Config`, because serde defaults only describe the current shape.
 
 use toml::{Table, Value};
 
@@ -18,17 +18,15 @@ const VERSION_KEY: &str = "schema_version";
 const MIGRATIONS: [fn(&mut Table); SCHEMA_VERSION as usize] =
     [herdr_defaults, asr_profile_ids, cloud_configurations, wordbook_setting];
 
-/// Why a table was not upgraded. Either way the file must stay as it is.
+/// Either way the file must stay as it is.
 #[derive(Debug, PartialEq)]
 pub(super) enum UpgradeError {
-    /// `schema_version` is present but is not a version number.
     Malformed(toml::de::Error),
-    /// The file was written by a newer build; reading it as the current shape would lose what that build added.
+    /// Reading it as the current shape would lose what the newer build added.
     Newer(u32),
 }
 
-/// Upgrade `table` in place to `SCHEMA_VERSION` and return the version it was at. A table without `schema_version`
-/// predates versioning and counts as version 0. A table that is refused is left untouched.
+/// A table without `schema_version` predates versioning and counts as version 0. A refused table is left untouched.
 pub(super) fn upgrade(table: &mut Table) -> Result<u32, UpgradeError> {
     let found = match table.get(VERSION_KEY) {
         None => 0,
@@ -64,21 +62,21 @@ fn herdr_defaults(table: &mut Table) {
     }
 }
 
-/// What each position of a version 1 profile list stood for: id, display name and the bundled template that completes
-/// a saved list lacking it. Spelled out here instead of read from `CloudAsrConfigurations`, so this step keeps its result when the
-/// bundled set grows or a name changes.
+/// What each position of a version 1 configuration list stood for: id, display name and the bundled template that
+/// completes a saved list lacking it. Spelled out here instead of read from `CloudAsrConfigurations`, so this step
+/// keeps its result when the bundled set grows or a name changes.
 const V1_PROFILES: &[(&str, &str, &str)] = &[
     ("funasr", "FunASR", include_str!("../../../../design/asr-templates/funasr.json")),
     ("qwen_asr", "Qwen ASR", include_str!("../../../../design/asr-templates/qwen-asr.json")),
     ("openrouter", "OpenRouter", include_str!("../../../../design/asr-templates/openrouter.json")),
 ];
 
-/// 1 to 2: cloud speech profiles are identified by id instead of position, so a bundled template can be added without
-/// moving saved ones. In every `cloud_asr` table, `selected` becomes the id of the profile it pointed at and each saved
-/// JSON string becomes an `{ id, name, config }` table with the string untouched. A list that lacks a bundled profile
-/// gets it from its template, entries past the third (never written by the app) are dropped, and a selection that
-/// points nowhere becomes the first profile, whose Keychain account the old code already fell back to. A table that is
-/// not in the old shape is left for the typed load to accept or reject.
+/// 1 to 2: cloud speech configurations are identified by id instead of position, so a bundled template can be added
+/// without moving saved ones. In every `cloud_asr` table, `selected` becomes the id of the configuration it pointed at
+/// and each saved JSON string becomes an `{ id, name, config }` table with the string untouched. A list that lacks a
+/// bundled configuration gets it from its template, entries past the third (never written by the app) are dropped, and
+/// a selection that points nowhere becomes the first configuration, whose Keychain account the old code already fell
+/// back to. A table that is not in the old shape is left for the typed load to accept or reject.
 fn asr_profile_ids(table: &mut Table) {
     for section in ["asr", "polish"] {
         let cloud = table
@@ -151,13 +149,13 @@ fn speech_items(table: &mut Table) {
 
 /// The three provider forms of the polish engine become cloud polish configurations that carry their own
 /// request parameters, so several can be kept and the Bedrock sampling the engine hard-coded becomes a setting.
-/// `polish.provider` turns into `polish.cloud_polish`, holding `azure`, `bedrock` and `compat` in that order with `kind`
-/// as the selection; the ids keep the Keychain accounts `polish.azure` and `polish.compat` that hold the saved keys.
-/// Each configuration keeps its fields and its reasoning effort, and Bedrock gets the temperature and token limit its
-/// engine sent before, so a request does not change. A field the file lacks gets what the typed load of version 2
-/// gave it. `asr.provider` was never read by speech recognition and is dropped. A file without `polish.provider`
-/// keeps none: the typed load then starts from the templates. The names are spelled out here, as in the step before,
-/// so this one keeps its result when a label changes.
+/// `polish.provider` turns into `polish.cloud_polish`, holding `azure`, `bedrock` and `compat` in that order with
+/// `kind` as the selection; the ids keep the Keychain accounts `polish.azure` and `polish.compat` that hold the saved
+/// keys. Each configuration keeps its fields and its reasoning effort, and Bedrock gets the temperature and token
+/// limit its engine sent before, so a request does not change. A field the file lacks gets what the typed load of
+/// version 2 gave it. `asr.provider` was never read by the speech engine and is dropped. A file without
+/// `polish.provider` keeps none: the typed load then starts from the templates. The names are spelled out here, as in
+/// the step before, so this one keeps its result when a label changes.
 fn polish_configurations(table: &mut Table) {
     let lang = display_language(table);
     if let Some(asr) = table.get_mut("asr").and_then(Value::as_table_mut) {
@@ -206,7 +204,7 @@ fn polish_configurations(table: &mut Table) {
     polish.insert("cloud_polish".into(), Value::Table(cloud));
 }
 
-/// The language the file's UI is shown in, which the name of the OpenAI-compatible configuration follows.
+/// The name of the OpenAI-compatible configuration follows the UI language.
 fn display_language(table: &Table) -> Lang {
     table
         .get("general")
@@ -243,7 +241,7 @@ fn configuration<const FIELDS: usize, const PARAMS: usize>(
     Value::Table(item)
 }
 
-/// 3 to 4: move the spelling-reference toggle to the wordbook key.
+/// 3 to 4: the spelling-reference toggle moves to the wordbook key.
 fn wordbook_setting(table: &mut Table) {
     if let Some(value) = table.remove("dictionary_for_polish") {
         table.entry("wordbook_for_polish").or_insert(value);
@@ -345,7 +343,8 @@ profiles = ['{first}', '{second}']
     }
 
     /// What version 2 wrote for cloud speech: a `profiles` list of `{ id, name, config }` tables, the config as the
-    /// compact JSON the app saves. The polish section can carry a list too, left over from before polishing had its own.
+    /// compact JSON the app saves. The polish section can carry a list too, left over from before polishing had its
+    /// own.
     const V2_SPEECH: &str = r#"
 schema_version = 2
 onboarded = true
@@ -392,7 +391,6 @@ config = '{"connection":{"model":"m3"},"version":1}'
         assert_eq!(legacy["asr"]["cloud_asr"]["selected"].as_str(), Some("qwen_asr-3c9e"));
         assert_eq!(legacy["polish"]["cloud_asr"]["selected"].as_str(), Some("openrouter"));
 
-        // The typed load reads the same entries and selection, and saves them again under the new key unchanged.
         let config: Config = legacy.clone().try_into().unwrap();
         let speech = config.asr.cloud_asr.as_ref().unwrap();
         let identities: Vec<_> = speech.items.iter().map(|c| (c.id.as_str(), c.name.as_str())).collect();
@@ -499,7 +497,6 @@ reasoning_effort = ""
             assert_eq!(keys, ["reasoning_effort"], "nothing else is sent that was not sent before");
         }
 
-        // The typed load sees the same fields the forms had.
         let config: Config = legacy.try_into().unwrap();
         let configurations = config.polish.engine.polish_configurations(config.general.lang());
         let target = |id: &str| configurations.get(id).unwrap().target.clone();

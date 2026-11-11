@@ -1,4 +1,4 @@
-//! What the HUD draws around the capsule: tips, the stop pill, the error reason and the countdown.
+//! What the HUD draws around the capsule.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -21,10 +21,9 @@ use super::clock::{COUNTDOWN_FADE_S, COUNTDOWN_START_S};
 use super::layout::{CAPSULE_TOP, ERROR_BUBBLE_H, ZONE_GAP};
 use super::{HudView, LABEL_FADE_S, PILL_HAIRLINE};
 
-/// Centres of the capsule's left and right buttons from the window's left edge.
 fn button_centers() -> (f32, f32) {
-    // The capsule centres on the full window width (the root's horizontal padding does not shift that
-    // centring), and a tip's absolute `left` is window-0-based, so anchors use that same frame.
+    // The capsule centers on the full window width (the root's horizontal padding does not shift that centering),
+    // and a tip's absolute `left` is window-0-based, so anchors use that same frame.
     let capsule_left = (WIN_W + 2. * WIN_PAD - CAPSULE_W) / 2.;
     let button_center = CAPSULE_PAD + BTN / 2.;
     (capsule_left + button_center, capsule_left + CAPSULE_W - button_center)
@@ -45,7 +44,6 @@ impl HudView {
             .child(text(s.to_string(), tx(12.), FontWeight::NORMAL, p.text).line_height(px(18.)))
     }
 
-    /// The tips above the capsule's buttons, or the device note while one is shown.
     pub(super) fn tips_above(&self, lang: Lang, p: &Palette, error_detail: Option<&'static str>) -> Div {
         let listening = matches!(self.state, HudState::Listening { mode: RecordMode::Toggle });
         let device_note = self.device_note(lang);
@@ -86,7 +84,7 @@ impl HudView {
             .map(|(name, _)| dito_core::i18n::fmt::using_model(lang, &name))
     }
 
-    /// The hover zone: the capsule plus the controls above it and the gap between, so the pointer can travel up.
+    /// The zone includes the gap between the capsule and the controls, so the pointer can travel up.
     pub(super) fn zone(&self, p: &Palette, lang: Lang, capsule: AnyElement, cx: &mut Context<Self>) -> Stateful<Div> {
         let listening = matches!(self.state, HudState::Listening { mode: RecordMode::Toggle });
         let processing = matches!(self.state, HudState::Transcribing | HudState::Polishing);
@@ -112,14 +110,13 @@ impl HudView {
         zone.child(capsule)
     }
 
-    /// The reason of an error, travelling out from behind the capsule; its fixed anchor cannot move the HUD.
+    /// Its fixed anchor cannot move the HUD.
     pub(super) fn error_reason_bubble(&self, msg: &str, p: &Palette) -> Div {
         let progress = self.error_reason.position;
         let y = CAPSULE_TOP - ZONE_GAP - ERROR_BUBBLE_H + (CAPSULE_H + 2. * ZONE_GAP + ERROR_BUBBLE_H) * progress;
         div().absolute().top(px(y)).left(px(0.5)).right(px(0.5)).flex().justify_center().child(Self::bubble(msg, p))
     }
 
-    /// The remaining recording time, with the seconds still to run: `active` while recording, fading out after.
     pub(super) fn countdown(&self, p: &Palette, seconds: u64, active: bool) -> Div {
         let reduced = dito_platform::system::reduce_motion();
         let elapsed = self.freeze.unwrap_or_else(|| self.recording_started.map_or(0., |t| t.elapsed().as_secs_f32()));
@@ -156,10 +153,9 @@ impl HudView {
             .child(pill)
     }
 
-    /// A tooltip centred above the capsule button whose centre is `center_x` from the window's left edge, in the
-    /// full-window frame. The anchor is a box placed symmetrically about that centre, so `justify_center` centres
-    /// the bubble on the button without measuring the text: measured widths drift from the rendered run, which
-    /// broke centring whenever the language changed.
+    /// `center_x` is the button's center from the window's left edge, in the full-window frame. The anchor is a box
+    /// placed symmetrically about it, so `justify_center` centers the bubble without measuring the text: measured
+    /// widths drift from the rendered run, which broke centering whenever the language changed.
     ///
     /// The anchor box stays mounted as a plain static element (an animated one re-lays out against the wrong
     /// ancestor); the pop lives in its inner child.

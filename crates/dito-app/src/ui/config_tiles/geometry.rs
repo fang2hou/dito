@@ -1,24 +1,17 @@
-//! Where the tiles of a configuration row sit, how far the row scrolls and which slot a dragged tile lands in.
-//! Everything here is plain arithmetic on points; the numbers are the design's (`design:models/cloud/tile-row`).
+//! Plain arithmetic on points for the tile row; the numbers are the design's (`design:settings/cloud-models/tile-row`).
 
 pub(super) const TILE_H: f32 = 64.;
-/// Every tile is this wide, whatever the window or the number of tiles.
 pub(super) const TILE_W: f32 = 216.;
 pub(super) const GAP: f32 = 12.;
 pub(super) const FADE_W: f32 = 48.;
-/// How far the dragged tile floats above the row.
 pub(super) const LIFT: f32 = 8.;
-/// Distance between the left edges of neighbouring tiles.
 pub(super) const PITCH: f32 = TILE_W + GAP;
-/// A fade shows as much as there is hidden behind its edge: it grows over this distance, so reaching an end
-/// never makes it pop out.
+/// A fade grows over this distance, so reaching an end of the row never makes it pop out.
 const FADE_RAMP: f32 = 24.;
-/// Distance from an edge of the row inside which a dragged tile scrolls it, and the speed right at the edge (pt/s).
+/// Distance from a row edge inside which a dragged tile scrolls the row, and the speed right at the edge (pt/s).
 const EDGE_ZONE: f32 = 48.;
 const EDGE_SPEED: f32 = 600.;
 
-/// The geometry of a row of `n` tiles in a scrolling area `view` wide. Tiles keep [`TILE_W`] and sit at the left; a
-/// row that does not fit scrolls.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(super) struct Layout {
     pub view: f32,
@@ -30,7 +23,6 @@ impl Layout {
         Self { view, n }
     }
 
-    /// Left edge of tile `index` in the scrolled content.
     pub fn left(&self, index: usize) -> f32 {
         index as f32 * PITCH
     }
@@ -39,19 +31,17 @@ impl Layout {
         if self.n == 0 { 0. } else { self.n as f32 * TILE_W + (self.n - 1) as f32 * GAP }
     }
 
-    /// The farthest the content scrolls; zero while everything fits, and before the row has been measured.
+    /// Zero before the row has been measured.
     pub fn max_offset(&self) -> f32 {
         if self.view <= 0. { 0. } else { (self.content() - self.view).max(0.) }
     }
 
-    /// The slot a tile whose left edge is `left` from the left edge of the scrolling area lands in.
     pub fn landing(&self, left: f32, offset: f32) -> usize {
         let centre = left + offset + TILE_W / 2.;
         ((centre / PITCH).floor().max(0.) as usize).min(self.n.saturating_sub(1))
     }
 
-    /// The offset that shows tile `index` completely: the nearest scroll that keeps it clear of the fade on every
-    /// side that has more tiles beyond it. An offset that already does is returned unchanged.
+    /// Keeps the tile clear of the fade on every side that has more tiles beyond it.
     pub fn reveal(&self, index: usize, offset: f32) -> f32 {
         let (left, right) = (self.left(index), self.left(index) + TILE_W);
         let before = if index > 0 { FADE_W } else { 0. };
@@ -66,15 +56,12 @@ impl Layout {
         target.clamp(0., self.max_offset())
     }
 
-    /// Strength of the fade over the left and right edge at `offset`, each 0 to 1.
     pub fn fades(&self, offset: f32) -> (f32, f32) {
         let ramp = |hidden: f32| (hidden / FADE_RAMP).clamp(0., 1.);
         (ramp(offset), ramp(self.max_offset() - offset))
     }
 }
 
-/// How far, in slots, tile `index` slides while the tile at `from` is dragged over the slot `to`: the tiles between
-/// the two close the gap the dragged tile leaves and open the one it is about to fill.
 pub(super) fn slots_moved(index: usize, from: usize, to: usize) -> f32 {
     if from < to && index > from && index <= to {
         -1.
@@ -85,8 +72,7 @@ pub(super) fn slots_moved(index: usize, from: usize, to: usize) -> f32 {
     }
 }
 
-/// Scroll speed (pt/s, negative toward the start) for a dragged tile held `pointer` from the left edge of a scrolling
-/// area `view` wide: zero in the middle, up to [`EDGE_SPEED`] at either edge.
+/// Negative toward the start, in pt/s.
 pub(super) fn edge_speed(pointer: f32, view: f32) -> f32 {
     if pointer < EDGE_ZONE {
         -EDGE_SPEED * ((EDGE_ZONE - pointer) / EDGE_ZONE).clamp(0., 1.)
@@ -97,8 +83,8 @@ pub(super) fn edge_speed(pointer: f32, view: f32) -> f32 {
     }
 }
 
-/// How far the content moves for one scroll event: the stronger axis wins, so a vertical wheel scrolls the row
-/// sideways and a diagonal swipe does not wobble. Positive moves the content right (toward the start).
+/// The stronger axis wins, so a vertical wheel scrolls the row sideways and a diagonal swipe does not wobble. Positive
+/// moves the content right (toward the start).
 pub(super) fn wheel_delta(dx: f32, dy: f32) -> f32 {
     if dx.abs() >= dy.abs() { dx } else { dy }
 }
@@ -121,16 +107,13 @@ mod tests {
 
     #[test]
     fn tiles_keep_their_width_and_the_row_scrolls_only_when_they_do_not_fit() {
-        // Three tiles fill the default window exactly.
         assert_eq!(Layout::new(VIEW, 3).max_offset(), 0.);
-        // The compact window (`design:models/cloud/compact-window`): 500 wide, less the plus button and its gap.
+        // `design:settings/cloud-models/compact-window`: 500 wide, less the plus button and its gap.
         let narrow = Layout::new(452., 3);
         assert_eq!(narrow.max_offset(), 672. - 452.);
         assert_eq!(narrow.fades(0.), (0., 1.), "the third tile shows under the fade at the right edge");
-        // A wide row with few tiles: they stay at the left and nothing scrolls.
         let wide = Layout::new(1000., 2);
         assert_eq!((wide.content(), wide.max_offset(), wide.fades(0.)), (444., 0., (0., 0.)));
-        // Not measured yet: nothing to scroll.
         assert_eq!(Layout::new(0., 5).max_offset(), 0.);
     }
 
@@ -157,10 +140,8 @@ mod tests {
 
     #[test]
     fn the_tiles_between_the_old_and_the_new_slot_make_room() {
-        // Drag tile 1 over slot 3: tiles 2 and 3 slide left.
         let moved: Vec<f32> = (0..5).map(|i| slots_moved(i, 1, 3)).collect();
         assert_eq!(moved, [0., 0., -1., -1., 0.]);
-        // Drag tile 3 over slot 1: tiles 1 and 2 slide right.
         let moved: Vec<f32> = (0..5).map(|i| slots_moved(i, 3, 1)).collect();
         assert_eq!(moved, [0., 1., 1., 0., 0.]);
         assert!((0..5).all(|i| slots_moved(i, 2, 2) == 0.), "no move, no room to make");

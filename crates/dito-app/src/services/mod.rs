@@ -1,9 +1,5 @@
-//! App-level operations on shared state, callable from any view.
-//!
-//! Split by what an operation does: `history` mutates saved entries, `connection` talks to configured
-//! engines, `queries` reads local data, `save_config` and `store_secret` persist settings, and `watch_config`
-//! re-renders a view when they change. The re-exports below are the whole public surface: views keep calling
-//! `services::<fn>` and never the submodules directly.
+//! App-level operations on shared state. The re-exports below are the whole public surface: views call
+//! `services::<fn>`, never the submodules.
 
 mod connection;
 mod history;

@@ -41,19 +41,18 @@ pub struct Palette {
     pub success: Hsla,
     pub success_text: Hsla,
     pub success_soft: Hsla,
-    /// Label tints for history states: warning (cancelled) and blue (dictation style identity).
-    /// Muted chips in both themes — failures keep the loud solid red, these stay quiet.
+    /// Muted chips in both themes: failures keep the loud solid red, these stay quiet.
     pub warning_text: Hsla,
     pub warning_soft: Hsla,
     pub blue_text: Hsla,
     pub blue_soft: Hsla,
     pub seg: Hsla,
     pub seg_on: Hsla,
-    /// Idle model-tile fill: a softer recess than `seg`, which reads too heavy on a white card.
+    /// Softer than `seg`, which reads too heavy on a white card.
     pub tile_idle: Hsla,
     /// Plate behind a model card while its download runs, verifies or has failed.
     pub row_idle: Hsla,
-    /// Surface of the sidebar health pop-up: white in light, near-black in dark.
+    /// Surface of the sidebar health pop-up.
     pub menu_bg: Hsla,
     pub toggle_off: Hsla,
     pub knob_on: Hsla,
@@ -260,7 +259,7 @@ impl Palette {
         if dark { Self::dark() } else { Self::light() }
     }
 
-    /// Text color on tinted status backgrounds (the design uses solid accents with white text in dark mode).
+    /// In dark mode the design uses solid accents with white text.
     pub fn on_tint(&self, kind: Tint) -> (Hsla, Hsla) {
         match kind {
             Tint::Danger => (self.danger_soft, self.danger_text),
@@ -305,7 +304,6 @@ pub fn hud_stop_ink(p: &Palette) -> Hsla {
     hud_color(p, "#DD202C", "#FF7972")
 }
 
-/// Fill of the error capsule and the stop pill.
 pub fn hud_error_bg(p: &Palette) -> Hsla {
     hud_color(p, "#FFEFEF", "#62423C")
 }
@@ -314,7 +312,6 @@ pub fn hud_error_pill_border() -> Hsla {
     hex("#FF494966")
 }
 
-/// The language chip: its sliding plate, and its labels while idle.
 pub fn hud_lang_plate(p: &Palette) -> Hsla {
     hud_color(p, "#FFECBD", "#E0C47D")
 }

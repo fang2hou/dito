@@ -1,9 +1,7 @@
 use crate::i18n::Lang;
 
-/// Copyable reference for an AI assistant, in the interface language: the guide to the request JSON, then the
-/// configuration `name` with its own request JSON `request_json` as it stands, whichever configuration that is. An API
-/// key is never part of a request JSON (it lives in the Keychain and the JSON refers to it as `{{api_key}}`), and
-/// recordings never enter this text.
+/// An API key is never part of a request JSON (it lives in the Keychain and the JSON refers to it as `{{api_key}}`),
+/// and recordings never enter this text.
 pub fn configuration_spec(language: Lang, name: &str, request_json: &str) -> String {
     let guide = match language {
         Lang::Ja => include_str!("../asr-help/ja.md"),

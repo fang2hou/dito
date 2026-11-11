@@ -1,15 +1,6 @@
-//! UI copy. The single source is [`messages.toml`](./messages.toml): one template ID per
-//! message with every language side by side. `build.rs` compiles it into the [`Tr`] enum
-//! and the `fmt::*` formatting functions, so:
-//!
-//! * referencing an ID that does not exist is a compile error,
-//! * a missing language or an empty value fails the build,
-//! * placeholder drift between languages fails the build,
-//! * all copy is embedded in the binary — no file I/O at runtime.
-//!
-//! Adding a language = a column in the TOML + one entry in build.rs's `LANGS`.
-//! Call sites: `lang.tr(Tr::NavSettings)`; parameterized copy: `i18n::fmt::using_model(lang, name)`.
-//! Braces in copy: `template` has the rules.
+//! UI copy, compiled from [`messages.toml`](./messages.toml) by `build.rs`: an unknown ID is a compile error, a missing
+//! language, an empty value or placeholder drift fails the build, and all copy is embedded, so there is no file I/O at
+//! runtime.
 
 mod generated;
 mod lang;

@@ -9,7 +9,7 @@ use super::typography::text;
 use crate::assets::Ic;
 use crate::theme::Palette;
 
-/// Neutral entries and destructive actions for menus outside Local Models.
+/// For menus outside Local Models.
 #[derive(Clone, Copy, PartialEq, Eq, Default)]
 pub enum MenuTone {
     #[default]
@@ -45,7 +45,6 @@ fn popup_row(id: ElementId, p: &Palette, item: MenuItem, on_close: Cb, neutral: 
         .child(text(item.label, 13., FontWeight::NORMAL, fg).line_height(relative(1.)))
 }
 
-/// Floating menu under its (relative) parent, right-aligned, drawn above everything else.
 pub fn popup_menu(id: impl Into<ElementId>, p: &Palette, items: Vec<MenuItem>, on_close: Cb) -> Div {
     let id: ElementId = id.into();
     let mut panel = menu_panel(id.clone(), p, on_close.clone()).w(px(200.));
@@ -56,7 +55,7 @@ pub fn popup_menu(id: impl Into<ElementId>, p: &Palette, items: Vec<MenuItem>, o
     float(ElementId::from((id, "popup")), CONTROL_H + 8., panel)
 }
 
-/// One row of the [`add_menu`]: what it says and what it does. The menu closes before `on_click` runs.
+/// The menu closes before `on_click` runs.
 pub struct AddEntry {
     pub label: SharedString,
     pub on_click: Cb,
@@ -72,10 +71,8 @@ fn add_row(id: ElementId, p: &Palette, entry: AddEntry, on_close: Cb) -> Statefu
         .child(text(entry.label, 14., FontWeight::NORMAL, p.text).line_height(px(20.)))
 }
 
-/// The menu under the plus button of a configuration row (`design:models/cloud/add-from-template`), for cloud speech and cloud polish alike: a
-/// caption, the `templates` a new configuration can start from, a rule, and the row that copies the selected
-/// configuration. The caption says the entries are templates that only pre-fill the new configuration, not things to
-/// choose between. Hangs under its (relative) parent with the right edges aligned, drawn above everything.
+/// The caption says the entries are templates that only pre-fill the new configuration, not things to choose between
+/// (`design:settings/cloud-models/add-from-template`).
 pub fn add_menu(
     id: impl Into<ElementId>,
     p: &Palette,
@@ -95,7 +92,6 @@ pub fn add_menu(
     float(ElementId::from((id, "popup")), CONTROL_H + 8., panel)
 }
 
-/// Local Models uses neutral commands grouped by runtime, files and removal.
 pub fn popup_menu_grouped(id: impl Into<ElementId>, p: &Palette, groups: Vec<Vec<MenuItem>>, on_close: Cb) -> Div {
     let id = id.into();
     let mut panel = menu_panel(id.clone(), p, on_close.clone()).w(px(224.));

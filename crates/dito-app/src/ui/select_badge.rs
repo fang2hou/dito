@@ -9,7 +9,6 @@ use super::tween::tweened;
 use crate::assets::Ic;
 use crate::theme::Palette;
 
-/// A small block toggle at the right of a menu row: a ban icon, red while `active`, gray otherwise.
 /// Clicking it flips its own state and leaves the menu open; it never picks the row.
 pub struct SelectBadge {
     pub active: bool,

@@ -1,4 +1,4 @@
-//! The icon of the finished stage: a drawn-on check for inserted text, a stacked pair of sheets for copied.
+//! The icon of the finished stage.
 
 use gpui_kit::prelude::*;
 use gpui_kit::*;
@@ -9,11 +9,9 @@ use crate::ui::Motion;
 use super::Scale;
 use super::timing::{self, OUTCOME_ICON_S};
 
-/// Centered state glyphs in design points.
 const CHECK_ICON: f32 = 18.;
 pub(super) const COPY_ICON: f32 = 14.;
 
-/// A constant-speed tip travels along the two segments, following the check's actual centerline.
 fn check_trace(progress: f32) -> Vec<(f32, f32)> {
     let [a, b, c] = [(4_f32, 13_f32), (9., 18.), (20., 7.)].map(|(x, y)| (x * CHECK_ICON / 24., y * CHECK_ICON / 24.));
     let ab = (b.0 - a.0).hypot(b.1 - a.1);
@@ -33,8 +31,8 @@ fn check_outline(progress: f32, origin: Point<Pixels>, scale: Scale) -> Option<P
         return None;
     }
     let points = check_trace(progress);
-    // These equally wound round-ended contours overlap at the bend. Even-odd filling
-    // subtracts that intersection and cuts a hole through the check; nonzero fills the union.
+    // These equally wound round-ended contours overlap at the bend. Even-odd filling subtracts that intersection and
+    // cuts a hole through the check; nonzero fills the union.
     let mut path =
         PathBuilder::fill().with_style(PathStyle::Fill(FillOptions::default().with_fill_rule(FillRule::NonZero)));
     for pair in points.windows(2) {
@@ -74,14 +72,13 @@ fn drawn_check(progress: f32, scale: Scale) -> AnyElement {
     .into_any_element()
 }
 
-/// Which finished stage the icon belongs to.
 #[derive(Clone, Copy)]
 pub(super) enum Outcome {
     Inserted,
     Copied,
 }
 
-/// Cache the fixed, two-dimensional halo in the owning window's element state.
+/// The halo is fixed, so it is cached in the owning window's element state.
 fn check_halo(alpha: f32, scale: Scale) -> AnyElement {
     const SVG: &str = r##"<svg xmlns="http://www.w3.org/2000/svg" width="42" height="42" viewBox="-12 -12 42 42">
 <defs><filter id="soft" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="4"/></filter><filter id="core" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="1.5"/></filter></defs>

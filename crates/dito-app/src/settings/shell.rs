@@ -16,7 +16,6 @@ use crate::ui;
 pub struct Settings {
     pub(super) st: Arc<AppState>,
     pub(super) page: Page,
-    /// Sidebar is collapsed to the compact icon rail (auto below RAIL_COLLAPSE, with hysteresis).
     pub(super) rail: bool,
     pub(super) health_dot_bounds: Rc<Cell<Option<Bounds<Pixels>>>>,
     /// The persistent shell scope: the sidebar's nav plate and hover live here for the window's
@@ -60,7 +59,6 @@ impl Settings {
         this
     }
 
-    /// Start the shown page's data lifecycle (history/stats load their snapshots on entry).
     pub(super) fn activate(&self, page: Page, cx: &mut Context<Self>) {
         match page {
             Page::History => self.history.update(cx, |h, cx| {
@@ -74,7 +72,6 @@ impl Settings {
         }
     }
 
-    /// Stop the left page's data lifecycle: no further queries, late results ignored.
     fn deactivate(&self, page: Page, cx: &mut Context<Self>) {
         match page {
             Page::History => self.history.update(cx, |h, cx| h.set_active(false, cx)),
@@ -97,12 +94,10 @@ impl Settings {
         // The entered page's controls mount with fresh motion state: nothing may slide or replay
         // values remembered from an earlier visit. The shell (sidebar) scope is never reset here.
         self.reset_page_motion(page, cx);
-        // Data lifecycle follows visibility: entering a page loads it, leaving stops its queries.
         self.activate(page, cx);
         cx.notify();
     }
 
-    /// Reset one page's transient motion state (its controls mount statically on the next visit).
     pub(super) fn reset_page_motion(&self, page: Page, cx: &mut Context<Self>) {
         match page {
             Page::General => self.general.update(cx, |g, _| g.reset_motion()),
@@ -115,9 +110,8 @@ impl Settings {
         }
     }
 
-    /// The settings window closed: stop the shown page's data lifecycle and invalidate every
-    /// transient scope (shell and pages), so handles still held elsewhere (tests, screenshots)
-    /// read static defaults instead of stale motion state.
+    /// Invalidates every transient scope (shell and pages), so handles still held elsewhere (tests, screenshots) read
+    /// static defaults instead of stale motion state.
     pub(super) fn on_window_closed(&mut self, cx: &mut Context<Self>) {
         self.deactivate(self.page, cx);
         self.motion.reset();
@@ -137,8 +131,8 @@ impl Render for Settings {
 }
 
 impl Settings {
-    /// Auto-collapse with hysteresis: the window crossing RAIL_COLLAPSE folds the sidebar into the icon rail; it
-    /// only unfolds once the window is past RAIL_EXPAND. Returns whether the rail is showing.
+    /// Hysteresis: the sidebar folds at RAIL_COLLAPSE and only unfolds past RAIL_EXPAND. Returns whether the rail is
+    /// showing.
     fn follow_window_width(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
         let vw = f32::from(window.viewport_size().width);
         let rail = if self.rail { vw < RAIL_EXPAND } else { vw < RAIL_COLLAPSE };
@@ -162,8 +156,7 @@ impl Settings {
         }
     }
 
-    /// The page's card with its backdrop and wordmark, and the edge gutters over the page's horizontal padding that
-    /// also drag. Scroll still passes through, and content never enters these zones, so nothing is blocked.
+    /// Scroll still passes through, and content never enters these zones, so nothing is blocked.
     fn content(&self, p: Palette) -> Div {
         div()
             .flex_1()

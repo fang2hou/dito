@@ -12,8 +12,7 @@ use crate::ui::{self, text};
 use dito_core::i18n::Tr;
 
 impl Settings {
-    /// Collapsed logo: the app-icon mark — a 48 px D with the health dot tucked into the bowl's
-    /// bottom-right. The wordmark itself never expands; the status card uses the measured dot bounds.
+    /// The wordmark itself never expands; the status card uses the measured dot bounds.
     pub(super) fn logo_mark(&self, c: &Ctx) -> impl IntoElement {
         let p = &c.p;
         let rows = self.health_rows(c.lang);
@@ -33,9 +32,8 @@ impl Settings {
             .child(div().absolute().left(px(29.)).top(px(28.)).child(self.health_dot(px(13.5), color)))
     }
 
-    /// The floating row reveal of the collapsed rail. One tween fades the card in as a whole, so background and
-    /// text arrive together. An invisible hit pill keeps the hover (and forwards clicks) once the pointer travels
-    /// past the rail edge onto the label.
+    /// One tween fades the card in as a whole, so background and text arrive together. An invisible hit pill keeps the
+    /// hover (and forwards clicks) once the pointer travels past the rail edge onto the label.
     pub(super) fn rail_hover(&self, c: &Ctx, cx: &mut Context<Self>) -> AnyElement {
         let p = c.p;
         let mut layer = div().absolute().size_full();
@@ -89,7 +87,6 @@ impl Settings {
         }
     }
 
-    /// The sliding plate and the icon and label layer above it, as a pair of elements.
     fn nav_layers(&self, c: &Ctx, rail: bool) -> (AnyElement, AnyElement) {
         let p = &c.p;
         let plate_y = nav_y(self.page);
@@ -189,8 +186,6 @@ impl Settings {
             .bg(p.side)
             .border_r_1()
             .border_color(p.border)
-            // The whole sidebar background drags: the strip under the traffic lights, the logo row,
-            // section headers and the empty stretch below the nav. Nav items keep their own clicks.
             .child(ui::drag_area("sidebar-top").h(px(sidebar_top_height(rail))).flex_none())
             .child(self.brand(c, rail))
             .child(
@@ -210,7 +205,6 @@ impl Settings {
                     .children([Page::History, Page::Stats, Page::Status].map(|pg| self.nav_item(c, cx, rail, pg)))
                     .child(contents),
             )
-            // The empty stretch under the nav drags the window, like a native sidebar background.
             .child(ui::drag_area("sidebar-drag").flex_1())
     }
 }
@@ -240,7 +234,6 @@ fn nav_section(c: &Ctx, rail: bool, label: Tr) -> AnyElement {
     }
 }
 
-/// An invisible pill over a row that keeps the hover and forwards the click while the reveal card is shown.
 fn rail_hit_pill(
     id: ElementId,
     y: f32,

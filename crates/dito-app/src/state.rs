@@ -49,23 +49,22 @@ impl Global for AppGlobal {}
 pub struct AppGlobal(pub Arc<AppState>);
 
 impl AppState {
-    /// Switch the capture device used by the next recording.
+    /// Takes effect with the next recording.
     pub fn recorder_device(&self, name: &str) {
         if let Some(c) = &self.capture {
             c.set_device(name);
         }
     }
 
-    /// Set which devices automatic microphone picking may open, from the next recording on.
+    /// Takes effect with the next recording.
     pub fn recorder_auto(&self, overrides: &AutoOverrides) {
         if let Some(c) = &self.capture {
             c.set_auto_overrides(overrides);
         }
     }
 
-    /// Start every service. A data file this build cannot use as it is fails the build with its `ConfigError` or
-    /// `StoreError` untouched inside the returned error; the caller decides which of those get a window of their own
-    /// (see `startup_failure`).
+    /// A data file this build cannot use fails the build with its `ConfigError` or `StoreError` intact in the error,
+    /// so the caller decides which of them get a window of their own (see `startup_failure`).
     pub fn build(opts: Opts, rt: &tokio::runtime::Handle) -> Result<Arc<Self>> {
         let _guard = rt.enter();
         let data_dir = data_dir(&opts);
@@ -143,7 +142,6 @@ pub(crate) fn database_path(opts: &Opts) -> PathBuf {
     data_dir(opts).join(DB_FILE)
 }
 
-/// With `--mock`: start the in-process cloud endpoints and point both cloud stages at them.
 #[cfg(feature = "mock")]
 fn start_mock_server(
     opts: &Opts,

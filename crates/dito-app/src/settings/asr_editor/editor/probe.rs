@@ -16,19 +16,15 @@ pub enum EditorCommand {
     Test,
     MapLocales,
     ScrollHelp(f32),
-    /// Focus the name field and select all of it.
     SelectName,
-    /// Take the focus away from the name field, and send the blur an active window sends then: GPUI delivers no blur
-    /// in the shot windows, which are never active.
+    /// GPUI delivers no blur in the shot windows, which are never active, so the blur an active window sends is sent
+    /// here.
     LeaveName,
-    /// Type into the name field as a person does: the text replaces the selection, which is the whole name right
-    /// after a configuration was added.
+    /// The text replaces the selection, which is the whole name right after a configuration was added.
     TypeName(String),
-    /// Select the whole key and type over it.
     TypeKey(String),
 }
 
-/// What the cloud speech form shows right now.
 pub struct CloudAsrFormState {
     pub shown: String,
     pub name: String,
@@ -36,11 +32,9 @@ pub struct CloudAsrFormState {
     pub name_selection: Range<usize>,
     pub key: String,
     pub menu_open: bool,
-    /// The name a delete dialog asks about, while it is open.
     pub deleting: Option<String>,
 }
 
-/// What the cloud speech editor keeps for one configuration.
 pub struct CloudAsrDraftState {
     pub id: String,
     pub text: String,
@@ -72,12 +66,10 @@ impl AsrEditor {
         }
     }
 
-    /// The tile row's scroll offset, the furthest it goes and the slot a dragged tile is over.
     pub(crate) fn probe_tiles(&self) -> (f32, f32, Option<usize>) {
         self.tiles.probe()
     }
 
-    /// Every draft the editor keeps, by id.
     pub(crate) fn probe_drafts(&self, cx: &App) -> Vec<CloudAsrDraftState> {
         let mut drafts: Vec<_> = self
             .drafts

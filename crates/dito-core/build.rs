@@ -1,6 +1,5 @@
-//! Compile `src/i18n/messages.toml` into Rust: a `Tr` enum (one variant per template ID)
-//! with all languages embedded as consts, plus one formatting function per parameterized
-//! message. Fail the build on missing languages, empty values, or placeholder drift.
+//! Compile `src/i18n/messages.toml` into the `Tr` enum and the `fmt` functions, failing the build on missing
+//! languages, empty values or placeholder drift.
 
 use std::env;
 use std::fmt::Write as _;
@@ -13,7 +12,6 @@ mod template;
 
 const LANGS: [(&str, &str); 3] = [("ja", "Ja"), ("en", "En"), ("zh", "Zh")];
 
-/// Messages under this prefix are templates of generated formatting functions; all other copy is plain text.
 const PARAMETERIZED: &str = "fmt.";
 
 struct Msg {
@@ -192,7 +190,6 @@ fn assert_same_placeholders(id: &str, texts: &[String; 3]) {
     }
 }
 
-/// The placeholders of one language's text of the parameterized message `id`.
 fn placeholders(id: &str, lang: &str, text: &str) -> Vec<String> {
     template::placeholders(text).unwrap_or_else(|reason| panic!("{id}: {lang}: {reason}"))
 }

@@ -17,15 +17,15 @@ const SUCCESS_FADE_S: f32 = 0.20;
 /// `hud/state`: the capsule's background, border and labels cross-fade when the dictation state changes.
 pub(super) const STATE_FADE_S: f32 = 0.16;
 
-/// The two clocks every layer of one frame reads, sampled once so cross-fading layers agree.
+/// Sampled once per frame so cross-fading layers agree.
 #[derive(Clone, Copy)]
 struct FrameClock {
     elapsed: f32,
     scene: f32,
 }
 
-/// The incoming capsule sits complete underneath; the outgoing one fades out over it. Keeping the new shell
-/// opaque for the whole transition means the background and border cross over without the window showing through.
+/// The new shell stays opaque for the whole transition, so the background and border cross over without the window
+/// showing through.
 fn crossfade(old: Div, next: Div, blend: f32) -> Div {
     div().relative().child(next).child(old.absolute().top_0().left_0().opacity(1. - blend))
 }

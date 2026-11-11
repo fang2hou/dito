@@ -26,7 +26,6 @@ pub(super) const HEALTH_MS: u64 = 320;
 const HEALTH_WIDTH: f32 = 322.;
 
 impl Settings {
-    /// The engine's display name shown in the health card.
     pub(super) fn health_name(
         lang: Lang,
         role: Role,
@@ -54,7 +53,6 @@ impl Settings {
         }
     }
 
-    /// Role labels describe the engine's purpose, independently of its live status color.
     pub(super) fn health_rows(&self, lang: Lang) -> Vec<HealthRow> {
         let cfg = self.st.cfg.get();
         let health = Health::compute(&cfg, Some(&*self.st.local));
@@ -81,7 +79,6 @@ impl Settings {
             || ui::is_hovered_in(shell, &ElementId::from("health-card-hit"))
     }
 
-    /// A dot and unfilled text distinguish runtime status from the role labels in this popover.
     pub(super) fn health_chip(p: Palette, lang: Lang, status: &EngineStatus) -> Div {
         let (tone, label) = match status {
             EngineStatus::Remote => (p.muted, lang.tr(Tr::ModelsConfigured)),
@@ -255,7 +252,6 @@ impl Settings {
     }
 }
 
-/// What the open health card shows: the rows next to the dot it grows out of.
 struct HealthPopup {
     p: Palette,
     lang: Lang,
@@ -265,7 +261,6 @@ struct HealthPopup {
 }
 
 impl HealthPopup {
-    /// The card `t` of the way open: it grows from the dot while its rows fade in behind it.
     fn at(&self, t: f32, motion: Motion) -> Div {
         if t <= 0.001 {
             return div();

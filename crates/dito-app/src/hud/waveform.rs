@@ -173,7 +173,6 @@ impl Waveform {
         false
     }
 
-    /// Repeatable input for both previews, including when a storyboard is frozen.
     pub(crate) fn demo(t: f32) -> OceanFrame {
         let mut model = Self::default();
         let end = t.max(0.) % 4.;

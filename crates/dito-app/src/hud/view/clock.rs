@@ -1,4 +1,4 @@
-//! Time-derived state of the HUD view: the animation clock, the capsule width, fill progress and countdown.
+//! Time-derived state of the HUD view.
 
 use std::time::Instant;
 
@@ -13,7 +13,6 @@ use crate::ui::Motion;
 use super::capsule_stack::STATE_FADE_S;
 use super::{HudView, LABEL_FADE_S, POP_MS};
 
-/// The recording countdown appears this many seconds into a recording, fading in over [`COUNTDOWN_FADE_S`].
 pub(super) const COUNTDOWN_START_S: f32 = 240.;
 pub(super) const COUNTDOWN_FADE_S: f32 = 0.18;
 
@@ -33,8 +32,8 @@ impl HudView {
         };
         self.processing_pending = self.processing.is_some();
         self.displayed_fill = self.processing.map(|motion| motion.at(0.)).unwrap_or_default();
-        // The watch channel may coalesce very fast stages. The fill still starts at zero and the processing
-        // shell remains visible while it catches up, even if the view first receives a later state.
+        // The watch channel may coalesce very fast stages. The fill still starts at zero and the processing shell
+        // remains visible while it catches up, even if the view first receives a later state.
         if matches!(self.state, HudState::Polishing | HudState::Inserted | HudState::Copied)
             && !matches!(self.previous, Some(HudState::Transcribing | HudState::Polishing))
         {
@@ -46,12 +45,12 @@ impl HudView {
         self.processing.map_or(0., |motion| motion.catch_up)
     }
 
-    /// Shift the existing outcome timing so its animation begins after this job's final catch-up.
+    /// The outcome animation begins after the fill's final catch-up.
     pub(super) fn outcome_elapsed(&self, elapsed: f32) -> f32 {
         self.processing.map_or(elapsed, |motion| elapsed + SETTLE_S - motion.catch_up)
     }
 
-    /// Advance the waveform, the error reason and the countdown by one tick; whether a frame is needed.
+    /// Returns whether another frame is needed.
     pub(super) fn advance_clock(&mut self) -> bool {
         let listening = matches!(self.state, HudState::Listening { .. });
         let motion = Motion::system();
@@ -105,7 +104,6 @@ impl HudView {
         self.freeze.unwrap_or_else(|| if self.processing_pending { 0. } else { self.since.elapsed().as_secs_f32() })
     }
 
-    /// Capsule width in design points: eases from where it was when the state changed to the state's own.
     /// Copied uses one continuous spring toward the full localized label width.
     pub(super) fn width(&self) -> f32 {
         let mut w = self.base_width().position;
@@ -134,12 +132,10 @@ impl HudView {
             .then(|| ((MAX_RECORDING_DURATION.as_secs_f32() - elapsed).max(0.) as f64).ceil() as u64)
     }
 
-    /// The capsule is still easing toward its width.
     fn widening(&self) -> bool {
         self.freeze.is_none() && self.since.elapsed().as_secs_f32() < WIDEN_S
     }
 
-    /// The capsule surface is still cross-fading from the state it replaced.
     fn state_fading(&self) -> bool {
         self.freeze.is_none()
             && self.previous.as_ref().is_some_and(|previous| *previous != self.state)

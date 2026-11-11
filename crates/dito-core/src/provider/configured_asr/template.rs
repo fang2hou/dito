@@ -14,8 +14,7 @@ pub(super) fn mapped_language(config: &Value, language: Option<&str>) -> Option<
     value.and_then(Value::as_str).map(str::to_owned)
 }
 
-/// Fills placeholders in a request template. A value that is exactly `{{language}}` is dropped, together
-/// with its key, when there is no language to send.
+/// A value that is exactly `{{language}}` is dropped, together with its key, when there is no language to send.
 pub(super) fn expand(template: &Value, vars: &BTreeMap<&str, String>, language: Option<&str>) -> Option<Value> {
     Some(match template {
         Value::String(s) if s == "{{language}}" => Value::String(language?.to_owned()),

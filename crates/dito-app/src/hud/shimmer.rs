@@ -1,4 +1,4 @@
-//! The label of the processing stages: a stable text run with a narrow crest crossing it.
+//! The label of the processing stages.
 
 use gpui_kit::prelude::*;
 use gpui_kit::*;
@@ -11,19 +11,16 @@ use super::Scale;
 const SWEEP_MS: f32 = 2500.;
 const SWEEP_TRAVEL: f32 = 1100.;
 
-/// A narrow crest crosses the label, then rests outside it for 1400 ms.
+/// The crest rests outside the label for 1400 ms between sweeps.
 fn sweep_at(t: f32, total: f32) -> f32 {
     let half = total * 0.25;
     let travel = (t.max(0.) * 1000. % SWEEP_MS) / SWEEP_TRAVEL;
     if travel < 1. { -half + travel * (total + 2. * half) } else { total + half }
 }
 
-/// One stable label with a narrow crest; no shadow, font-weight change or baseline movement.
-/// The row hugs its content (a single text run when there is no tracking, per-glyph items with a
-/// gap otherwise) and the capsule centers it — nothing is measured or given a computed width, so
-/// every language centers exactly on every display scale. The crest is a moving clip window over
-/// stacked copies of that same row; window edges snap to whole points and stay well above a point
-/// wide, so GPUI's paint culling cannot drop them either.
+/// The capsule centers the row; nothing is measured or given a computed width, so every language centers exactly at
+/// every display scale. The crest is a moving clip window over stacked copies of the same row; window edges snap to
+/// whole points and stay well above a point wide, so GPUI's paint culling cannot drop them.
 pub(super) fn shimmer_label(s: &str, t: f32, scale: Scale, p: &Palette, motion: Motion) -> Div {
     let px = |v: f32| scale.px(v);
     let size = scale.tx(12.);
@@ -39,7 +36,7 @@ pub(super) fn shimmer_label(s: &str, t: f32, scale: Scale, p: &Palette, motion: 
     let row = |color: Hsla| {
         let mut r = div().flex().items_center().gap(gpui_kit::px(track)).h(px(19.));
         if track == 0. {
-            // No tracking: one plain text run — its width is the run itself, never a measurement.
+            // No tracking: one plain text run whose width is the run itself, never a measurement.
             r = r.child(text(s.to_string(), size, FontWeight::NORMAL, color).line_height(relative(1.6)));
         } else {
             for c in &chars {
@@ -49,8 +46,7 @@ pub(super) fn shimmer_label(s: &str, t: f32, scale: Scale, p: &Palette, motion: 
         }
         r
     };
-    // The crest: a soft light band crossing the label. `from`/`to` are clamped to the label so a
-    // partially arrived or leaving band shows exactly the part that overlaps the glyphs.
+    // Clamped to the label so a partially arrived or leaving band shows only the part that overlaps the glyphs.
     let band = |from: f32, to: f32, color: Hsla| {
         let from = from.round().clamp(-2., total);
         let to = to.round().clamp(from + 2., total + 2.);

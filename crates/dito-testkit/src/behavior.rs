@@ -1,16 +1,14 @@
 use std::time::Duration;
 
-/// What the server does next. Mutate through [`MockServer::behavior`](crate::MockServer::behavior).
+/// Mutate through [`MockServer::behavior`](crate::MockServer::behavior).
 #[derive(Debug, Clone)]
 pub struct Behavior {
     /// Expected secret: `api-key` header (Azure) or `Authorization: Bearer` (compat). `None` = no auth.
     pub expected_key: Option<String>,
     pub latency: Duration,
-    /// Fail every request with this status (e.g. 429, 500).
     pub fail_status: Option<u16>,
-    /// Reject `reasoning_effort` like a non-reasoning model would.
     pub reject_reasoning_effort: bool,
-    /// Chat completions end with `finish_reason: "length"`, as when the output token limit is hit.
+    /// Chat completions end with `finish_reason: "length"`.
     pub truncate_chat: bool,
     pub transcript: String,
     pub language: Option<String>,

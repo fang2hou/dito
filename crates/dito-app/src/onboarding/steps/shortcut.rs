@@ -35,7 +35,6 @@ pub(super) fn page(w: &Onboarding, c: &Ctx, cx: &mut Context<Onboarding>) -> Ste
     }
 }
 
-/// The three keys that set the shortcut with one click.
 fn quick_keys(w: &Onboarding, c: &Ctx, cx: &mut Context<Onboarding>) -> Div {
     let current = w.st.cfg.get().general.shortcut.clone();
     let mut keys = div().flex().gap(px(10.));
@@ -61,7 +60,6 @@ fn quick_keys(w: &Onboarding, c: &Ctx, cx: &mut Context<Onboarding>) -> Div {
     keys
 }
 
-/// While the shortcut is being recorded: the waiting keycap and how to cancel.
 fn capture_prompt(c: &Ctx) -> (AnyElement, Div) {
     let p = &c.p;
     (
@@ -94,7 +92,6 @@ fn capture_prompt(c: &Ctx) -> (AnyElement, Div) {
     )
 }
 
-/// The current shortcut as a keycap that starts recording when clicked.
 fn current_key(w: &Onboarding, c: &Ctx, cx: &mut Context<Onboarding>) -> (AnyElement, Div) {
     let p = &c.p;
     let current = Shortcut::parse(&w.st.cfg.get().general.shortcut)

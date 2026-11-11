@@ -22,14 +22,13 @@ pub enum HotkeyError {
     Thread(String),
 }
 
-/// Handle to the running tap. Dropping it stops the thread.
+/// Dropping it stops the thread.
 pub struct HotkeyService {
     machine: Arc<Mutex<Machine>>,
     stop: Arc<AtomicBool>,
 }
 
 impl HotkeyService {
-    /// Start the tap on its own thread. Actions arrive on the returned receiver.
     pub fn start(shortcut: Shortcut) -> Result<(Self, Receiver<Action>), HotkeyError> {
         let machine = Arc::new(Mutex::new(Machine::new(shortcut)));
         let stop = Arc::new(AtomicBool::new(false));
@@ -53,7 +52,6 @@ impl HotkeyService {
         self.machine.lock().expect("hotkey machine lock").begin_capture();
     }
 
-    /// Stop waiting for a shortcut without changing anything.
     pub fn cancel_capture(&self) {
         self.machine.lock().expect("hotkey machine lock").cancel_capture();
     }

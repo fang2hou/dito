@@ -1,5 +1,4 @@
-//! Reads of local data that views need: history queries for UI snapshots and AWS profile
-//! discovery from the user's config files.
+//! Reads of local data that views need.
 
 use std::sync::Arc;
 
@@ -8,8 +7,7 @@ use dito_core::store::{HistoryEntry, HistoryFilter, Stats, Store};
 
 use crate::state::AppState;
 
-/// History list for UI display, run off the async executor. `filter` is taken by value so the
-/// returned rows are fully owned; errors propagate instead of degrading to an empty list.
+/// Errors propagate instead of degrading to an empty list.
 pub async fn history_list(st: Arc<AppState>, filter: HistoryFilter) -> Result<Vec<HistoryEntry>> {
     let store = st.store.clone();
     st.rt
@@ -19,7 +17,6 @@ pub async fn history_list(st: Arc<AppState>, filter: HistoryFilter) -> Result<Ve
         .map_err(Into::into)
 }
 
-/// Aggregate stats (`Stats`) for the stats page, run off the async executor.
 pub async fn history_stats(st: Arc<AppState>, since_ts: Option<i64>) -> Result<Stats> {
     let store = st.store.clone();
     st.rt
@@ -29,14 +26,12 @@ pub async fn history_stats(st: Arc<AppState>, since_ts: Option<i64>) -> Result<S
         .map_err(Into::into)
 }
 
-/// The wordbook page's snapshot: the words matching a search and the size of the whole list.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct WordbookWords {
     pub matching: Vec<String>,
     pub total: usize,
 }
 
-/// Wordbook words matching `query`, plus the total count, run off the async executor.
 pub async fn wordbook_words(st: Arc<AppState>, query: String) -> Result<WordbookWords> {
     let store = st.store.clone();
     st.rt
@@ -49,14 +44,13 @@ fn wordbook_snapshot(store: &Store, query: &str) -> Result<WordbookWords> {
     Ok(WordbookWords { matching: store.words(Some(query))?, total: store.words(None)?.len() })
 }
 
-/// AWS profile names from `~/.aws/config` and `~/.aws/credentials`.
 pub fn aws_profiles() -> Vec<String> {
     let Some(home) = std::env::var_os("HOME") else { return Vec::new() };
     profiles_in(&std::path::PathBuf::from(home).join(".aws"))
 }
 
-/// Profile names from a given `.aws` directory: `config` sections carry a `profile ` prefix,
-/// `credentials` sections do not. Order is preserved, duplicates across both files dropped.
+/// `config` sections carry a `profile ` prefix, `credentials` sections do not. Order is preserved and duplicates
+/// across both files are dropped.
 fn profiles_in(dir: &std::path::Path) -> Vec<String> {
     let mut out = Vec::new();
     for (file, prefix) in [("config", "profile "), ("credentials", "")] {
@@ -66,8 +60,7 @@ fn profiles_in(dir: &std::path::Path) -> Vec<String> {
     out
 }
 
-/// Append the `[section]` names found in `text` to `out`, stripping `prefix` from names that
-/// have it. `default` keeps its name; empty names and repeats are skipped.
+/// `default` keeps its name; empty names and repeats are skipped.
 fn push_profile_names(text: &str, prefix: &str, out: &mut Vec<String>) {
     for line in text.lines() {
         let line = line.trim();

@@ -17,10 +17,9 @@ use crate::pipeline::{self, Output, PipelineError, PipelineJob, PipelinePhase};
 use crate::prompts::Style;
 use crate::store::{HistoryKind, NewHistory, Store};
 
-/// Maximum duration of a single recording.
 pub const MAX_RECORDING_DURATION: Duration = Duration::from_secs(5 * 60);
 
-/// How long the HUD's whole-capsule outcome animation runs; the HUD is hidden once it has finished.
+/// Match the HUD's outcome animation; the HUD is hidden once it ends.
 const SUCCESS_FLASH: Duration = Duration::from_millis(1430);
 const COPIED_FLASH: Duration = Duration::from_millis(1930);
 const ERROR_LINGER: Duration = Duration::from_secs(3);
@@ -35,7 +34,7 @@ enum State {
     Idle,
     Listening {
         meta: Meta,
-        /// `Some` while recording has muted other audio; dropped when the microphone stops.
+        /// Dropped when the microphone stops, which restores the audio.
         mute: Option<Box<dyn MuteSession>>,
     },
     Processing {
@@ -53,7 +52,6 @@ enum State {
         /// The shortcut went down meanwhile; in hold mode, releasing it again clears this.
         key_down: bool,
     },
-    /// Terminal HUD state being shown (success flash or error). `clip` allows retry.
     Showing {
         clip: Option<(Arc<AudioClip>, Meta)>,
     },
@@ -65,7 +63,7 @@ struct Actor {
     hud: watch::Sender<HudState>,
     tx: mpsc::UnboundedSender<Msg>,
     state: State,
-    /// Bumped on every transition so late jobs and timers are ignored.
+    /// Bumped on every transition so late results and timers are ignored.
     epoch: u64,
     recording_started: watch::Sender<Option<Instant>>,
     processing: watch::Sender<ProcessingEstimate>,
@@ -331,9 +329,9 @@ impl Actor {
         }
     }
 
-    /// Saves the dictation, then types it on the blocking pool: the platform sink sleeps while it polls focus and
-    /// restores the clipboard, and the actor must keep serving commands meanwhile. History is queued before the
-    /// insertion starts, so a crash while typing does not lose the text.
+    /// Typing runs on the blocking pool: the platform sink sleeps while it polls focus and restores the clipboard, and
+    /// the actor must keep serving commands meanwhile. History is queued before the insertion starts, so a crash while
+    /// typing does not lose the text.
     fn deliver(&mut self, meta: &Meta, clip: &Arc<AudioClip>, labels: &EngineLabels, out: &Output) {
         let polish_error = out.polish_error.as_ref().map(ToString::to_string);
         self.record_history(meta, clip, labels, HistoryKind::Dictation, Some(out), polish_error);
@@ -352,7 +350,7 @@ impl Actor {
         self.state = State::Delivering { key_down: false };
     }
 
-    /// The insertion is over: show how it went, then start the recording whose key press was held back meanwhile.
+    /// Starts the recording whose key press was held back during the insertion.
     fn delivered(&mut self, delivery: Delivery) {
         let State::Delivering { key_down } = self.state else { return };
         match delivery {

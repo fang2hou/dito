@@ -24,8 +24,6 @@ impl From<TestOutcome> for TestState {
     }
 }
 
-/// Test state as a small tag: neutral while unchecked or running, green on success with the response time beside
-/// it, and the danger tones on failure.
 pub fn test_status(p: &Palette, lang: Lang, state: &TestState) -> Div {
     let (label, bg, fg, weight) = match state {
         TestState::Idle => (lang.tr(Tr::ModelsUnchecked), p.seg, p.muted, FontWeight::NORMAL),
@@ -57,16 +55,14 @@ pub fn test_status(p: &Palette, lang: Lang, state: &TestState) -> Div {
     status
 }
 
-/// Where the message of a failed test goes in [`test_summary`]: the cloud polish form sets it beside the tag (`design:models/cloud/failed-test`),
-/// the cloud speech form under it.
+/// Where the message of a failed test goes in [`test_summary`]: the cloud polish form sets it beside the tag
+/// (`design:settings/cloud-models/failed-test`), the cloud speech form under it.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum ErrorPlacement {
     Beside,
     Below,
 }
 
-/// The state of a connection test for the left of a form footer: the [`test_status`] tag and, after a failure, the
-/// message that came with it.
 pub fn test_summary(p: &Palette, lang: Lang, state: &TestState, error: ErrorPlacement) -> Div {
     let tag = test_status(p, lang, state);
     let message = match state {

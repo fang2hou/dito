@@ -13,10 +13,8 @@ use crate::assets::Ic;
 use crate::settings::{Ctx, role};
 use crate::ui::{self, BtnKind, cbk, text};
 
-/// All model statuses occupy the same line height.
 const STATUS_H: f32 = 24.;
 
-/// The engine state line of the selected row: a dot, a label and its colours.
 struct EngineLine {
     dot: Hsla,
     text: SharedString,
@@ -53,7 +51,7 @@ impl EngineLine {
 }
 
 impl ModelsPage {
-    /// `design:settings/local-models`: a fixed name line and a fixed status line, without memory details.
+    /// Layout per `design:settings/local-models`.
     pub(super) fn installed_row(
         &self,
         c: &Ctx,
@@ -111,8 +109,8 @@ impl ModelsPage {
         .into_any_element()
     }
 
-    /// Make `id` the role's engine; a running previous model hands over to it (unload, then restart). A selection
-    /// that cannot be saved changes nothing.
+    /// A running previous model hands over to the new one (unload, then restart). A selection that cannot be saved
+    /// changes nothing.
     pub(super) fn use_model(&mut self, role: Role, id: &str) {
         let previous = role::engine(&self.st.cfg.get(), role).local_model.clone();
         let hand_over = matches!(self.st.local.status(&previous), EngineStatus::Running | EngineStatus::Loading);
@@ -148,13 +146,11 @@ impl ModelsPage {
             Ic::MoreV,
             more_open,
             cbk(cx, move |this: &mut Self, _, cx| {
-                // Keep menu clicks local to the menu control.
                 cx.stop_propagation();
                 this.menu = if this.menu.as_deref() == Some(id2.as_str()) { None } else { Some(id2.clone()) };
                 cx.notify();
             }),
         );
-        // Keep presses within the menu area from reaching enclosing controls.
         let mut wrap = div()
             .relative()
             .id(ElementId::from(SharedString::from(format!("more-wrap-{}-{id}", role::index(role)))))

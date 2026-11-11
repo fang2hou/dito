@@ -80,7 +80,6 @@ impl Render for StylePreview {
             motion: Motion::system(),
         };
         ui::set_ui_language(self.language);
-        // Only the capsule. No language selector, device message, tooltip, buttons or keyboard actions above it.
         slot.child(frame.scene())
     }
 }

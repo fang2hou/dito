@@ -1,4 +1,4 @@
-//! The native HUD window: bounds, level, shadow suppression and show/hide lifecycle.
+//! The native HUD window.
 
 use std::sync::Arc;
 
@@ -16,13 +16,12 @@ use super::view::HudView;
 
 pub const WIN_W: f32 = 273.0;
 pub const WIN_H: f32 = 180.0;
-/// Padding keeps the capsule and its controls away from the transparent window edges.
 pub const WIN_PAD: f32 = 10.0;
 
 struct HudWindow {
     window: AnyWindowHandle,
-    /// Held while the HUD is on screen (dropped when the window closes): keeps macOS from
-    /// App-Napping this background app mid-dictation, which throttled the HUD's frame commits.
+    /// Held while the HUD is on screen (dropped when the window closes): keeps macOS from App-Napping this background
+    /// app mid-dictation, which throttled the HUD's frame commits.
     _nap: NapGuard,
     /// The placement loop; dropping it with the window cancels it.
     _placement: Task<()>,
@@ -34,9 +33,9 @@ fn window_options(st: &AppState, cx: &App) -> Option<WindowOptions> {
     let display = cx.primary_display()?;
     let screen = display.bounds();
     let visible = display.visible_bounds();
-    // WIN_PAD reserves space around the content, so the controls are not clipped at the
-    // window edge. The extra 30 pt below the capsule reserves the countdown; shifting the
-    // window down by the same amount keeps the capsule at its existing screen position.
+    // WIN_PAD reserves space around the content, so the controls are not clipped at the window edge. The extra 30 pt
+    // below the capsule reserves the countdown; shifting the window down by the same amount keeps the capsule at its
+    // existing screen position.
     let (ww, wh) = (WIN_W + 2. * WIN_PAD, WIN_H + 2. * WIN_PAD);
     let origin = point(
         screen.origin.x + (screen.size.width - px(ww)) / 2.,
@@ -173,7 +172,6 @@ fn close_window(cx: &mut App) {
     }
 }
 
-/// Show/hide the HUD window with the dictation state, play cues, and keep Esc consumption in sync.
 pub fn run(st: Arc<AppState>, cx: &mut App) {
     let mut rx = st.dictation.hud();
     cx.spawn(async move |cx| {

@@ -9,7 +9,6 @@ use super::page::StatusPage;
 use crate::settings::{Ctx, role};
 use crate::ui::{self, StatusTone, TestState};
 
-/// Local wall-clock "HH:MM" stamp for the last check; offset comes from the platform.
 fn hh_mm(epoch: Option<u64>) -> String {
     match epoch {
         None => "—".into(),
@@ -80,7 +79,6 @@ impl StatusPage {
     }
 }
 
-/// The cloud speech or cloud polish configuration the engine runs, by the name it was given.
 fn configuration_name<'a>(
     asr_configurations: Option<&'a CloudAsrConfigurations>,
     polish_configuration: Option<&'a CloudPolishConfiguration>,
@@ -101,7 +99,6 @@ fn configuration_model<'a>(
     polish_configuration.map_or("", |c| c.target.model())
 }
 
-/// The card's second fact: where the cloud engine is reached.
 fn endpoint_cell(
     c: &Ctx,
     asr_configurations: Option<&CloudAsrConfigurations>,

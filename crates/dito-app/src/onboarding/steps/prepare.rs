@@ -73,7 +73,6 @@ fn tier_cards(w: &Onboarding, c: &Ctx, cx: &mut Context<Onboarding>, phase: Prep
     tiers
 }
 
-/// One model's name and download note above its progress bar.
 fn model_progress(w: &Onboarding, c: &Ctx, role: &str, id: &str, snap: &Snapshot) -> Div {
     let p = &c.p;
     let name = w.st.models.spec(id).map(|s| s.name.clone()).unwrap_or_else(|| id.to_string());
@@ -105,7 +104,6 @@ fn model_progress(w: &Onboarding, c: &Ctx, role: &str, id: &str, snap: &Snapshot
         .child(ui::progress_bar(p, frac))
 }
 
-/// The download size note with the button that starts or retries the preparation, or a disabled one while it runs.
 fn prepare_footer(w: &Onboarding, c: &Ctx, cx: &mut Context<Onboarding>, phase: PreparePhase) -> Div {
     let p = &c.p;
     let cfg = w.st.cfg.get();
@@ -230,8 +228,6 @@ fn cloud_asr_tiles(w: &Onboarding, c: &Ctx, cx: &mut Context<Onboarding>) -> Div
     row
 }
 
-/// The connection test's state as a control: a connected badge, the running note, or the button (dimmed until the
-/// endpoint and model are filled in).
 fn test_control(w: &Onboarding, c: &Ctx, cx: &mut Context<Onboarding>, ready: bool) -> AnyElement {
     let p = &c.p;
     match &w.test {

@@ -66,7 +66,6 @@ impl HistoryPage {
         )
     }
 
-    /// One focus handle per row that offers the original text, so keyboard users can open it.
     fn track_row_focus(
         &mut self,
         snapshot: &[HistoryEntry],
@@ -106,10 +105,8 @@ impl HistoryPage {
         .into_any_element()
     }
 
-    /// Edge fades: where content continues above/below, dissolve it into the page so the cut
-    /// reads as "scrollable". Pure background (no id, no listeners) — never hit-tested.
-    /// The positioning context is the list viewport only, so the fades hug the scrolled content's
-    /// edges instead of the toolbar's.
+    /// Pure background (no id, no listeners), never hit-tested. The positioning context is the list viewport only, so
+    /// the fades hug the scrolled content's edges instead of the toolbar's.
     fn faded(&self, list: AnyElement, p: &Palette) -> Div {
         const FADE: f32 = 28.;
         let scrolled = -f32::from(self.list_state.scroll_px_offset_for_scrollbar().y);

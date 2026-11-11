@@ -37,7 +37,7 @@ unsafe extern "C" {
     fn AXValueGetValue(value: CFTypeRef, the_type: u32, value: *mut c_void) -> bool;
 }
 
-/// A retained accessibility element, released when dropped.
+/// Retained; released when dropped.
 #[derive(Clone, Debug, PartialEq)]
 pub(super) struct AxElement(CFType);
 
@@ -164,7 +164,6 @@ impl AxElement {
     }
 }
 
-/// The `AXSelectedTextRange` value of a text element.
 pub(super) struct AxSelection(CFType);
 
 impl AxSelection {

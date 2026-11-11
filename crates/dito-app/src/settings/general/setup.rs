@@ -10,7 +10,7 @@ use crate::ui::{self, BtnKind, cbk};
 impl GeneralPage {
     pub(super) fn setup_group(&self, c: &Ctx, cx: &mut Context<Self>) -> impl IntoElement {
         let p = c.p;
-        // Testing aid: forget the first-run state, close settings and walk the wizard again.
+        // Testing aid.
         let restart_wizard = ui::button(
             "restart-wizard",
             &p,

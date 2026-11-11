@@ -6,13 +6,10 @@ use crate::services;
 
 use super::Onboarding;
 
-/// Where the local-model preparation stands.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(in crate::onboarding) enum PreparePhase {
-    /// Nothing is running; 準備を始める is offered.
     Idle,
     Downloading,
-    /// A model failed to download; the button offers 再試行.
     Failed,
     Ready,
 }
@@ -38,7 +35,7 @@ impl Onboarding {
         }
     }
 
-    /// 準備を始める: the only place a local model download begins.
+    /// The Start preparing button: the only place a local model download begins.
     pub(in crate::onboarding) fn start_prepare(&mut self, cx: &mut Context<Self>) {
         if matches!(self.prepare_phase(), PreparePhase::Downloading | PreparePhase::Ready) {
             return;
@@ -54,8 +51,8 @@ impl Onboarding {
         ids.iter().filter_map(|id| self.st.models.spec(id)).flat_map(|s| s.files.iter().map(|f| f.size)).sum()
     }
 
-    /// Choose the local ASR + polish pair. It only changes the choice: the download waits for 準備を始める, and the
-    /// choice is locked while one runs.
+    /// Choose the local ASR and polish models. It only changes the choice: the download waits for the Start preparing
+    /// button, and the choice is locked while a download runs.
     pub(in crate::onboarding) fn pick_tier(&mut self, i: usize, cx: &mut Context<Self>) {
         if self.prepare_phase() == PreparePhase::Downloading {
             return;

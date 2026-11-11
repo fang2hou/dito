@@ -1,4 +1,4 @@
-/// Mono PCM at 16 kHz, the format every engine in Dito consumes.
+/// Mono PCM at 16 kHz, the format every engine consumes.
 pub const SAMPLE_RATE: u32 = 16_000;
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -31,15 +31,12 @@ impl AudioClip {
         self.samples.iter().fold(0.0f32, |m, s| m.max(s.abs()))
     }
 
-    /// True when the clip is too short or too quiet to contain speech. The 120ms floor keeps
-    /// accidental key taps out while still admitting single-syllable words ("好", "嗯"), which
-    /// land at 150–300ms; a decent peak counts as speech even when lead-in silence dilutes the
-    /// whole-clip RMS.
+    /// The 120ms floor keeps accidental key taps out while still admitting single-syllable words, which land at
+    /// 150–300ms. A decent peak counts as speech even when lead-in silence dilutes the whole-clip RMS.
     pub fn is_effectively_silent(&self) -> bool {
         self.duration_ms() < 120 || (self.rms() < 0.003 && self.peak() < 0.01)
     }
 
-    /// 16-bit PCM WAV (RIFF) bytes.
     pub fn to_wav(&self) -> Vec<u8> {
         let data_len = (self.samples.len() * 2) as u32;
         let mut out = Vec::with_capacity(44 + data_len as usize);
@@ -62,7 +59,6 @@ impl AudioClip {
         out
     }
 
-    /// Parse a 16-bit mono PCM WAV produced by [`AudioClip::to_wav`].
     pub fn from_wav(bytes: &[u8]) -> Option<Self> {
         if bytes.len() < 44 || &bytes[0..4] != b"RIFF" || &bytes[8..12] != b"WAVE" {
             return None;
@@ -108,7 +104,6 @@ mod tests {
 
     #[test]
     fn single_syllable_clips_are_not_flagged() {
-        // A 200ms word is real speech.
         assert!(!AudioClip::new(vec![0.3; 3_200]).is_effectively_silent());
         // A short word wrapped in lead-in silence: low whole-clip RMS, healthy peak.
         let mut samples = vec![0.0f32; 2_400];

@@ -2,7 +2,7 @@ use dito_core::config::{Config, ConfigError};
 
 use crate::state::AppState;
 
-/// Apply a settings change and persist it. A failed write is logged and returned, and leaves the config as it was.
+/// A failed write is logged and returned, and leaves the config as it was.
 pub fn try_save_config(st: &AppState, update: impl FnOnce(&mut Config)) -> Result<(), ConfigError> {
     st.cfg.update(update).inspect_err(|e| tracing::warn!("could not save settings: {e:#}"))
 }

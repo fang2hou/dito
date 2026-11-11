@@ -32,7 +32,6 @@ pub struct Onboarding {
     pub(super) step: Step,
     pub(super) mode: RecordMode,
     pub(super) local: bool,
-    /// Id of the cloud speech configuration the Prepare step edits.
     pub(super) cloud_asr_id: String,
     pub(super) editor: Option<Entity<crate::settings::asr_editor::AsrEditor>>,
     pub(super) endpoint: Entity<InputState>,
@@ -48,13 +47,12 @@ pub struct Onboarding {
     pub(super) tried_text: Option<String>,
     pub(super) tried_ok: bool,
     pub(super) prepare_started: bool,
-    /// When はじめる was pressed (and whether Reduce Motion is on), while the welcome page opens into the first step.
+    /// Also covers the welcome page opening into the first step.
     pub(super) slide: Option<Slide>,
-    /// The current step's motion scope: its controls' transient state, renewed on every step change.
+    /// Its controls' transient state is renewed on every step change.
     pub(super) motion: ui::MotionScope,
-    /// The leaving step's scope, used only while a slide runs. The owner is retained for the whole
-    /// wizard so the page sliding out keeps its state; it is reset at the same lifecycle points the
-    /// old wizard-wide reset ran (step change, slide end).
+    /// The leaving step's scope, used only while a slide runs. The owner is retained for the whole wizard so the page
+    /// sliding out keeps its state; it resets on a step change and when the slide ends.
     pub(super) leaving_motion: ui::MotionScope,
 }
 
@@ -159,8 +157,8 @@ impl Onboarding {
             self.tried_ok = false;
         }
         if step == Step::Prepare {
-            // Nothing is downloaded until the user asks; a download that is already running (they stepped
-            // back and forth) just keeps showing as running.
+            // Nothing is downloaded until the user asks; a download that is already running (they stepped back and
+            // forth) just keeps showing as running.
             self.prepare_started = self.local_ids().iter().any(|id| self.st.models.state(id).is_active());
         }
         cx.notify();
@@ -223,7 +221,6 @@ impl Onboarding {
         }
     }
 
-    /// 続ける / 完了 stays disabled until the step's work is done.
     pub(super) fn can_next(&self, _cx: &App) -> bool {
         let cfg = self.st.cfg.get();
         let models_installed =

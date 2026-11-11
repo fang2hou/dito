@@ -7,13 +7,11 @@ use super::focus::{FocusTarget, read_focus};
 const VERIFY_TRIES: usize = 8;
 const VERIFY_POLL: Duration = Duration::from_millis(40);
 
-/// Poll the target's selection until it moved by `expected` UTF-16 units, or verification runs
-/// out. Returns the verdict and the last selection location seen (the next baseline).
+/// Returns the verdict and the last selection location seen (the next baseline).
 ///
-/// `text` is exactly what this attempt inserts. Editors rewrite text as it arrives (smart
-/// quotes, `...` to `…`, markdown spacing), so the cursor can move by fewer units than posted
-/// even though everything landed. When the cursor verdict is a refute, the field's content gets
-/// a second look before declaring failure.
+/// Editors rewrite text as it arrives (smart quotes, `...` to `…`, markdown spacing), so the cursor can move by fewer
+/// units than posted even though everything landed. When the cursor verdict is a refute, the field's content gets a
+/// second look before declaring failure.
 pub(super) fn verify(
     target: &FocusTarget,
     expected: usize,
@@ -58,7 +56,6 @@ pub(super) fn verify(
     (verdict, last)
 }
 
-/// Find the UTF-8 slice boundary for an accessibility API's UTF-16 caret offset.
 fn prefix_at_utf16(value: &str, caret: usize) -> Option<&str> {
     let mut offset = 0;
     for (index, ch) in value.char_indices() {
@@ -76,9 +73,8 @@ fn fold_content(s: &str) -> String {
     s.chars().filter(|c| c.is_alphanumeric()).flat_map(char::to_lowercase).collect()
 }
 
-/// The field's current value ends with (a rewritten form of) `text`, proof the insertion
-/// landed even when the cursor moved less than expected. Short texts carry too little evidence
-/// and stay with the cursor verdict.
+/// Proof the insertion landed even when the cursor moved less than expected. Short texts carry too little evidence and
+/// stay with the cursor verdict.
 fn landed_by_content(value: Option<&str>, text: &str) -> bool {
     let Some(value) = value else { return false };
     let needle = fold_content(text);
@@ -108,7 +104,6 @@ mod tests {
     fn content_check_rejects_missing_tail_absent_value_and_short_text() {
         assert!(!landed_by_content(Some("他说你好世界"), "你好世界再见"));
         assert!(!landed_by_content(None, "你好世界很长"));
-        // Short needles prove nothing.
         assert!(!landed_by_content(Some("嗯abc"), "嗯?"));
         assert!(!landed_by_content(Some("abc"), "abc"));
     }

@@ -1,4 +1,4 @@
-//! SQLite-backed history and the wordbook, plus the aggregate queries behind the stats page.
+//! SQLite-backed history and wordbook.
 
 use std::path::Path;
 use std::sync::{Mutex, MutexGuard};
@@ -79,8 +79,8 @@ impl Store {
         Ok(c.last_insert_rowid())
     }
 
-    /// Turn a cancelled/failed entry into a normal dictation after a successful retry. `engines` are the retry's and
-    /// replace the earlier attempt's labels, so a polish label the retry lacks is cleared.
+    /// `engines` are the retry's and replace the earlier attempt's labels, so a polish label the retry lacks is
+    /// cleared.
     pub fn complete_history(
         &self,
         id: i64,
@@ -98,8 +98,7 @@ impl Store {
         Ok(())
     }
 
-    /// Replaces the polished text after polishing again. `polish_engine` labels the engine that wrote it; the
-    /// recognition is unchanged, so its label is left alone.
+    /// The transcript is unchanged, so its engine label is left alone.
     pub fn set_polished(&self, id: i64, polished: &str, polish_engine: &str) -> Result<()> {
         self.conn().execute(
             "UPDATE history SET polished=?2, polish_engine=?3 WHERE id=?1",
@@ -166,7 +165,6 @@ impl Store {
                     }
                     sql.push_str(&format!(" AND ({clause})"));
                 }
-                // Built-in styles are fixed and are matched by style alone.
                 Style::Builtin(_) => {
                     sql.push_str(&format!(" AND style = ?{}", args.len() + 1));
                     args.push(encode(style.clone()).into());
@@ -249,7 +247,6 @@ impl Store {
         Ok(stmt.query_map([like], |r| r.get(0))?.collect::<std::result::Result<_, _>>()?)
     }
 
-    /// One word per line; returns the number of new words.
     pub fn import_words(&self, text: &str, now: i64) -> Result<usize> {
         let mut added = 0;
         for line in text.lines() {

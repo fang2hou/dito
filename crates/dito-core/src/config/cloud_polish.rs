@@ -1,5 +1,4 @@
-//! Cloud polish configurations: the saved setups the user picks between. A template only pre-fills a new configuration
-//! and fixes its field set; once made, a configuration is its own thing.
+//! Saved cloud polish configurations. A template only pre-fills a new configuration and fixes its field set.
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
@@ -9,7 +8,6 @@ use super::list::{Entry, List};
 use crate::i18n::{Lang, Tr};
 use crate::secrets::polish_account;
 
-/// The API formats a new configuration can start from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CloudPolishTemplate {
     Compat,
@@ -18,10 +16,10 @@ pub enum CloudPolishTemplate {
 }
 
 impl CloudPolishTemplate {
-    /// In the order the Add menu lists them.
+    /// Add-menu order.
     pub const ALL: [Self; 3] = [Self::Compat, Self::Azure, Self::Bedrock];
 
-    /// The name saved as a configuration's `template`, and the first part of the ids of configurations made from it.
+    /// Saved as a configuration's `template` and the first part of the ids made from it.
     pub fn id(self) -> &'static str {
         match self {
             Self::Compat => "compat",
@@ -50,8 +48,6 @@ impl CloudPolishTemplate {
         }
     }
 
-    /// Azure and OpenAI-compatible servers start with no parameters. Bedrock starts with temperature 0.2 and 2048 max
-    /// tokens, and no reasoning effort.
     fn params(self) -> CloudPolishParams {
         match self {
             Self::Compat | Self::Azure => CloudPolishParams::default(),
@@ -64,13 +60,11 @@ impl CloudPolishTemplate {
         }
     }
 
-    /// A configuration of this template with the given identity.
     pub fn configuration(self, id: &str, name: &str) -> CloudPolishConfiguration {
         CloudPolishConfiguration { id: id.into(), name: name.into(), target: self.target(), params: self.params() }
     }
 }
 
-/// Where a configuration's requests go, and what they ask for: the fields its template fixes.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "template", rename_all = "snake_case")]
 pub enum CloudPolishTarget {
@@ -105,7 +99,6 @@ impl CloudPolishTarget {
         }
     }
 
-    /// The first field of the form: the endpoint, region or base URL.
     pub fn address(&self) -> &str {
         match self {
             Self::Azure { endpoint, .. } => endpoint,
@@ -122,7 +115,6 @@ impl CloudPolishTarget {
         }
     }
 
-    /// The model the requests ask for: the deployment name, model id or model name.
     pub fn model(&self) -> &str {
         match self {
             Self::Azure { deployment, .. } => deployment,
@@ -149,16 +141,14 @@ pub struct CloudPolishParams {
     pub max_tokens: Option<u32>,
     /// An empty `Custom` value is unset.
     pub reasoning_effort: ReasoningEffort,
-    /// Merged into the request body last, for anything without a field of its own. Saved as a JSON string: TOML has
-    /// no `null`.
+    /// Merged into the request body last. Saved as a JSON string: TOML has no `null`.
     #[serde(with = "json_object", skip_serializing_if = "Map::is_empty")]
     pub extra: Map<String, Value>,
 }
 
-/// One saved cloud setup: a name, the fields of its template, the request parameters and, under `account()`, a key.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CloudPolishConfiguration {
-    /// Stable identity; also the suffix of the configuration's Keychain account.
+    /// Stable; also the suffix of the Keychain account.
     pub id: String,
     pub name: String,
     #[serde(flatten)]
@@ -168,12 +158,11 @@ pub struct CloudPolishConfiguration {
 }
 
 impl CloudPolishConfiguration {
-    /// Keychain account of this configuration's API key.
     pub fn account(&self) -> String {
         polish_account(&self.id)
     }
 
-    /// The engine's identity in history: `<template>:<model>`.
+    /// Persisted in history as `<template>:<model>`.
     pub fn label(&self) -> String {
         format!("{}:{}", self.target.template().id(), self.target.model())
     }
@@ -189,7 +178,7 @@ impl Entry for CloudPolishConfiguration {
     }
 }
 
-/// The templates a fresh list starts from, in this order. The first one is in use.
+/// The templates a fresh list starts from; the first is in use.
 const STARTING: [CloudPolishTemplate; 3] =
     [CloudPolishTemplate::Azure, CloudPolishTemplate::Bedrock, CloudPolishTemplate::Compat];
 
@@ -198,7 +187,6 @@ const STARTING: [CloudPolishTemplate; 3] =
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 #[serde(default)]
 pub struct CloudPolishConfigurations {
-    /// Id of the configuration in use.
     pub selected: String,
     pub items: Vec<CloudPolishConfiguration>,
 }
@@ -231,7 +219,6 @@ impl CloudPolishConfigurations {
         self.items.iter_mut().find(|item| item.id == id)
     }
 
-    /// The configuration in use. `None` when no configuration has the selected id.
     pub fn active(&self) -> Option<&CloudPolishConfiguration> {
         self.get(&self.selected)
     }
@@ -241,20 +228,17 @@ impl CloudPolishConfigurations {
         self.items.iter_mut().find(|item| item.id == *selected)
     }
 
-    /// Make `id` the configuration in use. An unknown id changes nothing.
     pub fn select(&mut self, id: &str) -> bool {
         self.list().select(id)
     }
 
-    /// Append a configuration made from `template`, select it and return its id.
     pub fn add_from_template(&mut self, template: CloudPolishTemplate, name: &str) -> String {
         let id = self.list().fresh_id(template.id());
         self.list().push(template.configuration(&id, name));
         id
     }
 
-    /// Append a copy of `id` under a new id, select it and return that id. The key is not copied: it belongs to the
-    /// source's Keychain account.
+    /// The key is not copied: it belongs to the source's Keychain account.
     pub fn duplicate(&mut self, id: &str, name: &str) -> Option<String> {
         let mut copy = self.get(id)?.clone();
         copy.id = self.list().fresh_id(copy.target.template().id());
@@ -264,20 +248,16 @@ impl CloudPolishConfigurations {
         Some(id)
     }
 
-    /// Take a configuration out of the list and return it. Its key is still under its `account()`:
-    /// `ConfigStore::remove_cloud_polish_configuration` removes both, deleting the key only once the list is saved. The last
-    /// configuration stays, so this returns `None` for it. When the configuration in use goes, its neighbour is
-    /// selected.
+    /// The key stays under `account()`: `ConfigStore::remove_cloud_polish_configuration` deletes it only once the list
+    /// is saved. The last configuration is never removed (`None`).
     pub fn remove(&mut self, id: &str) -> Option<CloudPolishConfiguration> {
         self.list().remove(id)
     }
 
-    /// Put `id` at `index` of the list as it is afterwards.
     pub fn move_to(&mut self, id: &str, index: usize) -> bool {
         self.list().move_to(id, index)
     }
 
-    /// Rename `id`; a blank name is refused.
     pub fn rename(&mut self, id: &str, name: &str) -> bool {
         self.list().rename(id, name)
     }

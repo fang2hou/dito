@@ -34,7 +34,6 @@ fn cell_slot(x: f32) -> Div {
     div().absolute().left(px(x)).top(px(INSET)).w(px(CELL_W)).h(px(CELL_H))
 }
 
-/// Icon-only appearance control.
 pub fn appearance_seg(
     id: impl Into<ElementId>,
     p: &Palette,

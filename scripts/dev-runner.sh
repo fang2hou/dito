@@ -6,7 +6,7 @@
 # The main app runs through a minimal .app wrapper launched via LaunchServices (`open`):
 #   - a bare executable has no Info.plist, and macOS then denies the microphone silently
 #     (no usage description, no prompt);
-#   - TCC prompts are only attributed to LaunchServices-launched apps — a shell-exec'd
+#   - TCC prompts are only attributed to LaunchServices-launched apps; a shell-exec'd
 #     binary is attributed to its parent terminal instead, which suppresses the prompt
 #     (and "open System Settings" alike).
 # The wrapper shares the bundle id and signing identity with scripts/bundle.sh builds,
@@ -17,7 +17,8 @@ set -euo pipefail
 bin="$1"; shift
 
 identity="${DITO_CODESIGN_IDENTITY:-dito-dev}"
-# Debug builds have their own id (dito_core::identity), so permissions, config and keys never mix with the installed app.
+# Debug builds have their own id (dito_core::identity), so permissions, config and keys never mix with the
+# installed app.
 bundle_id=com.fang2hou.dito-dev
 have_identity() { security find-identity -v -p codesigning | grep -q "\"$identity\""; }
 

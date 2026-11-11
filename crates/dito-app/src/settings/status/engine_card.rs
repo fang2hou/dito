@@ -47,7 +47,6 @@ impl StatusPage {
         ui::card(p).p(px(11.)).gap(px(8.)).child(header).children(body)
     }
 
-    /// Off is a first-class state: neutral chip plus a pointer to the General toggle.
     fn polish_off_card(c: &Ctx) -> EngineParts {
         let p = &c.p;
         let chip = ui::status_chip(p, c.t(Tr::ModelsPolishOff), StatusTone::Neutral);
@@ -113,7 +112,6 @@ impl StatusPage {
     }
 }
 
-/// The status chip and the model slot's content.
 pub(super) type EngineParts = (Div, Vec<AnyElement>);
 
 pub(super) fn model_line(c: &Ctx, name: impl Into<SharedString>, source: Source) -> Div {
@@ -150,7 +148,6 @@ pub(super) fn hint(p: &Palette, label: SharedString) -> Div {
     text(label, 13., FontWeight::NORMAL, p.muted).px(px(10.)).pb(px(4.)).line_height(px(20.))
 }
 
-/// Two equal columns, with each row growing to fit its longest value.
 pub(super) fn detail_grid(p: &Palette, cells: Vec<(SharedString, String)>) -> Div {
     div().w_full().px(px(10.)).grid().grid_cols(2).gap(px(12.)).children(cells.into_iter().map(|(label, value)| {
         div()

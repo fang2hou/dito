@@ -22,7 +22,6 @@ impl Onboarding {
         let p = c.p;
         ui::set_ui_language(c.lang);
 
-        // Moving between steps slides the old page out and the new one in (see `Slide`).
         let slide = self.slide.as_ref().map(|s| (s.from, s.forward, s.motion, s.at.elapsed().as_secs_f32()));
         let root = div()
             .size_full()
@@ -55,8 +54,7 @@ impl Onboarding {
             .child(div().id("page-arriving").absolute().size_full().left(px(v.in_dx)).opacity(v.in_a).child(arriving))
     }
 
-    /// One full-window page for `step`: the welcome page, or a step's content next to its art. `art_dx` offsets the art
-    /// panel while the page slides in.
+    /// `art_dx` offsets the art panel while the page slides in.
     fn page(&mut self, step: Step, c: &crate::settings::Ctx, cx: &mut Context<Self>, art_dx: Option<f32>) -> Div {
         let p = c.p;
         if step == Step::Welcome {

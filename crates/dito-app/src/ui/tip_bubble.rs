@@ -87,8 +87,8 @@ impl TipColors {
     }
 }
 
-/// Shared tooltips shape each label as one line. Only overflowing text needs edge strips;
-/// settled text uses one paint. The glyph atlas and line-layout cache are reused by the strips.
+/// Only overflowing text needs edge strips; settled text uses one paint. The strips reuse the glyph atlas and the
+/// line-layout cache.
 pub(super) fn paint_shared<'a>(
     colors: TipColors,
     labels: impl Iterator<Item = (&'a SharedString, f32)>,
@@ -147,11 +147,10 @@ pub(super) fn paint_shared<'a>(
     }
 }
 
-/// A tooltip bubble drawn as one rigid unit. Layout always reserves the final size (an invisible
-/// line of the label at full size), and paint scales the whole thing — chrome, shadow and text
-/// together — about its bottom-centre by `k`. Scaling through layout (growing font sizes)
-/// re-flows the text every frame and makes it visibly slide sideways; this way nothing re-flows
-/// and the pop-in reads as one object growing out of the trigger. `a` is the fade alpha.
+/// Layout always reserves the final size (an invisible line of the label at full size), and paint scales the whole
+/// bubble (chrome, shadow and text) about its bottom-centre by `k`. Scaling through layout (growing font sizes)
+/// re-flows the text every frame and makes it visibly slide sideways; this way nothing re-flows and the pop-in reads
+/// as one object growing out of the trigger. `a` is the fade alpha.
 pub(super) fn tip_bubble(p: &Palette, label: &SharedString, k: f32, a: f32, bg: Hsla, fg: Hsla) -> Div {
     let paint =
         BubblePaint { label: label.clone(), scale: k, alpha: a, bg, fg, shadow: p.shadow, border: p.hud_border };
@@ -177,8 +176,6 @@ pub(super) fn tip_bubble(p: &Palette, label: &SharedString, k: f32, a: f32, bg: 
         )
 }
 
-/// Top of a vertically centred `font_size`-tall line box inside a bubble of height `h` whose
-/// bottom sits at `bottom`.
 fn origin_y_center(h: Pixels, font_size: Pixels, bottom: Pixels) -> Pixels {
     bottom - h * 0.5 - font_size * 0.5
 }

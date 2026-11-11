@@ -30,7 +30,7 @@ impl GeneralPage {
         )
     }
 
-    /// `design:settings/general`: HUD settings form their own category between recognition and System.
+    /// `design:settings/general`.
     pub(super) fn hud_group(&self, c: &Ctx, cx: &mut Context<Self>) -> impl IntoElement {
         let p = c.p;
         ui::group(
@@ -173,7 +173,6 @@ impl GeneralPage {
         )
     }
 
-    /// The live preview of the HUD's look beside the control that picks it.
     fn hud_appearance_control(&self, c: &Ctx, cx: &mut Context<Self>) -> Div {
         let p = c.p;
         let weak = cx.entity().downgrade();
@@ -200,7 +199,6 @@ impl GeneralPage {
             .child(hud_switch)
     }
 
-    /// The height slider's row unfolds only while the HUD is centered.
     fn hud_height_row(&self, c: &Ctx) -> Div {
         let p = c.p;
         let hud_height = self.hud_height.clone();

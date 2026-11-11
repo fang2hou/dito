@@ -13,8 +13,8 @@ use crate::services;
 use crate::settings::{self, Page};
 use crate::state::AppState;
 
-/// Holds the write lock of the database from a second process, so every write the app attempts fails with a busy
-/// error once SQLite stops waiting for it.
+/// A second process holds the write lock, so every write the app attempts fails with a busy error once SQLite stops
+/// waiting.
 struct DbLock(Child);
 
 impl DbLock {
@@ -46,7 +46,7 @@ fn failure(cx: &mut AsyncApp) -> Option<&'static str> {
     cx.update(|cx| settings::handle(cx).and_then(|(_, view)| view.read(cx).wordbook_failure(cx)))
 }
 
-/// Wait for an operation's result to reach the page: the banner names `expected`, or is gone for `None`.
+/// `None` expects the banner to be gone.
 async fn expect_failure(cx: &mut AsyncApp, expected: Option<&str>, within: Duration) {
     let start = Instant::now();
     while failure(cx) != expected {
@@ -63,9 +63,7 @@ fn open_wordbook(st: &Arc<AppState>, cx: &mut AsyncApp) {
     });
 }
 
-/// Force each of the four operations to fail for real and check the banner: an unreadable import file, an
-/// unwritable export path, and add and delete against a database another process holds locked. Opt-in:
-/// `DITO_SHOTS_ONLY=wordbook`, with `--mock --data-dir <dir>` so the database file is known.
+/// Opt-in: `DITO_SHOTS_ONLY=wordbook`, with `--mock --data-dir <dir>` so the database file is known.
 pub async fn wordbook_failure_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     let data_dir = st.opts.data_dir.clone().expect("wordbook failure shots need --data-dir");
     let db = data_dir.join("dito.db");

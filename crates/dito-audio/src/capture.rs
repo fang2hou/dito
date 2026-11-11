@@ -16,7 +16,6 @@ use crate::transport;
 /// Hard cap so a forgotten recording cannot eat memory (10 minutes).
 const MAX_SAMPLES: usize = SAMPLE_RATE as usize * 60 * 10;
 
-/// How long automatic device picking listens to each candidate.
 const PROBE_WINDOW: Duration = Duration::from_millis(700);
 /// A candidate must beat the current device by this factor to take over mid-recording.
 const SWITCH_THRESHOLD: f32 = 3.0;
@@ -27,33 +26,28 @@ fn device_name(d: &Device) -> Option<String> {
     d.description().ok().map(|x| x.name().to_string())
 }
 
-/// An available input device.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InputDevice {
     pub name: String,
-    /// Whether automatic picking may open this device by default. `false` for Bluetooth, iPhone
-    /// (Continuity) and other non-wired devices: opening them has side effects, so unless the
-    /// user opts in they are only used when selected (or made the default input by the system).
+    /// `false` for Bluetooth, iPhone (Continuity) and other non-wired devices: opening them has side effects, so
+    /// unless the user opts in they are only used when selected (or made the default input by the system).
     pub auto_default: bool,
 }
 
-/// Per-device user choices (by name) overriding [`InputDevice::auto_default`].
 pub type AutoOverrides = BTreeMap<String, bool>;
 
 impl InputDevice {
-    /// Whether automatic picking may open this device, given the user's choices.
     pub fn auto(&self, overrides: &AutoOverrides) -> bool {
         overrides.get(&self.name).copied().unwrap_or(self.auto_default)
     }
 }
 
-/// Names of the available input devices. Reads device properties only; opens nothing.
+/// Reads device properties only; opens nothing.
 fn input_names() -> Vec<String> {
     let host = cpal::default_host();
     host.input_devices().map(|it| it.filter_map(|d| device_name(&d)).collect()).unwrap_or_default()
 }
 
-/// The available input devices, with whether automatic picking may use them.
 pub fn list_input_devices() -> Vec<InputDevice> {
     let host = cpal::default_host();
     let Ok(devices) = host.input_devices() else { return Vec::new() };
@@ -66,7 +60,7 @@ pub fn list_input_devices() -> Vec<InputDevice> {
         .collect()
 }
 
-/// Whether a device name looks like an internal microphone (no bubble worth showing).
+/// An internal microphone needs no notice bubble.
 fn is_builtin_name(name: &str) -> bool {
     let n = name.to_lowercase();
     ["macbook", "imac", "built-in", "builtin", "built in", "内蔵", "内置"].iter().any(|k| n.contains(k))
@@ -95,7 +89,6 @@ fn find_device(name: &str) -> Result<(Device, String), RecorderError> {
     }
 }
 
-/// Which probe result clearly beats the current device's level, if any. Pure.
 fn pick_switch(current: f32, probes: &[(String, f32)]) -> Option<&str> {
     let audible = |l: f32| l > SILENCE_FLOOR;
     let best = probes.iter().filter(|(_, l)| audible(*l)).max_by(|a, b| a.1.total_cmp(&b.1))?;
@@ -106,7 +99,6 @@ fn pick_switch(current: f32, probes: &[(String, f32)]) -> Option<&str> {
     (best.1 > current * SWITCH_THRESHOLD).then_some(best.0.as_str())
 }
 
-/// Peak chunk-RMS of one device over `window`, measured on this thread.
 fn probe_one(name: String, window: Duration) -> (String, f32) {
     let peak = Arc::new(Mutex::new(0f32));
     let p2 = peak.clone();
@@ -132,7 +124,6 @@ fn probe_one(name: String, window: Duration) -> (String, f32) {
     (name, *peak.lock().expect("audio state lock"))
 }
 
-/// Peak chunk-RMS of every auto-eligible input device except `skip`, each measured in parallel.
 fn probe_levels(skip: &str, window: Duration, overrides: &AutoOverrides) -> Vec<(String, f32)> {
     let names: Vec<String> =
         list_input_devices().into_iter().filter(|d| d.auto(overrides) && d.name != skip).map(|d| d.name).collect();
@@ -148,8 +139,7 @@ fn probe_levels(skip: &str, window: Duration, overrides: &AutoOverrides) -> Vec<
     handles.into_iter().filter_map(|h| h.join().ok()).collect()
 }
 
-/// Opens an input stream on `device` that hands `on_mono` one downmixed mono chunk per host callback.
-/// The stream is not started.
+/// The returned stream is not started.
 fn open_mono_stream<F>(device: &Device, on_mono: F) -> Result<cpal::Stream, RecorderError>
 where
     F: FnMut(&[f32]) + Send + 'static,
@@ -194,19 +184,15 @@ struct Running {
     samples: Arc<Mutex<Vec<f32>>>,
 }
 
-/// State shared between the recording stream, the auto-probe thread and the app.
 struct Inner {
-    /// User-configured device name; empty means automatic.
+    /// Empty means automatic.
     device: Mutex<String>,
-    /// Which devices automatic picking may open, as chosen by the user.
     auto_overrides: Mutex<AutoOverrides>,
     running: Mutex<Option<Running>>,
     level: Arc<AtomicU32>,
-    /// Last device picked automatically; reused while it stays connected.
     sticky: Mutex<Option<String>>,
     /// Samples rescued from a recording whose stream could not be restarted after a switch.
     salvage: Mutex<Option<Arc<Mutex<Vec<f32>>>>>,
-    /// (device, when) the user should be told which mic is live; read by the HUD each frame.
     notice: Mutex<Option<(String, Instant)>>,
 }
 
@@ -219,8 +205,7 @@ impl Inner {
         }
     }
 
-    /// Spawns the capture thread for `selector` (empty = system default), appending into
-    /// `samples`. Blocks until the stream is live and returns the resolved device name.
+    /// `selector` empty means the system default. Blocks until the stream is live.
     fn spawn_stream(&self, selector: &str, samples: Arc<Mutex<Vec<f32>>>) -> Result<(Running, String), RecorderError> {
         self.level.store(0, Ordering::Relaxed);
         let (stop_tx, stop_rx) = mpsc::channel();
@@ -240,7 +225,7 @@ impl Inner {
         }
     }
 
-    /// Starts recording. Returns the effective device when automatic device picking should run for it.
+    /// Returns the effective device only when automatic picking should run for it.
     fn begin(&self) -> Result<Option<String>, RecorderError> {
         let mut running = self.running.lock().expect("audio state lock");
         if running.is_some() {
@@ -270,8 +255,6 @@ impl Inner {
         Ok((auto && sticky.is_none()).then_some(effective))
     }
 
-    /// While the default device records, measure it and every other device in parallel; if one
-    /// is clearly louder, switch the live stream over without losing the samples so far.
     fn auto_probe(self: &Arc<Self>, current: String) {
         let level = self.level.clone();
         let probes = {
@@ -293,9 +276,7 @@ impl Inner {
         let mut running = self.running.lock().expect("audio state lock");
         // Strict switch: stop the old stream, then start the winner appending into the same
         // buffer, so the two sources never interleave.
-        let Some(old) = running.take() else {
-            return; // the recording ended while probing
-        };
+        let Some(old) = running.take() else { return };
         let recorded = old.samples.clone();
         let _ = old.stop.send(());
         let _ = old.thread.join();
@@ -332,7 +313,6 @@ impl Inner {
     }
 }
 
-/// Records from one input device at a time, picked automatically when no device is configured.
 /// The cpal stream lives on its own thread (streams are not `Send`).
 pub struct Capture(Arc<Inner>);
 
@@ -360,12 +340,11 @@ impl Capture {
         *self.0.device.lock().expect("audio state lock") = device.to_string();
     }
 
-    /// Sets which devices automatic picking may open; used from the next recording on.
+    /// Takes effect from the next recording.
     pub fn set_auto_overrides(&self, overrides: &AutoOverrides) {
         *self.0.auto_overrides.lock().expect("audio state lock") = overrides.clone();
     }
 
-    /// The device the user should be told about, and when it became live.
     pub fn device_notice(&self) -> Option<(String, Instant)> {
         self.0.notice.lock().expect("audio state lock").clone()
     }

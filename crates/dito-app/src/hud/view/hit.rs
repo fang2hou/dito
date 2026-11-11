@@ -16,11 +16,8 @@ const ERROR_NOTE_HALF_W: f32 = 135.;
 const ERROR_NOTE_BELOW_SLACK: f32 = 4.;
 const STOP_TOP: f32 = 35.;
 
-/// What the pointer is over.
 pub(super) struct Hit {
-    /// The hover zone: the capsule, the controls above it and the error reason.
     pub(super) in_zone: bool,
-    /// The recording button under the pointer, by element id.
     pub(super) button: Option<&'static str>,
     /// Clicks here must reach the HUD instead of passing through the transparent window.
     pub(super) interactive: bool,

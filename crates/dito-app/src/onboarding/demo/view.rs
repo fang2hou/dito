@@ -14,9 +14,9 @@ use crate::ui::{self, Motion, text};
 use super::clock::{Clock, Layer, Tick, frozen};
 use super::timeline::{HudAt, INSERT_FADE_S, KEY_SCALE, Scene};
 
-/// `s` glyph by glyph, `gap` px apart. Every glyph box is exactly as wide as its advance: gpui rounds the width of a
-/// run of text up to whole pixels (an 11 px glyph measures 11.000001 and takes 12), which `ui::text_tracked` lets
-/// pile up into ~9% extra spacing on top of the tracking — the design's widths are the plain advance plus the gap.
+/// Every glyph box is exactly as wide as its advance: gpui rounds the width of a run of text up to whole pixels (an
+/// 11 px glyph measures 11.000001 and takes 12), which `ui::text_tracked` lets pile up into about 9% extra spacing on
+/// top of the tracking. The design's widths are the plain advance plus the gap.
 fn glyphs(s: &str, size: f32, weight: FontWeight, color: Hsla, gap: f32) -> Div {
     let mut row = div().flex().items_center().gap(px(gap));
     for ch in s.chars() {
@@ -26,8 +26,7 @@ fn glyphs(s: &str, size: f32, weight: FontWeight, color: Hsla, gap: f32) -> Div 
     row
 }
 
-/// `s` with the design's CJK letter-spacing `cjk_em`, applied where [`ui::tracking_for`] says so (like
-/// [`ui::text_tracked`], but see [`glyphs`] for the widths).
+/// Like [`ui::text_tracked`], but see [`glyphs`] for the widths.
 fn spaced(s: &str, size: f32, weight: FontWeight, color: Hsla, cjk_em: f32) -> Div {
     let em = ui::tracking_for(s, cjk_em);
     if em == 0. {
@@ -37,7 +36,6 @@ fn spaced(s: &str, size: f32, weight: FontWeight, color: Hsla, cjk_em: f32) -> D
     }
 }
 
-/// Width of `s` set by [`spaced`].
 fn spaced_width(s: &str, size: f32, weight: FontWeight, cjk_em: f32) -> f32 {
     let em = ui::tracking_for(s, cjk_em);
     if em == 0. {
@@ -47,7 +45,6 @@ fn spaced_width(s: &str, size: f32, weight: FontWeight, cjk_em: f32) -> f32 {
     advances + size * em * s.chars().count().saturating_sub(1) as f32
 }
 
-/// A line of text centred in a box of fixed height, so every column lines up the way the design does.
 fn line_box(content: Div, h: f32) -> Div {
     div().h(px(h)).flex().items_center().whitespace_nowrap().child(content)
 }
@@ -97,8 +94,8 @@ fn key_column(p: &Palette, lang: Lang, key: &str, mode: RecordMode, scene: &Scen
         .child(line_box(spaced(state, 11., FontWeight::NORMAL, color, 0.05), 16.))
 }
 
-/// The slot the capsule lives in, as tall as the key column's keycap row, so the rows
-/// underneath line up. Bottom-anchored like the HUD window, so the pop-in rises the same way.
+/// The slot the capsule lives in, as tall as the key column's keycap row, so the rows underneath line up.
+/// Bottom-anchored like the HUD window, so the pop-in rises the same way.
 fn hud_slot(p: &Palette, lang: Lang, hud: Option<&HudAt>, still: bool) -> Div {
     const SLOT_W: f32 = 105.;
     let slot =
@@ -144,14 +141,12 @@ fn hud_slot(p: &Palette, lang: Lang, hud: Option<&HudAt>, still: bool) -> Div {
     let capsule = build(at.state.clone(), at.w, at.since, None);
     let mut slot = slot.child(capsule);
     if let Some((capsule, blend)) = inserted {
-        // On top of the transcribing capsule, at the spot where it sits: the cross-fade to green.
         let left = (SLOT_W - hud::CAPSULE_W) / 2.;
         slot = slot.child(capsule.absolute().left(px(left)).bottom(px(5.)).opacity(blend));
     }
     slot.opacity(at.shown)
 }
 
-/// Under the capsule: toggle names its two buttons, hold says it has none.
 fn hud_footer(p: &Palette, hud_palette: &Palette, lang: Lang, mode: RecordMode) -> Div {
     let label = |s: &str| line_box(spaced(s, 11., FontWeight::NORMAL, p.muted, 0.05), 16.);
     let row = div().h(px(23.)).flex().items_center().gap(px(6.));
@@ -180,7 +175,6 @@ fn hud_column(p: &Palette, hud_palette: &Palette, lang: Lang, mode: RecordMode, 
         .child(hud_footer(p, hud_palette, lang, mode))
 }
 
-/// The four phases of a recording, as the user lives it.
 fn chip_labels(mode: RecordMode) -> [Tr; 4] {
     match mode {
         RecordMode::Toggle => [Tr::DemoPress, Tr::DemoRecording, Tr::DemoPressAgain, Tr::DemoTextAppears],
@@ -188,8 +182,8 @@ fn chip_labels(mode: RecordMode) -> [Tr; 4] {
     }
 }
 
-/// A numbered phase chip. The lit one is solid ink (the text color, so it inverts in dark) with a translucent number
-/// disc; the rest are hairline outlines. Neutral on purpose: gold is the selection color.
+/// The lit chip is solid ink (the text color, so it inverts in dark). Neutral on purpose: gold is the selection
+/// color.
 fn chip(p: &Palette, n: usize, label: &str, lit: f32) -> Div {
     // Every chip is as wide as its label at the heavy weight, so lighting one never moves the row.
     let w = (5. + 18. + 6. + spaced_width(label, 12., FontWeight::BOLD, 0.04) + 12. + 2.).ceil();
@@ -241,7 +235,6 @@ fn chips_row(p: &Palette, lang: Lang, mode: RecordMode, scene: &Scene) -> Div {
     row
 }
 
-/// The scene and the chips for one layer.
 fn picture(p: &Palette, hud_palette: &Palette, lang: Lang, key: &str, layer: Layer, still: bool) -> Div {
     let scene = Scene::at(layer.mode, layer.at);
     div()
@@ -264,7 +257,6 @@ fn picture(p: &Palette, hud_palette: &Palette, lang: Lang, key: &str, layer: Lay
         .child(chips_row(p, lang, layer.mode, &scene))
 }
 
-/// The grey stage card around the pictures.
 fn stage(p: &Palette, hud_palette: &Palette, lang: Lang, key: &str, tick: &Tick) -> Div {
     let mut pictures = div().relative().w_full();
     let top = tick.layers.len().saturating_sub(1);
@@ -287,7 +279,6 @@ fn stage(p: &Palette, hud_palette: &Palette, lang: Lang, key: &str, tick: &Tick)
         .child(pictures)
 }
 
-/// The demo element: owns the clock and draws the stage for it.
 pub struct UsageDemo {
     p: Palette,
     lang: Lang,
@@ -295,8 +286,8 @@ pub struct UsageDemo {
     key: SharedString,
 }
 
-/// The wizard's animated "how to use" demo for `mode`, in `lang`'s words, with the user's shortcut `key_label`
-/// (e.g. `右 ⌥`) on the keycap. It is as wide as its container and 186 pt high at design size; it animates by itself.
+/// `key_label` is the user's shortcut on the keycap (for example `right ⌥`). The demo is as wide as its container and
+/// 186 pt high at design size.
 pub fn usage_demo(p: &Palette, lang: Lang, mode: RecordMode, key_label: impl Into<SharedString>) -> impl IntoElement {
     // The typography helpers (tracking, CJK typeface) read the UI language: keep it the demo's.
     ui::set_ui_language(lang);

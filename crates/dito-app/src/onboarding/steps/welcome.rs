@@ -13,7 +13,7 @@ const WELCOME_TAG_H: f32 = 26.;
 const WELCOME_TAG_GAP: f32 = 14.;
 const WELCOME_GAP: f32 = 56.;
 
-/// The wordmark with the health-dot (green in every theme); `ink` is the wordmark's color.
+/// The health-dot is green in every theme.
 fn welcome_logo(p: &Palette, ink: Hsla) -> Div {
     div()
         .h(px(WELCOME_LOGO_H))
@@ -24,7 +24,6 @@ fn welcome_logo(p: &Palette, ink: Hsla) -> Div {
         .child(div().size(px(24.)).flex_none().rounded_full().bg(p.success).mb(px(12.)))
 }
 
-/// The logo, the tagline and one button.
 pub(in crate::onboarding) fn page(_w: &Onboarding, c: &Ctx, cx: &mut Context<Onboarding>) -> Div {
     let p = &c.p;
     let tagline = c.t(Tr::OnboardingTagline);

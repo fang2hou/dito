@@ -50,7 +50,6 @@ pub struct PromptsPage {
     dialog_error: Option<String>,
     dialog_focus: FocusHandle,
     help_focus: [FocusHandle; 2],
-    /// The page's own motion scope: its controls' transient state, reset on navigation.
     motion: ui::MotionScope,
     #[cfg(feature = "screenshots")]
     edit_probe: Option<(Snapshot, Option<Snapshot>)>,
@@ -383,7 +382,6 @@ impl PromptsPage {
 }
 
 impl PromptsPage {
-    /// Reset the page's transient motion state; its controls mount statically on the next entry.
     pub(super) fn reset_motion(&mut self, cx: &mut Context<Self>) {
         self.close_group(Editor::Common, cx);
         self.close_group(Editor::Application, cx);
@@ -393,7 +391,6 @@ impl PromptsPage {
         self.motion.reset();
     }
 
-    /// The page's scope, for the screenshot harness.
     #[cfg(feature = "screenshots")]
     pub(super) fn motion_scope(&self) -> ui::ScopeHandle {
         self.motion.handle()
@@ -402,8 +399,8 @@ impl PromptsPage {
 
 impl Render for PromptsPage {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        // The page draws under its own scope: after a page switch its controls mount statically,
-        // never sliding to values remembered from another page or an earlier visit.
+        // Own scope: after a page switch the controls mount statically instead of sliding to values remembered from an
+        // earlier visit.
         ui::with_motion_scope(self.motion.handle(), || self.view(window, cx))
     }
 }

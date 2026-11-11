@@ -1,4 +1,4 @@
-//! Menu bar item: status, today's characters, shortcuts to pages. It never changes settings.
+//! The menu bar item. It reports status and opens pages, and never changes settings.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -44,8 +44,7 @@ fn build() -> (Tray, Menu) {
     let menu = Menu::new();
     let status = MenuItem::new("…", false, None);
     let today = MenuItem::new("…", false, None);
-    // Placeholder texts: refresh() (called right after build, and every ~2s) localizes every
-    // item via t(), so the user only ever sees the localized strings.
+    // Placeholder text: refresh() sets the localized text right after build, so the user never sees these.
     let history = MenuItem::with_id(ID_HISTORY, "…", true, accel("cmd+h"));
     let wordbook = MenuItem::with_id(ID_WORDBOOK, "…", true, accel("cmd+d"));
     let status_page = MenuItem::with_id(ID_STATUS, "…", true, accel("cmd+i"));
@@ -86,7 +85,7 @@ fn refresh(tray: &Tray, st: &AppState) {
     tray.items.quit.set_text(lang.tr(Tr::MenubarQuit));
 }
 
-/// Create the status item (must run on the main thread inside the GPUI app) and start handling its events.
+/// Must run on the main thread inside the GPUI app.
 pub fn run(st: Arc<AppState>, cx: &mut App) {
     let (tray, _menu) = build();
     refresh(&tray, &st);

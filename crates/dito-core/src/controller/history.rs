@@ -4,8 +4,8 @@ use std::sync::Arc;
 use crate::audio::AudioClip;
 use crate::store::{NewHistory, Store};
 
-/// Saves finished dictations. Writing a recording and a database row blocks, so it runs on the
-/// blocking pool; a failure is logged and never reaches the dictation.
+/// Writing a recording and a database row blocks, so it runs on the blocking pool; a failure is logged and never
+/// reaches the dictation.
 pub(super) struct History {
     store: Arc<Store>,
     audio_dir: Option<PathBuf>,

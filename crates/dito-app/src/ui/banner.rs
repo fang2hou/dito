@@ -8,7 +8,6 @@ use super::typography::text;
 use crate::assets::Ic;
 use crate::theme::Palette;
 
-/// The one trailing button of a [`banner`].
 pub struct BannerAction {
     pub id: ElementId,
     pub label: SharedString,
@@ -16,7 +15,7 @@ pub struct BannerAction {
     pub on_click: Cb,
 }
 
-/// Full-width failure strip: alert icon, one message line and an optional trailing button (`design:settings/dictionary/failure-banner`).
+/// Numbers from `design:settings/wordbook/failure-banner`.
 pub fn banner(p: &Palette, message: impl Into<SharedString>, action: Option<BannerAction>) -> Div {
     let (bg, border, icon_color, fg) = if p.dark {
         (hex_alpha(p.danger, 0.12), hex_alpha(p.danger, 0.5), p.danger, p.text)
@@ -52,8 +51,6 @@ pub fn banner(p: &Palette, message: impl Into<SharedString>, action: Option<Bann
     strip
 }
 
-/// A [`banner`] for a failure the user can read and put away: the `message` and a secondary button, `id` and
-/// `close_label`, that runs `on_close`. The Wordbook page and the Models page show their failures with it.
 pub fn dismissible_banner(
     p: &Palette,
     id: impl Into<ElementId>,

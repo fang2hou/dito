@@ -25,7 +25,7 @@ pub const TYPING_CPM: f64 = 60.0;
 pub enum HistoryKind {
     #[default]
     Dictation,
-    /// The user cancelled mid-recording; the audio is kept so it can be recognized again.
+    /// The audio is kept so it can be transcribed again.
     Cancelled,
     Failed,
 }
@@ -64,7 +64,6 @@ pub struct HistoryEntry {
 }
 
 impl HistoryEntry {
-    /// Text that was (or would be) delivered.
     pub fn final_text(&self) -> &str {
         self.polished.as_deref().unwrap_or(&self.raw)
     }
@@ -89,7 +88,6 @@ pub struct Stats {
     pub chars: u64,
     pub recordings: u64,
     pub speech_ms: u64,
-    /// Characters per minute of speaking.
     pub avg_cpm: f64,
     pub saved_minutes: f64,
     /// (local date `YYYY-MM-DD`, characters), ascending.

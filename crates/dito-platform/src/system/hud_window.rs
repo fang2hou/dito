@@ -30,8 +30,6 @@ impl HudWindowMove {
     }
 }
 
-/// A window that is about to lose its frame, see [`HudNativeWindow::frameless`].
-///
 /// AppKit calls gpui's resize and move handlers synchronously while the frame changes, and they need the borrow of
 /// the app that is still held when the change is prepared. Apply it after releasing that borrow, as for
 /// [`HudWindowMove`].
@@ -57,9 +55,7 @@ impl FramelessWindow {
     }
 }
 
-/// The native window of a transparent gpui window with its own look (the HUD, the startup failure card), reached
-/// through the view gpui renders into. Every method works on the view's current window and does nothing once the view
-/// has none.
+/// Every method works on the view's current window and does nothing once the view has none.
 pub struct HudNativeWindow<'a> {
     view: &'a NSView,
     mtm: MainThreadMarker,
@@ -81,7 +77,7 @@ impl<'a> HudNativeWindow<'a> {
         self.view.window()
     }
 
-    /// Turn off the drop shadow macOS gives every window, so a transparent window shows only what is drawn in it.
+    /// So a transparent window shows only what is drawn in it.
     pub fn remove_shadow(&self) {
         if let Some(window) = self.window() {
             window.setHasShadow(false);
@@ -89,20 +85,17 @@ impl<'a> HudNativeWindow<'a> {
         }
     }
 
-    /// Prepare taking away everything macOS draws around a titled window: the title bar and its buttons, the rounded
-    /// corner mask, the border, the shadow and the background. What is left is exactly what gpui paints, so a
-    /// transparent window can be one card whose own corner is the only one. Applying the change makes the window
-    /// `size` points large (width, height) and centers it on its screen; it does not show, order or activate it.
+    /// What is left after removing everything macOS draws is exactly what gpui paints, so a transparent window can be
+    /// one card whose own corner is the only one. Applying the change makes the window `size` points large (width,
+    /// height) and centers it; it does not show, order or activate it.
     pub fn frameless(&self, size: (f64, f64)) -> Option<FramelessWindow> {
         Some(FramelessWindow { window: self.window()?, view: self.view.retain(), size: NSSize::new(size.0, size.1) })
     }
 
-    /// Raise the window to the macOS status level, above every application's normal windows and
-    /// floating panels but below menus and tooltips, so it stays visible while the user works in
-    /// other apps. Returns the level AppKit reports afterwards, or `None` if the view has no window.
+    /// Returns the level AppKit reports afterwards, or `None` if the view has no window.
     ///
-    /// gpui has no `WindowOptions` field for the level; its `WindowKind::Floating` also drops the
-    /// mouse tracking area it installs for normal windows, which an unfocused window needs for hover.
+    /// gpui has no `WindowOptions` field for the level; its `WindowKind::Floating` also drops the mouse tracking area
+    /// it installs for normal windows, which an unfocused window needs for hover.
     pub fn raise_to_status_level(&self) -> Option<NSWindowLevel> {
         self.window().map(|window| {
             window.setLevel(NSStatusWindowLevel);
@@ -110,7 +103,6 @@ impl<'a> HudNativeWindow<'a> {
         })
     }
 
-    /// Keep a non-activating HUD panel from becoming the key window when its controls are clicked.
     pub fn keep_panel_inactive(&self) {
         if let Some(panel) = self.window().and_then(|window| window.downcast::<NSPanel>().ok()) {
             panel.setBecomesKeyOnlyIfNeeded(true);
@@ -150,7 +142,6 @@ impl<'a> HudNativeWindow<'a> {
             .then(|| HudWindowMove(window, NSPoint::new(x, y)))
     }
 
-    /// Move the HUD with a continuous spring while allowing the pointer to approach and operate it.
     pub fn follow_pointer(&self, state: &mut HudFollowState, contact: PointerContact) -> Option<HudWindowMove> {
         let window = self.window()?;
         let cursor = mouse_location();

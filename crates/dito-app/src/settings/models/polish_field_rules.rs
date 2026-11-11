@@ -1,20 +1,16 @@
-//! What typing into a field of a polish form does to its setting, for the cloud form and the local one. Everything
-//! saves as it changes, with one exception: text that does not parse is not saved. That is a number outside what the
-//! setting allows, or extra text that is not a JSON object. The last valid value stays in use and the field shows the
-//! danger border until the text parses; an empty field clears the value.
+//! What typing into a field of a polish form does to its setting. Text that does not parse is not saved: the last valid
+//! value stays in use and the field shows the danger border until the text parses; an empty field clears the value.
 
 use std::ops::{RangeBounds, RangeFrom, RangeInclusive};
 
 use dito_core::config::{CloudPolishConfiguration, LocalPolishParams};
 use serde_json::{Map, Value};
 
-/// What the text of a number or object field means.
 #[derive(Debug, PartialEq)]
 enum FieldText<T> {
     /// Empty: the value is cleared.
     Unset,
     Set(T),
-    /// Does not parse.
     Invalid,
 }
 
@@ -30,11 +26,9 @@ impl<T> FieldText<T> {
 /// What a temperature may be: from zero up. The top is open because the APIs differ in how far they go.
 const TEMPERATURE: RangeFrom<f32> = 0.0..;
 
-/// What a top-p may be: a share of the probability mass, from zero to one.
 const TOP_P: RangeInclusive<f32> = 0.0..=1.0;
 
-/// A decimal number inside `range`. A backend rejects a number outside it only when the request is sent, far from the
-/// field that holds it.
+/// A backend rejects a number outside it only when the request is sent, far from the field that holds it.
 fn decimal(text: &str, range: impl RangeBounds<f32>) -> FieldText<f32> {
     match text.trim() {
         "" => FieldText::Unset,
@@ -46,7 +40,6 @@ fn decimal(text: &str, range: impl RangeBounds<f32>) -> FieldText<f32> {
     }
 }
 
-/// A positive whole number, as the token limit and top-k are.
 fn whole(text: &str) -> FieldText<u32> {
     match text.trim() {
         "" => FieldText::Unset,
@@ -54,7 +47,6 @@ fn whole(text: &str) -> FieldText<u32> {
     }
 }
 
-/// A JSON object, as the extra parameters are.
 fn object(text: &str) -> FieldText<Map<String, Value>> {
     match text.trim() {
         "" => FieldText::Unset,
@@ -70,19 +62,15 @@ pub(super) fn show_number<T: ToString>(value: Option<T>) -> String {
     value.map(|value| value.to_string()).unwrap_or_default()
 }
 
-/// The text the extra parameters show: the object on one line, empty when there is none.
 pub(super) fn show_extra(extra: &Map<String, Value>) -> String {
     if extra.is_empty() { String::new() } else { Value::Object(extra.clone()).to_string() }
 }
 
-/// The inputs of the cloud polish form. They are one per place in the form, not one per template: the form shows the
-/// configuration in use, whatever its template, and the template only decides the labels and the placeholders.
+/// One per place in the form, not one per template: the template only decides the labels and the placeholders.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum CloudPolishField {
     Name,
-    /// The endpoint, region or base URL.
     Address,
-    /// The deployment name, model id or model name.
     Model,
     /// The API key, which is kept in the Keychain and not in the configuration.
     Key,
@@ -106,7 +94,6 @@ impl CloudPolishField {
         Self::Extra,
     ];
 
-    /// Whether `text` is wrong for this setting: a number the setting cannot take, or extra text that is not an object.
     pub(super) fn invalid(self, text: &str) -> bool {
         match self {
             Self::Temperature => decimal(text, TEMPERATURE) == FieldText::Invalid,
@@ -117,8 +104,7 @@ impl CloudPolishField {
         }
     }
 
-    /// Whether typing `text` changes the setting. Not when it is invalid, and not for a name that is blank: a
-    /// configuration always has one.
+    /// Not when it is invalid, and not for a blank name: a configuration always has one.
     pub(super) fn accepts(self, text: &str) -> bool {
         !self.invalid(text) && !(self == Self::Name && text.trim().is_empty())
     }
@@ -138,8 +124,8 @@ impl CloudPolishField {
         }
     }
 
-    /// Put `text` into the setting of `config`. `false` when it is not [accepted](Self::accepts), and then `config`
-    /// is as it was. The key lives in the Keychain, so there is nothing to put.
+    /// `false` when it is not [accepted](Self::accepts), and then `config` is as it was. The key lives in the Keychain,
+    /// so there is nothing to put.
     pub(super) fn apply(self, config: &mut CloudPolishConfiguration, text: &str) -> bool {
         if !self.accepts(text) {
             return false;
@@ -160,7 +146,6 @@ impl CloudPolishField {
     }
 }
 
-/// The inputs of the parameter block under the local polish models.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum LocalPolishField {
     Temperature,
@@ -204,8 +189,6 @@ impl LocalPolishField {
     }
 }
 
-/// What the name field of a cloud polish configuration holds once focus leaves it: the last saved name when it was
-/// emptied, else what it holds.
 pub(super) fn settled_cloud_polish_name<'a>(typed: &'a str, saved: &'a str) -> &'a str {
     if typed.trim().is_empty() { saved } else { typed }
 }

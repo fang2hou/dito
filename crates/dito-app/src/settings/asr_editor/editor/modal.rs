@@ -63,8 +63,8 @@ impl AsrEditor {
             .children(delete_dialog)
     }
 
-    /// Dress the editor of the configuration the form shows. Every configuration has an editor of its own, so each one
-    /// is dressed the first time it is shown and whenever the palette changed since.
+    /// Every configuration has an editor of its own, so each is dressed the first time it is shown and whenever the
+    /// palette changed since.
     pub(super) fn style_source(&mut self, p: &Palette, cx: &mut Context<Self>) {
         let p = *p;
         let Some(draft) = self.drafts.get_mut(&self.shown) else { return };

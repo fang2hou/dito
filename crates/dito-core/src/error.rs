@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-/// User-facing failure class. Drives the HUD error variants and the short message in the UI.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ErrorKind {
     /// 401/403, missing or rejected key / credentials.
@@ -11,11 +10,8 @@ pub enum ErrorKind {
     RateLimit,
     /// Deployment / model id does not exist at the endpoint.
     ModelNotFound,
-    /// Response could not be understood.
     BadResponse,
-    /// Audio was empty or contained no speech.
     NoSpeech,
-    /// Microphone unavailable or permission denied.
     Mic,
     /// Engine (local model) is not running / not installed.
     Unavailable,
@@ -53,8 +49,8 @@ impl ErrorKind {
         }
     }
 
-    /// Split a stored `Kind: detail` error line (the `Display` of [`ProviderError`]) back into its parts, so the
-    /// UI can show the kind in the user's language and keep the technical detail as is.
+    /// Splits a stored error line (the `Display` of [`ProviderError`]) so the UI can show the kind in the user's
+    /// language and keep the technical detail as is.
     pub fn decode(line: &str) -> Option<(ErrorKind, &str)> {
         let (head, detail) = line.split_once(": ")?;
         Self::ALL.into_iter().find(|k| k.code() == head).map(|k| (k, detail))

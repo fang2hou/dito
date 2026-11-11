@@ -2,7 +2,6 @@ use std::path::Path;
 use std::process::{Child, Command};
 use std::sync::Mutex;
 
-/// Plays one recording at a time through `afplay`.
 #[derive(Default)]
 pub struct Player(Mutex<Option<Child>>);
 

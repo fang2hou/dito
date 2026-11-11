@@ -94,8 +94,8 @@ fn anchor_marker(anchor: Anchor) -> impl IntoElement {
     .inset_0()
 }
 
-/// Place one layer at the window root. Anchors only register bounds during prepaint, so all
-/// hovered targets are known before this deferred layer chooses and paints a single bubble.
+/// Anchors only register bounds during prepaint, so all hovered targets are known before this deferred layer chooses
+/// and paints a single bubble.
 fn tooltip_layer(slot: Rc<RefCell<Weak<RefCell<WindowTips>>>>) -> impl IntoElement {
     deferred(
         canvas(
@@ -227,7 +227,6 @@ impl WindowTips {
     }
 }
 
-/// The global hover behavior, centered above a trigger and independent of its text layout.
 pub fn tip_above(p: &Palette, id: &ElementId) -> AnyElement {
     let scope = motion_scope();
     let (label, epoch) = scope
@@ -278,7 +277,6 @@ pub fn tip_pop_with(p: &Palette, id: ElementId, label: SharedString, on: bool, b
         .into_any_element()
 }
 
-/// The shortcut-recording instruction is explicitly shown by a capture session.
 pub fn tip_pop(p: &Palette, id: ElementId, label: SharedString, on: bool) -> AnyElement {
     let scope = motion_scope();
     let p = *p;
@@ -291,8 +289,7 @@ pub fn tip_pop(p: &Palette, id: ElementId, label: SharedString, on: bool) -> Any
     })
 }
 
-/// Remember `label` as the tooltip text for the control `id` (see [`tip_above`]). Called during
-/// the control's build, so the label always matches the rendered language.
+/// Called during the control's build, so the label always matches the rendered language.
 pub fn tip_label(id: ElementId, label: SharedString) {
     if let Some(reg) = scope::ambient_registry() {
         reg.borrow_mut().tips.insert(id, label);

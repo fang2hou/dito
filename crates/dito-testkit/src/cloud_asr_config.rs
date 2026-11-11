@@ -1,11 +1,6 @@
 use serde_json::{Value, json};
 
-/// A cloud speech request JSON in the ADR-0007 format for the mock server at `server_url`.
-///
-/// The request is a multipart POST to `<server_url>/v1/audio/transcriptions` with the fields the mock reads: `file`
-/// (`{{audio.file}}`), `model` (`{{model}}`) and `language` (`{{language}}`). The key goes in the header
-/// `Authorization: Bearer {{api_key}}`, the model is `mock-asr`, and the transcript and language are read from
-/// `/text` and `/language` of the response. The JSON passes `configured_asr::validate`.
+/// The request JSON is in the ADR-0007 format and passes `configured_asr::validate`.
 pub fn mock_cloud_asr_config(server_url: &str) -> Value {
     json!({
         "version": 1,

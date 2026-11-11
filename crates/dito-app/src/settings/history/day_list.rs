@@ -9,9 +9,8 @@ use crate::timefmt::{local_day, now, ymd};
 use crate::ui::{self, text};
 
 impl HistoryPage {
-    /// Flatten to one element per heading or day card for the virtualized list: only the visible
-    /// slice is laid out and painted, so scrolling stays smooth however long the log grows.
-    /// Element building here is cheap struct construction; text shaping happens per visible item.
+    /// Only the visible slice is laid out and painted, so scrolling stays smooth however long the log grows. Element
+    /// building here is cheap struct construction; text shaping happens per visible item.
     pub(super) fn day_items(
         &self,
         c: &Ctx,

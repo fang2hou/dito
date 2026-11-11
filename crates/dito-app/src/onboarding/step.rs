@@ -22,7 +22,6 @@ impl Step {
         }
     }
 
-    /// The step after this one; `None` after the last step.
     pub(in crate::onboarding) fn next(self) -> Option<Step> {
         match self {
             Self::Welcome => Some(Self::Permissions),
@@ -35,7 +34,6 @@ impl Step {
         }
     }
 
-    /// The step before this one; `None` before the first step.
     pub(in crate::onboarding) fn prev(self) -> Option<Step> {
         match self {
             Self::Welcome => None,
@@ -49,8 +47,6 @@ impl Step {
     }
 }
 
-/// Whether the user may leave `step` forward. `Prepare` needs the local models installed (local engine)
-/// or a passing connection test (cloud engine); `Try` needs a successful try-out; other steps are always open.
 pub(in crate::onboarding) fn can_continue(
     step: Step,
     local: bool,

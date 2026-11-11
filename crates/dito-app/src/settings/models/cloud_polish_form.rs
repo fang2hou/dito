@@ -1,5 +1,5 @@
-//! The cloud polish form (`design:models/cloud/configurations`): the inputs that show the configuration in use, and the code that draws
-//! them under the selector, with the parameter block and the footer.
+//! The cloud polish form and its inputs (`design:settings/cloud-models/configurations`,
+//! `design:settings/cloud-models/failed-test`).
 
 use std::ops::Index;
 
@@ -16,13 +16,10 @@ use crate::settings::Ctx;
 use crate::theme::Palette;
 use crate::ui::{self, ErrorPlacement, FooterTrash, InputState, ParamField, TestButton, TestState, cbk, cbk_idx};
 
-/// The inputs of the cloud polish form: one per [`CloudPolishField`], showing the configuration in use. The inputs
-/// outlive a selection: choosing another configuration puts its values into the same inputs.
+/// The inputs outlive a selection: choosing another configuration puts its values into the same inputs.
 pub(super) struct CloudPolishForm {
     inputs: [Entity<InputState>; 9],
-    /// Id of the configuration the inputs show.
     shown: Option<String>,
-    /// What the placeholders were written for: they depend on the template and the language.
     placeholders: Option<(CloudPolishTemplate, Lang)>,
 }
 
@@ -35,7 +32,6 @@ impl CloudPolishForm {
         }
     }
 
-    /// The id of the configuration the inputs show.
     pub(super) fn shown(&self) -> Option<&str> {
         self.shown.as_deref()
     }
@@ -44,13 +40,11 @@ impl CloudPolishForm {
         self[field].read(cx).value().to_string()
     }
 
-    /// Whether the text of `field` is wrong for its setting.
     pub(super) fn invalid(&self, field: CloudPolishField, cx: &App) -> bool {
         field.invalid(&self.text(field, cx))
     }
 
-    /// Make the inputs show `active`, the configuration in use: its values when it is not the one they show already,
-    /// and the placeholders of its template. Setting a value is not an edit, so nothing is saved by this.
+    /// Setting a value is not an edit, so nothing is saved by this.
     pub(super) fn follow(
         &mut self,
         active: Option<&CloudPolishConfiguration>,
@@ -83,7 +77,6 @@ impl CloudPolishForm {
         }
     }
 
-    /// Show `name` in the name field, after it was emptied and focus left it.
     pub(super) fn set_name(&self, name: String, window: &mut Window, cx: &mut Context<ModelsPage>) {
         self[CloudPolishField::Name].update(cx, |input, cx| input.set_value(name, window, cx));
     }
@@ -97,7 +90,6 @@ impl Index<CloudPolishField> for CloudPolishForm {
     }
 }
 
-/// The placeholder of `field` for a configuration of `template`.
 fn placeholder(field: CloudPolishField, template: CloudPolishTemplate, lang: Lang) -> &'static str {
     match (field, template) {
         (CloudPolishField::Name, _) => "",
@@ -117,8 +109,6 @@ fn placeholder(field: CloudPolishField, template: CloudPolishTemplate, lang: Lan
 }
 
 impl ModelsPage {
-    /// The form of the cloud polish configuration in use: its name and address, its model and credential, its
-    /// parameters, and the footer with the connection test.
     pub(super) fn cloud_polish_view(&self, c: &Ctx, cx: &mut Context<Self>) -> Div {
         let p = &c.p;
         let col = div().w_full().flex().flex_col().gap(px(18.));
@@ -182,7 +172,6 @@ impl ModelsPage {
     fn cloud_polish_aws_profile_select(&self, c: &Ctx, cx: &mut Context<Self>, current: &str) -> AnyElement {
         let p = &c.p;
         if self.aws_profiles.is_empty() {
-            // Nothing to pick: the control stays visible but inert.
             return ui::select_form_disabled(p, c.t(Tr::ModelsNoProfiles)).into_any_element();
         }
         let options: Vec<SharedString> = self.aws_profiles.iter().map(|s| SharedString::from(s.clone())).collect();
@@ -199,7 +188,6 @@ impl ModelsPage {
         .into_any_element()
     }
 
-    /// The footer: the state of the connection test on the left, on the right the trash and the test button.
     fn cloud_polish_footer(&self, c: &Ctx, cx: &mut Context<Self>, removable: bool) -> Div {
         let state = &self.cloud_polish.test;
         ui::form_footer(
@@ -222,7 +210,6 @@ impl ModelsPage {
         )
     }
 
-    /// Choosing an AWS profile saves it into the Bedrock configuration the form shows.
     fn pick_cloud_polish_aws_profile(&mut self, index: usize, cx: &mut Context<Self>) {
         let (Some(name), Some(id)) =
             (self.aws_profiles.get(index).cloned(), self.cloud_polish.form.shown().map(str::to_owned))
@@ -247,7 +234,6 @@ fn form_input(p: &Palette, state: &Entity<InputState>) -> impl IntoElement {
     ui::text_input(p, state, None).form()
 }
 
-/// The label of the first field of the form of a template.
 fn address_label(template: CloudPolishTemplate) -> Tr {
     match template {
         CloudPolishTemplate::Azure => Tr::ModelsEndpoint,
@@ -256,7 +242,6 @@ fn address_label(template: CloudPolishTemplate) -> Tr {
     }
 }
 
-/// The label of the model field of the form of a template.
 fn model_label(template: CloudPolishTemplate) -> Tr {
     match template {
         CloudPolishTemplate::Azure => Tr::ModelsDeployment,

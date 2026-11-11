@@ -1,4 +1,4 @@
-/// Whether animations run in full or are cut back to short fades, as the system's Reduce Motion setting asks.
+/// Follows the system's Reduce Motion setting.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Motion {
     Full,

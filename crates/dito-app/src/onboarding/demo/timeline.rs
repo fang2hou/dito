@@ -4,31 +4,22 @@ use dito_core::controller::HudState;
 use crate::hud;
 use crate::ui::{self, Motion};
 
-/// First key press, in both modes.
 pub(super) const T_PRESS: f32 = 0.6;
 /// Toggle: the second press. Hold: the release.
 pub(super) const T_SECOND: f32 = 3.0;
-/// The capsule turns green.
 pub(super) const T_INSERT: f32 = 4.8;
-/// The end of the rest on the result; the picture then cross-fades back to the start.
 pub(super) const T_REST_END: f32 = T_INSERT + hud::OUTCOME_END;
 pub(super) const RESTART_S: f32 = 0.2;
-/// One loop, in seconds.
 pub(super) const PERIOD: f32 = T_REST_END + RESTART_S;
 /// The key leads the HUD by this much.
 pub(super) const LEAD: f32 = 0.08;
-/// Key press: ease-out to the bottom; release: spring back.
 pub(super) const KEY_DOWN_S: f32 = 0.12;
 pub(super) const KEY_UP_S: f32 = 0.16;
 /// A tap stays down this long once it has bottomed out.
 pub(super) const TAP_HOLD_S: f32 = 0.10;
-/// The key shrinks to this scale when pressed.
 pub(super) const KEY_SCALE: f32 = 0.94;
-/// The transcribing capsule cross-fades to the inserted one over this.
 pub(super) const INSERT_FADE_S: f32 = 0.16;
-/// A phase chip fades its plate in and out over this.
 pub(super) const CHIP_FADE_S: f32 = 0.16;
-/// Switching the mode cross-fades the old picture into the new one over this.
 pub(super) const SWITCH_S: f32 = 0.2;
 /// Keyframe 2 (recording): the picture Reduce Motion holds.
 pub(super) const STILL_AT: f32 = 2.0;
@@ -44,7 +35,6 @@ pub(super) fn ease_out(u: f32) -> f32 {
     1. - (1. - u.clamp(0., 1.)).powi(3)
 }
 
-/// How far down the key is, 0–1: it eases down over [`KEY_DOWN_S`] from `down`, springs back over [`KEY_UP_S`] from `up`.
 pub(super) fn press(at: f32, down: f32, up: f32) -> f32 {
     if at < down {
         0.
@@ -55,14 +45,11 @@ pub(super) fn press(at: f32, down: f32, up: f32) -> f32 {
     }
 }
 
-/// The capsule as it is at one instant.
 pub(super) struct HudAt {
     pub(super) state: HudState,
-    /// Seconds since `state` began.
     pub(super) since: f32,
-    /// Outer width in design points.
     pub(super) w: f32,
-    /// 0–1 through the pop-in while it is arriving.
+    /// 0 to 1 through the pop-in while it is arriving.
     pub(super) pop: Option<f32>,
     /// Seconds since the green inserted capsule began, including its cross-fade.
     pub(super) inserted_elapsed: Option<f32>,
@@ -70,13 +57,11 @@ pub(super) struct HudAt {
     pub(super) shown: f32,
 }
 
-/// What the stage shows at one instant, as continuous numbers: the loop's cross-fade back to the start is just these
-/// running to their values at 0.
+/// Continuous numbers, so the loop's cross-fade back to the start is just these running to their values at 0.
 pub(super) struct Scene {
     /// 0 up … 1 down.
     pub(super) key: f32,
     pub(super) hud: Option<HudAt>,
-    /// How lit each phase chip is, 0–1.
     pub(super) chips: [f32; 4],
 }
 

@@ -34,7 +34,6 @@ pub fn page_fill(
         .child(body)
 }
 
-/// Standard page shell: scrolling column, title row with optional actions, then the body.
 pub fn page(
     p: Palette,
     id: &'static str,

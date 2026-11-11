@@ -1,4 +1,4 @@
-//! The SQLite schema, its versioned migrations and the column codecs.
+//! The SQLite schema and its versioned migrations.
 
 use rusqlite::Connection;
 use serde::Serialize;
@@ -37,15 +37,14 @@ pub(super) const MIGRATIONS: &[&str] = &[
     "ALTER TABLE dictionary RENAME TO wordbook;",
 ];
 
-/// The schema version this build creates and the newest one it can open.
 pub(super) const SCHEMA_VERSION: u32 = MIGRATIONS.len() as u32;
 
 pub(super) fn user_version(conn: &Connection) -> rusqlite::Result<u32> {
     conn.pragma_query_value(None, "user_version", |row| row.get(0))
 }
 
-/// Applies the migrations after `applied`, each in its own transaction together with its version bump, so a failure
-/// leaves the database at the last version that applied completely.
+/// Each migration runs in its own transaction together with its version bump, so a failure leaves the database at the
+/// last version that applied completely.
 pub(super) fn migrate(conn: &mut Connection, applied: u32) -> Result<()> {
     for (migration, version) in MIGRATIONS.iter().zip(1u32..).skip(applied as usize) {
         let tx = conn.transaction()?;
@@ -57,7 +56,6 @@ pub(super) fn migrate(conn: &mut Connection, applied: u32) -> Result<()> {
     Ok(())
 }
 
-/// The text stored in a column for an enum that serializes as a unit variant name.
 pub(super) fn encode<T: Serialize>(value: T) -> String {
     serde_json::to_value(value)
         .ok()

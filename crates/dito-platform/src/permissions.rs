@@ -16,7 +16,6 @@ pub enum Permission {
 pub enum Status {
     Granted,
     Denied,
-    /// The system has not asked yet.
     NotDetermined,
 }
 
@@ -26,8 +25,8 @@ unsafe extern "C" {
     fn AXIsProcessTrustedWithOptions(options: core_foundation::dictionary::CFDictionaryRef) -> bool;
 }
 
-/// Ask the system to list this app under Privacy & Security → Accessibility (switched off, ready to be turned
-/// on) and show its own "Open System Settings" prompt. Returns whether the app is already trusted.
+/// Lists the app under Privacy & Security, Accessibility (switched off) and shows the system's prompt. Returns
+/// whether the app is already trusted.
 fn prompt_accessibility() -> bool {
     use core_foundation::base::TCFType;
     use core_foundation::boolean::CFBoolean;
@@ -62,8 +61,6 @@ pub fn status(p: Permission) -> Status {
     }
 }
 
-/// Make the app appear in the system's list for `p` and bring the user to the switch.
-///
 /// - Microphone: the first request registers the app and shows the system prompt; once it has been answered the
 ///   only way left is the Settings pane.
 /// - Accessibility: the system call registers the app in the list (switched off) and shows its prompt; the

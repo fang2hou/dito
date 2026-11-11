@@ -15,7 +15,6 @@ pub struct Config {
     pub asr: EngineConfig,
     pub polish: PolishConfig,
     pub prompts: Prompts,
-    /// Also pass wordbook words to the polish model.
     pub wordbook_for_polish: bool,
     pub onboarded: bool,
     pub models_dir: Option<PathBuf>,
@@ -37,9 +36,8 @@ impl Default for Config {
 }
 
 impl Config {
-    /// Development defaults: speech through the bundled cloud configurations, polishing through the `azure` configuration
-    /// (gpt-6.1-terra, low). No endpoint is set; the caller points the active speech configuration and the Azure polish
-    /// endpoint at a server.
+    /// No endpoint is set; the caller points the active speech configuration and the Azure polish endpoint at a
+    /// server.
     pub fn dev_azure() -> Self {
         let mut c = Self::default();
         c.asr.source = Source::Provider;
@@ -53,8 +51,6 @@ impl Config {
         c
     }
 
-    /// Ids of the local models the current settings would run: speech recognition when it is local, and
-    /// polishing when it is enabled and local.
     pub fn local_models_in_use(&self) -> BTreeSet<String> {
         let mut ids = BTreeSet::new();
         if self.asr.source == Source::Local {
@@ -66,7 +62,6 @@ impl Config {
         ids
     }
 
-    /// Labels of the engines the current settings would run: `asr` always, `polish` only when polishing is enabled.
     pub fn engine_labels(&self) -> super::EngineLabels {
         let polish = self.polish.enabled.then(|| self.polish.engine.label());
         super::EngineLabels { asr: Some(self.asr.label()), polish }

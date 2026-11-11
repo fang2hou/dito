@@ -8,8 +8,7 @@ pub enum Edge {
     Bottom,
 }
 
-/// A gradient strip over the top or bottom edge of a scrolling area, fading `color` out
-/// toward the content. `right_inset` keeps it clear of a scrollbar.
+/// `right_inset` keeps it clear of a scrollbar.
 pub fn edge_fade(edge: Edge, color: Hsla, height: f32, right_inset: f32) -> Div {
     let strip = div().absolute().left_0().right(px(right_inset)).h(px(height));
     let (strip, angle) = match edge {

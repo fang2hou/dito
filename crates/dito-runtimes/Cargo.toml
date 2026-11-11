@@ -9,9 +9,7 @@ workspace = true
 
 [features]
 default = ["llama", "sherpa"]
-# llama.cpp (GGUF language models, Metal)
 llama = ["dep:llama-cpp-2", "dep:encoding_rs"]
-# sherpa-onnx (offline speech recognition)
 sherpa = ["dep:sherpa-onnx-sys", "dep:serde_json"]
 
 [dependencies]

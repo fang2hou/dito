@@ -1,5 +1,4 @@
-//! Round-trips a secret through the real login keychain under a throwaway service name.
-//! Ignored by default because it touches the user's keychain:
+//! Ignored by default because it touches the user's real login keychain:
 //!   cargo test -p dito-platform --test keychain -- --ignored
 
 use dito_core::secrets::SecretStore;

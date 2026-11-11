@@ -4,18 +4,16 @@ use serde_json::Value;
 use super::list::{Entry, List};
 use crate::secrets::asr_account;
 
-/// A bundled request JSON a cloud speech configuration can start from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CloudAsrTemplate {
-    /// Saved in the settings as the id of the configuration made first from it, and part of that configuration's Keychain account,
-    /// so it never changes once shipped; a new template is a new row.
+    /// Saved as the id of the first configuration made from it and part of its Keychain account, so it never changes
+    /// once shipped.
     pub id: &'static str,
     pub name: &'static str,
     config: &'static str,
 }
 
 impl CloudAsrTemplate {
-    /// The templates that ship with the app, in tab order.
     pub const ALL: [CloudAsrTemplate; 3] = [
         CloudAsrTemplate {
             id: "funasr",
@@ -34,7 +32,6 @@ impl CloudAsrTemplate {
         },
     ];
 
-    /// The request JSON of the template.
     pub fn config(self) -> Value {
         serde_json::from_str(self.config).expect("bundled ASR template")
     }
@@ -44,10 +41,9 @@ impl CloudAsrTemplate {
     }
 }
 
-/// One saved cloud speech configuration the user can pick: a name, the request JSON and, outside it, a Keychain key.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CloudAsrConfiguration {
-    /// Stable identity; also the suffix of the configuration's Keychain account.
+    /// Stable; also the suffix of the Keychain account.
     pub id: String,
     pub name: String,
     #[serde(with = "config_json")]
@@ -55,7 +51,6 @@ pub struct CloudAsrConfiguration {
 }
 
 impl CloudAsrConfiguration {
-    /// Keychain account of this configuration's API key.
     pub fn account(&self) -> String {
         asr_account(&self.id)
     }
@@ -74,7 +69,6 @@ impl Entry for CloudAsrConfiguration {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct CloudAsrConfigurations {
-    /// Id of the active configuration.
     pub selected: String,
     pub items: Vec<CloudAsrConfiguration>,
 }
@@ -92,8 +86,8 @@ impl CloudAsrConfigurations {
         List::new(&mut self.selected, &mut self.items)
     }
 
-    /// The configuration in use. `None` when no configuration has the selected id: nothing takes its place, so the
-    /// id, the config and the Keychain account are all read from the same configuration or none.
+    /// `None` when no configuration has the selected id: nothing takes its place, so the id, the config and the
+    /// Keychain account always come from the same configuration.
     pub fn active(&self) -> Option<&CloudAsrConfiguration> {
         self.items.iter().find(|configuration| configuration.id == self.selected)
     }
@@ -110,23 +104,21 @@ impl CloudAsrConfigurations {
         self.active().map(|configuration| configuration.name.as_str())
     }
 
-    /// Make `id` the configuration in use. An unknown id changes nothing.
     pub fn select(&mut self, id: &str) -> bool {
         self.list().select(id)
     }
 
-    /// Append a configuration that starts from `template`, select it and return its id.
     pub fn add_from_template(&mut self, template: CloudAsrTemplate, name: &str) -> String {
         let id = self.list().fresh_id(template.id);
         self.list().push(template.configuration(&id, name));
         id
     }
 
-    /// Append a copy of `id` under a new id, select it and return that id. The key is not copied: it belongs to the
-    /// source's Keychain account.
+    /// The key is not copied: it belongs to the source's Keychain account.
     pub fn duplicate(&mut self, id: &str, name: &str) -> Option<String> {
         let mut copy = self.items.iter().find(|configuration| configuration.id == id)?.clone();
-        // A configuration made earlier carries a random suffix after the id of its template: a copy starts from the template.
+        // A configuration made earlier carries a random suffix after the id of its template: a copy starts from the
+        // template.
         let base = copy.id.split('-').next().unwrap_or(&copy.id);
         copy.id = self.list().fresh_id(base);
         copy.name = name.to_owned();
@@ -135,19 +127,16 @@ impl CloudAsrConfigurations {
         Some(id)
     }
 
-    /// Take a configuration out of the list and return it. Its key is still under its `account()`:
-    /// `ConfigStore::remove_cloud_asr_configuration` removes both, deleting the key only once the list is saved. The last configuration
-    /// stays, so this returns `None` for it. When the configuration in use goes, its neighbour is selected.
+    /// The key stays under `account()`: `ConfigStore::remove_cloud_asr_configuration` deletes it only once the list is
+    /// saved. The last configuration is never removed (`None`).
     pub fn remove(&mut self, id: &str) -> Option<CloudAsrConfiguration> {
         self.list().remove(id)
     }
 
-    /// Put `id` at `index` of the list as it is afterwards.
     pub fn move_to(&mut self, id: &str, index: usize) -> bool {
         self.list().move_to(id, index)
     }
 
-    /// Rename `id`; a blank name is refused.
     pub fn rename(&mut self, id: &str, name: &str) -> bool {
         self.list().rename(id, name)
     }

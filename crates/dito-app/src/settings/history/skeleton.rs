@@ -5,8 +5,7 @@ use gpui_kit::*;
 use crate::theme::Palette;
 use crate::ui::{self, Motion, hex_alpha};
 
-/// Placeholder day groups for the first load: the toolbar is live already and only the heavy rows
-/// defer. Two groups keep the shape of the real list so the swap does not reflow the page.
+/// Two groups keep the shape of the real list so the swap does not reflow the page.
 pub(super) fn skeleton_column(p: &Palette) -> Div {
     let mut column = div().w_full().flex().flex_col().gap(px(20.));
     let animate = !Motion::system().is_reduced();
@@ -21,9 +20,7 @@ pub(super) fn skeleton_column(p: &Palette) -> Div {
     column
 }
 
-/// One shimmering placeholder row, sized against the real rows (~89 px pitch): two text bars
-/// plus a short meta bar, action-button squares on the right, and a gloss band sweeping
-/// across on a loop.
+/// Sized against the real rows (~89 px pitch).
 fn skeleton_row(p: &Palette, id: usize, animate: bool) -> Div {
     let mut bars = div().flex_1().min_w(px(0.)).flex().flex_col().gap(px(10.));
     let seg = p.seg;

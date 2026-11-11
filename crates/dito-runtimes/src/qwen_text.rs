@@ -1,6 +1,6 @@
 use dito_local::AsrOutput;
 
-/// The model answers as `language Chinese<asr_text>今天……`; map the label to an ISO code.
+/// The model answers as `language <Name><asr_text><transcript>`; map the label to an ISO code.
 pub(crate) fn parse_output(raw: &str) -> AsrOutput {
     match raw.split_once("<asr_text>") {
         Some((head, text)) => AsrOutput {
@@ -73,7 +73,6 @@ pub(crate) fn is_vocabulary_echo(text: &str, hotwords: &[String]) -> bool {
     matched.len() >= 2
 }
 
-/// Drop a leading `<think>…</think>` block if the model produced one.
 pub(crate) fn strip_think(s: &str) -> String {
     match s.find("</think>") {
         Some(end) => s[end + "</think>".len()..].trim().to_string(),

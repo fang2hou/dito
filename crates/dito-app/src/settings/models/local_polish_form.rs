@@ -1,5 +1,4 @@
-//! The parameters of the local polish model in use (`design:settings/local-models/parameters`): the inputs that show them, and the block under the model
-//! list that draws them.
+//! The parameters of the local polish model in use (`design:settings/local-models/parameters`).
 
 use std::ops::Index;
 
@@ -12,11 +11,8 @@ use super::polish_field_rules::LocalPolishField;
 use crate::settings::Ctx;
 use crate::ui::{self, InputState, ParamField};
 
-/// The inputs of the parameter block under the local polish models: one per [`LocalPolishField`], showing the model
-/// in use.
 pub(super) struct LocalPolishForm {
     inputs: [Entity<InputState>; 4],
-    /// Id of the model whose parameters the inputs show.
     shown: Option<String>,
     placeholders: Option<Lang>,
 }
@@ -30,7 +26,6 @@ impl LocalPolishForm {
         }
     }
 
-    /// The id of the model whose parameters the inputs show.
     pub(super) fn shown(&self) -> Option<&str> {
         self.shown.as_deref()
     }
@@ -39,12 +34,10 @@ impl LocalPolishForm {
         self[field].read(cx).value().to_string()
     }
 
-    /// Whether the text of `field` is wrong for its setting.
     pub(super) fn invalid(&self, field: LocalPolishField, cx: &App) -> bool {
         field.invalid(&self.text(field, cx))
     }
 
-    /// Make the inputs show the `params` of `model`, the local polish model in use, unless they show it already.
     /// Setting a value is not an edit, so nothing is saved by this.
     pub(super) fn follow(
         &mut self,
@@ -80,8 +73,7 @@ impl Index<LocalPolishField> for LocalPolishForm {
 }
 
 impl ModelsPage {
-    /// The parameters of the local polish model in use, under the model list. An empty field uses the value
-    /// recommended for that model.
+    /// An empty field uses the value recommended for that model.
     pub(super) fn local_polish_parameters(&self, c: &Ctx, cx: &App) -> Div {
         let cfg = self.st.cfg.get();
         let model = &cfg.polish.engine.local_model;

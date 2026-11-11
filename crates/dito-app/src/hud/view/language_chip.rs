@@ -30,8 +30,7 @@ pub(super) fn chip_width(languages: impl Iterator<Item = PreferredLanguage>) -> 
 }
 
 impl HudView {
-    /// The same animated segmented control as the settings, sized for the HUD (dark track, gold sliding plate).
-    /// Returns a builder that draws it at scale `k`, so the hover pop can grow it like a tooltip.
+    /// Returns a builder that draws the chip at scale `k`, so the hover pop can grow it like a tooltip.
     pub(super) fn language_chip(
         &self,
         palette: &Palette,

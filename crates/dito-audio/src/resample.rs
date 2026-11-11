@@ -1,4 +1,4 @@
-//! Streaming windowed-sinc resampler (any rate → 16 kHz). Quality is plenty for speech recognition.
+//! Streaming windowed-sinc resampler to 16 kHz.
 
 const HALF_TAPS: usize = 24;
 

@@ -45,7 +45,6 @@ impl Hotkeys {
         self.service.lock().unwrap().is_some()
     }
 
-    /// Ask the tap to report the next shortcut the user presses.
     pub fn begin_capture(&self) {
         if let Some(s) = self.service.lock().unwrap().as_ref() {
             s.begin_capture();
@@ -53,7 +52,6 @@ impl Hotkeys {
         }
     }
 
-    /// Stop waiting for a shortcut and keep the current one.
     pub fn cancel_capture(&self) {
         if let Some(s) = self.service.lock().unwrap().as_ref() {
             s.cancel_capture();
@@ -74,7 +72,6 @@ impl Hotkeys {
     }
 }
 
-/// Pump tap actions into the dictation controller and the settings capture flow. Runs on its own thread.
 pub fn spawn_dispatcher(
     rx: std::sync::mpsc::Receiver<Action>,
     hotkeys: Arc<Hotkeys>,

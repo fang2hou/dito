@@ -22,7 +22,6 @@ pub(super) struct Ending(pub(super) Rc<RefCell<Option<anyhow::Error>>>);
 
 impl Global for Ending {}
 
-/// What the window needs to carry on with a normal launch once the settings are restored.
 #[derive(Clone)]
 pub struct Launch {
     pub opts: Opts,
@@ -43,7 +42,6 @@ const DETAIL_PAD_Y: f32 = 12.;
 const DETAIL_GAP: f32 = 4.;
 const PATH_FONT: &str = "Menlo";
 
-/// Font size and line height of one kind of text.
 struct Type {
     size: f32,
     line: f32,
@@ -53,8 +51,8 @@ const TITLE: Type = Type { size: 20., line: 30. };
 const BODY: Type = Type { size: 13., line: 20. };
 const DETAIL: Type = Type { size: 12., line: 18. };
 
-/// The card of `design:settings/startup-failure`. It follows the system appearance and language: the saved ones cannot be trusted while the
-/// settings cannot be read, and the window must look the same whichever file failed.
+/// The card of `design:settings/startup-failure`. It follows the system appearance and language: the saved ones cannot
+/// be trusted while the settings cannot be read, and the window must look the same whichever file failed.
 pub struct FailureView {
     failure: Failure,
     /// Replaces the reason in the details after a restore that did not work, so the person sees why.
@@ -87,7 +85,6 @@ impl FailureView {
         self.problem.clone().unwrap_or_else(|| self.failure.reason(lang))
     }
 
-    /// Keep the settings file as a backup, write the defaults, then carry on with the launch.
     fn restore(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         match restore_defaults(self.failure.path()) {
             Ok(backup) => {
@@ -102,8 +99,7 @@ impl FailureView {
         }
     }
 
-    /// Build the app in this process, now that the settings load, and hand the screen over to it. The data may still
-    /// hold another problem (a history from a newer Dito), which gets its own turn in this window.
+    /// The data may still hold another problem (a history from a newer Dito), which gets its own turn in this window.
     fn carry_on(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         match AppState::build(self.launch.opts.clone(), &self.launch.rt) {
             Ok(st) => {
@@ -128,7 +124,6 @@ impl FailureView {
         }
     }
 
-    /// Resize the window to the text it now holds, and repaint.
     fn fit(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let frame = frameless(window, card_height(&self.failure, &self.reason(system_language())));
         // Named in full: `HasWindowHandle` has a method of the same name.
@@ -170,7 +165,7 @@ impl FailureView {
         card.child(self.actions(p, lang, cx))
     }
 
-    /// The file and the reason it cannot be used, both selectable: pressing here selects text, never moves the window.
+    /// Pressing here selects text, never moves the window.
     fn details(&self, p: &Palette, lang: Lang) -> Div {
         let path = ui::selectable_text(
             p,
@@ -197,7 +192,6 @@ impl FailureView {
             .child(reason.line_height(px(DETAIL.line)))
     }
 
-    /// Finder on the left edge, then Quit and, where it is on offer, Restore at the right.
     fn actions(&self, p: &Palette, lang: Lang, cx: &mut Context<Self>) -> Div {
         let path = self.failure.path().to_owned();
         let finder = ui::button(
@@ -240,8 +234,6 @@ impl Render for FailureView {
     }
 }
 
-/// The height of the window for `failure` with `reason` in its details: the card's border and padding around every
-/// block of text, each at the number of lines the renderer wraps it to at the card's width.
 fn card_height(failure: &Failure, reason: &str) -> f32 {
     let content = WIDTH - 2. * (BORDER + PAD_X);
     let detail = content - 2. * (BORDER + DETAIL_PAD_X);
@@ -266,11 +258,10 @@ fn card_height(failure: &Failure, reason: &str) -> f32 {
     (2. * (BORDER + PAD_Y) + blocks.iter().sum::<f32>() + GAP * (blocks.len() - 1) as f32).ceil()
 }
 
-/// The card is the whole window. macOS gives a titled window a frame of its own (a rounded corner mask, a border, a
-/// shadow and a background) even when gpui draws no title bar, and that frame would show around the card as a second
-/// shape. So the frame is taken away and the window made as large as the card, which then fills it to the corners.
-/// `HudNativeWindow` is the app's wrapper for such windows: the HUD is one too. The change is applied later, once the
-/// borrow of the app that this runs under is released.
+/// macOS gives a titled window a frame of its own (a rounded corner mask, a border, a shadow and a background) even
+/// when gpui draws no title bar, and that frame would show around the card as a second shape. So the frame is taken
+/// away and the window made as large as the card. The change is applied later, once the borrow of the app that this
+/// runs under is released.
 fn frameless(window: &Window, height: f32) -> Option<FramelessWindow> {
     let handle = HasWindowHandle::window_handle(window).ok()?;
     let RawWindowHandle::AppKit(handle) = handle.as_raw() else { return None };
@@ -278,8 +269,7 @@ fn frameless(window: &Window, height: f32) -> Option<FramelessWindow> {
     unsafe { HudNativeWindow::from_ns_view(handle.ns_view) }?.frameless((f64::from(WIDTH), f64::from(height)))
 }
 
-/// Open the window for `failure`, centered on the screen, as tall as its text. `shown` is false for the screenshot
-/// harness, whose windows are never put on screen.
+/// `shown` is false for the screenshot harness, whose windows are never put on screen.
 pub fn open(
     failure: Failure,
     appearance: Appearance,

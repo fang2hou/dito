@@ -1,4 +1,4 @@
-//! Bedrock Converse engine against the mock: polish, request shaping and error classes.
+//! Bedrock Converse engine against the mock.
 
 use std::sync::Once;
 
@@ -48,7 +48,6 @@ async fn engine(url: &str, model: &str) -> BedrockEngine {
     .await
 }
 
-/// What the engine sent for one polish call with `params`: the Converse request body.
 async fn sent(model: &str, params: CloudPolishParams) -> Value {
     let srv = MockServer::start().await.unwrap();
     let e = engine_with(&srv.url, model, params).await;
@@ -60,7 +59,6 @@ fn approx(value: &Value, expected: f64) -> bool {
     value.as_f64().is_some_and(|v| (v - expected).abs() < 1e-6)
 }
 
-/// The sampling the engine sent before it was configurable, which the Bedrock template starts with.
 fn template_params() -> CloudPolishParams {
     CloudPolishTemplate::Bedrock.configuration("bedrock", "Amazon Bedrock").params
 }

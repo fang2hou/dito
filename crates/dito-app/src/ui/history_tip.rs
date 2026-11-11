@@ -9,8 +9,7 @@ use super::typography::{text, text_width};
 use crate::assets::Ic;
 use crate::theme::Palette;
 
-/// History's divider-centred hint: the same tooltip surface, with a reversible
-/// chevron and cross-fading labels. It is passive so it never steals a row click.
+/// Passive, so it never steals a row click.
 pub fn history_tip(
     p: &Palette,
     id: ElementId,

@@ -6,22 +6,14 @@ use anyhow::Result;
 
 #[derive(Debug, Clone, Default)]
 pub struct Opts {
-    /// Run against in-process mock cloud endpoints and a synthetic microphone.
     pub mock: bool,
-    /// With `--mock`: use the real microphone instead of the synthetic tone.
     pub real_mic: bool,
-    /// Do not type into other apps; only log what would be inserted.
     pub log_sink: bool,
-    /// Open the settings window at launch, as a person checking a build would otherwise do from the menu bar.
     pub open_settings: bool,
-    /// Drive one dictation without keyboard input, print the outcome, then exit (smoke test).
     pub demo_run: bool,
-    /// Use this 16-bit mono WAV as the microphone's recording (real engines, no microphone or permissions needed).
     pub wav: Option<PathBuf>,
     pub data_dir: Option<PathBuf>,
-    /// Render every window to PNG files in this directory and exit (needs the `screenshots` feature).
     pub screenshots: Option<PathBuf>,
-    /// Pretend the system language is this one (ja, en, zh) instead of asking macOS.
     pub system_lang: Option<dito_core::i18n::Lang>,
 }
 

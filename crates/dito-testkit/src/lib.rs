@@ -1,6 +1,4 @@
-//! A local mock of the cloud endpoints Dito talks to: Azure OpenAI, OpenAI-compatible servers and
-//! Bedrock Converse. Used by integration tests and by `dito-mock-server` for offline development.
-//! [`mock_cloud_asr_config`] is the cloud speech request JSON that points at its transcription route.
+//! A local mock of the cloud endpoints Dito talks to, for integration tests and `dito-mock-server`.
 
 mod bedrock;
 mod behavior;

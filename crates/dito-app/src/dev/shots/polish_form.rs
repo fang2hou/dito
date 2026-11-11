@@ -1,8 +1,8 @@
-//! The cloud polish tab, driven the way a person drives it: simulated pointer events on the tiles, the plus menu, the
-//! trash button and the dialog, and typing through the inputs. Every step checks what it did to the saved settings and
-//! the key store, and the shots are the ones `design:models/cloud/configurations` to `design:models/cloud/tile-row` are compared with. Opt-in:
-//! `DITO_SHOTS_ONLY=polishform`, with `--mock --data-dir <dir>` so the settings file is known. Run with `--lang en` to
-//! see that the stand-in names follow the display language, not the system's.
+//! Shots compared with `design:settings/cloud-models/configurations`, `design:settings/cloud-models/failed-test`,
+//! `design:settings/cloud-models/add-from-template`, `design:settings/cloud-models/delete-configuration` and
+//! `design:settings/cloud-models/tile-row`.
+//! Opt-in: `DITO_SHOTS_ONLY=polishform`, with `--mock --data-dir <dir>` so the settings file is known. Run with
+//! `--lang en` to see that the stand-in names follow the display language, not the system's.
 
 use std::path::Path;
 use std::sync::Arc;
@@ -22,8 +22,8 @@ use crate::services;
 use crate::settings::{self, ModelsProbe, Page};
 use crate::state::AppState;
 
-/// The design's 1120 wide window has a 1 pt frame on each side. The shots use the window without it, so the card is
-/// the 774 wide of the references and its rows line up with them.
+/// The design's 1120 wide window has a 1 pt frame on each side that the shots leave out, so the card is the 774 wide
+/// of the references and its rows line up with them.
 const WIDTH: f32 = 1118.;
 const HEIGHT: f32 = 978.;
 /// Left edge of the card's content: 232 sidebar, 56 page padding, 1 border and 26 padding.
@@ -74,7 +74,6 @@ fn dialog_cancel() -> Point<Pixels> {
     point(px(WIDTH / 2. + 131.), px(HEIGHT / 2. + 42.))
 }
 
-/// Where the tile `index` is centred in the row scrolled to `offset`.
 fn tile(index: usize, offset: f32) -> Point<Pixels> {
     point(px(LEFT + index as f32 * TILE_PITCH + TILE_W / 2. - offset), px(ROW_CENTRE))
 }
@@ -83,12 +82,10 @@ fn tile(index: usize, offset: f32) -> Point<Pixels> {
 /// scrolls gives the slot under the pointer by where the row is scrolled to.
 const DROP_X: f32 = LEFT + 130.;
 
-/// The slot a tile of the scrolling row lands in when its centre is dropped at `x`.
 fn slot_at(x: f32, offset: f32, count: usize) -> usize {
     (((x - LEFT + offset) / TILE_PITCH).floor().max(0.) as usize).min(count - 1)
 }
 
-/// The order the tiles have after the tile at `from` was dropped in the slot `to`.
 fn moved(ids: &[String], from: usize, to: usize) -> Vec<String> {
     let mut order = ids.to_vec();
     let tile = order.remove(from);
@@ -96,7 +93,6 @@ fn moved(ids: &[String], from: usize, to: usize) -> Vec<String> {
     order
 }
 
-/// The cloud polish configuration in use, as saved.
 fn active(st: &AppState) -> CloudPolishConfiguration {
     let cfg = st.cfg.get();
     cfg.polish.engine.polish_configurations(cfg.general.lang()).active().cloned().expect("one is selected")
@@ -119,8 +115,8 @@ fn shot_name(name: &str, language: &str, tag: &str) -> String {
     if language == "ja" { format!("polish-{name}-{tag}.png") } else { format!("polish-{name}-{language}-{tag}.png") }
 }
 
-/// The three configurations of `design:models/cloud/configurations` in the order of the design, the first in use and holding a key, and with a
-/// fourth that makes the row overflow when `four`.
+/// The configurations of `design:settings/cloud-models/configurations`, in its order. `four` adds one that makes the
+/// row overflow.
 fn staged(four: bool) -> CloudPolishConfigurations {
     let mut list = CloudPolishConfigurations::new(Lang::Ja);
     for (id, name, address, model, temperature) in [
@@ -169,8 +165,8 @@ impl Rig<'_> {
         });
     }
 
-    /// One probe step, followed by a frame: the page follows the settings when it is drawn, as it does between a click
-    /// and the typing that comes after it.
+    /// Followed by a frame: the page only follows the settings when it is drawn, as between a click and the typing
+    /// that comes after it.
     fn step(&mut self, case: &'static str, arg: &str, text: &str) {
         on_settings_window(self.cx, |window, cx, view| {
             view.update(cx, |s, cx| s.probe_models(case, arg, text, window, cx));
@@ -178,7 +174,6 @@ impl Rig<'_> {
         });
     }
 
-    /// Type `text` into `field` of the cloud polish form, as the user does: what is there is replaced.
     fn type_cloud(&mut self, field: &'static str, text: &str) {
         self.step("type", field, text);
     }
@@ -197,7 +192,6 @@ impl Rig<'_> {
         out.expect("settings window")
     }
 
-    /// Wait until the connection test of the form has a result.
     async fn tested(&mut self) -> &'static str {
         let start = Instant::now();
         loop {
@@ -210,8 +204,8 @@ impl Rig<'_> {
         }
     }
 
-    /// Start from the `list` of configurations in `appearance` and `language`, or from nothing saved, where the
-    /// templates stand in: the page is rebuilt so that nothing typed, opened or scrolled before is left in it.
+    /// A `list` of `None` means nothing saved, where the templates stand in. The page is rebuilt so that nothing
+    /// typed, opened or scrolled before is left in it.
     async fn start(
         &mut self,
         appearance: Appearance,
@@ -244,8 +238,7 @@ impl Rig<'_> {
         self.wait(300).await;
     }
 
-    /// Drag the tile under `from` to `to` in steps, the way the tile row's own shots do, with a shot named `lifted`
-    /// taken while the tile is in the air.
+    /// `lifted` names a shot taken while the tile is in the air.
     async fn drag(&mut self, from: Point<Pixels>, to: Point<Pixels>, lifted: Option<&str>) {
         on_settings_window(self.cx, |window, cx, _| {
             hover(window, cx, from);
@@ -267,7 +260,6 @@ impl Rig<'_> {
         self.wait(400).await;
     }
 
-    /// Click the plus button and the row `index` of its menu.
     async fn add_through_menu(&mut self, index: usize) {
         self.click(plus());
         self.wait(300).await;
@@ -276,8 +268,6 @@ impl Rig<'_> {
         self.wait(700).await;
     }
 
-    /// A configuration was just added: it is named `新しい設定`, joined the end, is selected and shown, and its name is
-    /// focused with all of it selected. Returns its id.
     fn assert_added(&mut self, before: &[String]) -> String {
         let new_name = Lang::Ja.tr(Tr::ModelsNewConfiguration);
         let list = saved(self.st);
@@ -300,7 +290,6 @@ impl Rig<'_> {
         added.id
     }
 
-    /// Click the trash and answer the dialog that opens: with `confirm` or with Cancel.
     async fn delete_shown(&mut self, confirm: bool) {
         let name = active(self.st).name;
         self.click(trash());
@@ -312,14 +301,11 @@ impl Rig<'_> {
     }
 }
 
-/// The scene of the references in one appearance: the tiles, the open menu, and the states after adding, duplicating
-/// and dragging.
 async fn scene(rig: &mut Rig<'_>, appearance: Appearance) {
     let tag = theme_tag(appearance);
     rig.start(appearance, DisplayLanguage::Ja, Some(staged(false)), (WIDTH, HEIGHT)).await;
     rig.shot(&shot_name("tiles", "ja", tag)).await;
 
-    // Four tiles overflow the row: the right edge fades, the left one has nothing beyond it.
     rig.start(appearance, DisplayLanguage::Ja, Some(staged(true)), (WIDTH, HEIGHT)).await;
     let state = rig.probe();
     assert_eq!((state.tiles.0, state.tiles.1 > 0.), (0., true), "four tiles of 216 overflow their row");
@@ -340,7 +326,6 @@ async fn scene(rig: &mut Rig<'_>, appearance: Appearance) {
     rig.assert_added(&before);
     rig.shot(&shot_name("tiles-duplicated", "ja", tag)).await;
 
-    // The last tile is dropped near the start of the row: the others slide to open its place.
     let offset = rig.probe().tiles.0;
     let before = ids(rig.st);
     let count = before.len();
@@ -351,13 +336,10 @@ async fn scene(rig: &mut Rig<'_>, appearance: Appearance) {
     rig.shot(&shot_name("tiles-reordered", "ja", tag)).await;
 }
 
-/// Run every action once against the tab and check the saved result: selecting, typing in each field, adding from
-/// each template, duplicating, reordering, the connection test, a failed save, deleting and the local parameters.
 async fn behavior(rig: &mut Rig<'_>, server: &str) {
     rig.start(Appearance::Light, DisplayLanguage::Ja, Some(staged(false)), (WIDTH, HEIGHT)).await;
     let st = rig.st.clone();
 
-    // The form starts on the configuration in use; a click on a tile selects at once and the form follows.
     let state = rig.probe();
     assert_eq!((state.shown.as_deref(), state.text("name").as_str()), (Some("compat"), "ふだん使い"));
     rig.click(tile(1, 0.));
@@ -370,7 +352,6 @@ async fn behavior(rig: &mut Rig<'_>, server: &str) {
     rig.wait(200).await;
     assert_eq!(rig.probe().text("key"), "sk-demo-0123456789abcdef");
 
-    // Everything typed is saved as it changes, into the configuration the form shows.
     rig.type_cloud("name", "ふだん使い 改");
     rig.type_cloud("address", "https://openrouter.ai/api/v1/chat/completions");
     rig.type_cloud("model", "openai/gpt-4o");
@@ -399,7 +380,6 @@ async fn behavior(rig: &mut Rig<'_>, server: &str) {
     local_parameters(rig).await;
 }
 
-/// Texts the settings cannot take: not saved, the last valid value stays, the field shows the danger border.
 async fn invalid_texts(rig: &mut Rig<'_>) {
     let st = rig.st.clone();
     rig.type_cloud("temperature", "abc");
@@ -430,7 +410,6 @@ async fn invalid_texts(rig: &mut Rig<'_>) {
     assert!(rig.probe().invalid.is_empty(), "the borders are gone as soon as the texts parse");
     rig.shot("polish-parameters-light.png").await;
 
-    // Emptying a field clears the value.
     for field in ["temperature", "top_p", "max_tokens", "effort", "extra"] {
         rig.type_cloud(field, "");
     }
@@ -439,7 +418,6 @@ async fn invalid_texts(rig: &mut Rig<'_>) {
     assert!(params.extra.is_empty() && params.reasoning_effort.as_str().is_empty());
     rig.type_cloud("temperature", "0.2");
 
-    // A name that is emptied stays as saved, and comes back when focus leaves the field.
     rig.type_cloud("name", "");
     assert_eq!(active(&st).name, "ふだん使い", "an empty name is not saved");
     assert_eq!(rig.probe().text("name"), "");
@@ -448,7 +426,6 @@ async fn invalid_texts(rig: &mut Rig<'_>) {
     println!("verified: invalid texts stay out of the settings and are flagged; empty fields clear; the name returns");
 }
 
-/// The connection test against the mock server, and against a port nothing listens on.
 async fn connection_tests(rig: &mut Rig<'_>, server: &str) {
     rig.click(tile(1, 0.));
     rig.wait(200).await;
@@ -470,7 +447,7 @@ async fn connection_tests(rig: &mut Rig<'_>, server: &str) {
     rig.type_cloud("address", "https://openrouter.ai/api/v1/chat/completions");
 }
 
-/// Saving fails for real: the temporary file the settings are written through is blocked by a directory.
+/// The settings are written through a temporary file, which a directory of the same name blocks.
 async fn save_failure(rig: &mut Rig<'_>) {
     let st = rig.st.clone();
     let blocker = st.cfg.path().with_extension("toml.tmp");
@@ -491,9 +468,6 @@ async fn save_failure(rig: &mut Rig<'_>) {
     rig.wait(200).await;
     assert!(!rig.probe().save_failed, "Close dismisses the banner");
 
-    // Every save on the page reports into the same banner, not only the form's own. A switch between Local and Cloud
-    // that works takes down a banner an earlier failure raised, and one that cannot be saved raises it and changes
-    // nothing.
     rig.type_cloud("name", "ふだん使い 4");
     assert!(rig.probe().save_failed);
     std::fs::remove_dir(&blocker).expect("unblock the settings file");
@@ -512,7 +486,6 @@ async fn save_failure(rig: &mut Rig<'_>) {
     println!("verified: a failed save shows the banner; Close and the next good save clear it, from any control");
 }
 
-/// Adding from each template, duplicating, reordering and the scroll that follows them.
 async fn adding_and_reordering(rig: &mut Rig<'_>) {
     let st = rig.st.clone();
     let start = ids(&st);
@@ -532,7 +505,6 @@ async fn adding_and_reordering(rig: &mut Rig<'_>) {
     assert_eq!(ids(&st).len(), start.len() + 3);
     rig.shot("polish-tiles-six-light.png").await;
 
-    // Typing into a fresh configuration names it: the name is selected, so typing replaces it.
     rig.type_cloud("name", "Mine");
     rig.type_cloud("model", "mine-model");
     rig.type_cloud("key", "mine-key");
@@ -541,7 +513,6 @@ async fn adding_and_reordering(rig: &mut Rig<'_>) {
     assert_eq!(key_of(&st, &mine.id).as_deref(), Some("mine-key"));
     assert_eq!(rig.probe().text("name"), "Mine");
 
-    // Duplicating copies what is saved of the configuration in use, and never its key.
     let before = ids(&st);
     rig.add_through_menu(3).await;
     let copy = rig.assert_added(&before);
@@ -555,7 +526,6 @@ async fn adding_and_reordering(rig: &mut Rig<'_>) {
     );
     rig.shot("polish-tiles-copy-light.png").await;
 
-    // A drag reorders and saves on the drop; it does not select, and a plain click still does.
     let (offset, selected) = (rig.probe().tiles.0, saved(&st).selected);
     let before = ids(&st);
     // The row is scrolled to its end, where the last tile sits under the fade: take the one before it.
@@ -567,14 +537,12 @@ async fn adding_and_reordering(rig: &mut Rig<'_>) {
     assert_eq!(after, moved(&before, from, slot), "the dragged tile took the slot it was dropped in");
     assert_eq!(saved(&st).selected, selected, "dragging does not select");
     assert_eq!(key_of(&st, &mine.id).as_deref(), Some("mine-key"), "keys stay with their configurations");
-    // A plain click on the tile in the middle of the row still selects.
     let offset = rig.probe().tiles.0;
     let middle = (((offset + VIEW / 2. - TILE_W / 2.) / TILE_PITCH).round() as usize).min(after.len() - 1);
     rig.click(tile(middle, offset));
     rig.wait(300).await;
     assert_eq!(saved(&st).selected, after[middle], "a click after a drag still selects");
 
-    // Everything is in the file, not only in memory.
     let on_disk = ConfigStore::open(st.cfg.path()).expect("the settings file reads back").get();
     assert_eq!(on_disk.polish.engine.cloud_polish, st.cfg.get().polish.engine.cloud_polish);
     println!(
@@ -584,7 +552,6 @@ async fn adding_and_reordering(rig: &mut Rig<'_>) {
 
 async fn deleting(rig: &mut Rig<'_>) {
     let st = rig.st.clone();
-    // Back to the three of the design.
     rig.start(Appearance::Light, DisplayLanguage::Ja, Some(staged(false)), (WIDTH, HEIGHT)).await;
     rig.click(tile(1, 0.));
     rig.wait(200).await;
@@ -593,7 +560,6 @@ async fn deleting(rig: &mut Rig<'_>) {
     rig.wait(300).await;
     assert_eq!(rig.probe().deleting.as_deref(), Some("高精度"));
     rig.shot("polish-delete-light.png").await;
-    // Escape and Cancel back out; nothing is deleted.
     rig.key("escape");
     assert_eq!(rig.probe().deleting, None, "Escape closes the dialog");
     rig.delete_shown(false).await;
@@ -608,7 +574,6 @@ async fn deleting(rig: &mut Rig<'_>) {
     assert_eq!(rig.probe().shown.as_deref(), Some("bedrock"), "the form follows the neighbour");
     rig.shot("polish-deleted-light.png").await;
 
-    // Down to one: the trash is off and does nothing.
     rig.delete_shown(true).await;
     assert_eq!(ids(&st), ["compat"]);
     rig.shot("polish-last-light.png").await;
@@ -621,8 +586,8 @@ async fn deleting(rig: &mut Rig<'_>) {
     );
 }
 
-/// The form shows a configuration that was just deleted until the page is drawn again. A key typed into that gap is
-/// not stored: the Keychain would hold it under an account that nothing reads or deletes.
+/// The form shows a deleted configuration until the page is drawn again. A key typed into that gap must not be
+/// stored: the Keychain would hold it under an account that nothing reads or deletes.
 async fn key_after_delete(rig: &mut Rig<'_>) {
     let st = rig.st.clone();
     rig.start(Appearance::Light, DisplayLanguage::Ja, Some(staged(false)), (WIDTH, HEIGHT)).await;
@@ -663,7 +628,6 @@ async fn local_parameters(rig: &mut Rig<'_>) {
     rig.type_local("temperature", "0.3");
     rig.shot("polish-local-light.png").await;
 
-    // Another model in use: the fields follow it, and the first model keeps its parameters.
     let other = rig.probe().local_models.into_iter().find(|id| *id != model).expect("a second polish model");
     services::save_config(&st, |c| c.polish.engine.local_model = other.clone());
     rig.draw();
@@ -680,8 +644,6 @@ async fn local_parameters(rig: &mut Rig<'_>) {
     assert!(st.cfg.get().polish.engine.local_params.is_empty(), "parameters that set nothing are not kept");
     rig.type_local("temperature", "0.3");
 
-    // The Use button of another model saves its selection like every other control of the page: one that cannot be
-    // saved raises the banner and leaves the model in use as it was.
     let blocker = st.cfg.path().with_extension("toml.tmp");
     std::fs::create_dir_all(&blocker).expect("block the settings file's temporary name");
     rig.step("use-model", &other, "");
@@ -697,7 +659,6 @@ async fn local_parameters(rig: &mut Rig<'_>) {
     println!("verified: local parameters are saved per model, follow the model in use and flag what does not parse");
 }
 
-/// The tiles, the menu and the form in English and Chinese.
 async fn languages(rig: &mut Rig<'_>, appearance: Appearance) {
     let tag = theme_tag(appearance);
     for (language, name) in [(DisplayLanguage::En, "en"), (DisplayLanguage::Zh, "zh")] {
@@ -706,7 +667,6 @@ async fn languages(rig: &mut Rig<'_>, appearance: Appearance) {
         rig.click(plus());
         rig.wait(300).await;
         rig.shot(&shot_name("tiles-menu", name, tag)).await;
-        // A click on the blank page below the card closes the menu.
         rig.click(point(px(700.), px(900.)));
         rig.wait(200).await;
         assert!(!rig.probe().menu_open, "a click outside closes the menu");
@@ -719,7 +679,6 @@ async fn languages(rig: &mut Rig<'_>, appearance: Appearance) {
     }
 }
 
-/// Nothing saved yet: the three templates stand in, named in the display language and not in the system's.
 async fn stand_ins(rig: &mut Rig<'_>, appearance: Appearance) {
     rig.start(appearance, DisplayLanguage::Ja, None, (WIDTH, HEIGHT)).await;
     rig.shot(&shot_name("fresh", "ja", theme_tag(appearance))).await;
@@ -727,7 +686,6 @@ async fn stand_ins(rig: &mut Rig<'_>, appearance: Appearance) {
     assert_eq!(names, ["Azure OpenAI", "Amazon Bedrock", "OpenAI 互換 API"]);
 }
 
-/// Opt-in: `DITO_SHOTS_ONLY=polishform`, with `--mock --data-dir <dir>`.
 pub async fn polish_form_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     let original = st.cfg.get();
     // The mock server's address is the one its azure configuration starts with.

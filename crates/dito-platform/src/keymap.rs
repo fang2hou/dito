@@ -69,15 +69,13 @@ fn translate(layout: &CFData, keycode: u16) -> Option<String> {
     (status == 0 && len > 0).then(|| String::from_utf16_lossy(&buf[..len]))
 }
 
-/// The character `keycode` prints with no modifiers on the current layout. Call from the main thread only
-/// (the Text Input Sources API asserts on it).
+/// Call from the main thread only (the Text Input Sources API asserts on it).
 pub fn layout_char(keycode: u16) -> Option<String> {
     let source = current_layout_source()?;
     let printed = translate(&layout_data(&source)?, keycode)?;
     (!printed.trim().is_empty() && !printed.chars().any(char::is_control)).then_some(printed)
 }
 
-/// Shortcut label using the real keyboard layout for character keys.
 pub fn label(shortcut: &Shortcut, lang: Lang) -> String {
     shortcut.label_with(lang, layout_char)
 }

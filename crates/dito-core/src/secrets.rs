@@ -7,26 +7,23 @@ pub enum SecretError {
     Backend(String),
 }
 
-/// Where API keys live. The app uses the macOS keychain; tests use [`MemorySecrets`].
+/// The app uses the macOS keychain; tests use [`MemorySecrets`].
 pub trait SecretStore: Send + Sync {
     fn get(&self, account: &str) -> Option<String>;
     fn set(&self, account: &str, value: &str) -> Result<(), SecretError>;
     fn delete(&self, account: &str) -> Result<(), SecretError>;
 }
 
-/// The two engines of a dictation, for code that treats speech recognition and polishing alike.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Role {
     Asr,
     Polish,
 }
 
-/// Keychain account of the key of the cloud polish configuration `id`.
 pub fn polish_account(id: &str) -> String {
     format!("polish.{id}")
 }
 
-/// Keychain account of the key of the cloud speech configuration `id`.
 pub fn asr_account(id: &str) -> String {
     format!("asr.{id}")
 }

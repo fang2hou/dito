@@ -7,7 +7,6 @@ use crate::state::AppState;
 use crate::theme::{self, Palette};
 use crate::ui;
 
-/// Everything a page needs to paint itself: palette, language and the services.
 pub struct Ctx {
     pub p: Palette,
     pub lang: Lang,

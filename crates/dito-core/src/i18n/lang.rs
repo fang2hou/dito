@@ -19,7 +19,6 @@ impl Lang {
         self.name(self)
     }
 
-    /// Name translated into the current UI language.
     pub fn name(self, ui: Lang) -> &'static str {
         ui.tr(match self {
             Self::Ja => Tr::GeneralJapanese,
@@ -36,12 +35,10 @@ impl Lang {
         }
     }
 
-    /// The copy for `message` in this language.
     pub fn tr(self, message: Tr) -> &'static str {
         message.text(self)
     }
 
-    /// Parse a BCP-47 style tag such as `ja-JP`, `en-US` or `zh-Hans-CN`.
     pub fn from_tag(tag: &str) -> Option<Lang> {
         let primary = tag.split(['-', '_', '.']).next()?.to_ascii_lowercase();
         Self::ALL.into_iter().find(|l| l.code() == primary)

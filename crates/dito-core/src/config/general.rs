@@ -27,10 +27,8 @@ pub enum MusicMuteMode {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum InsertMethod {
-    /// Type the text as synthetic key events.
     #[default]
     KeyInput,
-    /// Put the text on the clipboard and send Cmd+V.
     Paste,
 }
 
@@ -43,7 +41,7 @@ pub enum Appearance {
     Dark,
 }
 
-/// Language the speaker most likely uses; `Auto` lets the engine detect it.
+/// `Auto` lets the engine detect the language.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum PreferredLanguage {
@@ -76,7 +74,6 @@ impl PreferredLanguage {
     }
 }
 
-/// Language of the app's own UI: follows the system unless the user picks one.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum DisplayLanguage {
@@ -108,8 +105,7 @@ pub struct General {
     pub insert_method: InsertMethod,
     pub music_mute: MusicMuteMode,
     pub microphone: String,
-    /// Per-device choice (by name) of whether automatic microphone picking may use it. Devices
-    /// not listed follow the default for their connection type.
+    /// Devices not listed follow the default for their connection type.
     pub microphone_auto: BTreeMap<String, bool>,
     pub preferred_language: PreferredLanguage,
     pub hud_languages: Vec<PreferredLanguage>,
@@ -117,13 +113,12 @@ pub struct General {
     /// Off: no Dock icon while the app runs in the background. It still appears while a window is open.
     pub show_dock_icon: bool,
     pub appearance: Appearance,
-    /// HUD appearance follows the OS independently of the settings window.
+    /// Follows the OS independently of the settings window.
     pub hud_appearance: Appearance,
     pub hud_position: HudPosition,
-    /// Distance in points between the countdown's bottom and the usable screen edge.
-    /// Retained for migration of settings written before discrete height levels existed.
+    /// Points. Only read to migrate settings written before height levels existed.
     pub hud_offset: u32,
-    /// Discrete position, -2 through 12. Missing in older configuration files.
+    /// Range -2 through 12; absent in older files.
     pub hud_height_level: Option<i8>,
     pub display_language: DisplayLanguage,
 }
@@ -142,7 +137,6 @@ impl General {
         }
     }
 
-    /// The language the UI is shown in right now.
     pub fn lang(&self) -> Lang {
         self.display_language.resolve()
     }

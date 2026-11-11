@@ -1,4 +1,4 @@
-//! The HUD window view: dictation state, hover and the controls above the capsule.
+//! The HUD window view.
 
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -30,12 +30,10 @@ mod probe;
 #[cfg(feature = "screenshots")]
 pub use probe::PreviewHover;
 
-/// Circle-button hover cross-fade, on the same clock feel as the app's other micro-animations.
 const HOVER_MS: u64 = 140;
-/// Capsule pop-in: liquid stretch and rise.
 pub(crate) const POP_MS: u64 = 300;
 
-/// Hairline of the smaller pills (tooltip, stop, language chip).
+/// The smaller pills (tooltip, stop, language chip) use a thinner hairline than the capsule.
 const PILL_HAIRLINE: f32 = 0.75;
 /// Hovering away keeps the extras for this long, so the pointer can travel to them.
 const LEAVE_GRACE: Duration = Duration::from_millis(250);
@@ -44,7 +42,6 @@ const LABEL_FADE_S: f32 = 0.12;
 type OnPress = Box<dyn Fn(&mut HudView, &mut Window, &mut Context<HudView>)>;
 
 impl Btn {
-    /// What pressing the button does in the HUD window.
     fn on_press(self) -> OnPress {
         match self {
             Self::Cancel => Box::new(|v, _, _| v.send(Command::Cancel)),
@@ -63,28 +60,26 @@ pub struct HudView {
     pub(super) st: Arc<AppState>,
     state: HudState,
     since: Instant,
-    /// Capsule width when the state last changed (design points): the width eases from it to the new
-    /// state's own ([`capsule::rest_width`]) over [`WIDEN_S`], so hold mode's narrow capsule widens on release.
+    /// The width eases from here to the new state's own ([`capsule::rest_width`]) over [`WIDEN_S`], so hold mode's
+    /// narrow capsule widens on release.
     width_from: super::motion::Spring,
-    /// Pointer is over the capsule or the controls above it (the whole hover zone).
+    /// The pointer is over the hover zone: the capsule or the controls above it.
     hover_zone: bool,
     pointer_in_zone: bool,
     leave: ui::Requests,
-    /// Id of the round button under the pointer, if any.
     hover_btn: Option<&'static str>,
-    /// When the window opened; drives the pop-in (state changes do not replay it).
+    /// Drives the pop-in; state changes do not replay it.
     opened: Instant,
     processing: Option<ProcessingMotion>,
     processing_pending: bool,
     displayed_fill: Fill,
-    /// Progress fill of the state being left, so the outgoing capsule keeps its bar while the surface cross-fades.
+    /// Keeps the outgoing capsule's bar while the surface cross-fades.
     previous_fill: Option<f32>,
-    /// Previous processing stage, retained while the brush settles and labels cross-fade.
+    /// Retained while the fill settles and the labels cross-fade.
     previous: Option<HudState>,
     /// Preview mode: fixed animation time, no live updates.
     freeze: Option<f32>,
-    /// The HUD's own motion scope: its hover tweens and controls belong to this window's view,
-    /// not to any page or the settings shell.
+    /// Its hover tweens belong to this window's view, not to any page or the settings shell.
     motion: ui::MotionScope,
     waveform: Waveform,
     wave_tick: Instant,
@@ -96,7 +91,7 @@ pub struct HudView {
     countdown_tick: Option<u64>,
     #[cfg(feature = "screenshots")]
     wave_preview_gain: Option<f32>,
-    /// The hidden-capture frame loop; dropping the view cancels it.
+    /// Dropping the view cancels the hidden-capture frame loop.
     #[cfg(feature = "screenshots")]
     preview_clock: Option<Task<()>>,
 }
@@ -113,7 +108,7 @@ impl HudView {
         view
     }
 
-    /// A view resting in `state`, with no listeners attached.
+    /// No listeners are attached.
     fn idle(st: Arc<AppState>, state: HudState) -> Self {
         Self {
             st,
@@ -221,8 +216,8 @@ impl HudView {
             })
     }
 
-    /// Window-relative hit testing is independent of GPUI hover events: transparent areas must
-    /// continue tracking the pointer while the native window lets mouse events pass through.
+    /// Window-relative hit testing is independent of GPUI hover events: transparent areas must continue tracking the
+    /// pointer while the native window lets mouse events pass through.
     pub(super) fn pointer_update(&mut self, x: f32, y: f32, cx: &mut Context<Self>) -> bool {
         let width = self.width();
         let cfg = self.st.cfg.get();
@@ -244,7 +239,6 @@ impl HudView {
         pointer.interactive
     }
 
-    /// The pointer entered or left the hover zone (capsule + the controls above it).
     fn zone_hover(&mut self, over: bool, cx: &mut Context<Self>) {
         if over {
             self.leave.bump();
@@ -272,15 +266,14 @@ impl Render for HudView {
             self.frame_clock_started = true;
             Self::next_frame(window, cx.entity().downgrade());
         }
-        // The HUD window owns its transient motion state; without this its hover tweens would run
-        // in whatever ambient scope happened to be left over.
+        // The HUD window owns its transient motion state; without this its hover tweens would run in whatever ambient
+        // scope happened to be left over.
         let scope = self.motion.handle();
         ui::with_motion_scope(scope, || ui::tooltip_root(self.render_scoped(cx)))
     }
 }
 
 impl HudView {
-    /// Follow this window's display link. A quiet ocean still skips redundant paints.
     fn next_frame(window: &Window, view: WeakEntity<Self>) {
         window.on_next_frame(move |window, app| {
             let alive = view.update(app, |view, cx| {

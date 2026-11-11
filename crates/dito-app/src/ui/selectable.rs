@@ -6,8 +6,6 @@ use super::primitives::hex_alpha;
 use super::typography::family_for;
 use crate::theme::Palette;
 
-/// [`text`](super::text) the person can select with the pointer and copy with Cmd-C: for values worth pasting
-/// elsewhere, such as a file path or an error message. Set `font_family` or `line_height` on the result as for `text`.
 /// The window must be rooted in `Root`, which paints the selection and handles the copy.
 pub fn selectable_text(
     p: &Palette,

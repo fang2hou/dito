@@ -1,6 +1,6 @@
-//! The cloud polish configurations as tiles (`design:models/cloud/speech-form`, `design:models/cloud/configurations`): what feeds the row, and what the tiles, the
-//! menu of the plus button and the trash do to the saved configurations. The row, the menu and the delete dialog are
-//! the shared [`ConfigurationPanel`]'s, as on the cloud speech tab.
+//! The cloud polish tile row, on the shared [`ConfigurationPanel`] (`design:settings/cloud-models/speech-form`,
+//! `design:settings/cloud-models/configurations`, `design:settings/cloud-models/add-from-template`,
+//! `design:settings/cloud-models/delete-configuration`, `design:settings/cloud-models/tile-row`).
 
 use dito_core::config::{CloudPolishConfigurations, CloudPolishTemplate};
 use dito_core::i18n::{Lang, Tr};
@@ -16,8 +16,6 @@ use crate::settings::configuration_panel::{
 };
 use crate::ui::{self, TestState, cbk};
 
-/// What the tile row shows of each cloud polish configuration, in the order of the list: the name over the model, or
-/// over the note that it has none yet.
 pub(super) fn cloud_polish_config_tiles(configurations: &CloudPolishConfigurations, lang: Lang) -> Vec<ui::ConfigTile> {
     configurations
         .items
@@ -34,7 +32,6 @@ pub(super) fn cloud_polish_config_tiles(configurations: &CloudPolishConfiguratio
         .collect()
 }
 
-/// The page hosts the cloud polish tiles; the cloud speech tiles belong to its editor.
 impl ConfigurationHost for ModelsPage {
     fn panel(&mut self) -> &mut ConfigurationPanel {
         &mut self.cloud_polish.tiles
@@ -47,8 +44,6 @@ impl ConfigurationHost for ModelsPage {
 }
 
 impl ModelsPage {
-    /// One tile per saved cloud polish configuration, and the plus button that adds one. A click selects, and the form
-    /// follows; a drag reorders; the order is saved when the tile is dropped.
     pub(super) fn cloud_polish_tile_row(&self, c: &Ctx, cx: &mut Context<Self>) -> AnyElement {
         let cfg = self.st.cfg.get();
         let tiles = cloud_polish_config_tiles(&cfg.polish.engine.polish_configurations(c.lang), c.lang);
@@ -66,7 +61,6 @@ impl ModelsPage {
         )
     }
 
-    /// The rows of the plus menu that start a configuration from a template: the three API formats.
     fn cloud_polish_templates(c: &Ctx, cx: &mut Context<Self>) -> Vec<ui::AddEntry> {
         CloudPolishTemplate::ALL
             .iter()
@@ -79,7 +73,7 @@ impl ModelsPage {
             .collect()
     }
 
-    /// Make `id` the cloud polish configuration in use. The form follows the selection when the page is drawn.
+    /// The form follows the selection when the page is drawn.
     fn select_cloud_polish(&mut self, id: &str, cx: &mut Context<Self>) {
         if self.cloud_polish.form.shown() == Some(id) {
             return;
@@ -93,7 +87,6 @@ impl ModelsPage {
         cx.notify();
     }
 
-    /// A tile was dropped in a new place: the order is saved.
     fn move_cloud_polish(&mut self, id: &str, to: usize, cx: &mut Context<Self>) {
         let saved = services::try_save_config(&self.st, |cfg| {
             let lang = cfg.general.lang();
@@ -103,7 +96,7 @@ impl ModelsPage {
         cx.notify();
     }
 
-    /// Add a cloud polish configuration that starts from `template`, named `新しい設定` in the display language.
+    /// Named in the display language.
     fn add_cloud_polish_from_template(
         &mut self,
         template: CloudPolishTemplate,
@@ -123,7 +116,7 @@ impl ModelsPage {
         }
     }
 
-    /// Add a copy of the cloud polish configuration the form shows, without its key.
+    /// The copy does not get the key.
     fn duplicate_cloud_polish(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(source) = self.cloud_polish.form.shown().map(str::to_owned) else { return };
         let name = new_configuration_name(self.st.cfg.get().general.lang());
@@ -139,7 +132,6 @@ impl ModelsPage {
         }
     }
 
-    /// The configuration `id` was added and is selected: the form shows it, and the user names it.
     fn cloud_polish_added(&mut self, id: &str, window: &mut Window, cx: &mut Context<Self>) {
         self.cloud_polish.test = TestState::Idle;
         let lang = self.st.cfg.get().general.lang();
@@ -148,7 +140,7 @@ impl ModelsPage {
         cx.notify();
     }
 
-    /// The trash was pressed: ask whether to delete the cloud polish configuration in use. The last one cannot go.
+    /// The last configuration cannot be deleted.
     pub(super) fn ask_delete_cloud_polish(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let cfg = self.st.cfg.get();
         let configurations = cfg.polish.engine.polish_configurations(cfg.general.lang());
@@ -157,7 +149,7 @@ impl ModelsPage {
         ConfigurationPanel::ask_delete(self, deletion, window, cx);
     }
 
-    /// Delete was confirmed: the configuration and its Keychain key go together, and its neighbour is selected.
+    /// The configuration and its Keychain key go together.
     pub(super) fn delete_cloud_polish(&mut self, id: &str, _window: &mut Window, cx: &mut Context<Self>) {
         let removed = self.st.cfg.remove_cloud_polish_configuration(id, &*self.st.secrets);
         if let Err(error) = &removed {
@@ -170,7 +162,7 @@ impl ModelsPage {
         cx.notify();
     }
 
-    /// The dialog that asks whether to delete the cloud polish configuration in use (`design:models/cloud/delete-configuration`), while it is open.
+    /// `design:settings/cloud-models/delete-configuration`.
     pub(super) fn cloud_polish_delete_dialog(&self, window: &Window, cx: &mut Context<Self>) -> Option<AnyElement> {
         self.cloud_polish.tiles.deleting()?;
         let c = Ctx::new(&self.st, cx);

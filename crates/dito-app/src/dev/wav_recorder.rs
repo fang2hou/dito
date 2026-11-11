@@ -5,8 +5,7 @@ use anyhow::Result;
 use dito_core::audio::AudioClip;
 use dito_core::controller::{Recorder, RecorderError};
 
-/// Plays a WAV file as "the microphone": whatever is recorded is that file. Lets the real engines be exercised
-/// without a microphone, permissions or a speaker loop.
+/// Lets the real engines run without a microphone, permissions or a speaker loop.
 pub struct WavRecorder {
     clip: AudioClip,
     phase: AtomicU32,

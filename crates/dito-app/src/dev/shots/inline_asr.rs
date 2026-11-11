@@ -1,4 +1,4 @@
-//! Exercise real editor history, autosave and help ownership against the in-process cloud.
+//! Opt-in: `DITO_SHOTS_ONLY=inlineasr`, with `--mock`.
 
 use std::{path::Path, sync::Arc, time::Duration};
 
@@ -46,7 +46,6 @@ fn draft(cx: &mut AsyncApp) -> String {
     value
 }
 
-/// The request JSON of the configuration in use, as saved.
 fn saved(st: &AppState) -> Value {
     st.cfg.get().asr.cloud_asr.as_ref().unwrap().active().expect("a configuration is selected").config.clone()
 }

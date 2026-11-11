@@ -16,7 +16,6 @@ pub(super) const F_ALT: u64 = 0x0008_0000;
 pub(super) const F_CMD: u64 = 0x0010_0000;
 pub(super) const F_FN: u64 = 0x0080_0000;
 
-/// Every modifier bit, device-dependent (which physical key) and independent (which logical modifier).
 const MOD_BITS: u64 =
     L_CTRL | L_SHIFT | R_SHIFT | L_CMD | R_CMD | L_ALT | R_ALT | R_CTRL | F_SHIFT | F_CTRL | F_ALT | F_CMD | F_FN;
 
@@ -26,7 +25,6 @@ pub(super) fn no_mods_down(flags: u64) -> bool {
     flags & MOD_BITS == 0
 }
 
-/// A logical modifier, whichever side of the keyboard it is pressed on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Group {
     Control,
@@ -36,7 +34,6 @@ enum Group {
 }
 
 impl Group {
-    /// The order ids and labels list modifiers in.
     const DISPLAY_ORDER: [Group; 4] = [Self::Control, Self::Option, Self::Shift, Self::Command];
 
     fn name(self) -> &'static str {
@@ -102,7 +99,6 @@ pub enum Modifier {
 struct ModifierSpec {
     modifier: Modifier,
     keycode: u16,
-    /// The device-dependent flag bit that is set while this physical key is down.
     flag: u64,
     id: &'static str,
     /// `None` for Fn, which has no side and no logical modifier.
@@ -186,7 +182,6 @@ impl Modifier {
         MODIFIER_SPECS.iter().find(|s| s.keycode == keycode).map(|s| s.modifier)
     }
 
-    /// Is this physical key down according to the event flags?
     pub(super) fn is_down(self, flags: u64) -> bool {
         flags & self.spec().flag != 0
     }
@@ -203,7 +198,6 @@ impl Modifier {
         }
     }
 
-    /// The flags of an event in which only this key is down.
     #[cfg(test)]
     pub(super) fn event_flags(self) -> u64 {
         let spec = self.spec();
@@ -211,7 +205,7 @@ impl Modifier {
     }
 }
 
-/// Modifier set for key combos (side-agnostic).
+/// Side-agnostic: either Shift counts as Shift.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Mods {
     pub shift: bool,
@@ -255,7 +249,6 @@ impl Mods {
         Group::DISPLAY_ORDER.into_iter().filter(move |g| self.has(*g))
     }
 
-    /// The modifier set with `m`'s own (side-agnostic) contribution cleared: what is held *besides* `m`.
     pub(super) fn without(mut self, m: Modifier) -> Self {
         if let Some((group, _)) = m.spec().key {
             self.set(group, false);
@@ -263,7 +256,7 @@ impl Mods {
         self
     }
 
-    /// Adds the modifier named `name` (`Control`, `Option`, `Shift`, `Command`); false for any other name.
+    /// Accepts `Control`, `Option`, `Shift` and `Command`; false for any other name.
     pub(super) fn add_named(&mut self, name: &str) -> bool {
         let Some(group) = Group::from_name(name) else { return false };
         self.set(group, true);
@@ -380,7 +373,7 @@ pub(super) fn is_standalone_key(code: u16) -> bool {
     })
 }
 
-/// Character a punctuation key prints on an ANSI keyboard; the platform layer replaces it with the real layout's.
+/// The platform layer replaces the ANSI character with the real layout's.
 pub(super) fn ansi_symbol(name: &str) -> Option<&'static str> {
     Some(match name {
         "Equal" => "=",
@@ -401,7 +394,7 @@ pub(super) fn ansi_symbol(name: &str) -> Option<&'static str> {
     })
 }
 
-/// Does this key print a character (so its label depends on the keyboard layout)?
+/// The label of a printing key depends on the keyboard layout.
 pub(super) fn prints_character(code: u16) -> bool {
     key_name(code).is_some_and(|n| n.len() == 1 || ansi_symbol(n).is_some())
 }

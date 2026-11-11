@@ -6,7 +6,6 @@ use crate::ui::Motion;
 
 use super::timeline::{PERIOD, STILL_AT, SWITCH_S, smooth};
 
-/// One picture of the stage: `mode`'s loop `at` seconds in, drawn with `opacity`.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(super) struct Layer {
     pub(super) mode: RecordMode,
@@ -14,9 +13,8 @@ pub(super) struct Layer {
     pub(super) opacity: f32,
 }
 
-/// What to draw this frame: the pictures to stack (the old one first, while a mode switch cross-fades), whether this
-/// is the still of Reduce Motion (the waveform rests and a held key keeps its size, like the design's static frame),
-/// and whether another frame is due.
+/// `still` is the Reduce Motion still: the waveform rests and a held key keeps its size, like the design's static
+/// frame.
 pub(super) struct Tick {
     pub(super) layers: Vec<Layer>,
     pub(super) still: bool,
@@ -24,25 +22,22 @@ pub(super) struct Tick {
 }
 
 impl Tick {
-    /// Keyframe 2, nothing moving.
     pub(super) fn still(mode: RecordMode) -> Self {
         Self { layers: vec![Layer { mode, at: STILL_AT, opacity: 1. }], still: true, running: false }
     }
 }
 
-/// An outgoing mode's last picture, fading out.
 pub(super) struct Switch {
     mode: RecordMode,
     at: f32,
     since: Instant,
 }
 
-/// The loop's clock. gpui keeps it with the element across frames.
+/// gpui keeps the clock with the element across frames.
 pub(super) struct Clock {
     mode: RecordMode,
-    /// Seconds into the loop. It only advances while the window is active, so the loop resumes where it paused.
+    /// It only advances while the window is active, so the loop resumes where it paused.
     at: f32,
-    /// When `at` last advanced; `None` while paused.
     last: Option<Instant>,
     switch: Option<Switch>,
 }
@@ -85,13 +80,11 @@ impl Clock {
     }
 }
 
-/// Screenshots: how a frozen demo is held.
 #[cfg(feature = "screenshots")]
 #[derive(Clone, Copy)]
 pub enum Frozen {
-    /// This many seconds into the loop.
+    /// Seconds into the loop.
     At(f32),
-    /// The still Reduce Motion shows.
     Still,
 }
 
@@ -100,7 +93,6 @@ thread_local! {
     static FROZEN: std::cell::Cell<Option<Frozen>> = const { std::cell::Cell::new(None) };
 }
 
-/// Screenshots: hold every demo as `frozen` says (`None` lets them run again).
 #[cfg(feature = "screenshots")]
 pub fn freeze(frozen: Option<Frozen>) {
     FROZEN.with(|f| f.set(frozen));
@@ -143,17 +135,14 @@ mod tests {
         assert!(first.running && !first.still);
         let t = clock.tick(RecordMode::Toggle, after(base, 1500), true, Motion::Full);
         assert!((t.layers[0].at - 1.5).abs() < 1e-3);
-        // The window deactivates: the loop stops, and no more frames are asked for.
         let paused = clock.tick(RecordMode::Toggle, after(base, 2000), false, Motion::Full);
         assert!(!paused.running);
         let still = clock.tick(RecordMode::Toggle, after(base, 60_000), false, Motion::Full);
         assert!((still.layers[0].at - 1.5).abs() < 1e-3, "frozen while inactive: {}", still.layers[0].at);
-        // It comes back a minute later and carries on from the same phase.
         let back = clock.tick(RecordMode::Toggle, after(base, 60_100), true, Motion::Full);
         assert!((back.layers[0].at - 1.5).abs() < 1e-3, "resumes where it paused: {}", back.layers[0].at);
         let go = clock.tick(RecordMode::Toggle, after(base, 60_600), true, Motion::Full);
         assert!((go.layers[0].at - 2.0).abs() < 1e-3);
-        // And it wraps at the end of the loop.
         let wrapped = clock.tick(RecordMode::Toggle, after(base, 60_600 + (PERIOD * 1000.) as u64), true, Motion::Full);
         assert!((wrapped.layers[0].at - 2.).abs() < 1e-2, "{}", wrapped.layers[0].at);
     }
@@ -188,10 +177,8 @@ mod tests {
             assert_eq!(t.layers, vec![Layer { mode: RecordMode::Hold, at: STILL_AT, opacity: 1. }]);
             assert!(!t.running && t.still);
         }
-        // A mode switch is just a new still, not a fade.
         let t = clock.tick(RecordMode::Toggle, after(base, 6_000), true, Motion::Reduced);
         assert_eq!(t.layers.len(), 1);
-        // The keyframe is the recording: key per mode, capsule listening, chip 2 lit.
         let hold = Scene::at(RecordMode::Hold, STILL_AT);
         assert_eq!(hold.key, 1.);
         assert_eq!(hold.hud.as_ref().map(|h| h.w), Some(hud::NARROW_W));

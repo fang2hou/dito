@@ -1,7 +1,7 @@
-//! What the cloud speech form and the cloud polish form do the same way with their configurations (`design:models/cloud/speech-form`, `design:models/cloud/add-from-template`,
-//! `design:models/cloud/delete-configuration`): a row of tiles with the menu of its plus button, the dialog that asks before one is deleted, and the step
-//! after one was added. The owner keeps what differs: the tiles it feeds, the templates it offers, and what selecting,
-//! moving, duplicating and deleting do to its own settings.
+//! What the cloud speech form and the cloud polish form share in handling their configurations
+//! (`design:settings/cloud-models/speech-form`, `design:settings/cloud-models/add-from-template`,
+//! `design:settings/cloud-models/delete-configuration`). The owner keeps what differs: the tiles, the templates, and
+//! what selecting, moving, duplicating and deleting do to its own settings.
 
 use dito_core::i18n::{Lang, Tr, fmt};
 use gpui_kit::prelude::*;
@@ -10,41 +10,32 @@ use gpui_kit::*;
 use super::Ctx;
 use crate::ui::{self, AddEntry, ConfigTile, DialogAnswer, InputState, TilePlus, TileRowState, cbk, text};
 
-/// The id of the delete dialog. One is open at a time, whichever form it belongs to.
+/// Shared by both forms: one dialog is open at a time.
 const DELETE_DIALOG: &str = "configuration-delete-dialog";
 
-/// What a new configuration is named, whether it starts from a template or copies another one.
 pub(in crate::settings) fn new_configuration_name(lang: Lang) -> &'static str {
     lang.tr(Tr::ModelsNewConfiguration)
 }
 
-/// The configuration a delete dialog asks about.
 pub(in crate::settings) struct Deletion {
     pub(in crate::settings) id: String,
     pub(in crate::settings) name: String,
 }
 
-/// A view that keeps a [`ConfigurationPanel`].
 pub(in crate::settings) trait ConfigurationHost: Sized + 'static {
     fn panel(&mut self) -> &mut ConfigurationPanel;
 
-    /// A delete dialog opened or closed. The window shell paints it over everything else, so it has to be told.
+    /// The window shell paints the dialog over everything else, so it has to be told.
     fn dialog_changed(&mut self, cx: &mut Context<Self>);
 }
 
-/// What the owner provides for the row: what a click on a tile, a tile dropped in a new place and the copy row of the
-/// plus menu do, and the templates that menu offers.
 pub(in crate::settings) struct RowActions<V: 'static> {
     pub(in crate::settings) select: fn(&mut V, &str, &mut Window, &mut Context<V>),
     pub(in crate::settings) move_to: fn(&mut V, &str, usize, &mut Window, &mut Context<V>),
-    /// Copy the configuration in use, as the owner means it.
     pub(in crate::settings) duplicate: fn(&mut V, &mut Window, &mut Context<V>),
-    /// The rows of the menu that start a new configuration from a template, built when the menu is open.
     pub(in crate::settings) templates: fn(&Ctx, &mut Context<V>) -> Vec<AddEntry>,
 }
 
-/// The state of one list of configurations on screen: where its tile row is scrolled, whether the menu of the plus
-/// button is open, and the configuration a delete dialog asks about.
 pub(in crate::settings) struct ConfigurationPanel {
     tiles: TileRowState,
     menu_open: bool,
@@ -57,13 +48,11 @@ impl ConfigurationPanel {
         Self { tiles: TileRowState::new(), menu_open: false, deleting: None, delete_focus: cx.focus_handle() }
     }
 
-    /// Whether the menu of the plus button is open.
     #[cfg(feature = "screenshots")]
     pub(in crate::settings) fn menu_open(&self) -> bool {
         self.menu_open
     }
 
-    /// The configuration the open delete dialog asks about.
     pub(in crate::settings) fn deleting(&self) -> Option<&Deletion> {
         self.deleting.as_ref()
     }
@@ -78,19 +67,16 @@ impl ConfigurationPanel {
         self.deleting = None;
     }
 
-    /// Scroll the tile `id` fully into view the next time the row draws, after the selection moved to it.
+    /// Takes effect the next time the row draws.
     pub(in crate::settings) fn reveal(&self, id: &str) {
         self.tiles.reveal(id.to_owned());
     }
 
-    /// The scroll offset of the row, the furthest it goes and the slot a dragged tile is over.
     #[cfg(feature = "screenshots")]
     pub(in crate::settings) fn probe(&self) -> (f32, f32, Option<usize>) {
         self.tiles.probe()
     }
 
-    /// The row of `tiles` and the plus button that ends it, `id` naming the row. A click selects, a drag reorders and
-    /// the plus button opens the menu that adds a configuration.
     pub(in crate::settings) fn tile_row<V: ConfigurationHost>(
         &self,
         id: &'static str,
@@ -134,8 +120,6 @@ impl ConfigurationPanel {
             .into_any_element()
     }
 
-    /// A configuration was added and is selected, and the owner's form shows it: the menu closes, its tile scrolls into
-    /// view, and the `name` field is focused with all of its text selected, for the user to name it.
     pub(in crate::settings) fn added<V: 'static>(
         &mut self,
         id: &str,
@@ -151,7 +135,6 @@ impl ConfigurationPanel {
         });
     }
 
-    /// The trash was pressed: ask whether to delete `deletion`.
     pub(in crate::settings) fn ask_delete<V: ConfigurationHost>(
         host: &mut V,
         deletion: Deletion,
@@ -164,8 +147,8 @@ impl ConfigurationPanel {
         host.dialog_changed(cx);
     }
 
-    /// The dialog that asks whether to delete a configuration (`design:models/cloud/delete-configuration`), while it is open. Delete runs `delete` on the
-    /// owner, with the id of the configuration the dialog asked about.
+    /// `design:settings/cloud-models/delete-configuration`. Delete runs `delete` on the owner, with the id of the
+    /// configuration the dialog asked about.
     pub(in crate::settings) fn delete_dialog<V: ConfigurationHost>(
         &self,
         window: &Window,
@@ -197,14 +180,12 @@ impl ConfigurationPanel {
     }
 }
 
-/// Cancel, and Escape, closed the dialog: nothing was deleted.
 fn close_delete<V: ConfigurationHost>(host: &mut V, window: &mut Window, cx: &mut Context<V>) {
     host.panel().deleting = None;
     window.blur(cx);
     host.dialog_changed(cx);
 }
 
-/// Delete was confirmed.
 fn confirm_delete<V: ConfigurationHost>(
     host: &mut V,
     delete: fn(&mut V, &str, &mut Window, &mut Context<V>),

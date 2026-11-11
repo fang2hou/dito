@@ -16,13 +16,10 @@ pub enum BtnKind {
     Secondary,
     Danger,
     Destructive,
-    /// Model download action.
     Download,
-    /// A quiet pill on the sub surface, for form actions (編集, 接続テスト).
     Subtle,
 }
 
-/// Regular in Settings, Large in onboarding.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum BtnSize {
     Regular,
@@ -55,7 +52,6 @@ impl BtnColors {
     }
 }
 
-/// Pill button, Regular size.
 pub fn button(
     id: impl Into<ElementId>,
     p: &Palette,
@@ -67,7 +63,6 @@ pub fn button(
     button_with(id, p, label, kind, BtnSize::Regular, ic, None, on_click)
 }
 
-/// [`button`] with a size and an optional trailing icon.
 #[allow(clippy::too_many_arguments)]
 pub fn button_with(
     id: impl Into<ElementId>,
@@ -82,7 +77,7 @@ pub fn button_with(
     button_impl(id, p, label, kind, size, lead, trail, Some(on_click))
 }
 
-/// Disabled controls share their label, icon and width calculation with active buttons, without hover or clicks.
+/// Shares label, icon and width calculation with the active button.
 #[allow(clippy::too_many_arguments)]
 pub fn disabled_button(
     id: impl Into<ElementId>,
@@ -146,12 +141,11 @@ fn button_impl(
     el
 }
 
-/// Circular icon button (copy, ⋮ ...).
 pub fn icon_button(id: impl Into<ElementId>, p: &Palette, ic: Ic, active: bool, on_click: Cb) -> Stateful<Div> {
     icon_button_with(id, p, ic, active, CircleSize::Regular, on_click)
 }
 
-/// [`icon_button`] that cannot be used: the same instance at 45% opacity, with no hover and no click.
+/// The design's disabled state: the same instance at 45% opacity.
 pub fn disabled_icon_button(id: impl Into<ElementId>, p: &Palette, ic: Ic) -> Stateful<Div> {
     circle_control(
         id,
@@ -162,7 +156,7 @@ pub fn disabled_icon_button(id: impl Into<ElementId>, p: &Palette, ic: Ic) -> St
     .opacity(0.45)
 }
 
-/// The approved circle and glyph pairs from `design:components/control-icon-contracts`.
+/// Circle and glyph pairs from `design:components/control-icon-contracts`.
 #[derive(Clone, Copy)]
 pub enum CircleSize {
     Compact,
@@ -183,7 +177,6 @@ impl CircleSize {
     }
 }
 
-/// A circular action with a fixed control-to-glyph ratio.
 pub fn icon_button_with(
     id: impl Into<ElementId>,
     p: &Palette,
@@ -207,7 +200,6 @@ pub fn icon_button_with(
     .on_click(click_cb(on_click))
 }
 
-/// Appearance changes by semantic role; geometry and hover behavior stay shared.
 pub struct CircleAppearance {
     pub background: Option<Hsla>,
     pub foreground: Hsla,
@@ -245,7 +237,6 @@ pub fn circle_control(
     control.child(icon(ic, glyph, appearance.foreground))
 }
 
-/// The dialog close button uses the same Small circle geometry as other controls.
 pub fn close_button(id: impl Into<ElementId>, p: &Palette, on_click: Cb) -> Stateful<Div> {
     circle_control(
         id,
@@ -257,7 +248,6 @@ pub fn close_button(id: impl Into<ElementId>, p: &Palette, on_click: Cb) -> Stat
     .on_click(click_cb(on_click))
 }
 
-/// Plain circular action with a muted foreground.
 pub fn bare_icon_button(id: impl Into<ElementId>, p: &Palette, ic: Ic, on_click: Cb) -> Stateful<Div> {
     circle_control(
         id,

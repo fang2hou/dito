@@ -1,4 +1,4 @@
-//! The round buttons a capsule carries: their look, hover cross-fade and static rendering.
+//! The round buttons a capsule carries.
 
 use dito_core::i18n::{Lang, Tr};
 use gpui_kit::prelude::*;
@@ -11,30 +11,25 @@ use crate::ui::{self, hex_alpha, icon};
 use super::Scale;
 use super::elevation::{self, Elevation};
 
-/// Round button inside the capsule.
 pub(super) const BTN: f32 = crate::ui::CircleSize::Compact.dimensions().0;
-/// Shared 24 pt vector canvas rendered in the 14 pt slot from `design:hud/buttons`.
+/// A shared 24 pt vector canvas rendered in a 14 pt slot (`design:hud/buttons`).
 pub(super) const BTN_ICON: f32 = crate::ui::CircleSize::Compact.dimensions().1;
 
-/// Look of one round HUD button; all actions share the same circle and icon slot.
 #[derive(Clone, Copy)]
 pub(super) struct Circle {
     pub(super) id: &'static str,
     pub(super) bg: Hsla,
-    /// Background while hovered. Hover never lightens: the gold button deepens a step, the danger
-    /// buttons swap to their inverted scheme.
+    /// Hover never lightens: the gold button deepens a step, the danger buttons swap to their inverted scheme.
     pub(super) hover_bg: Hsla,
     glyph: Ic,
     color: Hsla,
-    /// Glyph color while hovered (the danger buttons invert their glyph with the fill).
     pub(super) hover_color: Hsla,
-    /// Resting hairline: `(color, opacity)`, painted inside the button and fading out on hover.
+    /// Resting hairline as `(color, opacity)`.
     pub(super) ring: Option<(Hsla, f32)>,
     dark: bool,
     frosted: bool,
 }
 
-/// The round buttons a capsule can carry.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Btn {
     Cancel,
@@ -49,7 +44,6 @@ impl Btn {
         let (glass, glass_hover) =
             (theme::hud_color(p, "#EBE8E1", "#5A564B"), theme::hud_color(p, "#D4D1C9", "#6A6455"));
         let red = hex("#FF4949");
-        // Danger buttons invert on hover in both themes.
         let danger = || {
             (
                 theme::hud_color(p, "#FFFFFF", "#FF4949"),
@@ -88,8 +82,6 @@ impl Btn {
     }
 }
 
-/// A round button's shell: `bg` is its background layer, `glyph` sits on top (already colored —
-/// see [`hover_glyph`] for the hover cross-fade version).
 pub(super) fn circle_shell(c: &Circle, scale: Scale, bg: AnyElement, glyph: AnyElement) -> Div {
     div()
         .size(scale.px(BTN))
@@ -108,8 +100,7 @@ pub(super) fn circle_shell(c: &Circle, scale: Scale, bg: AnyElement, glyph: AnyE
         .child(glyph)
 }
 
-/// The background layer at cross-fade position `t` (0 resting, 1 hovered): the fill blends and a
-/// resting hairline, if any, fades out with it.
+/// `t` is the cross-fade position: 0 resting, 1 hovered.
 pub(super) fn hover_layer(c: &Circle, scale: Scale, t: f32) -> AnyElement {
     let mut tint = ui::mix_rgb(c.bg, c.hover_bg, t);
     if c.frosted {
@@ -126,8 +117,7 @@ pub(super) fn hover_layer(c: &Circle, scale: Scale, t: f32) -> AnyElement {
     layer.into_any_element()
 }
 
-/// The glyph at cross-fade position `t`: danger buttons invert their glyph with the fill, so both
-/// copies are stacked and blended by opacity.
+/// Danger buttons invert their glyph with the fill, so both copies are stacked and blended by opacity.
 pub(super) fn hover_glyph(c: &Circle, scale: Scale, t: f32) -> AnyElement {
     let base = icon(c.glyph, scale.tx(BTN_ICON), c.color);
     if c.color == c.hover_color {
@@ -141,7 +131,6 @@ pub(super) fn hover_glyph(c: &Circle, scale: Scale, t: f32) -> AnyElement {
         .into_any_element()
 }
 
-/// A button drawn as the HUD draws it, without the behaviour: for capsules that are only shown.
 pub(crate) fn static_button(b: Btn, scale: Scale, p: &Palette) -> Div {
     let look = b.look(p);
     circle_shell(
@@ -152,7 +141,7 @@ pub(crate) fn static_button(b: Btn, scale: Scale, p: &Palette) -> Div {
     )
 }
 
-/// The legend uses exactly the same button colors as its HUD preview.
+/// Uses the HUD's button colors so the legend matches its preview.
 pub(crate) fn legend_button(b: Btn, p: &Palette) -> Div {
     static_button(b, Scale::DESIGN, p)
 }
@@ -161,7 +150,6 @@ pub(super) fn stop_width(lang: Lang) -> f32 {
     2. * 10.75 + BTN_ICON + 5. + ui::text_width(lang.tr(Tr::HudStop), 12., FontWeight::NORMAL)
 }
 
-/// The HUD Stop pill owns its semantic appearance, using the shared hover clock.
 pub(super) fn stop_pill(p: &Palette, lang: Lang, hover: f32) -> Div {
     let ink = theme::hud_stop_ink(p);
     let foreground = ui::mix_rgb(ink, theme::hud_color(p, "#FFFFFF", "#24221D"), hover);

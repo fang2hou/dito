@@ -1,23 +1,20 @@
-/// Counts the requests of one owner so that stale completions are dropped: beginning a new request, or
-/// bumping, supersedes every earlier generation, and only the newest one may still write its result.
+/// Beginning a new request, or bumping, supersedes every earlier generation, and only the newest one may still write
+/// its result.
 #[derive(Default)]
 pub struct Requests {
     generation: u64,
 }
 
 impl Requests {
-    /// Begin a new request and return its generation.
     pub fn begin(&mut self) -> u64 {
         self.generation += 1;
         self.generation
     }
 
-    /// Invalidate every in-flight request.
     pub fn bump(&mut self) {
         self.generation += 1;
     }
 
-    /// Whether the request that got `generation` is still the newest one.
     pub fn is_current(&self, generation: u64) -> bool {
         generation == self.generation
     }

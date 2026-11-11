@@ -23,16 +23,14 @@ pub struct ModelSpec {
     pub name: String,
     pub kind: ModelKind,
     pub files: Vec<FileSpec>,
-    /// Typical resident memory while loaded.
     pub memory_mb: u32,
-    /// Architecture and exact file roles, independent of directory enumeration order.
+    /// Names the exact file roles, so directory enumeration order never matters.
     pub format: ModelFormat,
     /// A display hint, never a restriction on input language.
     pub language_focus: Option<dito_core::i18n::Lang>,
 }
 
-/// How a chat model samples its reply. The catalog gives each model the values recommended for it, and the user's
-/// parameters for the model replace them field by field.
+/// The user's parameters replace the catalog's recommended values field by field.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Sampling {
     pub temperature: f32,
@@ -43,11 +41,8 @@ pub struct Sampling {
 }
 
 impl Sampling {
-    /// How polishing sampled before it was configurable: a little randomness, no top-p or top-k cut, and the budget the
-    /// runtime computes from the input.
     pub const POLISH: Self = Self { temperature: 0.2, top_p: None, top_k: None, max_tokens: None };
 
-    /// These values with every field the user set laid over them.
     pub fn with_params(self, params: &LocalPolishParams) -> Self {
         Self {
             temperature: params.temperature.unwrap_or(self.temperature),
@@ -58,7 +53,7 @@ impl Sampling {
     }
 }
 
-/// Supported inference layouts. Another checkpoint of an existing layout needs only a catalog entry.
+/// Another checkpoint of an existing layout needs only a catalog entry.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ModelFormat {
     SenseVoice {
@@ -76,10 +71,9 @@ pub enum ModelFormat {
         model: &'static str,
         projector: &'static str,
     },
-    /// A chat GGUF served by llama.cpp. The prompt comes from the chat template embedded in the file, so a file
-    /// without one fails to load. `disable_thinking` is the Qwen hybrid-thinking prefill (an empty think block after
-    /// the generation prompt); set it to `false` for other families. `sampling` is what the model uses for every
-    /// parameter the user leaves empty.
+    /// The prompt comes from the chat template embedded in the file, so a file without one fails to load.
+    /// `disable_thinking` is the Qwen hybrid-thinking prefill (an empty think block after the generation prompt);
+    /// `false` for other families. `sampling` fills every parameter the user leaves empty.
     Chat {
         model: &'static str,
         disable_thinking: bool,
@@ -99,7 +93,7 @@ impl ModelFormat {
         matches!(self, Self::QwenAsr { .. })
     }
 
-    /// The recommended sampling of a chat model. Speech models decode greedily and have none.
+    /// Speech models decode greedily and have none.
     pub fn sampling(self) -> Option<Sampling> {
         match self {
             Self::Chat { sampling, .. } => Some(sampling),
@@ -119,9 +113,7 @@ impl ModelFormat {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Runtime {
-    /// sherpa-onnx offline speech models.
     SherpaOnnx,
-    /// llama.cpp GGUF files.
     LlamaCpp,
 }
 

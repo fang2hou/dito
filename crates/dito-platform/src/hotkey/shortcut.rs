@@ -4,15 +4,8 @@ use super::keys::{KEY_NAMES, Modifier, Mods, ansi_symbol, is_standalone_key, key
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Shortcut {
-    /// One modifier key, on its own or with other modifiers held (e.g. ⌃ + 右⌥).
-    Modifier {
-        m: Modifier,
-        mods: Mods,
-    },
-    Combo {
-        mods: Mods,
-        key: u16,
-    },
+    Modifier { m: Modifier, mods: Mods },
+    Combo { mods: Mods, key: u16 },
 }
 
 impl Shortcut {
@@ -53,7 +46,7 @@ impl Shortcut {
         }
     }
 
-    /// Short label for the shortcut field, e.g. `右 ⌥` or `⌃⌥ Space`. Character keys use their ANSI symbol.
+    /// Character keys use their ANSI symbol.
     pub fn label(&self, lang: Lang) -> String {
         self.label_with(lang, |_| None)
     }

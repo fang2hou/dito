@@ -13,7 +13,6 @@ use crate::state::AppState;
 
 use super::{HudView, POP_MS};
 
-/// Where the pointer rests in a frozen HUD: off it, over the zone alone, or over one of its two buttons.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum PreviewHover {
     Away,
@@ -37,8 +36,7 @@ impl HudView {
         view
     }
 
-    /// A frozen HUD for screenshots: `t` seconds into `state`, with the pointer at `hover`. `came_from` is the
-    /// state before, which sets the width the capsule is still widening from.
+    /// `came_from` is the state before, which sets the width the capsule is still widening from.
     pub fn preview(
         st: Arc<AppState>,
         state: HudState,
@@ -66,7 +64,6 @@ impl HudView {
         }
     }
 
-    /// The real renderer and animation clock, held in a processing stage for motion capture.
     pub fn motion_preview(st: Arc<AppState>, cx: &mut Context<Self>) -> Self {
         let mut view = Self::new(st, cx);
         view.start_hidden_preview_clock(cx);
@@ -88,7 +85,7 @@ impl HudView {
         view
     }
 
-    /// Same live filter/renderer with a repeatable input level for visual verification.
+    /// A repeatable input level makes the live filter and renderer verifiable by eye.
     pub fn waveform_preview(st: Arc<AppState>, gain: f32, cx: &mut Context<Self>) -> Self {
         let mut view = Self::new(st, cx);
         view.start_hidden_preview_clock(cx);

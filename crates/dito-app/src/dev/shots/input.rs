@@ -16,7 +16,7 @@ pub fn redraw(w: &mut Window, cx: &mut App) {
     w.draw(cx).clear(cx);
 }
 
-/// Move the pointer to `position` and draw, so hover state is current before the next event.
+/// Draws after the move, so hover state is current before the next event.
 pub fn hover(w: &mut Window, cx: &mut App, position: Point<Pixels>) {
     w.dispatch_event(PlatformInput::MouseMove(MouseMoveEvent { position, ..Default::default() }), cx);
     redraw(w, cx);

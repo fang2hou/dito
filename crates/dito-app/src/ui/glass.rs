@@ -1,8 +1,7 @@
-//! Frost the settings' fixed decorative backdrop without blurring foreground controls.
+//! Frosts the settings' wordmark backdrop behind cards without blurring foreground controls.
 //!
-//! GPUI has no backdrop-filter primitive. Since this backdrop contains only the page wordmark,
-//! cache its Gaussian-blurred raster and composite the intersecting part inside each card.
-//! Scrolling only changes the texture crop; it never re-rasterizes text or blurs a whole frame.
+//! GPUI has no backdrop-filter primitive, so the blurred raster is cached and composited inside each card. Scrolling
+//! only changes the texture crop; it never re-rasterizes text or blurs a whole frame.
 use std::{cell::RefCell, fmt::Write, sync::Arc};
 
 use gpui_kit::prelude::*;
@@ -16,7 +15,7 @@ const TOP: f32 = -34.;
 const RIGHT: f32 = -18.;
 const WEIGHT: FontWeight = FontWeight::SEMIBOLD;
 
-/// The sharp original and frosted copy share the same type and positioning specification.
+/// Shared by the sharp wordmark and its frosted copy, so the two line up.
 pub fn wordmark(title: &'static str, p: Palette) -> Div {
     div().absolute().top(px(TOP)).right(px(RIGHT)).child(
         super::typography::text(title, FONT_SIZE, WEIGHT, p.accent)

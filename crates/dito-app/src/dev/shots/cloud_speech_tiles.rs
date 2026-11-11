@@ -1,7 +1,6 @@
-//! The cloud speech tab with its configuration tiles, driven the way a person drives it: simulated pointer events on the
-//! tiles, the plus menu and the trash button, typing through the input handler. It checks what each action did to the
-//! saved settings, the key store and the editor's state per configuration, and takes the shots that `design:models/cloud/speech-form`, `design:models/cloud/compact-window`
-//! and `design:models/cloud/add-from-template` are compared with. Opt-in: `DITO_SHOTS_ONLY=cloudspeechtiles`, with `--mock --data-dir <dir>`.
+//! Shots compared with `design:settings/cloud-models/speech-form`, `design:settings/cloud-models/compact-window` and
+//! `design:settings/cloud-models/add-from-template`.
+//! Opt-in: `DITO_SHOTS_ONLY=cloudspeechtiles`, with `--mock --data-dir <dir>`.
 
 use std::path::Path;
 use std::sync::Arc;
@@ -22,12 +21,12 @@ use crate::settings::{self, Page};
 use crate::state::AppState;
 use crate::ui::TestState;
 
-/// The design's 1120 wide window has a 1 pt frame on each side. The shots use the window without it, so the card is
-/// the 774 wide of `design:models/cloud/speech-form` and its rows line up with the reference.
+/// The design's 1120 wide window has a 1 pt frame on each side that the shots leave out, so the card is the 774 wide
+/// of `design:settings/cloud-models/speech-form` and its rows line up with the reference.
 const WIDTH: f32 = 1118.;
 const HEIGHT: f32 = 1100.;
-/// The compact window of `design:models/cloud/compact-window`: 900 wide is the smallest the settings window gets. Below 1024 its sidebar is the
-/// icon rail, which the design's compact window does not show, so the card is wider than the design's 554 and the row
+/// `design:settings/cloud-models/compact-window` at the smallest window there is. Below 1024 the sidebar is the icon
+/// rail, which the design's compact window does not show, so the card is wider than the design's 554 and the row
 /// overflows by 62 instead of 220.
 const COMPACT: (f32, f32) = (900., 818.);
 /// The narrowest window that still has the full sidebar, as the design's compact window has: the row overflows by 94.
@@ -40,17 +39,16 @@ const VIEW: f32 = 672.;
 /// Every tile is 216 wide, left-aligned, and the next one starts a 12 gap later, whatever the number of tiles.
 const TILE_W: f32 = 216.;
 const TILE_PITCH: f32 = TILE_W + 12.;
-/// Top of the tile row.
 const ROW_TOP: f32 = 277.;
 const ROW_CENTRE: f32 = ROW_TOP + 32.;
 const API_KEY: &str = "sk-test-0123456789ab";
 
-/// The plus button, and the rows of the menu that hangs 8 pt under it: a 28 caption, three 34 templates with the 2 pt gaps
-/// of the panel, a 9 rule and the duplicate row.
 fn plus() -> Point<Pixels> {
     point(px(LEFT + VIEW + 12. + 18.), px(ROW_CENTRE))
 }
 
+/// A row of the menu that hangs 8 pt under the plus button: a 28 caption, three 34 templates with the 2 pt gaps of
+/// the panel, a 9 rule and the duplicate row.
 fn menu_row(index: usize) -> Point<Pixels> {
     let panel_top = ROW_CENTRE - 18. + 36. + 8.;
     let first_row = panel_top + 1. + 6. + 28. + 2.;
@@ -61,7 +59,6 @@ fn menu_row(index: usize) -> Point<Pixels> {
     point(px(LEFT + VIEW + 12. + 36. - 120.), px(y))
 }
 
-/// The trash button, left of the test button in the footer.
 fn trash() -> Point<Pixels> {
     point(px(798.), px(990.))
 }
@@ -76,7 +73,6 @@ fn dialog_cancel() -> Point<Pixels> {
     point(px(WIDTH / 2. + 131.), px(HEIGHT / 2. + 42.))
 }
 
-/// Where the tile `index` is centred in the row scrolled to `offset`.
 fn tile(index: usize, offset: f32) -> Point<Pixels> {
     point(px(LEFT + index as f32 * TILE_PITCH + TILE_W / 2. - offset), px(ROW_CENTRE))
 }
@@ -91,7 +87,7 @@ fn model_of(config: &Value) -> &str {
     config["connection"]["model"].as_str().unwrap_or("")
 }
 
-/// The speech configurations as saved: id, name and model, in order, and the selected id.
+/// (id, name, model) in order, and the selected id.
 fn saved(st: &AppState) -> (Vec<(String, String, String)>, String) {
     let config = st.cfg.get();
     let list = config.asr.cloud_asr.clone().unwrap_or_default();
@@ -127,7 +123,6 @@ impl Rig<'_> {
         on_settings_window(self.cx, |window, cx, _| click(window, cx, at));
     }
 
-    /// Turn the wheel over the tile row.
     fn scroll(&mut self, dx: f32, dy: f32) {
         on_settings_window(self.cx, |window, cx, _| {
             let at = point(px(LEFT + VIEW / 2.), px(ROW_CENTRE));
@@ -149,7 +144,6 @@ impl Rig<'_> {
         });
     }
 
-    /// Click the trash and answer the dialog that opens: with Delete, or with Cancel.
     async fn delete_shown(&mut self, confirm: bool) {
         let shown = self.form().name;
         self.click(trash());
@@ -164,7 +158,6 @@ impl Rig<'_> {
         read(self.cx, |editor, window, cx| editor.probe_form(window, cx))
     }
 
-    /// Whether the Models page says the last save failed: the banner above the card, which the editor reports into.
     fn save_failed(&mut self) -> bool {
         let mut failed = false;
         on_settings_window(self.cx, |window, cx, view| failed = view.read(cx).models_probe(window, cx).save_failed);
@@ -183,7 +176,6 @@ impl Rig<'_> {
         read(self.cx, |editor, _, _| editor.probe_tiles().0)
     }
 
-    /// Replace the request JSON of the configuration the form shows, as a paste would.
     fn replace(&mut self, change: impl FnOnce(&mut Value)) {
         let (text, _, _) = read(self.cx, |editor, _, cx| editor.probe_state(cx));
         let mut value: Value = serde_json::from_str(&text).expect("the draft is JSON");
@@ -194,8 +186,8 @@ impl Rig<'_> {
         });
     }
 
-    /// Start from three configurations: the bundled templates with the models of the design's `design:models/cloud/speech-form`, Qwen ASR
-    /// selected and holding a key. Rebuilds the editor so that it starts from them.
+    /// The models are those of `design:settings/cloud-models/speech-form`. Rebuilds the editor so that it starts from
+    /// the new configurations.
     async fn start(&mut self, appearance: Appearance, width: f32, height: f32) {
         let mut configurations = CloudAsrConfigurations::default();
         for (id, model) in
@@ -233,7 +225,6 @@ impl Rig<'_> {
         self.cx.update(|cx| resize_settings_window(cx, width, height));
     }
 
-    /// Drag the tile under `from` to `to` in steps, the way the tile row's own shots do.
     async fn drag(&mut self, from: Point<Pixels>, to: Point<Pixels>) {
         on_settings_window(self.cx, |window, cx, _| {
             hover(window, cx, from);
@@ -251,7 +242,6 @@ impl Rig<'_> {
         self.wait(400).await;
     }
 
-    /// Click the plus button and the row `index` of its menu.
     async fn add_through_menu(&mut self, index: usize) {
         self.click(plus());
         self.wait(300).await;
@@ -260,7 +250,6 @@ impl Rig<'_> {
         self.wait(700).await;
     }
 
-    /// A configuration was just added: the form shows it under the name `新しい設定`, focused with all of it selected.
     fn assert_added(&mut self, id: &str) {
         let new_name = Lang::Ja.tr(Tr::ModelsNewConfiguration);
         let (rows, selected) = saved(self.st);
@@ -279,8 +268,6 @@ impl Rig<'_> {
     }
 }
 
-/// The scene of the references in one appearance: the three tiles, the compact window, the open menu and the state
-/// after adding.
 async fn scene(rig: &mut Rig<'_>, appearance: Appearance) {
     let tag = theme_tag(appearance);
     rig.start(appearance, WIDTH, HEIGHT).await;
@@ -307,7 +294,7 @@ async fn scene(rig: &mut Rig<'_>, appearance: Appearance) {
     rig.wait(700).await;
     rig.shot(&format!("speech-tiles-added-{tag}.png")).await;
 
-    // The delete dialog (`design:models/cloud/delete-configuration`): Escape backs out and nothing is deleted.
+    // `design:settings/cloud-models/delete-configuration`.
     let before = saved(rig.st);
     let name = rig.form().name;
     rig.click(trash());
@@ -319,17 +306,13 @@ async fn scene(rig: &mut Rig<'_>, appearance: Appearance) {
     assert_eq!(saved(rig.st), before, "and nothing was deleted");
 }
 
-/// Run every action once against the tab and check the saved result. Selecting, adding from each template, duplicating,
-/// renaming, reordering and deleting persist, and each configuration keeps its draft, key, history and test result.
 async fn behavior(rig: &mut Rig<'_>, server: &str) {
     rig.start(Appearance::Light, WIDTH, HEIGHT).await;
 
-    // The form starts on the selected configuration; only that one has a draft.
     let form = rig.form();
     assert_eq!((form.shown.as_str(), form.name.as_str(), form.key.as_str()), ("qwen_asr", "Qwen ASR", API_KEY));
     assert_eq!(rig.drafts().iter().map(|d| d.id.as_str()).collect::<Vec<_>>(), ["qwen_asr"]);
 
-    // A click on a tile selects it at once; its form shows its own name and key.
     rig.click(tile(0, 0.));
     rig.wait(200).await;
     assert_eq!(saved(rig.st).1, "funasr");
@@ -337,7 +320,6 @@ async fn behavior(rig: &mut Rig<'_>, server: &str) {
     assert_eq!((form.shown.as_str(), form.name.as_str(), form.key.as_str()), ("funasr", "FunASR", ""));
     assert_eq!(rig.drafts().iter().map(|d| d.id.as_str()).collect::<Vec<_>>(), ["funasr", "qwen_asr"]);
 
-    // Edits of one configuration stay with it: its JSON, key and history survive the others being selected.
     rig.command(EditorCommand::TypeKey("fun-key".into()));
     rig.replace(|config| config["connection"]["model"] = "fun-edited".into());
     settle(rig.cx).await;
@@ -372,7 +354,6 @@ async fn behavior(rig: &mut Rig<'_>, server: &str) {
     settle(rig.cx).await;
     assert_eq!(model_of(&config_of(rig.st, "qwen_asr")), "my-asr-model", "each configuration has a history of its own");
 
-    // A test result belongs to its configuration.
     rig.replace(|config| {
         config["connection"]["base_url"] = format!("{server}/v1").into();
         config["connection"]["model"] = "mock-model".into();
@@ -395,7 +376,6 @@ async fn behavior(rig: &mut Rig<'_>, server: &str) {
     assert_eq!(rig.draft("funasr").test, TestState::Idle);
     assert!(matches!(rig.draft("qwen_asr").test, TestState::Ok(_)), "the result waits for its configuration");
 
-    // Reordering saves the order on the drop and keeps every draft and key with its configuration.
     let before = saved(rig.st).1;
     rig.drag(tile(2, 0.), tile(0, 0.)).await;
     assert_eq!(ids(rig.st), ["openrouter", "funasr", "qwen_asr"]);
@@ -408,7 +388,6 @@ async fn behavior(rig: &mut Rig<'_>, server: &str) {
     rig.wait(200).await;
     assert_eq!(saved(rig.st).1, "funasr", "a plain click still selects after a drag");
 
-    // Adding from each template: a tile named 新しい設定 joins the end, selected, shown, and its name is selected.
     let list_before = ids(rig.st);
     for (index, template) in CloudAsrTemplate::ALL.iter().enumerate() {
         rig.add_through_menu(index).await;
@@ -426,8 +405,6 @@ async fn behavior(rig: &mut Rig<'_>, server: &str) {
     assert_eq!(ids(rig.st).len(), 6);
     rig.shot("speech-tiles-six.png").await;
 
-    // Renaming saves as it is typed: the name is selected right after adding, so typing replaces it. A blank name is
-    // not saved, and the field goes back to the saved one when it loses focus.
     let added = saved(rig.st).1;
     rig.command(EditorCommand::TypeName("Mine".into()));
     assert_eq!(saved(rig.st).0.last().unwrap().1, "Mine", "the tile follows while typing");
@@ -445,8 +422,6 @@ async fn behavior(rig: &mut Rig<'_>, server: &str) {
     rig.wait(100).await;
     assert_eq!(rig.form().name, "Mine", "a name of blanks counts as empty");
 
-    // Validation is kept per configuration too: the new one has no model yet and says so, the others are fine, and
-    // going to another tile and back changes neither.
     let new_draft = rig.draft(&added);
     assert!(new_draft.error.is_some() && !new_draft.pending, "a template without a model does not validate");
     rig.scroll(0., 1000.);
@@ -463,7 +438,6 @@ async fn behavior(rig: &mut Rig<'_>, server: &str) {
     rig.wait(300).await;
     assert_eq!(saved(rig.st).1, added);
 
-    // A key goes to the Keychain account of this configuration only, once its JSON is valid.
     assert_eq!(model_of(&config_of(rig.st, &added)), "", "the new configuration has no model yet");
     rig.command(EditorCommand::TypeKey("mine-key".into()));
     settle(rig.cx).await;
@@ -473,7 +447,6 @@ async fn behavior(rig: &mut Rig<'_>, server: &str) {
     assert_eq!(rig.st.secrets.get(&asr_account(&added)).as_deref(), Some("mine-key"));
     assert_eq!(rig.st.secrets.get(&asr_account("funasr")).as_deref(), Some("fun-key"));
 
-    // Duplicating copies what is typed, even before it was saved, and never the key.
     rig.replace(|config| config["connection"]["model"] = "typed-just-now".into());
     rig.click(plus());
     rig.wait(60).await;
@@ -489,7 +462,6 @@ async fn behavior(rig: &mut Rig<'_>, server: &str) {
     assert!(copy.starts_with(added.split('-').next().unwrap()), "a copy starts from the template of its source");
     assert_eq!(ids(rig.st).len(), 7);
 
-    // Deleting removes the configuration with its key and draft; the neighbour is shown.
     let (rows, _) = saved(rig.st);
     let at = rows.iter().position(|(id, ..)| *id == added).expect("listed");
     let offset = rig.offset();
@@ -510,7 +482,6 @@ async fn behavior(rig: &mut Rig<'_>, server: &str) {
     assert_eq!(form.shown, selected);
     assert_eq!(form.name, rows[at + 1].1);
 
-    // Down to one: the trash is disabled and does nothing.
     while ids(rig.st).len() > 1 {
         rig.delete_shown(true).await;
     }
@@ -522,8 +493,7 @@ async fn behavior(rig: &mut Rig<'_>, server: &str) {
     assert_eq!(rig.form().deleting, None, "the last configuration cannot be deleted");
     assert_eq!(ids(rig.st), last, "the last configuration stays");
 
-    // A save that fails raises the banner above the card, and a save that works takes it down. The settings file is
-    // written through a temporary file, which a directory of the same name blocks.
+    // The settings file is written through a temporary file, which a directory of the same name blocks.
     let blocker = rig.st.cfg.path().with_extension("toml.tmp");
     std::fs::create_dir_all(&blocker).expect("block the settings file's temporary name");
     let before = saved(rig.st);
@@ -536,7 +506,6 @@ async fn behavior(rig: &mut Rig<'_>, server: &str) {
     rig.command(EditorCommand::SelectName);
     rig.command(EditorCommand::TypeName(before.0[0].1.clone()));
     assert!(!rig.save_failed(), "the next save that works takes the banner down");
-    // A draft that cannot be saved raises it too, and stays valid: the banner says why it was not kept.
     std::fs::create_dir_all(&blocker).expect("block again");
     rig.replace(|config| config["connection"]["model"] = "unsaved".into());
     settle(rig.cx).await;
@@ -547,7 +516,6 @@ async fn behavior(rig: &mut Rig<'_>, server: &str) {
     settle(rig.cx).await;
     assert!(!rig.save_failed());
 
-    // Everything is in the file, not only in memory.
     let on_disk = ConfigStore::open(rig.st.cfg.path()).expect("the settings file reads back").get();
     assert_eq!(on_disk.asr.cloud_asr, rig.st.cfg.get().asr.cloud_asr);
     println!(
@@ -555,7 +523,6 @@ async fn behavior(rig: &mut Rig<'_>, server: &str) {
     );
 }
 
-/// Opt-in: `DITO_SHOTS_ONLY=cloudspeechtiles`, with `--mock --data-dir <dir>`.
 pub async fn run(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     let server = st._mock_server.as_ref().expect("the cloud speech tile shots need --mock").url.clone();
     let original = st.cfg.get();

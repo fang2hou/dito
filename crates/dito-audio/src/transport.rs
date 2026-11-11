@@ -1,7 +1,6 @@
-//! How an input device is connected. Opening some devices has side effects outside this app
-//! (a nearby iPhone is woken as a Continuity microphone, a Bluetooth headset drops to its
-//! low-quality call profile), so automatic microphone picking only opens devices that are
-//! wired to this Mac. Everything else stays available for manual selection.
+//! How an input device is connected. Opening some devices has side effects outside this app (a nearby iPhone is
+//! woken as a Continuity microphone, a Bluetooth headset drops to its call profile), so automatic picking only opens
+//! wired devices.
 
 use std::ffi::c_void;
 use std::mem::size_of;
@@ -16,8 +15,7 @@ use objc2_core_audio::{
 };
 use objc2_core_foundation::CFString;
 
-/// Whether automatic picking may open a device with this transport type. Unknown (`None`) is refused:
-/// a device whose connection cannot be determined is not worth a side effect.
+/// Unknown (`None`) is refused: a device whose connection cannot be determined is not worth a side effect.
 pub(crate) fn allows_auto_probe(transport: Option<u32>) -> bool {
     const WIRED: [u32; 5] = [
         kAudioDeviceTransportTypeBuiltIn,
@@ -54,7 +52,6 @@ fn device_for_uid(uid: &str) -> Option<AudioDeviceID> {
     (status == kAudioHardwareNoError && device != 0).then_some(device)
 }
 
-/// CoreAudio transport type of the device with this UID (`kAudioDeviceTransportType…`).
 pub(crate) fn transport_of(uid: &str) -> Option<u32> {
     let device = device_for_uid(uid)?;
     let address = AudioObjectPropertyAddress {

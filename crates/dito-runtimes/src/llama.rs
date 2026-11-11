@@ -39,8 +39,8 @@ fn output_budget(prompt_tokens: usize, cap: Option<u32>) -> u32 {
     cap.map_or(computed, |cap| computed.min(cap))
 }
 
-/// The cuts first, then the temperature, as llama.cpp orders its own default chain. Without a top-k or top-p the chain is
-/// the temperature alone.
+/// The cuts first, then the temperature, as llama.cpp orders its own default chain. Without a top-k or top-p the chain
+/// is the temperature alone.
 fn polish_sampler(sampling: &Sampling) -> LlamaSampler {
     let mut chain = Vec::with_capacity(4);
     if let Some(k) = sampling.top_k {
@@ -54,13 +54,11 @@ fn polish_sampler(sampling: &Sampling) -> LlamaSampler {
     LlamaSampler::chain_simple(chain)
 }
 
-/// A chat model served by llama.cpp with Metal offload. Its prompt format is the chat template embedded in the GGUF.
 pub struct Chat {
     model: LlamaModel,
     /// Resolved once at load: a GGUF without a template is refused, never given a guessed format.
     template: LlamaChatTemplate,
     gate: Mutex<()>,
-    /// Qwen hybrid-thinking prefill: [`EMPTY_THINK_BLOCK`] after the generation prompt. Other families pass `false`.
     disable_thinking: bool,
 }
 
@@ -77,7 +75,6 @@ impl Chat {
         Ok(Self { model, template, gate: Mutex::new(()), disable_thinking })
     }
 
-    /// The system and user turns in the GGUF's own template, ending where the assistant turn opens.
     fn render_prompt(&self, system: &str, user: &str) -> Result<String, RuntimeError> {
         let messages = [
             LlamaChatMessage::new("system".into(), system.into()).map_err(RuntimeError::engine)?,
@@ -146,14 +143,11 @@ impl LlmRuntime for Chat {
 
 struct Generated {
     text: String,
-    /// `max_tokens` ran out before the model emitted an end-of-generation token.
     truncated: bool,
 }
 
-/// Samples and decodes one token at a time until the model ends its turn or `max_tokens` are produced.
-/// `stop` is checked before every token, so a cancel takes effect within one token's decode time.
-/// `batch` holds the tokens decoded last, and the next token is sampled from the logits of its final entry
-/// (an empty batch means the context's most recent output).
+/// `stop` is checked before every token, so a cancel takes effect within one token's decode time. `batch` holds the
+/// tokens decoded last; an empty batch means the context's most recent output.
 fn generate_text(
     model: &LlamaModel,
     ctx: &mut LlamaContext,
@@ -187,18 +181,17 @@ fn generate_text(
     Ok(Generated { text: out, truncated: true })
 }
 
-/// Qwen3-ASR (LLM GGUF + mmproj audio tower) through llama.cpp mtmd. The model and audio tower
-/// stay resident; each clip gets a fresh context because audio tokens fill the KV cache. The
-/// mutex doubles as the one-at-a-time gate and the `&mut` mtmd needs to tokenize.
+/// Each clip gets a fresh context because audio tokens fill the KV cache. The mutex doubles as the one-at-a-time gate
+/// and the `&mut` mtmd needs to tokenize.
 pub struct Asr {
     mtmd: Mutex<MtmdContext>,
     model: LlamaModel,
     threads: i32,
 }
 
-/// Matches the recorder's memory cap (10 min, `dito-audio` `MAX_SAMPLES`). The upstream long-audio
-/// defect this once guarded against (llama.cpp #21847) was fixed on 2026-05-15 (commit 72e60f5) and
-/// the vendored llama.cpp already contains it — a 72.7 s real-world clip transcribes in full.
+/// Matches the recorder's memory cap (10 min, `dito-audio` `MAX_SAMPLES`). The upstream long-audio defect
+/// (llama.cpp #21847) is fixed in the vendored llama.cpp (commit 72e60f5, 2026-05-15), so a 72.7 s real-world clip
+/// transcribes in full.
 const MAX_SAMPLES: usize = 600 * 16_000;
 
 impl Asr {
@@ -303,8 +296,6 @@ mod tests {
         assert_eq!(output_budget(1000, Some(9000)), 1500, "a cap never raises it");
     }
 
-    /// The user's parameters reach the sampler: a cap below what the reply needs cuts it off, and a chain that keeps one
-    /// candidate repeats the greedy reply at any temperature.
     #[test]
     #[ignore = "requires DITO_POLISH_MODEL_DIR and a local Qwen3.5-4B GGUF"]
     fn polish_sampling_parameters_reach_the_sampler() {
@@ -384,7 +375,7 @@ mod tests {
              <|im_start|>assistant\n<think>\n\n</think>\n\n"
         );
         assert_eq!(prompt, legacy);
-        // The old call: special tokens parsed, never a BOS.
+        // Special tokens are parsed and no BOS is added, as for the hand-written prompt.
         assert_eq!(chat.tokenize_prompt(&prompt), chat.model.vocab().tokenize(legacy.as_bytes(), false, true));
     }
 

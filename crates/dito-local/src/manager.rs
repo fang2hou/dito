@@ -1,4 +1,4 @@
-//! Local model lifecycle on disk: scan, download (pause / resume / cancel), delete, move.
+//! Local model lifecycle on disk: scan, download (pause, resume, cancel), delete, move.
 
 use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
@@ -22,8 +22,7 @@ pub enum ModelState {
         total: u64,
         bytes_per_sec: f64,
     },
-    /// All bytes are on disk; the SHA-256 pass is running (seconds for multi-GB files).
-    /// Cancellable: a cancel here keeps the completed `.part` file.
+    /// A cancel here keeps the completed `.part` file.
     Verifying {
         done: u64,
         total: u64,
@@ -41,7 +40,6 @@ pub enum ModelState {
 }
 
 impl ModelState {
-    /// Seconds left at the current speed.
     pub fn eta_secs(&self) -> Option<u64> {
         match self {
             Self::Downloading { done, total, bytes_per_sec } if *bytes_per_sec > 1.0 => {
@@ -105,7 +103,6 @@ pub struct ModelManager {
     inner: Arc<Inner>,
 }
 
-/// Keep this much free after a download completes.
 const FREE_MARGIN: u64 = 200 * 1024 * 1024;
 
 impl ModelManager {
@@ -315,7 +312,7 @@ impl ModelManager {
         }
     }
 
-    /// Stop a running download but keep the partial file so it can resume.
+    /// Keeps the partial file so the download can resume.
     pub fn pause(&self, id: &str) {
         if let Some(j) = self.inner.jobs.lock().expect("manager mutex poisoned").get(id) {
             j.paused.store(true, Ordering::SeqCst);
@@ -323,7 +320,6 @@ impl ModelManager {
         }
     }
 
-    /// Abort a download and discard what was fetched.
     pub fn cancel(&self, id: &str) {
         if let Some(j) = self.inner.jobs.lock().expect("manager mutex poisoned").get(id) {
             // Clear any pause request first: with `paused` still set the task's exit path

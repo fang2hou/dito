@@ -41,23 +41,20 @@ pub struct HistoryPage {
     pub(super) list: PageQuery<Arc<Vec<HistoryEntry>>>,
     /// Distinguishes the poll task of the current activation from earlier, exited ones.
     pub(super) poll_epoch: u64,
-    /// The probe loop of the current activation; replacing it cancels the previous one.
+    /// Replacing it cancels the previous loop.
     _poll: Option<Task<()>>,
     /// Newest history id seen by the lightweight poll probe; only the probe writes it, so a
     /// change always means the database moved since the previous probe.
     pub(super) last_seen_id: i64,
     pub(super) placeholder_lang: dito_core::i18n::Lang,
-    /// While true the list renders as shimmering placeholders: building the real rows lays out a
-    /// a lot of text, and doing that on every frame of the nav-plate animation starves it. The
-    /// skeleton keeps those frames cheap; the content swaps in once the plate has settled.
+    /// While true the list renders as shimmering placeholders: building the real rows lays out a lot of text, and doing
+    /// that on every frame of the nav-plate animation starves it. The skeleton keeps those frames cheap; the content
+    /// swaps in once the plate has settled.
     pub(super) skeleton: bool,
-    /// Clears `skeleton` only after both the settle delay and the first query outcome.
     pub(super) gate: SkeletonGate,
-    /// Virtualized list state (visible rows only are laid out), held here so scrolling survives
-    /// re-renders. `listed` tracks the item count last given to the state.
+    /// Held here so scrolling survives re-renders. `listed` tracks the item count last given to the state.
     pub(super) list_state: ListState,
     pub(super) listed: usize,
-    /// The page's own motion scope: its controls' transient state, reset on navigation.
     pub(super) motion: ui::MotionScope,
 }
 
@@ -74,8 +71,7 @@ impl QueryPage for HistoryPage {
     }
 
     fn applied(&mut self, cx: &mut Context<Self>) {
-        // Any first outcome, data or error, ends the skeleton once the settle window has
-        // also elapsed; later outcomes find the skeleton already down and do nothing.
+        // Data or error, either ends the skeleton once the settle window has also elapsed.
         if self.skeleton && self.gate.outcome_received() {
             self.skeleton = false;
             cx.notify();
@@ -145,9 +141,8 @@ impl HistoryPage {
         this
     }
 
-    /// Enter skeleton mode for one plate-settle window, then swap the real list in. The
-    /// skeleton clears only when that window has elapsed AND the first query outcome (data
-    /// or error) has landed, so a slow first load never flashes an empty list.
+    /// The skeleton clears only when the settle window has elapsed AND the first query outcome (data or error) has
+    /// landed, so a slow first load never flashes an empty list.
     pub fn enter(&mut self, cx: &mut Context<Self>) {
         self.skeleton = true;
         let entry = self.gate.enter();
@@ -165,8 +160,7 @@ impl HistoryPage {
         cx.notify();
     }
 
-    /// The style filter, dropping an app selection whose app is no longer configured. It reads as All styles then,
-    /// matching what the picker shows.
+    /// Reads as All styles when the selected app is no longer configured, matching what the picker shows.
     pub(super) fn selected_style(&self) -> Option<Style> {
         self.style.as_ref().filter(|style| self.st.cfg.get().prompts.profile_enabled(style)).cloned()
     }
@@ -190,8 +184,7 @@ impl HistoryPage {
         }
     }
 
-    /// Page visibility lifecycle, driven by `Settings`. While inactive the page launches no
-    /// queries and late results are ignored; entering loads at once and starts the poll.
+    /// Driven by `Settings`. While inactive the page launches no queries and late results are ignored.
     pub fn set_active(&mut self, active: bool, cx: &mut Context<Self>) {
         let was = self.list.is_active();
         self.list.set_active(active);
@@ -206,16 +199,13 @@ impl HistoryPage {
         }
     }
 
-    /// New dictations arrive while the page is open: probe the newest id off the UI thread
-    /// and reload the full list only when it changed. One poll task per activation; a
-    /// superseded or inactive task exits at its next tick.
+    /// One poll task per activation; a superseded or inactive task exits at its next tick.
     fn start_poll(&mut self, cx: &mut Context<Self>) {
         self.poll_epoch += 1;
         let epoch = self.poll_epoch;
         self._poll = Some(cx.spawn(async move |this, cx| {
             loop {
                 cx.background_executor().timer(POLL_INTERVAL).await;
-                // Never launch a probe for a hidden page or a superseded task.
                 let Ok(Some(st)) = this.update(cx, |t, _| t.polls(epoch).then(|| t.st.clone())) else { break };
                 let probe = services::history_list(st, HistoryFilter { limit: Some(1), ..Default::default() }).await;
                 if !this.update(cx, |t, cx| t.apply_probe(epoch, probe, cx)).unwrap_or(false) {
@@ -251,13 +241,11 @@ impl HistoryPage {
 }
 
 impl HistoryPage {
-    /// Reset the page's transient motion state; its controls mount statically on the next entry.
     pub(in crate::settings) fn reset_motion(&mut self) {
         self.motion.reset();
         self.hovered_original = None;
     }
 
-    /// The page's scope, for the screenshot harness.
     #[cfg(feature = "screenshots")]
     pub(in crate::settings) fn motion_scope(&self) -> ui::ScopeHandle {
         self.motion.handle()
@@ -266,8 +254,8 @@ impl HistoryPage {
 
 impl Render for HistoryPage {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        // The page draws under its own scope: after a page switch its controls mount statically,
-        // never sliding to values remembered from another page or an earlier visit.
+        // Own scope: after a page switch the controls mount statically instead of sliding to values remembered from an
+        // earlier visit.
         ui::with_motion_scope(self.motion.handle(), || {
             let content = self.view(window, cx).into_any_element();
             div()

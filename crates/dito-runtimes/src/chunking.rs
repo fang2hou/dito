@@ -1,8 +1,8 @@
-//! Long clips are cut at pauses before recognition, and the pieces' text is joined back.
+//! Long clips are cut at pauses before transcription, and the pieces' text is joined back.
 
-/// SenseVoice and the Haas NeMo TDT conversion need bounded utterances. Long
-/// clips can lose punctuation and syllables. Cut at the quietest 25 ms frame inside the last 6 s of a 28 s stretch so the
-/// seam lands in a pause when there is one.
+/// SenseVoice and the Haas NeMo TDT conversion need bounded utterances. Long clips can lose punctuation and
+/// syllables. Cut at the quietest 25 ms frame inside the last 6 s of a 28 s stretch so the seam lands in a pause when
+/// there is one.
 const CHUNK: usize = 28 * 16_000;
 const SEARCH_BACK: usize = 6 * 16_000;
 const FRAME: usize = 400; // 25 ms
@@ -17,7 +17,7 @@ pub(crate) fn split_at_pauses(samples: &[f32]) -> Vec<&[f32]> {
         let from = start + CHUNK - SEARCH_BACK;
         let mut best = from;
         let mut best_energy = f32::INFINITY;
-        let mut i = (from / FRAME + 1) * FRAME; // first frame fully inside the search span
+        let mut i = (from / FRAME + 1) * FRAME;
         while i + FRAME <= start + CHUNK {
             let energy = samples[i..i + FRAME].iter().map(|s| s * s).sum::<f32>();
             if energy < best_energy {
@@ -64,7 +64,7 @@ pub(crate) fn join_chunks(texts: Vec<String>) -> String {
 mod tests {
     use super::*;
 
-    /// 3 s of tone then 1 s of silence, repeated — pauses land every 4 s.
+    /// 3 s of tone then 1 s of silence, repeated, so pauses land every 4 s.
     fn pattern(seconds: usize) -> Vec<f32> {
         let mut v = Vec::with_capacity(seconds * 16_000);
         while v.len() < seconds * 16_000 {

@@ -36,7 +36,6 @@ impl AsrEditor {
             .child(self.connection_footer(&c, cx))
     }
 
-    /// The name of the configuration, 216 wide, beside its API key.
     fn name_and_key(&self, c: &Ctx) -> Div {
         let p = &c.p;
         div()
@@ -199,8 +198,7 @@ impl AsrEditor {
             .child(text(status, 13., FontWeight::NORMAL, p.text).line_height(px(21.)))
     }
 
-    /// The test status on the left; on the right the trash, the test and the help. The trash deletes the configuration
-    /// the form shows and is disabled while it is the only one.
+    /// The trash is disabled while the form shows the only configuration.
     fn connection_footer(&self, c: &Ctx, cx: &mut Context<Self>) -> Div {
         let p = &c.p;
         let help = ui::button(

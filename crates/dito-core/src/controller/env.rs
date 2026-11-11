@@ -9,7 +9,6 @@ use crate::store::Store;
 
 pub trait Recorder: Send + Sync {
     fn start(&self) -> Result<(), RecorderError>;
-    /// Stop and return everything recorded since `start`.
     fn stop(&self) -> AudioClip;
     /// Smoothed input level 0..1 for the waveform.
     fn level(&self) -> f32;
@@ -37,19 +36,17 @@ pub trait Frontmost: Send + Sync {
     fn frontmost(&self) -> AppInfo;
 }
 
-/// Warms the insertion target's accessibility state when recording starts, so lazily built
-/// trees (Electron/Chromium) are ready by delivery. Platform-agnostic no-op in tests.
+/// Warms the insertion target's accessibility state when recording starts, so lazily built trees (Electron/Chromium)
+/// are ready by delivery.
 pub trait FocusWarmer: Send + Sync {
     fn warm(&self);
 }
 
-/// Silences other audio (typically music) while the microphone records.
 pub trait MusicMute: Send + Sync {
-    /// Mute whatever is playing, if anything; dropping the session restores the previous state.
+    /// Dropping the session restores the previous state.
     fn mute_if_active(&self) -> Box<dyn MuteSession>;
 }
 
-/// Marker implemented by the guard types [`MusicMute`] returns; the concrete `Drop` restores state.
 pub trait MuteSession: Send {}
 
 #[derive(Clone)]
@@ -66,6 +63,6 @@ pub struct Deps {
     pub config: Arc<ConfigStore>,
     pub store: Arc<Store>,
     pub engines: Arc<dyn Engines>,
-    /// Where recordings are kept for replay and re-recognition. `None` disables saving.
+    /// Where recordings are kept for replay and re-transcription. `None` disables saving.
     pub audio_dir: Option<PathBuf>,
 }

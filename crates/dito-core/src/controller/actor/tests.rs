@@ -41,14 +41,12 @@ impl Sink for FakeSink {
     }
 }
 
-/// Makes delivery as slow as the real sink, which sleeps while it polls focus: the sink reports that it started, then
-/// blocks until the test releases it.
+/// As slow as the real sink, which sleeps while it polls focus: reports that it started, then blocks until released.
 struct Gate {
     entered: tokio::sync::mpsc::UnboundedSender<()>,
     release: Mutex<std::sync::mpsc::Receiver<()>>,
 }
 
-/// The test's end of a [`Gate`].
 struct GateControl {
     entered: tokio::sync::mpsc::UnboundedReceiver<()>,
     release: std::sync::mpsc::Sender<()>,
@@ -66,7 +64,6 @@ impl FocusWarmer for NoopFocusWarmer {
     fn warm(&self) {}
 }
 
-/// Records "mute" when asked and "unmute" when the guard drops.
 #[derive(Default, Clone)]
 struct FakeMusicMute {
     events: Arc<Mutex<Vec<&'static str>>>,
@@ -99,7 +96,6 @@ struct RigOptions {
     audio_dir_blocked: bool,
     mode: RecordMode,
     music_mute: MusicMuteMode,
-    /// Delivery blocks until `Rig::release_delivery`.
     gated_delivery: bool,
 }
 
@@ -128,7 +124,6 @@ struct Rig {
 }
 
 impl Rig {
-    /// Waits until the gated sink has been called. From then on it blocks on the pool until `release_delivery`.
     async fn delivery_started(&mut self) {
         let gate = self.gate.as_mut().expect("the rig was built with gated_delivery");
         tokio::time::timeout(Duration::from_secs(5), gate.entered.recv())
@@ -222,7 +217,6 @@ async fn history_of(store: &Store, count: usize) -> Vec<crate::store::HistoryEnt
     }
 }
 
-/// What the default settings run: local recognition, then local polishing.
 fn default_labels() -> EngineLabels {
     EngineLabels {
         asr: Some(format!("local:{DEFAULT_ASR_LOCAL}")),
@@ -399,7 +393,6 @@ async fn a_key_press_during_delivery_starts_listening_only_after_its_result() {
     r.h.send(Command::KeyDown);
     r.h.send(Command::Finish);
     r.delivery_started().await;
-    // The actor stays free while the sink blocks, and the text is already saved.
     assert_eq!(history_of(&r.store, 1).await[0].kind, HistoryKind::Dictation);
     r.h.send(Command::KeyDown);
     r.h.send(Command::KeyUp); // releasing a toggle shortcut must not take the press back
@@ -443,7 +436,6 @@ async fn commands_during_delivery_cannot_change_its_outcome() {
     r.h.send(Command::KeyDown);
     r.h.send(Command::Finish);
     r.delivery_started().await;
-    // Insertion cannot be cancelled, and a partial insertion is never retried.
     for c in [
         Command::Cancel,
         Command::Stop,
@@ -460,7 +452,6 @@ async fn commands_during_delivery_cannot_change_its_outcome() {
 
     r.release_delivery();
     wait_for(&r.h, |s| *s == HudState::Inserted).await;
-    // Queued behind a blocking call, a Cancel used to hide the outcome the moment it appeared.
     assert_eq!(*r.h.hud().borrow(), HudState::Inserted);
     tokio::time::advance(SUCCESS_FLASH + Duration::from_millis(10)).await;
     wait_for(&r.h, |s| *s == HudState::Hidden).await;
@@ -542,7 +533,7 @@ async fn auto_mode_mutes_while_listening_and_restores_when_recording_ends() {
     wait_for(&r.h, |s| matches!(s, HudState::Listening { .. })).await;
     assert_eq!(r.mute.log(), ["mute"], "music is muted for the whole listening phase");
     r.h.send(Command::Finish);
-    // Recognition and insertion may still be running; the microphone is done, so music returns.
+    // Transcription and insertion may still be running; the microphone is done, so music returns.
     wait_for(&r.h, |s| *s == HudState::Inserted).await;
     assert_eq!(r.mute.log(), ["mute", "unmute"]);
 }

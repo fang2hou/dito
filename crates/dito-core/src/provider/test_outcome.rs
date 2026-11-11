@@ -6,7 +6,6 @@ use super::{AsrRequest, PolishRequest, Polisher, Transcriber};
 use crate::audio::AudioClip;
 use crate::error::{ErrorKind, ProviderError, ProviderResult};
 
-/// Result of the one-button connection test shown in settings.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum TestOutcome {
     Ok { latency_ms: u64 },
@@ -22,7 +21,7 @@ impl TestOutcome {
     }
 }
 
-/// Sends half a second of silence. An engine that answers "no speech" is reachable, so that counts as success.
+/// An engine that answers "no speech" is reachable, so that counts as success.
 pub async fn test_transcriber(t: &dyn Transcriber) -> TestOutcome {
     test_transcriber_with_language(t, None).await
 }

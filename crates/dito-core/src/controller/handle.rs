@@ -12,7 +12,6 @@ pub(super) enum Msg {
     Cmd(Command),
     PipelinePhase(u64, PipelinePhase),
     Done(u64, Result<Output, PipelineError>),
-    /// The insertion that `Done` started on the blocking pool has finished.
     Delivered(u64, Delivery),
     Hide(u64, u64),
     RecordingLimit(u64),

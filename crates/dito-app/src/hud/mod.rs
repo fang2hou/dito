@@ -1,5 +1,4 @@
 //! The floating HUD: a capsule near the bottom of the screen that mirrors the dictation state.
-//! Geometry is authored in design points and drawn at [`HUD_SCALE`].
 
 mod buttons;
 mod capsule;

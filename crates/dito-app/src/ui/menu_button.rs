@@ -45,7 +45,6 @@ pub(super) fn press_toggle(
     }
 }
 
-/// Circular ⋮-style button that opens a menu: like [`icon_button`], but a press while the menu is open closes it.
 pub fn menu_button(id: impl Into<ElementId>, p: &Palette, ic: Ic, open: bool, toggle: Cb) -> Stateful<Div> {
     let id: ElementId = id.into();
     let scope = motion_scope();
@@ -72,7 +71,6 @@ mod tests {
     fn a_click_from_an_expired_scope_never_toggles_the_menu() {
         let mut scope = crate::ui::MotionScope::new();
         let key = ElementId::from("menu");
-        // Pressed while the menu was open: the following click must not re-open it.
         scope.handle().registry().unwrap().borrow_mut().pressed_open.insert(key.clone());
         assert!(!should_toggle(&scope.handle(), &key), "the press-while-open mark suppresses the toggle");
         assert!(!scope.handle().registry().unwrap().borrow().pressed_open.contains(&key), "the mark is consumed");

@@ -1,4 +1,4 @@
-//! Reusable wizard pieces: pills, keycaps, the stepper, the per-step art panel, and the footer.
+//! Reusable wizard pieces.
 
 use dito_core::i18n::{Lang, Tr};
 
@@ -11,7 +11,7 @@ use crate::ui::{self, BtnKind, BtnSize, cbk, text};
 
 use super::{Onboarding, Step};
 
-/// A primary pill that does nothing: the look of a button that is not available (the caller dims it).
+/// Does nothing; the caller dims it.
 pub(super) fn static_primary(p: &Palette, label: &str, lead: Option<Ic>, trail: Option<Ic>) -> Stateful<Div> {
     ui::disabled_button("wizard-disabled-primary", p, label, BtnKind::Primary, BtnSize::Large, lead, trail)
 }
@@ -34,7 +34,6 @@ const STEP_LABELS: [Tr; 6] = [
     Tr::OnboardingStepTry,
 ];
 
-/// One preset-shortcut button.
 pub(super) fn key_tile(
     i: usize,
     p: &Palette,
@@ -64,7 +63,6 @@ pub(super) fn key_tile(
         .child(ui::choice_label(&key_id, p, label, 15., on))
 }
 
-/// The big keycap while the wizard waits for the user to press a new shortcut.
 pub(super) fn keycap_waiting(p: &Palette, label: SharedString) -> Div {
     div()
         .h(px(90.))
@@ -152,7 +150,7 @@ pub(super) fn stepper(step: Step, p: &Palette, lang: Lang) -> Div {
 }
 
 /// Right-hand art, exported from the design's per-step `deco-panel` frames (`assets/onboarding`).
-/// The artwork keeps its design size and is centre-cropped when the window is shorter than the panel.
+/// The artwork keeps its design size and is center-cropped when the window is shorter than the panel.
 pub(super) fn art(step: Step, p: &Palette) -> Div {
     let name = match step {
         Step::Welcome => return div(),
@@ -184,7 +182,6 @@ pub(super) fn footer(
     can_next: bool,
 ) -> Div {
     let p = &c.p;
-    // 続ける ends with an arrow, 完了 starts with a check; はじめる is plain.
     let (lead, trail) = match step {
         Step::Welcome => (None, None),
         Step::Try => (Some(Ic::Check), None),

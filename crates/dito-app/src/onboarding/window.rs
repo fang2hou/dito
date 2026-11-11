@@ -1,4 +1,4 @@
-//! Opening the wizard window: first run, restart from Settings, and the preview handle.
+//! Opening the wizard window.
 
 use std::sync::Arc;
 
@@ -13,7 +13,6 @@ use super::Onboarding;
 pub struct WizardWindow(pub WindowHandle<Root>);
 impl Global for WizardWindow {}
 
-/// Entity handle for previews.
 #[cfg(feature = "screenshots")]
 pub fn open_with_view(st: Arc<AppState>, cx: &mut App) -> Option<(WindowHandle<Root>, Entity<Onboarding>)> {
     let bounds = Bounds::centered(None, size(px(1040.), px(720.)), cx);
@@ -44,7 +43,6 @@ pub fn is_open(cx: &App) -> bool {
     cx.try_global::<WizardWindow>().is_some_and(|h| cx.windows().iter().any(|w| w.window_id() == h.0.window_id()))
 }
 
-/// Open the wizard again (Settings ▸ 初期設定), or bring the one that is already open to the front.
 pub fn restart(st: Arc<AppState>, cx: &mut App) {
     if let Some(h) = cx.try_global::<WizardWindow>().map(|h| h.0)
         && h.update(cx, |_, window, _| window.activate_window()).is_ok()

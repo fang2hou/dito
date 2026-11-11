@@ -1,5 +1,4 @@
-//! Transcribe → polish for one recorded clip. No recording, no delivery: those belong to the controller.
-//! The polish step is also available alone ([`polish_text`]) for text that is already transcribed.
+//! Transcribe, then polish, for one recorded clip; recording and delivery belong to the controller.
 
 use std::time::Instant;
 
@@ -56,7 +55,7 @@ async fn or_cancel<T>(cancel: &CancellationToken, fut: impl Future<Output = T>) 
     }
 }
 
-/// Transcribe and (if enabled) polish. A polish failure never loses the transcript.
+/// A polish failure never loses the transcript.
 pub async fn run(
     engines: &dyn Engines,
     cfg: &Config,
@@ -105,7 +104,7 @@ async fn transcribe(
     Ok(Output { raw: transcript.text, polished: None, polish_error: None, lang, asr_ms, polish_ms: 0 })
 }
 
-/// Fills `out.polished` or `out.polish_error`; leaves `out` untouched when polishing is off.
+/// Leaves `out` untouched when polishing is off.
 async fn polish(
     engines: &dyn Engines,
     cfg: &Config,
@@ -140,26 +139,23 @@ async fn polish(
     Ok(())
 }
 
-/// What one polish call needs: the text and everything its system prompt is built from.
 pub struct PolishJob<'a> {
     /// Passed in rather than read from the config because the Prompts page previews unsaved drafts.
     pub prompts: &'a Prompts,
     pub style: Style,
     pub text: &'a str,
-    /// Spelling references for the prompt: the saved wordbook run through [`polish_wordbook`], or none.
     pub wordbook: &'a [String],
     /// Prompt language; `None` detects it from `text`, as dictation does.
     pub lang: Option<Lang>,
 }
 
-/// The wordbook words the polish prompt may carry: all of `words` when the user turned on
-/// `wordbook_for_polish`, none otherwise. Recognition hotwords are not subject to it.
+/// ASR hotwords are not subject to `wordbook_for_polish`.
 pub fn polish_wordbook<'a>(cfg: &Config, words: &'a [String]) -> &'a [String] {
     if cfg.wordbook_for_polish { words } else { &[] }
 }
 
-/// Polish `job.text` with `polisher`. The one place that builds the system prompt and calls the model; dictation,
-/// polishing a history entry again and the Prompts page preview all use it.
+/// The one place that builds the system prompt and calls the model; dictation, polishing a history entry again and the
+/// Prompts page preview all use it.
 pub async fn polish_text(polisher: &dyn Polisher, job: PolishJob<'_>) -> ProviderResult<String> {
     let PolishJob { prompts, style, text, wordbook, lang } = job;
     let input = PromptInput { prompts, style, text, wordbook };

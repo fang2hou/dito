@@ -20,19 +20,16 @@ const MIC_POLL: Duration = Duration::from_secs(1);
 pub struct GeneralPage {
     pub(super) st: Arc<AppState>,
     pub(super) open: Option<&'static str>,
-    /// Filled when the microphone list is opened; enumerating devices at launch touches the audio
-    /// system (and any nearby iPhone) before the user has asked for a microphone.
+    /// Loaded when the microphone list opens: enumerating devices at launch would touch the audio system (and any
+    /// nearby iPhone) before the user asked for a microphone.
     pub(super) devices: Vec<InputDevice>,
-    /// The microphone refresh loop; present only while the list is open. Opening the list again
-    /// replaces it, and dropping it ends the loop.
+    /// Opening the list again replaces it, and dropping it ends the loop.
     _mic_poll: Option<Task<()>>,
-    /// Polls the Accessibility permission for as long as the page exists.
     _permission_poll: Task<()>,
     pub(super) capturing: bool,
     pub(super) accessibility_ok: bool,
     pub(super) hud_preview: Option<Entity<StylePreview>>,
     pub(super) hud_height: Entity<HudHeightSlider>,
-    /// The page's own motion scope: its controls' transient state, reset on navigation.
     pub(super) motion: ui::MotionScope,
 }
 
@@ -121,7 +118,6 @@ impl GeneralPage {
 }
 
 impl GeneralPage {
-    /// Reset the page's transient motion state; its controls mount statically on the next entry.
     pub(in crate::settings) fn reset_motion(&mut self) {
         self.motion.reset();
     }
@@ -129,8 +125,8 @@ impl GeneralPage {
 
 impl Render for GeneralPage {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        // The page draws under its own scope: after a page switch its controls mount statically,
-        // never sliding to values remembered from another page or an earlier visit.
+        // Own scope: after a page switch the controls mount statically instead of sliding to values remembered from an
+        // earlier visit.
         ui::with_motion_scope(self.motion.handle(), || self.view(cx))
     }
 }
