@@ -6,6 +6,7 @@ use std::time::Instant;
 
 use gpui_kit::*;
 
+use super::copy_button::CopyRun;
 use super::plate::PlateMotion;
 
 static NEXT_SCOPE_ID: AtomicU64 = AtomicU64::new(1);
@@ -26,6 +27,8 @@ pub(super) struct Registry {
     pub(super) tweens: HashMap<ElementId, (f32, f32, Instant, usize)>,
     pub(super) hovered: HashMap<ElementId, bool>,
     pub(super) plates: HashMap<ElementId, PlateMotion>,
+    /// The latest confirmation of each copy button.
+    pub(super) copies: HashMap<ElementId, CopyRun>,
     /// Last value and number of flips seen per element id; a flip starts a new animation keyed by the count.
     pub(super) flips: HashMap<ElementId, (bool, usize, Instant)>,
     /// Captured at build time for the tooltip.
@@ -46,6 +49,7 @@ impl Registry {
             tweens: HashMap::new(),
             hovered: HashMap::new(),
             plates: HashMap::new(),
+            copies: HashMap::new(),
             flips: HashMap::new(),
             tips: HashMap::new(),
             tip_epoch: 0,

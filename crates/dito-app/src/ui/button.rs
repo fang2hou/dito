@@ -232,8 +232,15 @@ pub fn circle_control(
     size: CircleSize,
     appearance: CircleAppearance,
 ) -> Stateful<Div> {
+    let (_, glyph) = size.dimensions();
+    let foreground = appearance.foreground;
+    circle_shell(id, size, appearance).child(icon(ic, glyph, foreground))
+}
+
+/// The circle without its glyph, for controls that draw their own.
+pub(super) fn circle_shell(id: impl Into<ElementId>, size: CircleSize, appearance: CircleAppearance) -> Stateful<Div> {
     let id = id.into();
-    let (diameter, glyph) = size.dimensions();
+    let (diameter, _) = size.dimensions();
     let mut control = div()
         .id(id.clone())
         .size(px(diameter))
@@ -253,7 +260,7 @@ pub fn circle_control(
     if let Some(hover) = appearance.hover {
         control = control.child(hover_fill(&id, None, hover));
     }
-    control.child(icon(ic, glyph, appearance.foreground))
+    control
 }
 
 pub fn close_button(id: impl Into<ElementId>, p: &Palette, on_click: Cb) -> Stateful<Div> {

@@ -80,14 +80,20 @@ impl AsrEditor {
                     w.dispatch_action(Box::new(Redo), cx);
                 }),
             ))
-            .child(editor_icon(
+            .child(with_tip(
+                ui::copy_button(
+                    "copy-config",
+                    p,
+                    ui::cbk_copy(cx, |this: &mut Self, _, cx| {
+                        cx.write_to_clipboard(ClipboardItem::new_string(
+                            this.draft().source.read(cx).value().to_string(),
+                        ));
+                        true
+                    }),
+                ),
                 "copy-config",
                 p,
                 c.t(Tr::AsrEditorCopy),
-                Ic::Copy,
-                cbk(cx, |this: &mut Self, _, cx| {
-                    cx.write_to_clipboard(ClipboardItem::new_string(this.draft().source.read(cx).value().to_string()));
-                }),
             ));
         div()
             .w_full()
@@ -230,7 +236,11 @@ impl AsrEditor {
 }
 
 fn editor_icon(id: &'static str, p: &Palette, label: SharedString, icon: Ic, action: ui::Cb) -> Stateful<Div> {
+    with_tip(ui::icon_button(id, p, icon, false, action), id, p, label)
+}
+
+fn with_tip(button: Stateful<Div>, id: &'static str, p: &Palette, label: SharedString) -> Stateful<Div> {
     let key = ElementId::from(id);
     ui::tip_label(key.clone(), label);
-    ui::icon_button(key.clone(), p, icon, false, action).child(ui::tip_above(p, &key))
+    button.child(ui::tip_above(p, &key))
 }

@@ -14,6 +14,17 @@ pub fn cbk<V: 'static>(cx: &mut Context<V>, f: impl Fn(&mut V, &mut Window, &mut
     })
 }
 
+/// Returns whether the text reached the clipboard.
+pub type CopyCb = Rc<dyn Fn(&mut Window, &mut App) -> bool>;
+
+pub fn cbk_copy<V: 'static>(
+    cx: &mut Context<V>,
+    f: impl Fn(&mut V, &mut Window, &mut Context<V>) -> bool + 'static,
+) -> CopyCb {
+    let weak = cx.entity().downgrade();
+    Rc::new(move |window, app| weak.update(app, |v, cx| f(v, window, cx)).unwrap_or(false))
+}
+
 pub fn click_cb(cb: Cb) -> impl Fn(&ClickEvent, &mut Window, &mut App) + 'static {
     move |_, w, cx| cb(w, cx)
 }

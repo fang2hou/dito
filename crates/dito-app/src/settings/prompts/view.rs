@@ -319,13 +319,11 @@ impl PromptsPage {
         let copy = if failure.is_some() || self.try_out.read(cx).value().is_empty() {
             ui::disabled_icon_button_with("try-copy", &p, Ic::Copy, ui::CircleSize::Compact)
         } else {
-            ui::icon_button_with(
+            ui::copy_button_with(
                 "try-copy",
                 &p,
-                Ic::Copy,
-                false,
                 ui::CircleSize::Compact,
-                cbk(cx, |this: &mut Self, _, cx| this.copy_result(cx)),
+                ui::cbk_copy(cx, |this: &mut Self, _, cx| this.copy_result(cx)),
             )
         };
         let result = match failure {

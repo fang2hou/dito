@@ -59,10 +59,12 @@ impl HistoryPage {
         cx.notify();
     }
 
-    pub(super) fn copy(&self, text: &str) {
-        if let Err(e) = dito_platform::insert::copy_to_clipboard(text) {
+    pub(super) fn copy(&self, text: &str) -> bool {
+        let copied = dito_platform::insert::copy_to_clipboard(text);
+        if let Err(e) = &copied {
             tracing::warn!("copy failed: {e}");
         }
+        copied.is_ok()
     }
 
     pub(super) fn delete(&mut self, id: i64, cx: &mut Context<Self>) {

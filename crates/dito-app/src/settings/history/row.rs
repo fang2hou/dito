@@ -47,7 +47,12 @@ impl HistoryPage {
             icon: Some(Ic::Copy),
             label: c.t(Tr::HistoryCopyOriginal),
             tone: MenuTone::Default,
-            on_click: wrap(cx, Box::new(move |t, _| t.copy(&raw))),
+            on_click: wrap(
+                cx,
+                Box::new(move |t, _| {
+                    t.copy(&raw);
+                }),
+            ),
         });
         if let Some(path) = e.audio_path.clone() {
             items.push(MenuItem {
@@ -133,12 +138,10 @@ impl HistoryPage {
             body = body.gap(px(0.)).child(OriginalDisclosure { id, raw, original, p, open });
         }
         let t = e.final_text().to_string();
-        actions = actions.child(ui::icon_button(
+        actions = actions.child(ui::copy_button(
             SharedString::from(format!("copy-{id}")),
             p,
-            Ic::Copy,
-            false,
-            cbk(cx, move |this: &mut Self, _, _| this.copy(&t)),
+            ui::cbk_copy(cx, move |this: &mut Self, _, _| this.copy(&t)),
         ));
         RowParts { meta, body, actions }
     }
