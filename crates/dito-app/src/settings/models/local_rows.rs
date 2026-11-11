@@ -111,7 +111,7 @@ impl ModelsPage {
         }
         if *state == ModelState::Installed {
             if selected {
-                return plate().bg(p.model_in_use_bg).border_2().border_color(p.model_in_use_border).into_any_element();
+                return plate().bg(p.accent_soft).border_2().border_color(p.accent).into_any_element();
             }
             let (bg, idle_c, hover_c) = (p.model_idle_bg, p.model_idle_border, p.model_idle_border_hover);
             return ui::tweened(

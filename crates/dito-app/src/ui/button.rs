@@ -10,6 +10,9 @@ use crate::theme::Palette;
 
 pub const CONTROL_H: f32 = 36.0;
 
+/// The design's `opacity/disabled`: a disabled control is the same instance at 45 percent.
+const DISABLED_OPACITY: f32 = 0.45;
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum BtnKind {
     Primary,
@@ -48,6 +51,12 @@ impl BtnColors {
         };
         Self { bg, fg, border, tint }
     }
+
+    /// Gold at 45 percent leaves the label unreadable, so a disabled Primary button changes surface instead of
+    /// dimming.
+    fn disabled_primary(p: &Palette) -> Self {
+        Self { bg: p.seg, fg: p.muted, border: None, tint: p.seg }
+    }
 }
 
 pub fn button(
@@ -75,7 +84,8 @@ pub fn button_with(
     button_impl(id, p, label, kind, size, lead, trail, Some(on_click))
 }
 
-/// Shares label, icon and width calculation with the active button.
+/// The disabled state of every kind, sharing label, icon and width calculation with the active button: Primary takes
+/// the `seg` surface with a `muted` label at full opacity, every other kind is the same instance at 45 percent.
 #[allow(clippy::too_many_arguments)]
 pub fn disabled_button(
     id: impl Into<ElementId>,
@@ -105,7 +115,12 @@ fn button_impl(
         BtnSize::Large => (40., 22., 14., 18., 16.),
         BtnSize::Hero => (50., 40., 15., 20., 18.),
     };
-    let BtnColors { bg, fg, border, tint } = BtnColors::of(p, kind, size);
+    let disabled = on_click.is_none();
+    let BtnColors { bg, fg, border, tint } = if disabled && kind == BtnKind::Primary {
+        BtnColors::disabled_primary(p)
+    } else {
+        BtnColors::of(p, kind, size)
+    };
     let id: ElementId = id.into();
     let mut el = div()
         .id(id.clone())
@@ -136,6 +151,9 @@ fn button_impl(
     if let Some(ic) = trail {
         el = el.child(icon(ic, trail_size, fg));
     }
+    if disabled && kind != BtnKind::Primary {
+        el = el.opacity(DISABLED_OPACITY);
+    }
     el
 }
 
@@ -143,7 +161,6 @@ pub fn icon_button(id: impl Into<ElementId>, p: &Palette, ic: Ic, active: bool, 
     icon_button_with(id, p, ic, active, CircleSize::Regular, on_click)
 }
 
-/// The design's disabled state: the same instance at 45% opacity.
 pub fn disabled_icon_button(id: impl Into<ElementId>, p: &Palette, ic: Ic) -> Stateful<Div> {
     disabled_icon_button_with(id, p, ic, CircleSize::Regular)
 }
@@ -155,7 +172,7 @@ pub fn disabled_icon_button_with(id: impl Into<ElementId>, p: &Palette, ic: Ic, 
         size,
         CircleAppearance { background: None, foreground: p.text, border: Some(p.border_strong), hover: None },
     )
-    .opacity(0.45)
+    .opacity(DISABLED_OPACITY)
 }
 
 /// Circle and glyph pairs from `design:components/control-icon-contracts`.
