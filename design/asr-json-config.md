@@ -130,11 +130,10 @@ reference and template
 ## Help Page
 
 - Same window as the editor: up to 900 px wide, height following content and the screen.
-- A row of four equal blocks shows the order template, edit, automatic check, save. Each has 12 pt side padding, a 32 pt number slot and 12 pt spacing; numbers sit in thin gold circles (Outfit 14 SemiBold, tabular) above 13 Medium step text, joined by fixed-width arrows.
-- Four cards follow, each under a small gold marker without numbers: config structure, language mapping, variables, request and transcript.
-- The page closes only with × at the top right and returns to the editor. The footer holds only AI 用の説明をコピー; copying the current config lives in the editor.
-- Styling comes from the design file's `10 Color` and `11 Type, Space & Components`: title 26 Bold at 160%, group titles 17 Bold, body 14 Regular, labels 13 Medium, captions 12 Regular; window padding 28, card padding 24, group spacing 24, card radius 16, window radius 20. Colors use the existing `bg`, `card`, `sub`, `border`, `text`, `muted`, `accentSoft`, `primary` and `onPrimary` tokens; the light primary button is Plain Black and gold stays small.
-- The ヘルプ button uses the light accent style: Gold 01 fill, Gold 04 border and accent text in light; `accentSoft` fill with Gold 04 text in dark.
+- The page is a how-to. One lead line says to follow the vendor's API documentation, then four numbered step cards follow in the order the parts appear in the JSON: `language_map`, `request.path` and `request.headers`, `request.body`, `response.text_pointer`. A last card lists the common errors with their fixes.
+- Each step card has the explanation on the left (number in a thin gold circle, 17 Bold title, the JSON field in monospace, 14 Regular body, 13 Regular notes) and a 372 pt code example on the right. Step 3 lists the variables; step 4 pairs sample responses with their pointers.
+- The page closes only with × at the top right and returns to the editor. The footer holds a two-line hint about handing the copied reference to an AI and the AI 用の説明をコピー button; copying the current config lives in the editor.
+- Styling comes from the design file's `10 Color` and `11 Type, Space & Components`: title 26 Bold, step titles 17 Bold, body 14 Regular, notes 13 Regular, captions 12 Regular, code Menlo 12 with 18 pt lines; window padding 28 (24 below the footer), card padding 24, card spacing 16, card radius 16, window radius 20. Colors use the `bg`, `card`, `sub`, `border`, `border_strong`, `text`, `muted`, `accent`, `accent_text`, `primary` and `on_primary` roles.
 
 The editor stays plain: the title is just 接続設定, with no template instructions, validation explainer, fake file name or shortcut labels. The full rules live on 設定の書き方 only.
 
@@ -147,7 +146,7 @@ The editor stays plain: the title is just 接続設定, with no template instruc
 
 ## Window and Scrolling
 
-- The dialog is `min(900, available width − 48)` wide and `min(content height, available height − 48)` tall, with at least 24 pt above and below. The help page's natural height is about 836 pt and the editor's about 900 pt; these are design references, not fixed heights. The design shows a 620 pt short window for the help page (top, middle, bottom) and the editor (middle), in light and dark.
+- The dialog is `min(900, available width − 48)` wide and `min(content height, available height − 48)` tall, with at least 24 pt above and below. The help page's natural height is about 1500 pt and the editor's about 900 pt; these are design references, not fixed heights. The design shows a 620 pt short window for the help page (top, middle, bottom) and the editor (middle), in light and dark.
 - The help page has a fixed header, a shrinkable scroll area (`min-height: 0`) and a fixed footer; the page itself never scrolls.
 - Scroll areas fade 24 pt at the top and bottom edges (about 94% background to transparent), following the theme and ignoring the pointer. The top fade shows once scrolled; the bottom fade shows while more content remains.
 - In the editor, only the JSON scrolls. Title, close, configuration, language map, copy, validation area and footer stay fixed; a taller window only grows the code viewport (`flex: 1`, `min-height: 0`), so there is no nested scroll. The line count and its divider stay at the bottom of the code area.
