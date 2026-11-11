@@ -360,7 +360,7 @@ struct ModelCase {
     name: &'static str,
     role: Role,
     local: bool,
-    preset: usize,
+    template: usize,
     editor: Option<EditorPreview>,
 }
 
@@ -368,10 +368,10 @@ const fn model_case(
     name: &'static str,
     role: Role,
     local: bool,
-    preset: usize,
+    template: usize,
     editor: Option<EditorPreview>,
 ) -> ModelCase {
-    ModelCase { name, role, local, preset, editor }
+    ModelCase { name, role, local, template, editor }
 }
 
 const MODEL_CASES: [ModelCase; 12] = [
@@ -434,9 +434,12 @@ fn apply_model_case(st: &AppState, appearance: Appearance, case: &ModelCase) {
         c.general.appearance = appearance;
         c.asr.source = if case.local { Source::Local } else { Source::Provider };
         c.polish.engine.source = c.asr.source;
-        c.polish.engine.polish_configurations_mut(c.general.lang()).select(["azure", "bedrock", "compat"][case.preset]);
+        c.polish
+            .engine
+            .polish_configurations_mut(c.general.lang())
+            .select(["azure", "bedrock", "compat"][case.template]);
         let mut configurations = CloudAsrConfigurations::default();
-        configurations.select(["funasr", "qwen_asr", "openrouter"][case.preset]);
+        configurations.select(["funasr", "qwen_asr", "openrouter"][case.template]);
         for configuration in &mut configurations.items {
             configuration.config["connection"]["model"] = "my-asr-model".into();
         }

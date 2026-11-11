@@ -84,7 +84,7 @@ pub async fn transcribe_again(st: Arc<AppState>, entry: HistoryEntry) -> Result<
 
 pub async fn polish_again(st: Arc<AppState>, entry: HistoryEntry) -> Result<(), String> {
     if entry.raw.trim().is_empty() {
-        return Err("there is no recognized text to polish".into());
+        return Err("there is no transcript to polish".into());
     }
     let st2 = st.clone();
     st.rt

@@ -32,7 +32,7 @@ asr_editor.data_uri = { ja = "Data URI の音声", en = "Data URI audio", zh = "
 asr_editor.wav = { ja = "WAV ファイル", en = "WAV file", zh = "WAV 文件" }
 asr_editor.io = { ja = "送信内容と認識結果", en = "Request and transcript", zh = "请求与识别结果" }
 asr_editor.path = { ja = "ベース URL の末尾に追加します。", en = "Appended to the base URL.", zh = "追加到基础 URL 末尾。" }
-asr_editor.pointer = { ja = "認識した文章の場所を指定します。", en = "Points to the recognized text.", zh = "指定识别文字的位置。" }
+asr_editor.pointer = { ja = "認識した文章の場所を指定します。", en = "Points to the transcript.", zh = "指定识别文字的位置。" }
 asr_editor.copy_help = { ja = "AI 用の説明をコピー", en = "Copy instructions for AI", zh = "复制 AI 配置说明" }
 asr_editor.language = { ja = "言語コード", en = "Language codes", zh = "语言代码" }
 asr_editor.undo = { ja = "元に戻す", en = "Undo", zh = "撤销" }
@@ -159,7 +159,7 @@ stats.characters_per_day = { ja = "1日あたりの文字数", en = "Characters 
 stats.max = { ja = "最大", en = "Max", zh = "最高" }
 stats.top_apps = { ja = "よく使うアプリ", en = "Top apps", zh = "常用应用" }
 stats.no_data = { ja = "データがありません", en = "No data", zh = "暂无数据" }
-stats.recognized_languages = { ja = "認識した言語", en = "Recognized languages", zh = "识别的语言" }
+stats.detected_languages = { ja = "認識した言語", en = "Detected languages", zh = "识别的语言" }
 stats.weekday.mon = { ja = "月", en = "Mon", zh = "一" }
 stats.weekday.tue = { ja = "火", en = "Tue", zh = "二" }
 stats.weekday.wed = { ja = "水", en = "Wed", zh = "三" }
@@ -293,7 +293,7 @@ history.all_styles = { ja = "すべてのスタイル", en = "All styles", zh = 
 history.show_original = { ja = "原文を表示", en = "Show original", zh = "展开原文" }
 history.hide_original = { ja = "原文を閉じる", en = "Hide original", zh = "收起原文" }
 history.original = { ja = "原文", en = "Original", zh = "原文" }
-history.recognize_again = { ja = "再認識", en = "Recognize again", zh = "重新识别" }
+history.transcribe_again = { ja = "再認識", en = "Transcribe again", zh = "重新识别" }
 history.polish_again = { ja = "再整形", en = "Polish again", zh = "重新润色" }
 history.copy_original = { ja = "原文をコピー", en = "Copy original", zh = "复制原文" }
 history.play_audio = { ja = "音声を再生", en = "Play audio", zh = "播放音频" }

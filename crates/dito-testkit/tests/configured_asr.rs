@@ -19,7 +19,9 @@ type RecordedRequest = (String, HeaderMap, Vec<u8>);
 struct Capture(Arc<Mutex<Vec<RecordedRequest>>>);
 async fn endpoint(State(c): State<Capture>, uri: Uri, headers: HeaderMap, body: Bytes) -> Json<Value> {
     c.0.lock().unwrap().push((uri.to_string(), headers, body.to_vec()));
-    Json(json!({"text":"recognized","output":{"text":"recognized"},"choices":[{"message":{"content":"recognized"}}]}))
+    Json(
+        json!({"text":"transcribed","output":{"text":"transcribed"},"choices":[{"message":{"content":"transcribed"}}]}),
+    )
 }
 async fn server() -> (String, Capture, tokio::task::JoinHandle<()>) {
     let c = Capture(Arc::new(Mutex::new(Vec::new())));
@@ -43,7 +45,7 @@ async fn all_templates_send_their_own_format_preserve_relay_prefix_and_extract_t
         let engine = ConfiguredAsr::new(v, "secret".into()).unwrap();
         let result =
             engine.transcribe(&AsrRequest { clip: &clip, language: Some("ja-JP"), hotwords: &[] }).await.unwrap();
-        assert_eq!(result.text, "recognized");
+        assert_eq!(result.text, "transcribed");
         let requests = c.0.lock().unwrap();
         let (path, headers, raw) = &requests[index];
         assert!(path.starts_with("/relay/v1/"));

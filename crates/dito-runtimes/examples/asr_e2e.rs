@@ -64,7 +64,7 @@ async fn main() {
         let result = transcriber
             .transcribe(&AsrRequest { clip: &input, language: hint, hotwords: &[] })
             .await
-            .expect("recognize, including non-Japanese hints");
+            .expect("transcribe, including non-Japanese hints");
         println!("{clip}: {:?}, {:?}, {:?}", start.elapsed(), result.language, result.text);
         if detects_language {
             let expected = hint.unwrap_or("ja");

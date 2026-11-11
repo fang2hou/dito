@@ -60,7 +60,7 @@ impl Recognizer {
             ffi::SherpaOnnxDecodeOfflineStream(self.0.as_ptr(), stream.0.as_ptr());
             let result = ffi::SherpaOnnxGetOfflineStreamResultAsJson(stream.0.as_ptr());
             if result.is_null() {
-                return Err(RuntimeError::engine("sherpa-onnx returned no recognition result"));
+                return Err(RuntimeError::engine("sherpa-onnx returned no transcript"));
             }
             let json = CStr::from_ptr(result).to_string_lossy().into_owned();
             ffi::SherpaOnnxDestroyOfflineStreamResultJson(result);

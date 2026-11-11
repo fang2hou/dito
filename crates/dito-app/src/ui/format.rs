@@ -47,7 +47,7 @@ pub fn history_style_label(
 ) -> SharedString {
     use dito_core::prompts::Style;
     match style {
-        Style::Builtin(_) if prompts.profile_enabled(style) => SharedString::from(style.label().to_owned()),
+        Style::Builtin(_) if prompts.style_enabled(style) => SharedString::from(style.label().to_owned()),
         Style::Builtin(_) => other_label(lang),
         Style::Application(id) => match prompts.applications.get(id) {
             Some(configured) if app.is_empty() => configured.clone().into(),

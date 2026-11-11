@@ -86,7 +86,7 @@ impl PromptsPage {
     fn remove_application(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let style = self.style.clone();
         let before = self.drafts.clone();
-        self.drafts.remove_profile(&style);
+        self.drafts.remove_style(&style);
         self.save(cx);
         if self.save_error.is_some() {
             self.drafts = before;

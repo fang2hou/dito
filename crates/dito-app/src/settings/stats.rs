@@ -380,7 +380,7 @@ fn languages_card(c: &Ctx, stats: &Stats) -> Div {
         .flex_1()
         .p(px(26.))
         .gap(px(18.))
-        .child(text(c.t(Tr::StatsRecognizedLanguages), 15., FontWeight::BOLD, p.text))
+        .child(text(c.t(Tr::StatsDetectedLanguages), 15., FontWeight::BOLD, p.text))
         .child(stack)
         .child(legend)
 }

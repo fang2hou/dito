@@ -383,7 +383,7 @@ mod tests {
     }
 
     #[test]
-    fn removing_and_readding_builtin_profiles_reclassifies_history_without_deleting_it() {
+    fn removing_and_readding_builtin_styles_reclassifies_history_without_deleting_it() {
         let store = Store::open_in_memory().unwrap();
         let mut recorded = entry(10, "Herdr", "ja", "preserved", None);
         recorded.style = builtin("herdr");

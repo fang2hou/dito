@@ -136,7 +136,7 @@ mod tests {
     #[test]
     fn english_text_keeps_natural_letter_spacing() {
         set_ui_language(Lang::En);
-        assert_eq!(tracking_for("Recognizing", 0.08), 0.);
+        assert_eq!(tracking_for("Transcribing", 0.08), 0.);
         assert_eq!(tracking_for("認識中", 0.08), 0.);
         set_ui_language(Lang::Ja);
         assert_eq!(tracking_for("認識中", 0.08), 0.08);

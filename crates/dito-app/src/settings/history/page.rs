@@ -85,7 +85,7 @@ impl HistoryPage {
         // labels and the Other bucket follow the new list.
         ui::observe(st.cfg.subscribe(), cx, |this: &mut Self, cfg, cx| {
             if let Some(style) = &this.style
-                && !cfg.prompts.profile_enabled(style)
+                && !cfg.prompts.style_enabled(style)
             {
                 this.style = None;
             }
@@ -162,7 +162,7 @@ impl HistoryPage {
 
     /// Reads as All styles when the selected app is no longer configured, matching what the picker shows.
     pub(super) fn selected_style(&self) -> Option<Style> {
-        self.style.as_ref().filter(|style| self.st.cfg.get().prompts.profile_enabled(style)).cloned()
+        self.style.as_ref().filter(|style| self.st.cfg.get().prompts.style_enabled(style)).cloned()
     }
 
     fn filter(&self) -> HistoryFilter {

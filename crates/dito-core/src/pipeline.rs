@@ -98,7 +98,7 @@ async fn transcribe(
     .map_err(PipelineError::Failed)?;
     let asr_ms = started.elapsed().as_millis() as u64;
     if transcript.text.trim().is_empty() {
-        return Err(PipelineError::Failed(ProviderError::new(ErrorKind::NoSpeech, "nothing was recognized")));
+        return Err(PipelineError::Failed(ProviderError::new(ErrorKind::NoSpeech, "nothing was transcribed")));
     }
     let lang = transcript.language.as_deref().and_then(lang_from_code).unwrap_or_else(|| detect_lang(&transcript.text));
     Ok(Output { raw: transcript.text, polished: None, polish_error: None, lang, asr_ms, polish_ms: 0 })

@@ -31,7 +31,7 @@ impl HistoryPage {
         let mut items = vec![
             MenuItem {
                 icon: Some(Ic::Mic),
-                label: c.t(Tr::HistoryRecognizeAgain),
+                label: c.t(Tr::HistoryTranscribeAgain),
                 tone: MenuTone::Default,
                 on_click: wrap(cx, Box::new(move |t, cx| t.run_job(id, cx, services::transcribe_again))),
             },
@@ -153,7 +153,7 @@ impl HistoryPage {
             p.muted,
         ));
         body = body.child(text(c.t(Tr::HistoryCancelled), 14., FontWeight::NORMAL, p.muted));
-        actions = actions.child(self.retry_button(c, cx, e.id, c.t(Tr::HistoryRecognizeAgain), Ic::Mic));
+        actions = actions.child(self.retry_button(c, cx, e.id, c.t(Tr::HistoryTranscribeAgain), Ic::Mic));
         RowParts { meta, body, actions }
     }
 

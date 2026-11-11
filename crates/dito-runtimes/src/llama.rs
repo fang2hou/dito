@@ -16,7 +16,7 @@ use llama_cpp_2::mtmd::{MtmdBitmap, MtmdContext, MtmdContextParams, MtmdInputTex
 use llama_cpp_2::sampling::LlamaSampler;
 use llama_cpp_2::token::LlamaToken;
 
-use crate::qwen_text::{asr_prompt, is_vocabulary_echo, parse_output, strip_think};
+use crate::qwen_text::{asr_prompt, is_hotword_echo, parse_output, strip_think};
 
 fn backend() -> Result<&'static LlamaBackend, RuntimeError> {
     static BACKEND: OnceLock<Result<LlamaBackend, String>> = OnceLock::new();
@@ -225,8 +225,8 @@ impl AsrRuntime for Asr {
             return Ok(AsrOutput { text: String::new(), language: forced_language.map(str::to_string) });
         }
         let output = self.transcribe_prompt(samples, prompt, forced_language, stop)?;
-        if is_vocabulary_echo(&output.text, hotwords) {
-            tracing::debug!("ASR returned a vocabulary list; confirming without context");
+        if is_hotword_echo(&output.text, hotwords) {
+            tracing::debug!("ASR returned the hotword list; confirming without context");
             let (prompt, forced_language) = asr_prompt(language, &[]);
             return self.transcribe_prompt(samples, prompt, forced_language, stop);
         }
