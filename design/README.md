@@ -47,6 +47,20 @@ The numbered section is normally the board itself, not a Section node wrapped ar
 | 21 HUD & Menu Bar | 21.00 Overview, 21.01 States, 21.02 Recording, 21.03 Errors, 21.04 Menu Bar, 21.05 HUD Motion Tokens, 21.06 HUD Processing, 21.07 Width & Pop-ups, 21.08 Follow Pointer, 21.09 HUD Buttons, 21.10 Stop Motion Preview, 21.11 HUD Elastic Motion Preview |
 | 22 Onboarding | 22.00 Overview, 22.01 Welcome, 22.02 Permissions, 22.03 How to Use, 22.04 Shortcut, 22.05 Engine, 22.06 Cloud, 22.07 Try It, 22.08 Page Slide, 22.09 Usage Demo |
 
+### Section ids
+
+Outside this file, code, docs and skills name a section as `design:<id>`, never by number, so renumbering does not touch them. `design/sections.toml` maps each id to its section, and `mise run check:design-refs` checks every reference and every mapped layer name against the saved file.
+
+| Key | Meaning |
+| --- | --- |
+| Table name | The id, with `.` for `/`: `[settings.cloud-models.tile-row]` is `design:settings/cloud-models/tile-row` |
+| `board` | The number of the page or board |
+| `item` | The number of the item inside the board, when the id names one |
+| `layer` | The layer's name after its number, as saved in the file. Empty when no layer carries the number, which leaves the entry unchecked |
+| `page` | `true` when the id names a whole page |
+
+When a section is renumbered or renamed, update its entry and this file's section map, then run the check. This file documents the numbering itself, so it keeps citing sections by the names their layers carry.
+
 ### Components and icons
 
 - Anything drawn more than once is a component, and screens use instances of it. Shared components live on page `11`; parts used by one screen live in that screen's section.

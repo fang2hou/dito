@@ -1,11 +1,3 @@
-# Semantic ids for the sections of design/dito.figcraft.
-#
-# Code, docs and skills refer to a section as `design:<id>`; only this file knows its number. When the design is
-# renumbered, edit `board` here and run `scripts/check-design-refs.py`. `item` is set when the id names a numbered
-# item inside the board. Layer names are quoted from the saved file; an empty `layer` means the number was cited but
-# no layer carries it as a name.
-
-# Pages
 [foundations]
 board = "10"
 layer = "Color"
@@ -36,7 +28,6 @@ board = "22"
 layer = "Onboarding"
 page = true
 
-# Sections and items
 [foundations.color]
 board = "10"
 layer = "Color"
@@ -55,41 +46,41 @@ board = "20.04"
 item = "20.04.2"
 layer = ""
 
-[models.cloud]
+[settings.cloud-models]
 board = "20.05"
 layer = "Cloud Models"
 
-[models.cloud.speech-form]
+[settings.cloud-models.speech-form]
 board = "20.05"
 item = "20.05.1"
 layer = ""
 
-[models.cloud.compact-window]
+[settings.cloud-models.compact-window]
 board = "20.05"
 item = "20.05.5"
 layer = ""
 
-[models.cloud.configurations]
+[settings.cloud-models.configurations]
 board = "20.05"
 item = "20.05.7"
 layer = "Configurations"
 
-[models.cloud.failed-test]
+[settings.cloud-models.failed-test]
 board = "20.05"
 item = "20.05.10"
 layer = "Failed test and effort suggestions"
 
-[models.cloud.add-from-template]
+[settings.cloud-models.add-from-template]
 board = "20.05"
 item = "20.05.11"
 layer = "Add from template"
 
-[models.cloud.delete-configuration]
+[settings.cloud-models.delete-configuration]
 board = "20.05"
 item = "20.05.12"
 layer = "Delete configuration"
 
-[models.cloud.tile-row]
+[settings.cloud-models.tile-row]
 board = "20.05"
 item = "20.05.13"
 layer = "Scrolling and reordering"
@@ -115,10 +106,10 @@ layer = "Controls"
 board = "20.01"
 layer = "General"
 
-[settings.dictionary.failure-banner]
+[settings.wordbook.failure-banner]
 board = "20.02"
 item = "20.02.4"
-layer = ""
+layer = "Operation failure"
 
 [settings.local-models]
 board = "20.04"

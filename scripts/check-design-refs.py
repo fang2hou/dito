@@ -3,7 +3,6 @@
 
 Reads design/dito.figcraft as a zip and looks for layer names only; needs no FigCraft tooling. Local use only.
 """
-import json
 import re
 import subprocess
 import sys
@@ -12,8 +11,9 @@ import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-REF = re.compile(r"design:([a-z0-9][a-z0-9/-]*[a-z0-9])")
-SKIP_DIRS = {"target", ".git", "node_modules", ".venv"}
+# Wider than a valid id on purpose: `design:settings.prompts` must fail as a whole instead of resolving as `settings`.
+REF = re.compile(r"design:([A-Za-z0-9_][A-Za-z0-9_./:-]*[A-Za-z0-9_])")
+SOURCE_SUFFIXES = {".rs", ".md", ".py", ".sh", ".toml"}
 
 
 def flatten(table: dict, prefix: str = "") -> dict[str, dict]:
@@ -36,11 +36,9 @@ def layer_names(figcraft: Path) -> set[str]:
 
 
 def tracked_files() -> list[Path]:
-    out = subprocess.run(
-        ["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=True
-    ).stdout.split("\n")
-    suffixes = {".rs", ".md", ".py", ".sh", ".toml"}
-    return [ROOT / f for f in out if f and Path(f).suffix in suffixes and not (SKIP_DIRS & set(Path(f).parts))]
+    listed = subprocess.run(["git", "ls-files", "-z"], cwd=ROOT, capture_output=True, text=True, check=True).stdout
+    paths = (ROOT / name for name in listed.split("\0") if name)
+    return [path for path in paths if path.suffix in SOURCE_SUFFIXES and path.is_file()]
 
 
 def main() -> int:
