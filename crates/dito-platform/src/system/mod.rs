@@ -17,7 +17,7 @@ pub use app_icon::{has_bundle_icon, set_app_icon};
 pub use applications::{InstalledApplication, application_at, installed_application};
 pub use frontmost::MacFrontmost;
 pub use hud_follow::{HudFollowState, PointerContact};
-pub use hud_window::{FramelessWindow, HudNativeWindow, HudPointer, HudWindowMove};
+pub use hud_window::{FramelessWindow, HudNativeWindow, HudPointer, HudWindowMove, pointer_location};
 pub use keychain::KeychainSecrets;
 pub use locale::system_language;
 pub use login_item::{launch_at_login_enabled, set_launch_at_login};
