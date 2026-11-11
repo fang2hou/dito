@@ -8,10 +8,12 @@ use rusqlite::{Connection, OptionalExtension, params};
 use crate::config::EngineLabels;
 use crate::prompts::Style;
 
+mod activity;
 mod model;
 mod rows;
 mod schema;
 
+pub use activity::{Period, civil, heat_quartiles, heat_step, local_day, month_span, shown_days, week_start};
 pub use model::*;
 use rows::{SELECT_HISTORY, row_to_entry};
 use schema::{SCHEMA_VERSION, encode, migrate, user_version};
@@ -49,9 +51,7 @@ impl Store {
     }
 
     fn day_of(&self, ts: i64) -> String {
-        let local = time::OffsetDateTime::from_unix_timestamp(ts + self.tz_offset_secs as i64)
-            .unwrap_or(time::OffsetDateTime::UNIX_EPOCH);
-        format!("{:04}-{:02}-{:02}", local.year(), u8::from(local.month()), local.day())
+        activity::day_key(local_day(ts, self.tz_offset_secs))
     }
 
     pub fn add_history(&self, h: &NewHistory) -> Result<i64> {
@@ -276,14 +276,6 @@ impl Store {
         let avg_cpm = if minutes > 0.0 { chars as f64 / minutes } else { 0.0 };
         let saved_minutes = (chars as f64 / TYPING_CPM - minutes).max(0.0);
 
-        let mut per_day = Vec::new();
-        let mut stmt = c.prepare(
-            "SELECT day, SUM(LENGTH(COALESCE(polished, raw))) FROM history
-             WHERE kind='dictation' AND ts >= ?1 GROUP BY day ORDER BY day",
-        )?;
-        for r in stmt.query_map([since], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)? as u64)))? {
-            per_day.push(r?);
-        }
         let group = |col: &str| -> Result<Vec<(String, u64)>> {
             let mut stmt = c.prepare(&format!(
                 "SELECT {col}, COUNT(*) AS n FROM history WHERE kind='dictation' AND ts >= ?1
@@ -298,10 +290,37 @@ impl Store {
             speech_ms: speech_ms as u64,
             avg_cpm,
             saved_minutes,
-            per_day,
             apps: group("app")?,
             langs: group("lang")?,
         })
+    }
+
+    /// Dictated characters on each local day from `first` to `last`, one value per day.
+    pub fn chars_per_day(&self, first: i64, last: i64) -> Result<Vec<u64>> {
+        let mut days = vec![0; usize::try_from(last - first + 1).unwrap_or(0)];
+        let c = self.conn();
+        let mut stmt = c.prepare(
+            "SELECT day, SUM(LENGTH(COALESCE(polished, raw))) FROM history
+             WHERE kind='dictation' AND day BETWEEN ?1 AND ?2 GROUP BY day",
+        )?;
+        let rows = stmt.query_map([activity::day_key(first), activity::day_key(last)], |r| {
+            Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)? as u64))
+        })?;
+        for row in rows {
+            let (key, chars) = row?;
+            let slot = activity::day_from_key(&key).and_then(|day| usize::try_from(day - first).ok());
+            if let Some(slot) = slot.and_then(|slot| days.get_mut(slot)) {
+                *slot = chars;
+            }
+        }
+        Ok(days)
+    }
+
+    /// The local day of the earliest dictation.
+    pub fn first_day(&self) -> Result<Option<i64>> {
+        let key: Option<String> =
+            self.conn().query_row("SELECT MIN(day) FROM history WHERE kind='dictation'", [], |r| r.get(0))?;
+        Ok(key.as_deref().and_then(activity::day_from_key))
     }
 }
 
@@ -533,7 +552,8 @@ mod tests {
         let st = s.stats(None).unwrap();
         assert_eq!(st.chars, 17);
         assert_eq!(st.recordings, 3);
-        assert_eq!(st.per_day, vec![("1970-01-02".into(), 15), ("1970-01-03".into(), 2)]);
+        assert_eq!(s.chars_per_day(0, 3).unwrap(), [0, 15, 2, 0], "one value per day, failures left out");
+        assert_eq!(s.first_day().unwrap(), Some(1));
         assert_eq!(st.apps[0], ("Slack".into(), 2));
         assert_eq!(st.langs[0], ("ja".into(), 2));
         assert!((st.avg_cpm - 17.0 / 0.3).abs() < 1e-6);
@@ -546,7 +566,14 @@ mod tests {
         let s = Store::open(dir.path().join("h.db"), 9 * 3600).unwrap();
         // 1970-01-01 20:00 UTC is already 01-02 in JST.
         s.add_history(&entry(20 * 3600, "A", "ja", "x", None)).unwrap();
-        assert_eq!(s.stats(None).unwrap().per_day[0].0, "1970-01-02");
+        assert_eq!(s.first_day().unwrap(), Some(1));
+        // Sunday 1970-01-04 23:30 JST closes the week that Monday 1970-01-05 00:30 JST opens.
+        s.add_history(&entry(3 * 86_400 + 14 * 3600 + 1800, "A", "ja", "xx", None)).unwrap();
+        s.add_history(&entry(3 * 86_400 + 15 * 3600 + 1800, "A", "ja", "xxx", None)).unwrap();
+        assert_eq!(week_start(3), -3);
+        assert_eq!(s.chars_per_day(-3, 3).unwrap(), [0, 0, 0, 0, 1, 0, 2]);
+        assert_eq!(week_start(4), 4);
+        assert_eq!(s.chars_per_day(4, 10).unwrap(), [3, 0, 0, 0, 0, 0, 0]);
     }
 
     /// The schema as it shipped before versioning. Frozen here on purpose: real databases hold exactly this, whatever

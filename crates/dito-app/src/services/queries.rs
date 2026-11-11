@@ -3,9 +3,10 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use dito_core::store::{HistoryEntry, HistoryFilter, Stats, Store};
+use dito_core::store::{HistoryEntry, HistoryFilter, Period, Stats, Store, shown_days};
 
 use crate::state::AppState;
+use crate::timefmt::day_start;
 
 /// Errors propagate instead of degrading to an empty list.
 pub async fn history_list(st: Arc<AppState>, filter: HistoryFilter) -> Result<Vec<HistoryEntry>> {
@@ -17,13 +18,47 @@ pub async fn history_list(st: Arc<AppState>, filter: HistoryFilter) -> Result<Ve
         .map_err(Into::into)
 }
 
-pub async fn history_stats(st: Arc<AppState>, since_ts: Option<i64>) -> Result<Stats> {
+/// Everything the Stats page draws for one period.
+#[derive(Debug, Clone, PartialEq)]
+pub struct StatsSnapshot {
+    pub period: Period,
+    pub today: i64,
+    pub stats: Stats,
+    /// The local day of `days[0]`.
+    pub first_day: i64,
+    /// Characters on each day the daily view draws.
+    pub days: Vec<u64>,
+}
+
+impl StatsSnapshot {
+    pub fn empty(period: Period, today: i64) -> Self {
+        let (first_day, last_day) = shown_days(period, today, None);
+        Self { period, today, stats: Stats::default(), first_day, days: vec![0; (last_day - first_day + 1) as usize] }
+    }
+}
+
+/// The totals cover the same days as the daily view, except for all time, where the heatmap stops at one year.
+pub async fn stats_snapshot(
+    st: Arc<AppState>,
+    period: Period,
+    today: i64,
+    tz_offset_secs: i32,
+) -> Result<StatsSnapshot> {
     let store = st.store.clone();
     st.rt
-        .spawn_blocking(move || store.stats(since_ts))
+        .spawn_blocking(move || -> Result<StatsSnapshot> {
+            let (first_day, last_day) = shown_days(period, today, store.first_day()?);
+            let since = (period != Period::All).then(|| day_start(first_day, tz_offset_secs));
+            Ok(StatsSnapshot {
+                period,
+                today,
+                stats: store.stats(since)?,
+                first_day,
+                days: store.chars_per_day(first_day, last_day)?,
+            })
+        })
         .await
-        .map_err(|e| anyhow::anyhow!("history stats task failed: {e}"))?
-        .map_err(Into::into)
+        .map_err(|e| anyhow::anyhow!("stats task failed: {e}"))?
 }
 
 #[derive(Debug, Default, PartialEq, Eq)]

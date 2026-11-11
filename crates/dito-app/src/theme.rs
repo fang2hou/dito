@@ -92,6 +92,12 @@ pub struct Palette {
     pub model_running_text: Hsla,
     pub field_bg: Hsla,
     pub field_border: Hsla,
+    /// Heat steps of the Stats daily view (`stats/heat_0` to `stats/heat_4`): no dictation, then four quartiles.
+    pub stats_heat_0: Hsla,
+    pub stats_heat_1: Hsla,
+    pub stats_heat_2: Hsla,
+    pub stats_heat_3: Hsla,
+    pub stats_heat_4: Hsla,
 }
 
 impl Palette {
@@ -162,6 +168,11 @@ impl Palette {
             model_running_text: hex("#17634F"),
             field_bg: hex("#FFFFFF"),
             field_border: hex("#D4D1C9"),
+            stats_heat_0: hex("#EBE8E1"),
+            stats_heat_1: hex("#FFECBD"),
+            stats_heat_2: hex("#F6DA97"),
+            stats_heat_3: hex("#C2A765"),
+            stats_heat_4: hex("#AA8C40"),
         }
     }
 
@@ -232,6 +243,11 @@ impl Palette {
             model_running_text: hex("#80E1BF"),
             field_bg: hex("#38352F"),
             field_border: hex("#716B5E"),
+            stats_heat_0: hex("#3E3B34"),
+            stats_heat_1: hex("#685218"),
+            stats_heat_2: hex("#826F41"),
+            stats_heat_3: hex("#AA8C40"),
+            stats_heat_4: hex("#E0C47D"),
         }
     }
 
