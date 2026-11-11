@@ -19,12 +19,6 @@ pub fn ymd(day: i64) -> String {
     format!("{:04}-{:02}-{:02}", d.year(), u8::from(d.month()), d.day())
 }
 
-/// 0 = Monday ... 6 = Sunday.
-pub fn weekday(day: i64) -> usize {
-    // 1970-01-01 was a Thursday.
-    (day + 3).rem_euclid(7) as usize
-}
-
 pub fn day_start(day: i64, off: i32) -> i64 {
     day * 86_400 - off as i64
 }
@@ -41,12 +35,5 @@ mod tests {
         assert_eq!(hhmm(ts, jst), "05:00");
         assert_eq!(ymd(1), "1970-01-02");
         assert_eq!(day_start(1, jst), 86_400 - jst as i64);
-    }
-
-    #[test]
-    fn weekday_matches_known_dates() {
-        assert_eq!(weekday(0), 3, "1970-01-01 was a Thursday");
-        assert_eq!(weekday(19_723), 0, "2024-01-01 was a Monday");
-        assert_eq!(weekday(19_729), 6, "2024-01-07 was a Sunday");
     }
 }

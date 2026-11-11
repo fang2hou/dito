@@ -90,8 +90,6 @@ pub struct Stats {
     pub speech_ms: u64,
     pub avg_cpm: f64,
     pub saved_minutes: f64,
-    /// (local date `YYYY-MM-DD`, characters), ascending.
-    pub per_day: Vec<(String, u64)>,
     /// (app name, recordings), descending.
     pub apps: Vec<(String, u64)>,
     /// (language code, recordings), descending.

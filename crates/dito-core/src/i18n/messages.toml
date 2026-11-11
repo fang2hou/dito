@@ -156,10 +156,9 @@ stats.average_speed = { ja = "平均話速", en = "Average speed", zh = "平均�
 stats.time_saved = { ja = "節約した時間", en = "Time saved", zh = "节省的时间" }
 stats.recordings = { ja = "録音回数", en = "Recordings", zh = "录音次数" }
 stats.characters_per_day = { ja = "1日あたりの文字数", en = "Characters per day", zh = "每日字数" }
-stats.max = { ja = "最大", en = "Max", zh = "最高" }
 stats.top_apps = { ja = "よく使うアプリ", en = "Top apps", zh = "常用应用" }
 stats.no_data = { ja = "データがありません", en = "No data", zh = "暂无数据" }
-stats.detected_languages = { ja = "認識した言語", en = "Detected languages", zh = "识别的语言" }
+stats.detected_languages = { ja = "言語の内訳", en = "Languages", zh = "语言分布" }
 stats.weekday.mon = { ja = "月", en = "Mon", zh = "一" }
 stats.weekday.tue = { ja = "火", en = "Tue", zh = "二" }
 stats.weekday.wed = { ja = "水", en = "Wed", zh = "三" }
@@ -167,6 +166,28 @@ stats.weekday.thu = { ja = "木", en = "Thu", zh = "四" }
 stats.weekday.fri = { ja = "金", en = "Fri", zh = "五" }
 stats.weekday.sat = { ja = "土", en = "Sat", zh = "六" }
 stats.weekday.sun = { ja = "日", en = "Sun", zh = "日" }
+stats.month.jan = { ja = "1月", en = "Jan", zh = "1月" }
+stats.month.feb = { ja = "2月", en = "Feb", zh = "2月" }
+stats.month.mar = { ja = "3月", en = "Mar", zh = "3月" }
+stats.month.apr = { ja = "4月", en = "Apr", zh = "4月" }
+stats.month.may = { ja = "5月", en = "May", zh = "5月" }
+stats.month.jun = { ja = "6月", en = "Jun", zh = "6月" }
+stats.month.jul = { ja = "7月", en = "Jul", zh = "7月" }
+stats.month.aug = { ja = "8月", en = "Aug", zh = "8月" }
+stats.month.sep = { ja = "9月", en = "Sep", zh = "9月" }
+stats.month.oct = { ja = "10月", en = "Oct", zh = "10月" }
+stats.month.nov = { ja = "11月", en = "Nov", zh = "11月" }
+stats.month.dec = { ja = "12月", en = "Dec", zh = "12月" }
+stats.less = { ja = "少ない", en = "Less", zh = "少" }
+stats.more = { ja = "多い", en = "More", zh = "多" }
+fmt.stats_date = { ja = "{month}{day}日", en = "{month} {day}", zh = "{month}{day}日" }
+fmt.stats_days_in_month = { ja = "{month}{from}日〜{to}日", en = "{month} {from} to {to}", zh = "{month}{from}日至{to}日" }
+fmt.stats_date_span = { ja = "{from}〜{to}", en = "{from} to {to}", zh = "{from}至{to}" }
+fmt.stats_year_month = { ja = "{year}年{month}", en = "{month} {year}", zh = "{year}年{month}" }
+fmt.stats_since = { ja = "{date}から", en = "Since {date}", zh = "自{date}起" }
+fmt.stats_day_tip = { ja = "{date}：{count} 字", en = "{date}: {count} chars", zh = "{date}：{count} 字" }
+fmt.stats_active_days = { ja = "利用した日 {count} 日", en = "Days used: {count}", zh = "使用 {count} 天" }
+fmt.stats_max_day = { ja = "最大 {count} 字", en = "Best day: {count} chars", zh = "单日最高 {count} 字" }
 
 # --- provider/engine error one-liners ----------------------------------------
 errors.no_response = { ja = "応答がありませんでした", en = "No response", zh = "没有响应" }

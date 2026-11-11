@@ -1,25 +1,20 @@
 use std::sync::Arc;
 
-use dito_core::i18n::Tr;
+use dito_core::i18n::{Lang, Tr, fmt};
+use dito_core::store::{Period, Stats, civil, heat_quartiles, heat_step, week_start};
 use gpui_kit::*;
 
 use super::page_query::{PageQuery, QueryPage};
 use super::{Ctx, content_width};
-use crate::services;
+use crate::services::{self, StatsSnapshot};
 use crate::state::AppState;
 use crate::theme::Palette;
-use crate::timefmt::{day_start, local_day, now, weekday, ymd};
+use crate::timefmt::{local_day, now};
 use crate::ui::{self, cbk_idx, text};
-use dito_core::store::Stats;
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Range {
-    Week,
-    Month,
-    All,
-}
+const PERIODS: [Period; 3] = [Period::Week, Period::Month, Period::All];
 
-/// Weekday initials, Monday-first to match `crate::timefmt::weekday`.
+/// Monday first, as the weeks of the daily view are.
 const WEEKDAYS: [Tr; 7] = [
     Tr::StatsWeekdayMon,
     Tr::StatsWeekdayTue,
@@ -30,45 +25,57 @@ const WEEKDAYS: [Tr; 7] = [
     Tr::StatsWeekdaySun,
 ];
 
+const MONTHS: [Tr; 12] = [
+    Tr::StatsMonthJan,
+    Tr::StatsMonthFeb,
+    Tr::StatsMonthMar,
+    Tr::StatsMonthApr,
+    Tr::StatsMonthMay,
+    Tr::StatsMonthJun,
+    Tr::StatsMonthJul,
+    Tr::StatsMonthAug,
+    Tr::StatsMonthSep,
+    Tr::StatsMonthOct,
+    Tr::StatsMonthNov,
+    Tr::StatsMonthDec,
+];
+
+const HEAT_CELL: f32 = 10.;
+const HEAT_PITCH: f32 = 13.;
+/// Opacity of the languages the pointer is not on.
+const LANGUAGE_DIMMED: f32 = 0.35;
+
+/// The Stats page, `design:settings`.
 pub struct StatsPage {
     st: Arc<AppState>,
-    range: Range,
-    /// Owned stats snapshot; render never touches the database.
-    query: PageQuery<Stats>,
+    period: Period,
+    /// Owned snapshot; render never touches the database.
+    query: PageQuery<StatsSnapshot>,
     motion: ui::MotionScope,
 }
 
 impl QueryPage for StatsPage {
-    type Data = Stats;
+    type Data = StatsSnapshot;
 
-    fn page_query(&mut self) -> &mut PageQuery<Stats> {
+    fn page_query(&mut self) -> &mut PageQuery<StatsSnapshot> {
         &mut self.query
     }
 
-    fn fetch(&self) -> impl Future<Output = anyhow::Result<Stats>> + 'static {
-        services::history_stats(self.st.clone(), self.since())
+    fn fetch(&self) -> impl Future<Output = anyhow::Result<StatsSnapshot>> + 'static {
+        let off = dito_platform::local_utc_offset_secs();
+        services::stats_snapshot(self.st.clone(), self.period, local_day(now(), off), off)
     }
 }
 
 impl StatsPage {
     pub fn new(st: Arc<AppState>, cx: &mut Context<Self>) -> Self {
         services::watch_config(&st, cx);
+        let today = local_day(now(), dito_platform::local_utc_offset_secs());
         Self {
             motion: ui::MotionScope::new(),
             st,
-            range: Range::Week,
-            query: PageQuery::new("stats", Stats::default()),
-        }
-    }
-
-    /// First second included in the current range (None = all time).
-    fn since(&self) -> Option<i64> {
-        let off = dito_platform::local_utc_offset_secs();
-        let today = local_day(now(), off);
-        match self.range {
-            Range::Week => Some(day_start(today - 6, off)),
-            Range::Month => Some(day_start(today - 29, off)),
-            Range::All => None,
+            period: Period::Week,
+            query: PageQuery::new("stats", StatsSnapshot::empty(Period::Week, today)),
         }
     }
 
@@ -79,16 +86,7 @@ impl StatsPage {
             self.load(cx);
         }
     }
-}
 
-fn lang_name(code: &str, lang: dito_core::i18n::Lang) -> String {
-    if code.is_empty() {
-        return "—".into();
-    }
-    dito_core::i18n::Lang::from_tag(code).map_or(code, |language| language.name(lang)).into()
-}
-
-impl StatsPage {
     pub(super) fn reset_motion(&mut self) {
         self.motion.reset();
     }
@@ -111,24 +109,15 @@ impl StatsPage {
     fn view(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let c = Ctx::new(&self.st, cx);
         let p = c.p;
-        let off = dito_platform::local_utc_offset_secs();
-        let today = local_day(now(), off);
-        let days_back: i64 = match self.range {
-            Range::Week => 7,
-            Range::Month | Range::All => 30,
-        };
-        let stats = &self.query.data;
-        let range_seg = ui::seg(
+        let snapshot = &self.query.data;
+        let avail = content_width(window);
+        let period_seg = ui::seg(
             "stats-range",
             &p,
             &[c.t(Tr::HistoryThisWeek), c.t(Tr::HistoryThisMonth), c.t(Tr::HistoryAll)],
-            match self.range {
-                Range::Week => 0,
-                Range::Month => 1,
-                Range::All => 2,
-            },
+            PERIODS.iter().position(|period| *period == self.period).unwrap_or(0),
             cbk_idx(cx, |this: &mut Self, i, _, cx| {
-                this.range = [Range::Week, Range::Month, Range::All][i];
+                this.period = PERIODS[i];
                 this.changed(cx);
                 cx.notify();
             }),
@@ -138,112 +127,215 @@ impl StatsPage {
             p,
             "stats",
             c.t(Tr::NavStats),
-            Some(range_seg.into_any_element()),
+            Some(period_seg.into_any_element()),
             div()
                 .w_full()
                 .flex()
                 .flex_col()
-                .gap(px(20.))
-                .child(headline_card(&c, stats, content_width(window)))
-                .child(per_day_chart(&c, stats, today, days_back))
+                .gap(px(28.))
+                .child(summary_card(&c, &snapshot.stats, avail))
+                .child(daily_card(&c, snapshot, avail))
                 .child(
                     div()
                         .w_full()
                         .flex()
                         .items_start()
                         .gap(px(20.))
-                        .child(top_apps_card(&c, stats))
-                        .child(languages_card(&c, stats)),
+                        .child(top_apps_card(&c, &snapshot.stats))
+                        .child(languages_card(&c, &snapshot.stats)),
                 ),
         )
     }
 }
 
-fn headline_card(c: &Ctx, stats: &Stats, avail: f32) -> Div {
+/// `motion/hover`, or the short fade that replaces it under Reduce Motion.
+fn hover_ms() -> u64 {
+    if dito_platform::system::reduce_motion() { 80 } else { ui::HOVER_MS }
+}
+
+fn lang_name(code: &str, lang: Lang) -> String {
+    if code.is_empty() {
+        return "—".into();
+    }
+    Lang::from_tag(code).map_or(code, |language| language.name(lang)).into()
+}
+
+fn summary_card(c: &Ctx, stats: &Stats, avail: f32) -> Div {
     let p = c.p;
-    let saved = if stats.saved_minutes >= 60.0 {
-        format!("{:.1} {}", stats.saved_minutes / 60.0, c.t(Tr::UnitsHours))
+    let hours = stats.saved_minutes / 60.0;
+    let saved = if hours >= 10.0 {
+        format!("{hours:.0} {}", c.t(Tr::UnitsHours))
+    } else if hours >= 1.0 {
+        format!("{hours:.1} {}", c.t(Tr::UnitsHours))
     } else {
         format!("{:.0} {}", stats.saved_minutes, c.t(Tr::UnitsMinutes))
     };
-    let cells = [
+    let rest = [
         (c.t(Tr::StatsCharacters), format!("{} {}", fmt_int(stats.chars), c.t(Tr::UnitsChars))),
+        (c.t(Tr::StatsRecordings), format!("{} {}", fmt_int(stats.recordings), c.t(Tr::UnitsTimes))),
         (c.t(Tr::StatsAverageSpeed), format!("{:.0} {}", stats.avg_cpm, c.t(Tr::UnitsCharsPerMin))),
-        (c.t(Tr::StatsTimeSaved), saved),
-        (c.t(Tr::StatsRecordings), format!("{} {}", stats.recordings, c.t(Tr::UnitsTimes))),
     ];
-    let n = cells.len();
-    // 4 KPI columns when there is room, else a 2 x 2 grid so CJK units never push cells past the card edge.
-    // Keep each number and its localized unit together; use two columns if the actual
-    // values need more room, rather than breaking a rate across two lines.
-    let min_column =
-        cells.iter().map(|(_, value)| ui::text_width(value, 26., FontWeight::MEDIUM) + 52.).fold(180., f32::max);
-    let (per_row, per_row_u16) = if avail >= min_column * 4. { (4usize, 4u16) } else { (2, 2) };
-    let rows = n.div_ceil(per_row);
-    let mut head = ui::card(&p).grid().grid_cols(per_row_u16);
-    for (i, (k, v)) in cells.into_iter().enumerate() {
-        let mut cell = div()
+    // The lead column gives way before a long number or unit would leave its cell.
+    let rest_width =
+        rest.iter().map(|(_, value)| ui::text_width(value, 20., FontWeight::MEDIUM) + 37.).fold(0., f32::max);
+    let lead_width =
+        (avail - 2. - rest_width * 3.).min(300.).max(ui::text_width(&saved, 40., FontWeight::MEDIUM) + 52.);
+    // One label line and one baseline across the card: the 40 pt and 20 pt values end 22 and 26 pt above the edge.
+    let label = |s: SharedString| text(s, 13., FontWeight::NORMAL, p.muted).line_height(px(21.));
+    let mut card = ui::card(&p).flex_row().h(px(123.)).child(
+        div()
+            .flex_none()
+            .w(px(lead_width))
+            .h_full()
             .px(px(26.))
-            .py(px(18.))
+            .py(px(22.))
             .flex()
             .flex_col()
-            .gap(px(6.))
-            .child(text(k, 13., FontWeight::NORMAL, p.muted))
-            .child(text(v, 26., FontWeight::MEDIUM, p.text).whitespace_nowrap());
-        if (i + 1) % per_row != 0 {
-            cell = cell.border_r_1().border_color(p.border);
-        }
-        if per_row < n && i < per_row * (rows - 1) {
-            cell = cell.border_b_1().border_color(p.border);
-        }
-        head = head.child(cell);
+            .gap(px(4.))
+            .child(label(c.t(Tr::StatsTimeSaved)))
+            .child(text(saved, 40., FontWeight::MEDIUM, p.text).line_height(px(52.)).whitespace_nowrap()),
+    );
+    for (name, value) in rest {
+        card = card.child(
+            div()
+                .flex_1()
+                .min_w_0()
+                .h_full()
+                .px(px(18.))
+                .pt(px(22.))
+                .pb(px(26.))
+                .flex()
+                .flex_col()
+                .justify_between()
+                .border_l_1()
+                .border_color(p.border)
+                .child(label(name))
+                .child(text(value, 20., FontWeight::MEDIUM, p.text).line_height(px(30.)).whitespace_nowrap()),
+        );
     }
-    head
+    card
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Span {
-    Week,
-    Month,
+#[derive(Clone, Copy)]
+enum DayCell {
+    /// Not part of the shown range; drawn empty.
+    Outside,
+    Upcoming,
+    Day {
+        day: i64,
+        chars: u64,
+    },
 }
 
-impl Span {
-    fn from_days(days: i64) -> Self {
-        if days == 7 { Self::Week } else { Self::Month }
+/// What the daily view needs to draw and colour one day.
+struct Daily<'a> {
+    c: &'a Ctx,
+    snapshot: &'a StatsSnapshot,
+    quartiles: [u64; 3],
+}
+
+impl Daily<'_> {
+    fn last_day(&self) -> i64 {
+        self.snapshot.first_day + self.snapshot.days.len() as i64 - 1
     }
 
-    fn bar_width(self) -> f32 {
-        match self {
-            Self::Week => 52.,
-            Self::Month => 14.,
+    fn at(&self, day: i64) -> DayCell {
+        let snapshot = self.snapshot;
+        let chars = usize::try_from(day - snapshot.first_day).ok().and_then(|i| snapshot.days.get(i));
+        match chars {
+            None => DayCell::Outside,
+            Some(_) if day > snapshot.today => DayCell::Upcoming,
+            Some(chars) => DayCell::Day { day, chars: *chars },
         }
     }
 
-    fn bar_radius(self) -> f32 {
-        match self {
-            Self::Week => 12.,
-            Self::Month => 5.,
+    /// `base` carries the size. Hover fades in the outline and asks for the shared tooltip.
+    fn cell(&self, base: Div, radius: f32, day: i64) -> AnyElement {
+        let p = self.c.p;
+        let base = base.relative().rounded(px(radius));
+        match self.at(day) {
+            DayCell::Outside => base.into_any_element(),
+            DayCell::Upcoming => base.bg(p.sub).border_1().border_color(p.border).into_any_element(),
+            DayCell::Day { day, chars } => {
+                let id = ElementId::Name(format!("stats-day-{:?}-{day}", self.snapshot.period).into());
+                let tip = fmt::stats_day_tip(self.c.lang, &fmt_int(chars), &date_label(self.c, day));
+                ui::tip_label(id.clone(), tip.into());
+                let outline = p.text;
+                base.id(id.clone())
+                    .bg(heat(&p, heat_step(chars, &self.quartiles)))
+                    .on_hover(ui::hover_tracker(id.clone()))
+                    .child(ui::tweened(
+                        ElementId::from((id.clone(), "outline")),
+                        f32::from(ui::is_hovered(&id)),
+                        hover_ms(),
+                        move |v| {
+                            div()
+                                .absolute()
+                                .inset_0()
+                                .rounded(px(radius))
+                                .border(px(1.5))
+                                .border_color(ui::hex_alpha(outline, v))
+                        },
+                    ))
+                    .child(ui::tip_above(&p, &id))
+                    .into_any_element()
+            }
         }
     }
 }
 
-fn per_day_chart(c: &Ctx, stats: &Stats, today: i64, days_back: i64) -> Div {
+fn heat(p: &Palette, step: usize) -> Hsla {
+    [p.stats_heat_0, p.stats_heat_1, p.stats_heat_2, p.stats_heat_3, p.stats_heat_4][step.min(4)]
+}
+
+fn month_label(c: &Ctx, month: u8) -> &'static str {
+    c.lang.tr(MONTHS[usize::from(month).clamp(1, 12) - 1])
+}
+
+fn date_label(c: &Ctx, day: i64) -> String {
+    let (_, month, day) = civil(day);
+    fmt::stats_date(c.lang, &day.to_string(), month_label(c, month))
+}
+
+fn year_month_label(c: &Ctx, day: i64) -> String {
+    let (year, month, _) = civil(day);
+    fmt::stats_year_month(c.lang, month_label(c, month), &year.to_string())
+}
+
+fn range_label(daily: &Daily) -> String {
+    let (c, first, last) = (daily.c, daily.snapshot.first_day, daily.last_day());
+    match daily.snapshot.period {
+        Period::Week => {
+            let ((_, from_month, from), (_, to_month, to)) = (civil(first), civil(last));
+            if from_month == to_month {
+                fmt::stats_days_in_month(c.lang, &from.to_string(), month_label(c, from_month), &to.to_string())
+            } else {
+                fmt::stats_date_span(c.lang, &date_label(c, first), &date_label(c, last))
+            }
+        }
+        Period::Month => year_month_label(c, first),
+        Period::All => fmt::stats_since(c.lang, &year_month_label(c, first)),
+    }
+}
+
+fn daily_card(c: &Ctx, snapshot: &StatsSnapshot, avail: f32) -> Div {
     let p = c.p;
-    let span = Span::from_days(days_back);
-    let by_day: std::collections::HashMap<String, u64> = stats.per_day.iter().cloned().collect();
-    let series: Vec<(i64, u64)> = (0..days_back)
-        .map(|i| today - (days_back - 1 - i))
-        .map(|d| (d, by_day.get(&ymd(d)).copied().unwrap_or(0)))
-        .collect();
-    let max = series.iter().map(|(_, v)| *v).max().unwrap_or(0).max(1);
-    let peak = series.iter().enumerate().max_by_key(|(_, (_, v))| *v).map(|(i, _)| i);
-    let mut bars = div().w_full().h(px(170.)).flex().items_end().justify_between().px(px(10.));
-    let mut labels = div().w_full().flex().justify_between().px(px(10.));
-    for (i, (day, value)) in series.iter().enumerate() {
-        let is_peak = Some(i) == peak && *value > 0;
-        bars = bars.child(day_bar(&p, span, *value, max, is_peak));
-        let label = day_label(c, span, *day, i, series.len());
-        labels = labels.child(div().w(px(span.bar_width())).flex().justify_center().child(ui::muted12(&p, label)));
+    let daily = Daily { c, snapshot, quartiles: heat_quartiles(snapshot.days.iter().copied()) };
+    let view = match snapshot.period {
+        Period::Week => week_tiles(&daily),
+        Period::Month => month_calendar(&daily),
+        Period::All => heatmap(&daily, avail - 54.),
+    };
+    let active_days = snapshot.days.iter().filter(|chars| **chars > 0).count() as u64;
+    let max = snapshot.days.iter().copied().max().unwrap_or(0);
+    let mut legend = div().flex_none().flex().items_center().gap(px(4.)).child(text(
+        c.t(Tr::StatsLess),
+        11.,
+        FontWeight::NORMAL,
+        p.muted,
+    ));
+    for step in 0..5 {
+        legend = legend.child(div().flex_none().size(px(HEAT_CELL)).rounded(px(2.5)).bg(heat(&p, step)));
     }
     ui::card(&p)
         .px(px(26.))
@@ -254,47 +346,118 @@ fn per_day_chart(c: &Ctx, stats: &Stats, today: i64, days_back: i64) -> Div {
                 .w_full()
                 .flex()
                 .items_center()
-                .justify_between()
-                .child(text(c.t(Tr::StatsCharactersPerDay), 15., FontWeight::BOLD, p.text))
-                .child(ui::muted12(&p, format!("{} {}", c.t(Tr::StatsMax), fmt_int(max)))),
+                .gap(px(12.))
+                .child(div().flex_1().child(text(c.t(Tr::StatsCharactersPerDay), 15., FontWeight::BOLD, p.text)))
+                .child(ui::muted12(&p, range_label(&daily)).flex_none()),
         )
-        .child(bars)
-        .child(labels)
+        .child(view)
+        .child(
+            div()
+                .w_full()
+                .flex()
+                .items_center()
+                .gap(px(16.))
+                .child(ui::muted12(&p, fmt::stats_active_days(c.lang, &fmt_int(active_days))).flex_none())
+                .child(div().flex_1().child(ui::muted12(&p, fmt::stats_max_day(c.lang, &fmt_int(max)))))
+                .child(legend.child(text(c.t(Tr::StatsMore), 11., FontWeight::NORMAL, p.muted))),
+        )
 }
 
-fn day_bar(p: &Palette, span: Span, value: u64, max: u64, is_peak: bool) -> Div {
-    let height = (value as f32 / max as f32 * 120.).max(if value > 0 { 6. } else { 0. });
-    let fill = if is_peak {
-        p.accent
-    } else if p.dark {
-        crate::theme::hex("#C2A765")
-    } else {
-        crate::theme::hex("#F6DA97")
-    };
-    let count = match span {
-        Span::Week => text(
-            fmt_int(value),
-            11.,
-            if is_peak { FontWeight::MEDIUM } else { FontWeight::NORMAL },
-            if is_peak { p.text } else { p.muted },
-        ),
-        Span::Month => div(),
-    };
-    div()
-        .flex()
-        .flex_col()
-        .items_center()
-        .gap(px(8.))
-        .child(count)
-        .child(div().w(px(span.bar_width())).h(px(height)).rounded(px(span.bar_radius())).bg(fill))
-}
-
-fn day_label(c: &Ctx, span: Span, day: i64, index: usize, count: usize) -> String {
-    match span {
-        Span::Week => c.lang.tr(WEEKDAYS[weekday(day)]).to_string(),
-        Span::Month if index.is_multiple_of(5) || index + 1 == count => ymd(day)[5..].to_string(),
-        Span::Month => String::new(),
+fn week_tiles(daily: &Daily) -> Div {
+    let (c, p) = (daily.c, daily.c.p);
+    let mut row = div().w_full().flex().gap(px(10.));
+    for (i, weekday) in WEEKDAYS.into_iter().enumerate() {
+        let day = daily.snapshot.first_day + i as i64;
+        let chars = match daily.at(day) {
+            DayCell::Day { chars, .. } => {
+                text(fmt_int(chars), 13., FontWeight::MEDIUM, if chars > 0 { p.text } else { p.muted })
+            }
+            DayCell::Outside | DayCell::Upcoming => div(),
+        };
+        let (weight, color) =
+            if day == daily.snapshot.today { (FontWeight::MEDIUM, p.text) } else { (FontWeight::NORMAL, p.muted) };
+        row = row.child(
+            div()
+                .flex_1()
+                .min_w_0()
+                .flex()
+                .flex_col()
+                .items_center()
+                .gap(px(6.))
+                .child(daily.cell(div().w_full().h(px(56.)), 10., day))
+                .child(chars.h(px(18.)).line_height(px(18.)))
+                .child(text(c.t(weekday), 12., weight, color).line_height(px(16.))),
+        );
     }
+    row
+}
+
+fn month_calendar(daily: &Daily) -> Div {
+    let (c, p) = (daily.c, daily.c.p);
+    let small = |s: SharedString| text(s, 11., FontWeight::NORMAL, p.muted).line_height(px(14.));
+    let mut weekdays = div().w_full().pl(px(46.)).flex().gap(px(6.));
+    for weekday in WEEKDAYS {
+        weekdays = weekdays.child(div().flex_1().flex().justify_center().child(small(c.t(weekday))));
+    }
+    let mut calendar = div().w_full().flex().flex_col().gap(px(6.)).child(weekdays);
+    let mut monday = week_start(daily.snapshot.first_day);
+    while monday <= daily.last_day() {
+        let (_, month, day) = civil(monday);
+        let mut week = div()
+            .w_full()
+            .flex()
+            .items_center()
+            .gap(px(6.))
+            .child(div().flex_none().w(px(40.)).child(small(format!("{month}/{day}").into())));
+        for day in monday..monday + 7 {
+            week = week.child(daily.cell(div().flex_1().h(px(26.)), 6., day));
+        }
+        calendar = calendar.child(week);
+        monday += 7;
+    }
+    calendar
+}
+
+/// One column per week, Monday on top. Days still to come are left out, so the last column ends at today.
+fn heatmap(daily: &Daily, avail: f32) -> Div {
+    let (c, p) = (daily.c, daily.c.p);
+    let small = |s: SharedString| text(s, 11., FontWeight::NORMAL, p.muted).line_height(px(14.)).whitespace_nowrap();
+    let labelled = [0usize, 2, 4];
+    let labels_width = labelled
+        .iter()
+        .map(|row| ui::text_width(c.lang.tr(WEEKDAYS[*row]), 11., FontWeight::NORMAL))
+        .fold(24., f32::max);
+    let weeks = daily.snapshot.days.len() / 7;
+    let fitting = ((avail - labels_width - 10. + HEAT_PITCH - HEAT_CELL) / HEAT_PITCH).floor().max(1.) as usize;
+    let skipped = weeks.saturating_sub(fitting);
+
+    let mut weekday_labels = div().relative().flex_none().w(px(labels_width)).h(px(HEAT_PITCH * 7. - 3.));
+    for row in labelled {
+        weekday_labels =
+            weekday_labels.child(small(c.t(WEEKDAYS[row])).absolute().left_0().top(px(row as f32 * HEAT_PITCH - 2.)));
+    }
+    let mut month_labels = div().relative().w_full().h(px(14.));
+    let mut grid = div().flex().gap(px(HEAT_PITCH - HEAT_CELL));
+    for (column, week) in (skipped..weeks).enumerate() {
+        let monday = daily.snapshot.first_day + week as i64 * 7;
+        if let Some(first_of_month) = (monday..monday + 7).find(|day| civil(*day).2 == 1) {
+            let label = month_label(c, civil(first_of_month).1);
+            month_labels =
+                month_labels.child(small(label.into()).absolute().top_0().left(px(column as f32 * HEAT_PITCH)));
+        }
+        let mut days = div().flex_none().w(px(HEAT_CELL)).flex().flex_col().gap(px(HEAT_PITCH - HEAT_CELL));
+        for day in (monday..monday + 7).take_while(|day| *day <= daily.snapshot.today) {
+            days = days.child(daily.cell(div().flex_none().size(px(HEAT_CELL)), 2.5, day));
+        }
+        grid = grid.child(days);
+    }
+    div()
+        .w_full()
+        .flex()
+        .items_end()
+        .gap(px(10.))
+        .child(weekday_labels)
+        .child(div().flex_none().flex().flex_col().gap(px(6.)).child(month_labels).child(grid))
 }
 
 fn top_apps_card(c: &Ctx, stats: &Stats) -> Div {
@@ -345,44 +508,63 @@ fn languages_card(c: &Ctx, stats: &Stats) -> Div {
     let total_langs: u64 = stats.langs.iter().map(|(_, n)| *n).sum::<u64>().max(1);
     let shades = if p.dark { ["#E0C47D", "#C2A765", "#826F41"] } else { ["#685218", "#C2A765", "#F6DA97"] };
     let shown = stats.langs.len().min(3);
+    let ids: Vec<ElementId> = (0..shown).map(|i| ElementId::Name(format!("stats-language-{i}").into())).collect();
+    let pointed = ids.iter().position(ui::is_hovered);
+    let ms = hover_ms();
     let mut stack = div().w_full().h(px(14.)).flex();
-    let mut legend = div().w_full().flex().flex_col().gap(px(14.));
+    let mut card = ui::card(&p).flex_1().p(px(26.)).gap(px(18.)).child(text(
+        c.t(Tr::StatsDetectedLanguages),
+        15.,
+        FontWeight::BOLD,
+        p.text,
+    ));
+    let mut rows = Vec::with_capacity(shown);
     for (i, (code, n)) in stats.langs.iter().take(3).enumerate() {
         let pct = *n as f32 / total_langs as f32;
         let col = crate::theme::hex(shades[i]);
+        let id = &ids[i];
+        let level = if pointed.is_some_and(|pointed| pointed != i) { LANGUAGE_DIMMED } else { 1. };
         // GPUI clips to rectangles: round the outer ends of the first and last segment instead.
-        let mut seg = div().h_full().w(relative(pct)).bg(col);
-        if i == 0 {
-            seg = seg.rounded_l(px(7.));
-        }
-        if i + 1 == shown {
-            seg = seg.rounded_r(px(7.));
-        }
-        stack = stack.child(seg);
-        legend = legend.child(
+        let (first, last) = (i == 0, i + 1 == shown);
+        // The fading fill is a child, so the hovered segment itself stays mounted.
+        stack =
+            stack.child(div().id(id.clone()).h_full().w(relative(pct)).on_hover(ui::hover_tracker(id.clone())).child(
+                ui::tweened(ElementId::from((id.clone(), "fill")), level, ms, move |v| {
+                    let mut fill = div().size_full().bg(col).opacity(v);
+                    if first {
+                        fill = fill.rounded_l(px(7.));
+                    }
+                    if last {
+                        fill = fill.rounded_r(px(7.));
+                    }
+                    fill
+                }),
+            ));
+        let name = SharedString::from(lang_name(code, c.lang));
+        let share = SharedString::from(format!("{:.0}%", pct * 100.));
+        rows.push(ui::tweened(ElementId::from((id.clone(), "row")), level, ms, move |v| {
             div()
                 .w_full()
                 .flex()
                 .items_center()
                 .justify_between()
+                .opacity(v)
                 .child(
                     div()
                         .flex()
                         .items_center()
                         .gap(px(10.))
                         .child(div().size(px(12.)).rounded_full().bg(col))
-                        .child(text(lang_name(code, c.lang), 13., FontWeight::MEDIUM, p.text)),
+                        .child(text(name.clone(), 13., FontWeight::MEDIUM, p.text)),
                 )
-                .child(ui::muted12(&p, format!("{:.0}%", pct * 100.))),
-        );
+                .child(ui::muted12(&p, share.clone()))
+        }));
     }
-    ui::card(&p)
-        .flex_1()
-        .p(px(26.))
-        .gap(px(18.))
-        .child(text(c.t(Tr::StatsDetectedLanguages), 15., FontWeight::BOLD, p.text))
-        .child(stack)
-        .child(legend)
+    card = card.child(stack).children(rows);
+    if stats.langs.is_empty() {
+        card = card.child(ui::muted12(&p, c.t(Tr::StatsNoData)));
+    }
+    card
 }
 
 fn fmt_int(n: u64) -> String {
