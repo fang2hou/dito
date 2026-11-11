@@ -4,7 +4,9 @@ use std::sync::Arc;
 
 use dito_core::config::HudPosition;
 use dito_core::controller::HudState;
-use dito_platform::system::{HudFollowState, HudNativeWindow, HudWindowMove, NapGuard, PointerContact};
+use dito_platform::system::{
+    HudFollowState, HudNativeWindow, HudWindowMove, NapGuard, PointerContact, pointer_location,
+};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 use raw_window_handle::{HasWindowHandle, RawWindowHandle};
@@ -30,7 +32,9 @@ struct HudWindow {
 impl Global for HudWindow {}
 
 fn window_options(st: &AppState, cx: &App) -> Option<WindowOptions> {
-    let display = cx.primary_display()?;
+    let display = pointer_location()
+        .and_then(|(x, y)| cx.displays().into_iter().find(|display| display.bounds().contains(&point(px(x), px(y)))))
+        .or_else(|| cx.primary_display())?;
     let screen = display.bounds();
     let visible = display.visible_bounds();
     // WIN_PAD reserves space around the content, so the controls are not clipped at the window edge. The extra 30 pt
@@ -114,30 +118,31 @@ impl Placement {
     ) -> (Option<HudWindowMove>, std::time::Duration) {
         let fallback = std::time::Duration::from_millis(8);
         let Some(native) = native_window(window) else { return (None, fallback) };
-        let mut movement = None;
         let cfg = settings.cfg.get();
         let clearance = cfg.general.hud_clearance();
         let current = (cfg.general.hud_position, clearance);
         if self.applied != Some(current) {
             self.applied = Some(current);
             self.follow = HudFollowState::default();
-            if current.0 == HudPosition::Centered {
-                movement = native.center_above_dock(current.1);
-            }
         }
         let interval =
             window.refresh_interval(cx).unwrap_or(fallback).clamp(std::time::Duration::from_millis(4), fallback);
-        let Some(pointer) = native.pointer() else { return (movement, interval) };
+        let Some(pointer) = native.pointer() else { return (None, interval) };
         let interactive = view.pointer_update(pointer.x, pointer.y, cx);
         // Keep the down/up pair on the same target while a button is held.
         if !pointer.button_down {
             native.set_click_through(!interactive);
         }
-        if current.0 == HudPosition::Pointer {
-            let contact =
-                if interactive || pointer.button_down { PointerContact::OnControls } else { PointerContact::Away };
-            movement = native.follow_pointer(&mut self.follow, contact);
-        }
+        let movement = match current.0 {
+            // A drag that crosses screens moves the HUD only once the button is released.
+            HudPosition::Centered if pointer.button_down => None,
+            HudPosition::Centered => native.center_above_dock(clearance),
+            HudPosition::Pointer => {
+                let contact =
+                    if interactive || pointer.button_down { PointerContact::OnControls } else { PointerContact::Away };
+                native.follow_pointer(&mut self.follow, contact)
+            }
+        };
         (movement, interval)
     }
 }

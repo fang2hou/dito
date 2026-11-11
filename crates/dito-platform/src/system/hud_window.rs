@@ -129,9 +129,10 @@ impl<'a> HudNativeWindow<'a> {
         }
     }
 
+    /// Centers on the screen under the pointer, so the HUD changes screens with it.
     pub fn center_above_dock(&self, clearance: i32) -> Option<HudWindowMove> {
         let window = self.window()?;
-        let screen = window.screen()?;
+        let screen = screen_under(mouse_location(), self.mtm).or_else(|| window.screen())?;
         let screen_frame = screen.frame();
         let visible = screen.visibleFrame();
         let frame = window.frame();
@@ -163,6 +164,15 @@ impl<'a> HudNativeWindow<'a> {
         ((frame.origin.x - next.0).abs() > MIN_MOVE || (frame.origin.y - next.1).abs() > MIN_MOVE)
             .then(|| HudWindowMove(window, NSPoint::new(next.0, next.1)))
     }
+}
+
+/// The pointer in global coordinates with the origin at the primary screen's top left, as gpui reports display
+/// bounds. `None` off the main thread.
+pub fn pointer_location() -> Option<(f32, f32)> {
+    let mtm = MainThreadMarker::new()?;
+    let primary = NSScreen::screens(mtm).into_iter().next()?.frame();
+    let cursor = mouse_location();
+    Some((cursor.x as f32, (primary.size.height - cursor.y) as f32))
 }
 
 fn area_of(rect: NSRect) -> Area {
