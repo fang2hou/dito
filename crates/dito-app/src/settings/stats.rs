@@ -2,8 +2,10 @@ use std::sync::Arc;
 
 use dito_core::i18n::{Lang, Tr, fmt};
 use dito_core::store::{Period, Stats, civil, heat_quartiles, heat_step, week_start};
+use gpui_kit::prelude::*;
 use gpui_kit::*;
 
+use super::edge_fade::{Edge, edge_fade};
 use super::page_query::{PageQuery, QueryPage};
 use super::{Ctx, content_width};
 use crate::services::{self, StatsSnapshot};
@@ -44,6 +46,13 @@ const HEAT_CELL: f32 = 10.;
 const HEAT_PITCH: f32 = 13.;
 /// Opacity of the languages the pointer is not on.
 const LANGUAGE_DIMMED: f32 = 0.35;
+/// Both cards of the bottom row, whatever they hold.
+const BOTTOM_CARD_H: f32 = 273.;
+/// Three and a half app rows, so the cut row invites scrolling.
+const APPS_VIEWPORT_H: f32 = 177.;
+const APP_ROW_H: f32 = 35.;
+const APP_ROW_GAP: f32 = 18.;
+const APPS_FADE: f32 = 24.;
 
 /// The Stats page, `design:settings`.
 pub struct StatsPage {
@@ -51,6 +60,7 @@ pub struct StatsPage {
     period: Period,
     /// Owned snapshot; render never touches the database.
     query: PageQuery<StatsSnapshot>,
+    apps_scroll: ScrollHandle,
     motion: ui::MotionScope,
 }
 
@@ -76,6 +86,7 @@ impl StatsPage {
             st,
             period: Period::Week,
             query: PageQuery::new("stats", StatsSnapshot::empty(Period::Week, today)),
+            apps_scroll: ScrollHandle::new(),
         }
     }
 
@@ -118,10 +129,13 @@ impl StatsPage {
             PERIODS.iter().position(|period| *period == self.period).unwrap_or(0),
             cbk_idx(cx, |this: &mut Self, i, _, cx| {
                 this.period = PERIODS[i];
+                this.apps_scroll.set_offset(point(px(0.), px(0.)));
                 this.changed(cx);
                 cx.notify();
             }),
         );
+        // The list scrolls without re-running this view; the fades follow only if it is asked to.
+        let apps_scrolled = cx.listener(|_: &mut Self, _: &ScrollEvent, _, cx| cx.notify());
 
         super::page(
             p,
@@ -141,7 +155,7 @@ impl StatsPage {
                         .flex()
                         .items_start()
                         .gap(px(20.))
-                        .child(top_apps_card(&c, &snapshot.stats))
+                        .child(top_apps_card(&c, &snapshot.stats, &self.apps_scroll, apps_scrolled))
                         .child(languages_card(&c, &snapshot.stats)),
                 ),
         )
@@ -460,23 +474,48 @@ fn heatmap(daily: &Daily, avail: f32) -> Div {
         .child(div().flex_none().flex().flex_col().gap(px(6.)).child(month_labels).child(grid))
 }
 
-fn top_apps_card(c: &Ctx, stats: &Stats) -> Div {
+/// The list scrolls inside the card, `design:settings` 20.07.5.
+fn top_apps_card(
+    c: &Ctx,
+    stats: &Stats,
+    scroll: &ScrollHandle,
+    on_scroll: impl Fn(&ScrollEvent, &mut Window, &mut App) + 'static,
+) -> Div {
     let p = c.p;
     let total_apps: u64 = stats.apps.iter().map(|(_, n)| *n).sum::<u64>().max(1);
-    let mut apps =
-        ui::card(&p).flex_1().p(px(26.)).gap(px(18.)).child(text(c.t(Tr::StatsTopApps), 15., FontWeight::BOLD, p.text));
-    for (i, (name, n)) in stats.apps.iter().take(5).enumerate() {
+    let card = ui::card(&p)
+        .flex_1()
+        .h(px(BOTTOM_CARD_H))
+        .p(px(26.))
+        .gap(px(18.))
+        .child(text(c.t(Tr::StatsTopApps), 15., FontWeight::BOLD, p.text).flex_none().line_height(px(24.)));
+    if stats.apps.is_empty() {
+        return card.child(ui::muted12(&p, c.t(Tr::StatsNoData)));
+    }
+    let mut list = div()
+        .id("stats-apps")
+        .size_full()
+        .flex()
+        .flex_col()
+        .gap(px(APP_ROW_GAP))
+        .overflow_y_scroll()
+        .track_scroll(scroll);
+    for (i, (name, n)) in stats.apps.iter().enumerate() {
         let pct = *n as f32 / total_apps as f32;
-        apps = apps.child(
+        list = list.child(
             div()
+                .flex_none()
                 .w_full()
+                .h(px(APP_ROW_H))
                 .flex()
                 .flex_col()
                 .gap(px(8.))
                 .child(
                     div()
                         .w_full()
+                        .h(px(19.))
                         .flex()
+                        .items_center()
                         .justify_between()
                         .child(text(
                             if name.is_empty() { "—".to_string() } else { name.clone() },
@@ -497,10 +536,22 @@ fn top_apps_card(c: &Ctx, stats: &Stats) -> Div {
                 )),
         );
     }
-    if stats.apps.is_empty() {
-        apps = apps.child(ui::muted12(&p, c.t(Tr::StatsNoData)));
-    }
-    apps
+    // Rows have a fixed height, so the scroll range is known before the first layout.
+    let rows = stats.apps.len() as f32;
+    let max_scroll = (rows * (APP_ROW_H + APP_ROW_GAP) - APP_ROW_GAP - APPS_VIEWPORT_H).max(0.);
+    let scrolled = (-f32::from(scroll.offset().y)).clamp(0., max_scroll);
+    let top = (scrolled / APPS_FADE).clamp(0., 1.);
+    let bottom = ((max_scroll - scrolled) / APPS_FADE).clamp(0., 1.);
+    card.child(
+        div()
+            .relative()
+            .flex_none()
+            .w_full()
+            .h(px(APPS_VIEWPORT_H))
+            .child(list.on_scroll(on_scroll))
+            .when(top > 0.001, |d| d.child(edge_fade(Edge::Top, p.card, APPS_FADE, 0.).opacity(top)))
+            .when(bottom > 0.001, |d| d.child(edge_fade(Edge::Bottom, p.card, APPS_FADE, 0.).opacity(bottom))),
+    )
 }
 
 fn languages_card(c: &Ctx, stats: &Stats) -> Div {
@@ -512,12 +563,12 @@ fn languages_card(c: &Ctx, stats: &Stats) -> Div {
     let pointed = ids.iter().position(ui::is_hovered);
     let ms = hover_ms();
     let mut stack = div().w_full().h(px(14.)).flex();
-    let mut card = ui::card(&p).flex_1().p(px(26.)).gap(px(18.)).child(text(
-        c.t(Tr::StatsDetectedLanguages),
-        15.,
-        FontWeight::BOLD,
-        p.text,
-    ));
+    let mut card = ui::card(&p)
+        .flex_1()
+        .h(px(BOTTOM_CARD_H))
+        .p(px(26.))
+        .gap(px(30.))
+        .child(text(c.t(Tr::StatsDetectedLanguages), 15., FontWeight::BOLD, p.text).line_height(px(24.)));
     let mut rows = Vec::with_capacity(shown);
     for (i, (code, n)) in stats.langs.iter().take(3).enumerate() {
         let pct = *n as f32 / total_langs as f32;
