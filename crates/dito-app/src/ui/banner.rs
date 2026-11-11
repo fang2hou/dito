@@ -11,7 +11,6 @@ use crate::theme::Palette;
 pub struct BannerAction {
     pub id: ElementId,
     pub label: SharedString,
-    pub kind: BtnKind,
     pub on_click: Cb,
 }
 
@@ -45,8 +44,8 @@ pub fn banner(p: &Palette, message: impl Into<SharedString>, action: Option<Bann
                 .child(icon(Ic::Alert, 18., icon_color))
                 .child(text(message, 13., FontWeight::MEDIUM, fg)),
         );
-    if let Some(BannerAction { id, label, kind, on_click }) = action {
-        strip = strip.child(button(id, p, &label, kind, None, on_click));
+    if let Some(BannerAction { id, label, on_click }) = action {
+        strip = strip.child(button(id, p, &label, BtnKind::Secondary, None, on_click));
     }
     strip
 }
@@ -58,9 +57,5 @@ pub fn dismissible_banner(
     close_label: impl Into<SharedString>,
     on_close: Cb,
 ) -> Div {
-    banner(
-        p,
-        message,
-        Some(BannerAction { id: id.into(), label: close_label.into(), kind: BtnKind::Secondary, on_click: on_close }),
-    )
+    banner(p, message, Some(BannerAction { id: id.into(), label: close_label.into(), on_click: on_close }))
 }
