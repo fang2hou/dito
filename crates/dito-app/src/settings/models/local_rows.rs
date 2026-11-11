@@ -318,7 +318,7 @@ impl ModelsPage {
             SharedString::from(format!("dl-{}-{id}", role::index(role))),
             p,
             &c.t(Tr::MenubarDownload),
-            BtnKind::Download,
+            BtnKind::Secondary,
             Ic::Download,
             cbk(cx, move |this: &mut Self, _, _| {
                 let _ = this.st.models.start_download(&id2);

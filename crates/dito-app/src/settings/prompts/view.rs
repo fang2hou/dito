@@ -308,22 +308,47 @@ impl PromptsPage {
     fn try_card(&self, c: &Ctx, window: &Window, cx: &mut Context<Self>) -> Div {
         let p = c.p;
         let running = matches!(self.try_state, Try::Running);
-        let (value, muted) = match &self.try_state {
-            Try::Done(value, _) => (value.clone(), false),
-            Try::Failed(error) => (ui::error_line(c.lang, error), false),
-            _ => (c.t(Tr::PromptsPreviewPlaceholder).to_string(), true),
-        };
-        let output_color = if matches!(self.try_state, Try::Failed(_)) {
-            p.danger
-        } else if muted {
-            p.muted
-        } else {
-            p.text
-        };
         let latency = match self.try_state {
-            Try::Done(_, ms) => Some(format!("{ms} ms")),
+            Try::Done(ms) => Some(format!("{ms} ms")),
             _ => None,
         };
+        let failure = match &self.try_state {
+            Try::Failed(error) => Some(ui::error_line(c.lang, error)),
+            _ => None,
+        };
+        let copy = if failure.is_some() || self.try_out.read(cx).value().is_empty() {
+            ui::disabled_icon_button_with("try-copy", &p, Ic::Copy, ui::CircleSize::Compact)
+        } else {
+            ui::icon_button_with(
+                "try-copy",
+                &p,
+                Ic::Copy,
+                false,
+                ui::CircleSize::Compact,
+                cbk(cx, |this: &mut Self, _, cx| this.copy_result(cx)),
+            )
+        };
+        let result = match failure {
+            Some(error) => div()
+                .w_full()
+                .h(px(135.))
+                .px(px(12.))
+                .py(px(10.))
+                .rounded(px(12.))
+                .border_1()
+                .border_color(p.border_strong)
+                .bg(p.input_bg)
+                .overflow_hidden()
+                .child(text(error, 13., FontWeight::NORMAL, p.danger).line_height(px(20.)))
+                .into_any_element(),
+            None => prompt_editor(&p, &self.try_out, window, cx, 135.)
+                .id("prompt-preview-result")
+                .on_mouse_down_out(ui::blur_on_outside(self.try_out.read(cx).focus_handle(cx)))
+                .on_mouse_down(MouseButton::Left, ui::focus_on_click(self.try_out.read(cx).focus_handle(cx)))
+                .into_any_element(),
+        };
+        // Both caption rows are 24 pt whether or not anything sits in them, so the two fields start on one line.
+        let caption = || div().w_full().h(px(24.)).flex_none().flex().items_center();
         ui::card(&p)
             .px(px(22.))
             .py(px(18.))
@@ -342,7 +367,7 @@ impl PromptsPage {
                             &if running { c.t(Tr::HudPolishing) } else { c.t(Tr::PromptsSampleButton) },
                             BtnKind::Primary,
                             Some(Ic::Sparkles),
-                            cbk(cx, |this: &mut Self, _, cx| this.run_try(cx)),
+                            cbk(cx, |this: &mut Self, window, cx| this.run_try(window, cx)),
                         )
                         .opacity(if running { 0.6 } else { 1. }),
                     ),
@@ -360,7 +385,7 @@ impl PromptsPage {
                             .flex()
                             .flex_col()
                             .gap(px(6.))
-                            .child(ui::muted12(&p, c.t(Tr::MenubarWhatYouSaid)))
+                            .child(caption().child(ui::muted12(&p, c.t(Tr::MenubarWhatYouSaid))))
                             .child(
                                 prompt_editor(&p, &self.try_in, window, cx, 135.)
                                     .id("prompt-preview-input")
@@ -379,25 +404,17 @@ impl PromptsPage {
                             .flex_col()
                             .gap(px(6.))
                             .child(
-                                div()
-                                    .flex()
-                                    .items_center()
-                                    .justify_between()
-                                    .child(ui::muted12(&p, c.t(Tr::MenubarPolished)))
-                                    .children(latency.map(|s| ui::tag(&p, s, crate::theme::Tint::Neutral))),
+                                caption().justify_between().child(ui::muted12(&p, c.t(Tr::MenubarPolished))).child(
+                                    div()
+                                        .flex_none()
+                                        .flex()
+                                        .items_center()
+                                        .gap(px(8.))
+                                        .children(latency.map(|s| ui::muted12(&p, s)))
+                                        .child(copy),
+                                ),
                             )
-                            .child(
-                                div()
-                                    .w_full()
-                                    .min_h(px(135.))
-                                    .px(px(12.))
-                                    .py(px(10.))
-                                    .rounded(px(12.))
-                                    .border_1()
-                                    .border_color(p.border)
-                                    .bg(p.sub)
-                                    .child(text(value, 13., FontWeight::NORMAL, output_color).line_height(px(20.))),
-                            ),
+                            .child(result),
                     ),
             )
     }

@@ -47,9 +47,9 @@ pub(super) fn in_use_status(id: impl Into<ElementId>, p: &Palette, label: Shared
         Ic::Check,
         ui::CircleSize::Regular,
         ui::CircleAppearance {
-            background: Some(p.model_in_use_pill_bg),
-            foreground: p.model_in_use_pill_text,
-            border: Some(p.model_in_use_pill_bg),
+            background: Some(p.primary),
+            foreground: p.on_primary,
+            border: Some(p.primary),
             hover: None,
         },
     )
