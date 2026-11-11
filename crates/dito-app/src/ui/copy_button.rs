@@ -28,15 +28,15 @@ pub(super) enum CopyPhase {
 /// Each phase with the millisecond it ends at.
 fn phases(motion: Motion) -> &'static [(CopyPhase, f32)] {
     if motion.is_reduced() {
-        &[(CopyPhase::Invert, 80.), (CopyPhase::Hold, 1080.), (CopyPhase::Return, 1160.)]
+        &[(CopyPhase::Invert, 80.), (CopyPhase::Hold, 880.), (CopyPhase::Return, 960.)]
     } else {
         &[
-            (CopyPhase::Invert, 160.),
-            (CopyPhase::Rise, 340.),
-            (CopyPhase::Rest, 420.),
-            (CopyPhase::Fade, 700.),
-            (CopyPhase::Hold, 1300.),
-            (CopyPhase::Return, 1460.),
+            (CopyPhase::Invert, 120.),
+            (CopyPhase::Rise, 240.),
+            (CopyPhase::Rest, 300.),
+            (CopyPhase::Fade, 500.),
+            (CopyPhase::Hold, 800.),
+            (CopyPhase::Return, 920.),
         ]
     }
 }
@@ -222,16 +222,16 @@ mod tests {
     fn the_full_sequence_follows_the_motion_table() {
         let cases = [
             (0, CopyPhase::Invert, 0., 0., 0.),
-            (80, CopyPhase::Invert, 0.5, 0.5, 0.),
-            (160, CopyPhase::Rise, 0., 1., 0.),
-            (250, CopyPhase::Rise, 0.5, 1., 0.5),
-            (340, CopyPhase::Rest, 0., 1., 1.),
-            (419, CopyPhase::Rest, 0.9875, 1., 1.),
-            (560, CopyPhase::Fade, 0.5, 1., 0.5),
-            (700, CopyPhase::Hold, 0., 1., 0.),
-            (1299, CopyPhase::Hold, 0.99833, 1., 0.),
-            (1380, CopyPhase::Return, 0.5, 0.5, 0.),
-            (1460, CopyPhase::Done, 1., 0., 0.),
+            (60, CopyPhase::Invert, 0.5, 0.5, 0.),
+            (120, CopyPhase::Rise, 0., 1., 0.),
+            (180, CopyPhase::Rise, 0.5, 1., 0.5),
+            (240, CopyPhase::Rest, 0., 1., 1.),
+            (299, CopyPhase::Rest, 0.98333, 1., 1.),
+            (400, CopyPhase::Fade, 0.5, 1., 0.5),
+            (500, CopyPhase::Hold, 0., 1., 0.),
+            (799, CopyPhase::Hold, 0.99667, 1., 0.),
+            (860, CopyPhase::Return, 0.5, 0.5, 0.),
+            (920, CopyPhase::Done, 1., 0., 0.),
             (5000, CopyPhase::Done, 1., 0., 0.),
         ];
         for (ms, phase, progress, invert, halo) in cases {
@@ -244,47 +244,47 @@ mod tests {
     }
 
     #[test]
-    fn reduce_motion_holds_the_check_for_a_second_without_a_halo() {
+    fn reduce_motion_holds_the_check_without_a_halo() {
         assert!(close(at(40, 0., Motion::Reduced).invert, 0.5));
-        for ms in [80, 500, 1079] {
+        for ms in [80, 500, 879] {
             let frame = at(ms, 0., Motion::Reduced);
             assert_eq!((frame.phase, frame.invert), (CopyPhase::Hold, 1.), "at {ms} ms");
         }
-        assert!(close(at(1120, 0., Motion::Reduced).invert, 0.5));
-        assert_eq!(at(1160, 0., Motion::Reduced).phase, CopyPhase::Done);
+        assert!(close(at(920, 0., Motion::Reduced).invert, 0.5));
+        assert_eq!(at(960, 0., Motion::Reduced).phase, CopyPhase::Done);
         assert!((0..1200).step_by(10).all(|ms| at(ms, 0., Motion::Reduced).halo == 0.));
     }
 
     #[test]
     fn a_second_copy_restarts_at_the_inverted_check() {
         let first = CopyRun::begin(None, Instant::now(), Motion::Full);
-        let click = first.start + Duration::from_millis(900);
+        let click = first.start + Duration::from_millis(600);
         let second = CopyRun::begin(Some(first), click, Motion::Full);
         assert_ne!(second.key, first.key, "a restart is a new animation");
         let frame = second.frame(click, Motion::Full);
         assert_eq!((frame.phase, frame.invert, frame.halo), (CopyPhase::Rise, 1., 0.));
-        for ms in (0..1300).step_by(20) {
+        for ms in (0..800).step_by(20) {
             let frame = second.frame(click + Duration::from_millis(ms), Motion::Full);
             if frame.phase != CopyPhase::Return && frame.phase != CopyPhase::Done {
                 assert_eq!(frame.invert, 1., "the copy glyph showed {ms} ms after the second copy");
             }
         }
-        assert_eq!(second.frame(click + Duration::from_millis(1300), Motion::Full).phase, CopyPhase::Done);
+        assert_eq!(second.frame(click + Duration::from_millis(800), Motion::Full).phase, CopyPhase::Done);
 
         let reduced = CopyRun::begin(Some(first), click, Motion::Reduced);
         assert_eq!(reduced.frame(click, Motion::Reduced).phase, CopyPhase::Hold);
-        assert_eq!(reduced.frame(click + Duration::from_millis(1080), Motion::Reduced).phase, CopyPhase::Done);
+        assert_eq!(reduced.frame(click + Duration::from_millis(880), Motion::Reduced).phase, CopyPhase::Done);
     }
 
     #[test]
     fn a_copy_during_the_return_continues_from_the_shown_level() {
         let first = CopyRun::begin(None, Instant::now(), Motion::Full);
-        let click = first.start + Duration::from_millis(1380);
+        let click = first.start + Duration::from_millis(860);
         let second = CopyRun::begin(Some(first), click, Motion::Full);
         assert!(close(second.frame(click, Motion::Full).invert, 0.5));
-        let later = second.frame(click + Duration::from_millis(40), Motion::Full);
+        let later = second.frame(click + Duration::from_millis(30), Motion::Full);
         assert!(later.phase == CopyPhase::Invert && later.invert > 0.5 && later.invert < 1.);
-        assert_eq!(second.frame(click + Duration::from_millis(80), Motion::Full).phase, CopyPhase::Rise);
+        assert_eq!(second.frame(click + Duration::from_millis(60), Motion::Full).phase, CopyPhase::Rise);
 
         let finished = CopyRun::begin(Some(first), first.start + Duration::from_secs(3), Motion::Full);
         assert_eq!(finished.from, 0., "a copy after the sequence ended starts from the copy glyph");
