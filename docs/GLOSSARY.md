@@ -15,7 +15,8 @@ One word per concept, in code, docs and conversation. When a name in the code di
 | Insertion | Putting the final text into the focused app, by typing or paste | `Sink`, `InsertMethod`, `Delivery` | typing-in, output |
 | Delivery | The result of an insertion: inserted, copied to the clipboard, or failed | `Delivery` | |
 | Style | The writing rules that shape a polish prompt: General, built in (Slack, Teams, Herdr) or per app | `Style`, `BuiltinStyle`, `StylePrompt` | profile, preset |
-| Wordbook | Words the user wants spelled correctly, passed to ASR as hotwords and optionally to polish | `Store::words`, `PipelineJob::wordbook`, `wordbook_for_polish` | dictionary, glossary (that is this file), vocabulary |
+| Wordbook | Words the user wants spelled correctly, passed to ASR as hotwords and optionally to polish | `Store::words`, `PipelineJob::wordbook`, `wordbook_for_polish` | dictionary, glossary (that is this file), vocabulary (except the `reference_vocabulary` prompt tag, which the models read) |
+| Hotword | A wordbook word as ASR receives it | `AsrRequest::hotwords`, `is_hotword_echo` | vocabulary, keyword |
 | History | Stored dictation results with their audio | `HistoryEntry`, `HistoryKind` | log |
 
 ## Engines and models
@@ -27,7 +28,7 @@ One word per concept, in code, docs and conversation. When a name in the code di
 | Provider | A cloud service that serves a stage | `provider/`, `ProviderError`, `ProviderResult` | vendor, remote |
 | Configuration | One saved cloud setup (name, request, model), selected from a row of tiles | `CloudAsrConfiguration`, `CloudPolishConfiguration` | profile, preset, connection |
 | Template | A bundled starting point for a configuration | `CloudAsrTemplate`, `CloudPolishTemplate`, `design/asr-templates/` | preset |
-| Profile | Only an AWS shared-config profile | `aws_profiles` | any other use |
+| Profile | Only an AWS shared-config profile | `aws_profiles` | any other use (`config/migrate.rs` still names the retired `cloud_asr.profiles` key) |
 | Model | Downloadable local weights | `ModelSpec`, `ModelState`, `ModelManager` | |
 | Runtime | A native inference library behind `dito-local` | `Runtime`, `AsrRuntime`, `LlmRuntime`, `dito-runtimes` | engine, backend |
 | Backend | Only the trait through which core reaches local engines | `LocalBackend` | |
