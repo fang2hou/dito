@@ -11,20 +11,20 @@ use sherpa_onnx_sys::offline_asr as ffi;
 
 use crate::chunking::{join_chunks, split_at_pauses};
 
-/// Languages Dito is used in. SenseVoice also knows others (ko, yue), but on noise it tends to invent a short Korean
-/// word; text like that in an unexpected language is dropped.
+/// SenseVoice also knows ko, but on noise it tends to invent a short Korean word; text in an unexpected language is
+/// dropped.
 const EXPECTED: [&str; 4] = ["ja", "en", "zh", "yue"];
 
-/// SenseVoice (zh/en/ja/ko/yue) through sherpa-onnx. The language is fixed when a recognizer is created, so one
-/// recognizer is kept per requested language (auto, ja, en, zh), created on first use; the model files are small
-/// enough (about 230 MB) that this beats re-loading on every change of the preferred language.
+/// The language is fixed when a recognizer is created, so one recognizer is kept per requested language, created on
+/// first use. The model files are small enough (about 230 MB) that this beats re-loading on every change of the
+/// preferred language.
 pub struct SenseVoice {
     model: String,
     tokens: String,
     recognizers: Mutex<HashMap<&'static str, Recognizer>>,
 }
 
-/// One owned native recognizer. All calls are serialized by the adapter's mutex.
+/// All calls are serialized by the adapter's mutex.
 struct Recognizer(NonNull<ffi::OfflineRecognizer>);
 
 // SAFETY: the native object has no thread affinity. Its owner transfers it between
@@ -60,7 +60,7 @@ impl Recognizer {
             ffi::SherpaOnnxDecodeOfflineStream(self.0.as_ptr(), stream.0.as_ptr());
             let result = ffi::SherpaOnnxGetOfflineStreamResultAsJson(stream.0.as_ptr());
             if result.is_null() {
-                return Err(RuntimeError::engine("sherpa-onnx returned no recognition result"));
+                return Err(RuntimeError::engine("sherpa-onnx returned no transcript"));
             }
             let json = CStr::from_ptr(result).to_string_lossy().into_owned();
             ffi::SherpaOnnxDestroyOfflineStreamResultJson(result);
@@ -127,7 +127,7 @@ impl SenseVoice {
             tokens: tokens.to_string_lossy().into_owned(),
             recognizers: Mutex::default(),
         };
-        // Loading "auto" now surfaces a broken model at load time instead of on the first dictation.
+        // Loading "auto" surfaces a broken model at load time instead of on the first dictation.
         let auto = this.create("auto")?;
         this.recognizers.lock().map_err(|_| RuntimeError::LockPoisoned("recognizer"))?.insert("auto", auto);
         Ok(this)
@@ -194,8 +194,7 @@ impl AsrRuntime for SenseVoice {
     }
 }
 
-/// NeMo TDT through the existing sherpa-onnx adapter. Haas packs its KDA state into
-/// the standard transducer state interface; no model-specific runtime is needed.
+/// Haas packs its KDA state into the standard transducer state interface; no model-specific runtime is needed.
 pub struct NemoTdt {
     recognizer: Mutex<Recognizer>,
 }

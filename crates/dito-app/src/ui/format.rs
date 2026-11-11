@@ -1,9 +1,6 @@
 use dito_core::i18n::Tr;
 use gpui_kit::SharedString;
 
-/// Tiny helper for "left label, right value" meta lines.
-/// Localised name of a polish style: the generic one is "一般", the others are app names.
-/// One-line, user-language description of a failure class.
 pub fn error_summary(lang: dito_core::i18n::Lang, kind: dito_core::error::ErrorKind) -> &'static str {
     use dito_core::error::ErrorKind as K;
     let message = match kind {
@@ -21,7 +18,6 @@ pub fn error_summary(lang: dito_core::i18n::Lang, kind: dito_core::error::ErrorK
     lang.tr(message)
 }
 
-/// A stored or returned `Kind: detail` error line, with the kind in the user's language and the technical detail kept.
 pub fn error_line(lang: dito_core::i18n::Lang, line: &str) -> String {
     match dito_core::error::ErrorKind::decode(line) {
         Some((kind, detail)) => format!("{} ({detail})", error_summary(lang, kind)),
@@ -33,8 +29,8 @@ fn other_label(lang: dito_core::i18n::Lang) -> SharedString {
     SharedString::from(lang.tr(dito_core::i18n::Tr::PromptsOther))
 }
 
-/// A configured app named `app`, for entries recorded before the app was configured or under another bundle id:
-/// the recorded name is the only link those rows keep to their app.
+/// Entries recorded before the app was configured, or under another bundle id, keep only the recorded name as their
+/// link to the app.
 fn configured_name<'a>(prompts: &'a dito_core::prompts::Prompts, app: &str) -> Option<&'a String> {
     if app.is_empty() {
         return None;
@@ -42,9 +38,7 @@ fn configured_name<'a>(prompts: &'a dito_core::prompts::Prompts, app: &str) -> O
     prompts.applications.values().find(|name| name.as_str() == app)
 }
 
-/// Label of a recorded entry against the apps configured now. A configured app keeps the name it was recorded with
-/// (falling back to its configured display name); an app no longer in the list reads as Other, and adding it back
-/// restores the name without touching history. Built-in styles are fixed.
+/// An app no longer in the list reads as Other; adding it back restores the name without touching history.
 pub fn history_style_label(
     lang: dito_core::i18n::Lang,
     prompts: &dito_core::prompts::Prompts,
@@ -53,7 +47,7 @@ pub fn history_style_label(
 ) -> SharedString {
     use dito_core::prompts::Style;
     match style {
-        Style::Builtin(_) if prompts.profile_enabled(style) => SharedString::from(style.label().to_owned()),
+        Style::Builtin(_) if prompts.style_enabled(style) => SharedString::from(style.label().to_owned()),
         Style::Builtin(_) => other_label(lang),
         Style::Application(id) => match prompts.applications.get(id) {
             Some(configured) if app.is_empty() => configured.clone().into(),

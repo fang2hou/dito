@@ -1,8 +1,4 @@
 //! Delivering text into the focused app, or to the clipboard when nothing editable has focus.
-//!
-//! Delivery waits for the keyboard focus to settle, then drives the type, paste and clipboard
-//! fallback from [`dito_core::insert`], verifying each live attempt through the target field's
-//! selection before accepting it. Every failed step is visible in `tracing`.
 
 mod ax;
 mod deliver;

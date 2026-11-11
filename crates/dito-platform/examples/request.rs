@@ -1,4 +1,4 @@
-//! Ask for a permission the way the app's "許可する" button does, then watch its status for a few seconds.
+//! Ask for a permission the way the app's Allow button does, then watch its status for a few seconds.
 //!   cargo run -p dito-platform --example request -- accessibility [seconds]
 //!   cargo run -p dito-platform --example request -- mic [seconds]
 

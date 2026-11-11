@@ -10,10 +10,9 @@ pub(super) fn ease(t: f32) -> f32 {
     t * t * (3. - 2. * t)
 }
 
-/// Retarget the value animated under `id` to `target`. Returns `(from, to, active, key)`: the animation runs from
-/// where the value was when the target changed, so an interrupted move continues smoothly. `active` is false once
-/// it has settled, so a control drawn again later does not replay it. A handle whose scope has expired settles at
-/// once and reinserts nothing.
+/// Returns `(from, to, active, key)`. The animation runs from where the value was when the target changed, so an
+/// interrupted move continues smoothly; `active` is false once it has settled, so a control drawn again later does
+/// not replay it. A handle whose scope has expired settles at once and reinserts nothing.
 pub(super) fn tween_to_at(scope: &ScopeHandle, id: &ElementId, target: f32, dur: Duration) -> (f32, f32, bool, usize) {
     let (from, to, start, key) = retarget(scope, id, target, dur, Instant::now(), ease);
     (from, to, start.elapsed() < dur, key)
@@ -39,7 +38,7 @@ fn retarget(
     *e
 }
 
-/// Sample an ease-out fade while keeping the interactive element that uses it mounted.
+/// Keeps the interactive element that uses the fade mounted.
 pub fn fade_value(id: &ElementId, target: f32, ms: u64) -> (f32, bool) {
     fn ease_out(t: f32) -> f32 {
         1. - (1. - t).powi(2)
@@ -57,9 +56,8 @@ pub fn fade_value(id: &ElementId, target: f32, ms: u64) -> (f32, bool) {
     (from + (to - from) * ease_out(progress), true)
 }
 
-/// An element whose look follows an animated number: `build(v)` draws it for the value `v`, which eases to
-/// `target` over `ms` whenever the target changes. For visual layers only: animating re-creates the element,
-/// which would reset the hover and press state of an interactive one.
+/// For visual layers only: animating re-creates the element, which would reset the hover and press state of an
+/// interactive one.
 pub fn tweened<E: IntoElement + 'static>(
     id: ElementId,
     target: f32,
@@ -69,9 +67,9 @@ pub fn tweened<E: IntoElement + 'static>(
     tweened_at(scope::motion_scope(), id, target, ms, build)
 }
 
-/// [`tweened`] with the scope pinned, for `build` closures that run during animation frames, when the ambient
-/// scope is no longer the one the element was built under. Every build runs with `scope` restored, so nested
-/// scoped helpers keep hitting this scope's registry.
+/// For `build` closures that run during animation frames, when the ambient scope is no longer the one the element
+/// was built under. Every build runs with `scope` restored, so nested scoped helpers keep hitting this scope's
+/// registry.
 pub fn tweened_at<E: IntoElement + 'static>(
     scope: ScopeHandle,
     id: ElementId,
@@ -92,8 +90,7 @@ pub fn tweened_at<E: IntoElement + 'static>(
         .into_any_element()
 }
 
-/// An underdamped spring step over normalised time: starts fast, overshoots slightly and settles. Under Reduce
-/// Motion it is a plain ease without overshoot.
+/// Under Reduce Motion it is a plain ease without overshoot.
 pub fn spring(t: f32, motion: Motion) -> f32 {
     let t = t.clamp(0., 1.);
     if motion.is_reduced() {
@@ -106,9 +103,8 @@ pub fn spring(t: f32, motion: Motion) -> f32 {
     1. - (-decay * t).exp() * ((wd * t).cos() + decay / wd * (wd * t).sin())
 }
 
-/// Number of flips of `value` seen for `id` while the latest one is younger than `animation`; 0 once it has
-/// settled. GPUI restarts an animation whenever its element reappears, so a control drawn again later must not
-/// replay a transition that already happened.
+/// 0 once the latest flip has settled. GPUI restarts an animation whenever its element reappears, so a control drawn
+/// again later must not replay a transition that already happened.
 pub(super) fn count_flips(id: &ElementId, value: bool, animation: Duration) -> usize {
     let Some(reg) = scope::ambient_registry() else { return 0 };
     let mut m = reg.borrow_mut();
@@ -119,7 +115,6 @@ pub(super) fn count_flips(id: &ElementId, value: bool, animation: Duration) -> u
     if entry.2.elapsed() < animation { entry.1 } else { 0 }
 }
 
-/// Duration of the focus ring and of the open and close transitions of menus.
 pub(super) const RING_MS: u64 = 180;
 
 #[cfg(test)]

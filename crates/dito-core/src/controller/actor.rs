@@ -13,14 +13,13 @@ use super::progress::{Models, ProcessingEstimate, TimingHistory};
 use crate::audio::AudioClip;
 use crate::config::{EngineLabels, MusicMuteMode, RecordMode};
 use crate::error::{ErrorKind, ProviderError};
-use crate::pipeline::{self, Job, Output, Phase, PipelineError};
+use crate::pipeline::{self, Output, PipelineError, PipelineJob, PipelinePhase};
 use crate::prompts::Style;
 use crate::store::{HistoryKind, NewHistory, Store};
 
-/// Maximum duration of a single recording.
 pub const MAX_RECORDING_DURATION: Duration = Duration::from_secs(5 * 60);
 
-/// How long the HUD's whole-capsule outcome animation runs; the HUD is hidden once it has finished.
+/// Match the HUD's outcome animation; the HUD is hidden once it ends.
 const SUCCESS_FLASH: Duration = Duration::from_millis(1430);
 const COPIED_FLASH: Duration = Duration::from_millis(1930);
 const ERROR_LINGER: Duration = Duration::from_secs(3);
@@ -35,7 +34,7 @@ enum State {
     Idle,
     Listening {
         meta: Meta,
-        /// `Some` while recording has muted other audio; dropped when the microphone stops.
+        /// Dropped when the microphone stops, which restores the audio.
         mute: Option<Box<dyn MuteSession>>,
     },
     Processing {
@@ -53,7 +52,6 @@ enum State {
         /// The shortcut went down meanwhile; in hold mode, releasing it again clears this.
         key_down: bool,
     },
-    /// Terminal HUD state being shown (success flash or error). `clip` allows retry.
     Showing {
         clip: Option<(Arc<AudioClip>, Meta)>,
     },
@@ -65,7 +63,7 @@ struct Actor {
     hud: watch::Sender<HudState>,
     tx: mpsc::UnboundedSender<Msg>,
     state: State,
-    /// Bumped on every transition so late jobs and timers are ignored.
+    /// Bumped on every transition so late results and timers are ignored.
     epoch: u64,
     recording_started: watch::Sender<Option<Instant>>,
     processing: watch::Sender<ProcessingEstimate>,
@@ -153,7 +151,7 @@ impl Actor {
     fn handle(&mut self, m: Msg) {
         match m {
             Msg::Cmd(c) => self.command(c),
-            Msg::Phase(g, Phase::Polishing { input_chars, started }) if g == self.epoch => {
+            Msg::PipelinePhase(g, PipelinePhase::Polishing { input_chars, started }) if g == self.epoch => {
                 if let State::Processing { models, .. } = self.state {
                     let estimate = self.timings.polishing(models.polish, input_chars);
                     self.processing.send_modify(|p| p.polishing = Some((started, estimate)));
@@ -285,24 +283,24 @@ impl Actor {
         let models = Models::new(&cfg.asr, &cfg.polish.engine);
         let labels = cfg.engine_labels();
         self.processing.send_replace(ProcessingEstimate {
-            recognition_secs: self.timings.recognition(models.asr, clip.duration_ms() as f32 / 1000.),
+            transcription_secs: self.timings.transcription(models.asr, clip.duration_ms() as f32 / 1000.),
             polishing: None,
         });
-        self.set_hud(HudState::Recognizing);
+        self.set_hud(HudState::Transcribing);
         let (tx, engines, store) = (self.tx.clone(), self.deps.engines.clone(), self.deps.store.clone());
         let (job_clip, style, token) = (clip.clone(), meta.style.clone(), cancel.clone());
         tokio::spawn(async move {
             let words = load_wordbook(store).await;
             let phase_tx = tx.clone();
-            let on_phase = move |p: Phase| {
-                if matches!(p, Phase::Polishing { .. }) {
-                    let _ = phase_tx.send(Msg::Phase(epoch, p));
+            let on_phase = move |p: PipelinePhase| {
+                if matches!(p, PipelinePhase::Polishing { .. }) {
+                    let _ = phase_tx.send(Msg::PipelinePhase(epoch, p));
                 }
             };
             let r = pipeline::run(
                 engines.as_ref(),
                 &cfg,
-                &Job { clip: &job_clip, style, wordbook: &words },
+                &PipelineJob { clip: &job_clip, style, wordbook: &words },
                 &on_phase,
                 &token,
             )
@@ -331,9 +329,9 @@ impl Actor {
         }
     }
 
-    /// Saves the dictation, then types it on the blocking pool: the platform sink sleeps while it polls focus and
-    /// restores the clipboard, and the actor must keep serving commands meanwhile. History is queued before the
-    /// insertion starts, so a crash while typing does not lose the text.
+    /// Typing runs on the blocking pool: the platform sink sleeps while it polls focus and restores the clipboard, and
+    /// the actor must keep serving commands meanwhile. History is queued before the insertion starts, so a crash while
+    /// typing does not lose the text.
     fn deliver(&mut self, meta: &Meta, clip: &Arc<AudioClip>, labels: &EngineLabels, out: &Output) {
         let polish_error = out.polish_error.as_ref().map(ToString::to_string);
         self.record_history(meta, clip, labels, HistoryKind::Dictation, Some(out), polish_error);
@@ -352,7 +350,7 @@ impl Actor {
         self.state = State::Delivering { key_down: false };
     }
 
-    /// The insertion is over: show how it went, then start the recording whose key press was held back meanwhile.
+    /// Starts the recording whose key press was held back during the insertion.
     fn delivered(&mut self, delivery: Delivery) {
         let State::Delivering { key_down } = self.state else { return };
         match delivery {

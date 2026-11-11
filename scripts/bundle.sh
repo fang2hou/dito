@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Build target/bundle/Dito.app (release build, Liquid Glass icon, Info.plist). Ad-hoc signed unless CODESIGN_IDENTITY is set.
+# Build target/bundle/Dito.app (release build, Liquid Glass icon, Info.plist).
+# Ad-hoc signed unless CODESIGN_IDENTITY is set.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 if [[ -z ${DEVELOPER_DIR:-} ]]; then

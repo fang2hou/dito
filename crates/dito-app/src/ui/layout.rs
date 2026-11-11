@@ -19,13 +19,11 @@ pub fn card(p: &Palette) -> Div {
         .child(super::glass::surface())
 }
 
-/// One settings row inside a grouped card.
 pub fn row(p: &Palette, title: impl Into<SharedString>, control: impl IntoElement, last: bool) -> Div {
     let mut r = div()
         .w_full()
         .px(px(24.))
-        // Fixed height so every row in a card lines up regardless of its control; contents are vertically
-        // centered.
+        // Fixed height so every row in a card lines up regardless of its control.
         .h(px(CONTROL_H + 28.))
         .flex()
         .items_center()
@@ -39,7 +37,6 @@ pub fn row(p: &Palette, title: impl Into<SharedString>, control: impl IntoElemen
     r
 }
 
-/// Group heading + card with rows.
 pub fn group(p: &Palette, title: impl Into<SharedString>, rows: Vec<Div>) -> Div {
     let c = card(p).children(rows);
     div().w_full().flex().flex_col().gap(px(10.)).child(text(title, 13., FontWeight::BOLD, p.muted)).child(c)
@@ -56,7 +53,6 @@ pub fn tag(p: &Palette, label: impl Into<SharedString>, tint: Tint) -> Div {
         .child(text(label, 12., FontWeight::MEDIUM, fg).line_height(relative(1.4)))
 }
 
-/// Solid inverted label, e.g. 使用中 / 稼働中.
 pub fn solid_tag(label: impl Into<SharedString>, bg: Hsla, fg: Hsla, dot: bool) -> Div {
     let mut d = div().px(px(10.)).py(px(3.)).rounded_full().bg(bg).flex().items_center().gap(px(6.)).flex_none();
     if dot {
@@ -70,7 +66,7 @@ pub fn status_tag(p: &Palette, ok: bool, label: impl Into<SharedString>) -> Div 
     solid_tag(label, bg, fg, true)
 }
 
-/// Semantic colors for the shared inverse labels in 11.03 Controls and 20.08 Status.
+/// Colors from `design:components/controls` and `design:settings/status`.
 #[derive(Clone, Copy)]
 pub enum StatusTone {
     Success,
@@ -79,7 +75,6 @@ pub enum StatusTone {
     Neutral,
 }
 
-/// A compact status label, with paired palette colors in both appearances.
 pub fn status_chip(p: &Palette, label: impl Into<SharedString>, tone: StatusTone) -> Div {
     let (bg, fg) = match tone {
         StatusTone::Success => (p.success, white()),
@@ -102,9 +97,9 @@ pub fn page_title(p: &Palette, s: impl Into<SharedString>) -> Div {
     text(s, 28., FontWeight::BOLD, p.text)
 }
 
-/// Empty background that drags the window when pressed: for custom-titlebar zones outside AppKit's
-/// native titlebar strip. Only attach to regions that contain no children — a bubble-phase mouse
-/// listener on a container would also fire for clicks on everything inside it.
+/// Empty background that drags the window when pressed, for custom-titlebar zones outside AppKit's native titlebar
+/// strip. Only attach it to regions without children: a bubble-phase mouse listener on a container would also fire
+/// for clicks on everything inside it.
 pub fn drag_area(id: impl Into<ElementId>) -> Stateful<Div> {
     div().id(id).on_mouse_down(MouseButton::Left, |_, window, _| window.start_window_move())
 }

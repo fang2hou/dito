@@ -1,4 +1,4 @@
-//! Circular model controls and status markers from 20.04 Local Models.
+//! Circular model controls and status markers from `design:settings/local-models`.
 
 use gpui_kit::prelude::*;
 use gpui_kit::*;

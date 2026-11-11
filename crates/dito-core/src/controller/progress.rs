@@ -1,4 +1,4 @@
-//! In-memory timing estimates for the HUD, scoped to the engines used for each job.
+//! In-memory timing estimates for the HUD, keyed by the engines in use.
 
 use std::collections::VecDeque;
 use std::hash::{DefaultHasher, Hash, Hasher};
@@ -15,14 +15,14 @@ const POLISH_RATE: f32 = 1. / 80.;
 
 #[derive(Clone, Copy)]
 pub struct ProcessingEstimate {
-    pub recognition_secs: f32,
+    pub transcription_secs: f32,
     /// The actual polishing start and its estimated duration, including time spent during the HUD catch-up.
     pub polishing: Option<(Instant, f32)>,
 }
 
 impl Default for ProcessingEstimate {
     fn default() -> Self {
-        Self { recognition_secs: OVERHEAD_S + ASR_RATE, polishing: None }
+        Self { transcription_secs: OVERHEAD_S + ASR_RATE, polishing: None }
     }
 }
 
@@ -44,13 +44,11 @@ fn engine_key(engine: &EngineConfig, asr: bool) -> u64 {
         Source::Local => ("local", &engine.local_model).hash(&mut key),
         Source::Provider => {
             if asr {
-                // Cloud speech always runs the active configuration, the bundled set when none is saved.
                 let configurations = engine.cloud_asr.clone().unwrap_or_default();
                 let active = configurations.active().map(|c| (c.id.clone(), c.config.to_string()));
                 ("configuration", active).hash(&mut key);
             } else {
-                // Cloud polish always runs the active configuration, the templates' when none is saved. A new
-                // model or other parameters start a new estimate; the name does not.
+                // A new model or other parameters start a new estimate; the name does not.
                 let active = engine.active_polish().map(|c| (c.id.clone(), format!("{:?}{:?}", c.target, c.params)));
                 ("configuration", active).hash(&mut key);
             }
@@ -70,7 +68,7 @@ struct Sample {
 pub(super) struct TimingHistory(VecDeque<Sample>);
 
 impl TimingHistory {
-    pub fn recognition(&self, model: u64, audio_secs: f32) -> f32 {
+    pub fn transcription(&self, model: u64, audio_secs: f32) -> f32 {
         let samples = self.0.iter().filter(|s| s.models.asr == model).map(|s| (s.audio_secs.max(1.), s.asr_secs));
         estimate(ASR_RATE, audio_secs, samples)
     }
@@ -124,13 +122,13 @@ mod tests {
             polish_ms: 4600,
         };
         history.record(models, 10., &out);
-        assert!(history.recognition(1, 10.) > history.recognition(3, 10.));
+        assert!(history.transcription(1, 10.) > history.transcription(3, 10.));
         assert!(history.polishing(2, 80) > history.polishing(4, 80));
         out.polished = None;
         for _ in 0..10 {
             history.record(Models { asr: 3, polish: 2 }, 10., &out);
         }
-        assert_eq!(history.recognition(1, 10.), 3.1);
+        assert_eq!(history.transcription(1, 10.), 3.1);
         assert_eq!(history.polishing(2, 80), 1.6);
     }
 }

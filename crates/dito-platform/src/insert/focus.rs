@@ -13,12 +13,10 @@ const FOCUS_POLL: Duration = Duration::from_millis(30);
 const AX_TREE_BUDGET: Duration = Duration::from_millis(1500);
 const EDITABLE_ROLES: &[&str] = &["AXTextField", "AXTextArea", "AXComboBox", "AXSearchField"];
 const MANUAL_ACCESSIBILITY: &str = "AXManualAccessibility";
-/// How many elements the search below the focused window may visit, and how deep it goes.
 const DESCENDANT_BUDGET: usize = 32;
 const DESCENDANT_TIME: Duration = Duration::from_millis(80);
 const DESCENDANT_DEPTH: usize = 4;
 
-/// One look at whatever currently has keyboard focus.
 #[derive(Debug, Clone)]
 pub(super) struct FocusTarget {
     pub pid: i32,
@@ -33,8 +31,7 @@ pub(super) struct FocusTarget {
 }
 
 impl FocusTarget {
-    /// Identity for the stability check: the same field in the same app. Value and selection are
-    /// excluded on purpose, because they change as text arrives.
+    /// Value and selection are excluded on purpose, because they change as text arrives.
     pub(super) fn same_identity(&self, other: &Self) -> bool {
         self.pid == other.pid && self.element == other.element
     }
@@ -152,11 +149,9 @@ fn editable_descendant(
     None
 }
 
-/// Chromium/Electron apps (VS Code forks and friends) keep their accessibility tree unbuilt
-/// until a client asks: with it off, the system-wide focused element reads as nil and delivery
-/// would fall back to the clipboard. Flipping the app's `AXManualAccessibility` builds the
-/// tree, the same thing macOS does when VoiceOver connects, after which the real focused
-/// text area resolves as a normal editable element. No-op for apps without the attribute.
+/// Chromium/Electron apps keep their accessibility tree unbuilt until a client asks: with it off, the system-wide
+/// focused element reads as nil and delivery would fall back to the clipboard. Flipping `AXManualAccessibility`
+/// builds the tree, as macOS does when VoiceOver connects. No-op for apps without the attribute.
 fn enable_chromium_accessibility() -> Option<i32> {
     let pid = frontmost_foreign_pid()?;
     let app = AxElement::application(pid)?;
@@ -165,10 +160,8 @@ fn enable_chromium_accessibility() -> Option<i32> {
     (already_enabled || (supported() && app.set_true(MANUAL_ACCESSIBILITY))).then_some(pid)
 }
 
-/// Kick the target app's accessibility machinery the moment recording starts, so a lazily
-/// built tree (Electron/Chromium: GitHub Desktop, Feishu, ...) is ready by delivery time. The
-/// user speaks for seconds; the first attempt at delivery would otherwise pay the tree-build
-/// latency and often lose the race.
+/// Called the moment recording starts: the user speaks for seconds, while the first delivery attempt would otherwise
+/// pay the tree-build latency of a lazily built tree and often lose the race.
 pub fn warm_focus() {
     std::thread::spawn(|| {
         if !is_trusted() || read_focus().is_some_and(|target| target.editable) {
@@ -182,19 +175,15 @@ pub fn warm_focus() {
     });
 }
 
-/// Does the focused UI element accept typed text? Either a readable text field, or a key
-/// window of another app that publishes no text tree but receives HID keys. (Needs the
-/// Accessibility permission.)
+/// Also true for a key window of another app that publishes no text tree but receives HID keys. Needs the
+/// Accessibility permission.
 pub fn has_text_target() -> bool {
     read_focus().is_some_and(|t| t.deliverable())
 }
 
-/// Wait until the focused element stops changing AND is a deliverable target: editable, or a
-/// key window that takes HID keys. Focus settles asynchronously after HUD interactions, app
-/// switches and field clicks, and Chromium-family editors (Typora's fork, Electron) report a
-/// generic container first while the real editable node materializes a moment later, so a
-/// stable-but-generic read is not final and polling continues. On timeout, report focus only
-/// if the same element was observed twice.
+/// Focus settles asynchronously after HUD interactions, app switches and field clicks, and Chromium-family editors
+/// report a generic container first while the real editable node materializes a moment later, so a stable but generic
+/// read is not final and polling continues. On timeout, report focus only if the same element was observed twice.
 pub(super) fn wait_for_stable_focus() -> Option<FocusTarget> {
     if !is_trusted() {
         return None;

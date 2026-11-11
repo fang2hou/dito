@@ -9,7 +9,7 @@ Speech models echo their hotword list on silence, and polish models mix referenc
 
 ## Decision
 
-Model behavior is controlled through structure: follow each model's own prompt format, fence reference content (vocabulary, style samples) in escaped tags, gate silent clips before any engine, and detect known failure shapes (such as a vocabulary echo) and re-run without the trigger.
+Model behavior is controlled through structure: follow each model's own prompt format, fence reference content (wordbook words, style samples) in escaped tags, gate silent clips before any engine, and detect known failure shapes (such as a hotword echo) and re-run without the trigger.
 
 ## Alternatives Considered
 
@@ -37,8 +37,8 @@ Models with reliable built-in voice detection and instruction following replace 
 
 ## Code
 
-`crates/dito-runtimes/src/llama.rs` (`asr_prompt`, `is_vocabulary_echo`), `crates/dito-core/src/prompts.rs`, `crates/dito-core/src/audio.rs`.
+`crates/dito-runtimes/src/llama.rs` (`asr_prompt`, `is_hotword_echo`), `crates/dito-core/src/prompts.rs`, `crates/dito-core/src/audio.rs`.
 
-## Application writing profiles
+## Application writing styles
 
-Select app-specific writing rules by the frontmost application's bundle identifier captured at recording start. Keep common rules per language and keep optional writing examples inside escaped reference tags. A copied profile owns independent instructions and examples for every language; it never shares mutable state with its source. Unknown or removed application profiles fall back to Other. Settings preview explicitly uses its selected text language and never sends the result to another app.
+Select app-specific writing rules by the frontmost application's bundle identifier captured at recording start. Keep common rules per language and keep optional writing examples inside escaped reference tags. A copied style owns independent instructions and examples for every language; it never shares mutable state with its source. Unknown or removed application styles fall back to Other. Settings preview explicitly uses its selected text language and never sends the result to another app.

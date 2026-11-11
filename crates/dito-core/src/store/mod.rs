@@ -1,183 +1,24 @@
-//! SQLite-backed history and the wordbook, plus the aggregate queries behind the stats page.
+//! SQLite-backed history and wordbook.
 
 use std::path::Path;
 use std::sync::{Mutex, MutexGuard};
 
 use rusqlite::{Connection, OptionalExtension, params};
-use serde::de::value::Error as ValueError;
-use serde::de::{DeserializeOwned, IntoDeserializer};
-use serde::{Deserialize, Serialize};
 
 use crate::config::EngineLabels;
 use crate::prompts::Style;
 
-#[derive(Debug, thiserror::Error)]
-pub enum StoreError {
-    #[error(transparent)]
-    Database(#[from] rusqlite::Error),
-    #[error(transparent)]
-    Io(#[from] std::io::Error),
-    /// The database was written by a newer build. It is refused untouched: this build cannot know what changed.
-    #[error("the database has schema version {found}, but this build supports up to version {supported}")]
-    SchemaTooNew { found: u32, supported: u32 },
-}
+mod model;
+mod rows;
+mod schema;
 
-type Result<T> = std::result::Result<T, StoreError>;
-
-/// Typing speed used to estimate "time saved" (characters per minute).
-pub const TYPING_CPM: f64 = 60.0;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
-#[serde(rename_all = "snake_case")]
-pub enum HistoryKind {
-    #[default]
-    Dictation,
-    /// The user cancelled mid-recording; the audio is kept so it can be recognized again.
-    Cancelled,
-    Failed,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct NewHistory {
-    pub ts: i64,
-    pub kind: HistoryKind,
-    pub style: Style,
-    pub app: String,
-    pub lang: String,
-    pub duration_ms: u64,
-    pub raw: String,
-    pub polished: Option<String>,
-    pub error: Option<String>,
-    pub audio_path: Option<String>,
-    /// The engines that produced the entry; both labels are `None` for an entry that never reached an engine.
-    pub engines: EngineLabels,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct HistoryEntry {
-    pub id: i64,
-    pub ts: i64,
-    pub kind: HistoryKind,
-    pub style: Style,
-    pub app: String,
-    pub lang: String,
-    pub duration_ms: u64,
-    pub raw: String,
-    pub polished: Option<String>,
-    pub error: Option<String>,
-    pub audio_path: Option<String>,
-    /// The engines that produced the entry; both labels are `None` for an entry recorded before they were kept.
-    pub engines: EngineLabels,
-}
-
-impl HistoryEntry {
-    /// Text that was (or would be) delivered.
-    pub fn final_text(&self) -> &str {
-        self.polished.as_deref().unwrap_or(&self.raw)
-    }
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct HistoryFilter {
-    pub query: Option<String>,
-    pub since_ts: Option<i64>,
-    pub style: Option<Style>,
-    /// Display name and bundle id of every app currently configured under Prompts. A recording is that app when its
-    /// stored style is the app or when the app name it recorded is one of these names; everything else outside the
-    /// built-in styles is Other. Removing an app therefore sends its past entries to Other, and adding it back
-    /// restores them without rewriting history.
-    pub configured_apps: Vec<(String, String)>,
-    pub disabled_builtin_styles: Vec<Style>,
-    pub limit: Option<usize>,
-}
-
-#[derive(Debug, Clone, Default, PartialEq)]
-pub struct Stats {
-    pub chars: u64,
-    pub recordings: u64,
-    pub speech_ms: u64,
-    /// Characters per minute of speaking.
-    pub avg_cpm: f64,
-    pub saved_minutes: f64,
-    /// (local date `YYYY-MM-DD`, characters), ascending.
-    pub per_day: Vec<(String, u64)>,
-    /// (app name, recordings), descending.
-    pub apps: Vec<(String, u64)>,
-    /// (language code, recordings), descending.
-    pub langs: Vec<(String, u64)>,
-}
+pub use model::*;
+use rows::{SELECT_HISTORY, row_to_entry};
+use schema::{SCHEMA_VERSION, encode, migrate, user_version};
 
 pub struct Store {
     conn: Mutex<Connection>,
     tz_offset_secs: i32,
-}
-
-/// Schema migrations in the order they shipped. `PRAGMA user_version` holds how many have been applied, so a shipped
-/// entry is never edited or reordered: a schema change is a new entry at the end.
-const MIGRATIONS: &[&str] = &[
-    // 1: the schema from before versioning. `IF NOT EXISTS` lets a database created by that build adopt it unchanged.
-    "CREATE TABLE IF NOT EXISTS history (
-       id INTEGER PRIMARY KEY AUTOINCREMENT,
-       ts INTEGER NOT NULL,
-       day TEXT NOT NULL,
-       kind TEXT NOT NULL,
-       style TEXT NOT NULL,
-       app TEXT NOT NULL,
-       lang TEXT NOT NULL,
-       duration_ms INTEGER NOT NULL,
-       raw TEXT NOT NULL,
-       polished TEXT,
-       error TEXT,
-       audio_path TEXT
-     );
-     CREATE INDEX IF NOT EXISTS history_ts ON history(ts DESC);
-     CREATE TABLE IF NOT EXISTS dictionary (
-       term TEXT PRIMARY KEY,
-       created INTEGER NOT NULL
-     );",
-    // 2: which engines produced an entry. Nullable, so entries from before it stay unlabelled.
-    "ALTER TABLE history ADD COLUMN asr_engine TEXT;
-     ALTER TABLE history ADD COLUMN polish_engine TEXT;",
-    // 3: use the product name without rewriting the saved words.
-    "ALTER TABLE dictionary RENAME TO wordbook;",
-];
-
-/// The schema version this build creates and the newest one it can open.
-const SCHEMA_VERSION: u32 = MIGRATIONS.len() as u32;
-
-fn user_version(conn: &Connection) -> rusqlite::Result<u32> {
-    conn.pragma_query_value(None, "user_version", |row| row.get(0))
-}
-
-/// Applies the migrations after `applied`, each in its own transaction together with its version bump, so a failure
-/// leaves the database at the last version that applied completely.
-fn migrate(conn: &mut Connection, applied: u32) -> Result<()> {
-    for (migration, version) in MIGRATIONS.iter().zip(1u32..).skip(applied as usize) {
-        let tx = conn.transaction()?;
-        tx.execute_batch(migration)?;
-        tx.pragma_update(None, "user_version", version)?;
-        tx.commit()?;
-        tracing::info!(version, "applied database migration");
-    }
-    Ok(())
-}
-
-/// The text stored in a column for an enum that serializes as a unit variant name.
-fn encode<T: Serialize>(value: T) -> String {
-    serde_json::to_value(value)
-        .ok()
-        .and_then(|v| v.as_str().map(str::to_owned))
-        .expect("column enums are unit variants")
-}
-
-/// Reads stay tolerant: a value this version does not know (a row written by a newer build) reads
-/// as the default instead of failing the whole listing.
-fn decode<T: DeserializeOwned + Default>(column: &str, stored: &str) -> T {
-    let parsed: std::result::Result<T, ValueError> = T::deserialize(stored.to_owned().into_deserializer());
-    parsed.unwrap_or_else(|_| {
-        tracing::warn!(column, stored, "unknown stored value, reading it as the default");
-        T::default()
-    })
 }
 
 impl Store {
@@ -238,8 +79,8 @@ impl Store {
         Ok(c.last_insert_rowid())
     }
 
-    /// Turn a cancelled/failed entry into a normal dictation after a successful retry. `engines` are the retry's and
-    /// replace the earlier attempt's labels, so a polish label the retry lacks is cleared.
+    /// `engines` are the retry's and replace the earlier attempt's labels, so a polish label the retry lacks is
+    /// cleared.
     pub fn complete_history(
         &self,
         id: i64,
@@ -257,8 +98,7 @@ impl Store {
         Ok(())
     }
 
-    /// Replaces the polished text after polishing again. `polish_engine` labels the engine that wrote it; the
-    /// recognition is unchanged, so its label is left alone.
+    /// The transcript is unchanged, so its engine label is left alone.
     pub fn set_polished(&self, id: i64, polished: &str, polish_engine: &str) -> Result<()> {
         self.conn().execute(
             "UPDATE history SET polished=?2, polish_engine=?3 WHERE id=?1",
@@ -325,7 +165,6 @@ impl Store {
                     }
                     sql.push_str(&format!(" AND ({clause})"));
                 }
-                // Built-in styles are fixed and are matched by style alone.
                 Style::Builtin(_) => {
                     sql.push_str(&format!(" AND style = ?{}", args.len() + 1));
                     args.push(encode(style.clone()).into());
@@ -408,7 +247,6 @@ impl Store {
         Ok(stmt.query_map([like], |r| r.get(0))?.collect::<std::result::Result<_, _>>()?)
     }
 
-    /// One word per line; returns the number of new words.
     pub fn import_words(&self, text: &str, now: i64) -> Result<usize> {
         let mut added = 0;
         for line in text.lines() {
@@ -467,28 +305,9 @@ impl Store {
     }
 }
 
-const SELECT_HISTORY: &str = "SELECT id, ts, kind, style, app, lang, duration_ms, raw, polished, error, audio_path,
-    asr_engine, polish_engine FROM history";
-
-fn row_to_entry(r: &rusqlite::Row<'_>) -> rusqlite::Result<HistoryEntry> {
-    Ok(HistoryEntry {
-        id: r.get(0)?,
-        ts: r.get(1)?,
-        kind: decode("kind", &r.get::<_, String>(2)?),
-        style: decode("style", &r.get::<_, String>(3)?),
-        app: r.get(4)?,
-        lang: r.get(5)?,
-        duration_ms: r.get::<_, i64>(6)? as u64,
-        raw: r.get(7)?,
-        polished: r.get(8)?,
-        error: r.get(9)?,
-        audio_path: r.get(10)?,
-        engines: EngineLabels { asr: r.get(11)?, polish: r.get(12)? },
-    })
-}
-
 #[cfg(test)]
 mod tests {
+    use super::schema::MIGRATIONS;
     use super::*;
 
     fn builtin(id: &str) -> Style {
@@ -564,7 +383,7 @@ mod tests {
     }
 
     #[test]
-    fn removing_and_readding_builtin_profiles_reclassifies_history_without_deleting_it() {
+    fn removing_and_readding_builtin_styles_reclassifies_history_without_deleting_it() {
         let store = Store::open_in_memory().unwrap();
         let mut recorded = entry(10, "Herdr", "ja", "preserved", None);
         recorded.style = builtin("herdr");

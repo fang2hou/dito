@@ -8,13 +8,12 @@ use objc2_foundation::{NSArray, NSData, NSString};
 use super::insert_error::InsertError;
 use super::keyboard;
 
-/// The whole pasteboard at one moment: every item's every type as raw bytes. A plain text
-/// snapshot would silently drop everything else the user had copied (images, file references,
-/// rich text).
+/// Every item's every type as raw bytes: a plain text snapshot would silently drop everything else the user had copied
+/// (images, file references, rich text).
 type PasteboardItems = Vec<Vec<(String, Vec<u8>)>>;
 
-/// Read every pasteboard item's every type. `None` when the pasteboard is unreadable, in which
-/// case no restore happens and the dictated text simply stays on the clipboard.
+/// `None` when the pasteboard is unreadable, in which case no restore happens and the dictated text simply stays on
+/// the clipboard.
 fn snapshot_pasteboard() -> Option<PasteboardItems> {
     let pb = NSPasteboard::generalPasteboard();
     let items = pb.pasteboardItems()?;
@@ -30,7 +29,6 @@ fn snapshot_pasteboard() -> Option<PasteboardItems> {
     Some(out)
 }
 
-/// Write `items` back to the pasteboard, replacing whatever is there now.
 fn restore_pasteboard(items: &PasteboardItems) -> bool {
     let pb = NSPasteboard::generalPasteboard();
     pb.clearContents();
@@ -51,15 +49,13 @@ fn restore_pasteboard(items: &PasteboardItems) -> bool {
     pb.writeObjects(&NSArray::from_slice(&writing))
 }
 
-/// Restores the user's clipboard after a paste attempt. `pasted_at` plus the floor keeps the
-/// restore from racing the target app's asynchronous pasteboard read; the change-count guard
-/// keeps it from clobbering a clipboard the user (or a clipboard manager) has rewritten since;
-/// in that case their content wins and the dictated text stays where it is.
+/// `pasted_at` plus the floor keeps the restore from racing the target app's asynchronous pasteboard read; the
+/// change-count guard keeps it from clobbering a clipboard the user (or a clipboard manager) has rewritten since. In
+/// that case their content wins and the dictated text stays where it is.
 #[derive(Debug)]
 pub(super) struct PasteGuard {
     pasted_at: Instant,
     prev: Option<PasteboardItems>,
-    /// The pasteboard's change count right after our own write.
     count_after_write: isize,
 }
 
@@ -77,7 +73,6 @@ impl PasteGuard {
         restore_pasteboard(prev);
     }
 
-    /// Restore in the background; delivery has been accepted.
     pub(super) fn restore_after(self, floor: Duration) {
         let wait = self.remaining(floor);
         std::thread::spawn(move || {
@@ -86,16 +81,15 @@ impl PasteGuard {
         });
     }
 
-    /// Restore on the spot; used before overwriting the clipboard with the fallback copy, which a
-    /// pending background restore would clobber right after.
+    /// Used before overwriting the clipboard with the fallback copy, which a pending background restore would clobber
+    /// right after.
     pub(super) fn restore_blocking(self, floor: Duration) {
         std::thread::sleep(self.remaining(floor));
         self.restore();
     }
 }
 
-/// Put `text` on the clipboard and send Cmd+V. On failure the previous clipboard is restored
-/// before returning; on success that is the returned guard's job.
+/// On failure the previous clipboard is restored before returning; on success that is the returned guard's job.
 pub(super) fn begin_paste(text: &str) -> Result<PasteGuard, InsertError> {
     let prev = snapshot_pasteboard();
     copy_to_clipboard(text)?;
@@ -110,7 +104,7 @@ pub(super) fn begin_paste(text: &str) -> Result<PasteGuard, InsertError> {
     Ok(PasteGuard { pasted_at: Instant::now(), prev, count_after_write })
 }
 
-/// Put `text` on the clipboard (also used by the history UI for its copy action).
+/// Also used by the history UI for its copy action.
 pub fn copy_to_clipboard(text: &str) -> Result<(), InsertError> {
     arboard::Clipboard::new().and_then(|mut c| c.set_text(text.to_string()))?;
     Ok(())

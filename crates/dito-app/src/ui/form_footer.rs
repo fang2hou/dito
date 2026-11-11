@@ -1,7 +1,5 @@
-//! The footer of a cloud configuration form (20.05.1, 20.05.10): under a rule, the state of the connection test on the
-//! left and, on the right, the trash that deletes the configuration, the test button and whatever else the form puts
-//! there. A trash with nothing to delete and a test that cannot start are the shared disabled controls: they look the
-//! part and do nothing when pressed.
+//! The footer of a cloud configuration form (`design:settings/cloud-models/speech-form`,
+//! `design:settings/cloud-models/failed-test`).
 
 use gpui_kit::prelude::*;
 use gpui_kit::*;
@@ -15,27 +13,22 @@ use crate::theme::Palette;
 /// The design's `opacity/disabled`: a disabled control is the same instance at 45 percent.
 const DISABLED: f32 = 0.45;
 
-/// The trash button of a footer.
 pub struct FooterTrash {
     pub id: &'static str,
-    /// The label that appears over it while the pointer rests on it. `None` for no tooltip.
     pub tip: Option<SharedString>,
-    /// What it does. `None` when there is nothing to delete: the button is shown disabled.
+    /// `None` when there is nothing to delete: the button is shown disabled.
     pub on_click: Option<Cb>,
 }
 
-/// The connection test button of a footer.
 pub struct TestButton {
     pub id: &'static str,
     pub label: SharedString,
-    /// A fixed width; the width of the label when `None`.
+    /// The width of the label when `None`.
     pub width: Option<f32>,
-    /// What it does. `None` when a test cannot start now: the button is shown disabled.
+    /// `None` when a test cannot start now: the button is shown disabled.
     pub on_click: Option<Cb>,
 }
 
-/// The footer of a form: `status` on the left, taking what the buttons leave, then the trash, the test button and the
-/// `trailing` controls, 10 apart.
 pub fn form_footer(p: &Palette, status: Div, trash: FooterTrash, test: TestButton, trailing: Vec<AnyElement>) -> Div {
     div()
         .w_full()

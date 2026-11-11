@@ -11,8 +11,7 @@ use crate::opts::Opts;
 use crate::startup_failure::{Failure, Launch, open};
 use crate::state::AppState;
 
-/// The failures of design 20.10 as a person with the default data folder would see them, and a settings file that
-/// cannot even be decoded, whose reason is the real error `ConfigStore` returns for such a file.
+/// Compared with `design:settings/startup-failure`.
 fn samples() -> Vec<(&'static str, Failure)> {
     let home = PathBuf::from(std::env::var_os("HOME").unwrap_or_default());
     let data = home.join("Library/Application Support/com.fang2hou.Dito");
@@ -37,8 +36,7 @@ fn samples() -> Vec<(&'static str, Failure)> {
     ]
 }
 
-/// The reason the window gives for a `config.toml` that is not UTF-8, taken from the error of a real file in a
-/// throwaway folder so the shot shows what the app would.
+/// Taken from the error of a real file, so the shot shows what the app would.
 fn undecodable_file_reason() -> String {
     let dir = std::env::temp_dir().join(format!("dito-shot-undecodable-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("shot data folder");
@@ -52,8 +50,7 @@ fn undecodable_file_reason() -> String {
     message
 }
 
-/// The startup failure window (`startup-failure-<failure>-<theme>[-<lang>].png`): the failures in both appearances in
-/// Japanese, and in English and Chinese, whose longer lines wrap, in the light one.
+/// English and Chinese, whose longer lines wrap, are shot in the light appearance only.
 pub async fn startup_failure_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     let launch = Launch { opts: st.opts.clone(), rt: st.rt.clone() };
     let original = system_language();

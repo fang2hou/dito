@@ -1,16 +1,15 @@
-//! Re-running recognition or polish on saved history entries, updating the stored row.
+//! Re-running transcription or polish on saved history entries, updating the stored row.
 
 use std::sync::Arc;
 
 use anyhow::Result;
 use dito_core::audio::AudioClip;
 use dito_core::factory::Engines;
-use dito_core::pipeline::{self, CancellationToken, Job, PipelineError, PolishJob};
+use dito_core::pipeline::{self, CancellationToken, PipelineError, PipelineJob, PolishJob};
 use dito_core::store::HistoryEntry;
 
 use crate::state::AppState;
 
-/// Fetch one history row by id, off the UI thread.
 pub async fn history_entry(st: Arc<AppState>, id: i64) -> Result<Option<HistoryEntry>> {
     let store = st.store.clone();
     st.rt
@@ -20,8 +19,8 @@ pub async fn history_entry(st: Arc<AppState>, id: i64) -> Result<Option<HistoryE
         .map_err(Into::into)
 }
 
-/// Delete a history row and any audio file it kept, preserving the lookup → file removal →
-/// row delete order. Off the UI thread.
+/// Delete a history row and any audio file it kept. Order matters: look up the audio path, remove the file, then
+/// delete the row.
 pub async fn delete_history_entry(st: Arc<AppState>, id: i64) -> Result<()> {
     let store = st.store.clone();
     st.rt
@@ -36,10 +35,9 @@ pub async fn delete_history_entry(st: Arc<AppState>, id: i64) -> Result<()> {
         .map_err(Into::into)
 }
 
-/// Run recognition + polish again on a saved recording and update the history entry.
-pub async fn recognize_again(st: Arc<AppState>, entry: HistoryEntry) -> Result<(), String> {
+pub async fn transcribe_again(st: Arc<AppState>, entry: HistoryEntry) -> Result<(), String> {
     let path = entry.audio_path.clone().ok_or("no audio was kept for this entry")?;
-    // File read + WAV decode are synchronous; keep them off the async executor.
+    // Reading the file and decoding the WAV block, so they stay off the async executor.
     let clip = st
         .rt
         .spawn_blocking(move || {
@@ -62,7 +60,7 @@ pub async fn recognize_again(st: Arc<AppState>, entry: HistoryEntry) -> Result<(
             let out = pipeline::run(
                 engines,
                 &cfg,
-                &Job { clip: &clip, style: entry.style.clone(), wordbook: &words },
+                &PipelineJob { clip: &clip, style: entry.style.clone(), wordbook: &words },
                 &|_| {},
                 &CancellationToken::new(),
             )
@@ -84,10 +82,9 @@ pub async fn recognize_again(st: Arc<AppState>, entry: HistoryEntry) -> Result<(
         .map_err(|e| e.to_string())?
 }
 
-/// Polish the stored original text again with the current prompts.
 pub async fn polish_again(st: Arc<AppState>, entry: HistoryEntry) -> Result<(), String> {
     if entry.raw.trim().is_empty() {
-        return Err("there is no recognized text to polish".into());
+        return Err("there is no transcript to polish".into());
     }
     let st2 = st.clone();
     st.rt

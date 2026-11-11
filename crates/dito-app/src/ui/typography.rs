@@ -11,8 +11,7 @@ pub fn is_cjk(s: &str) -> bool {
 
 static LANGUAGE: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
 
-/// Tell the UI which language it is shown in. Language-dependent typography reads it: the CJK typeface
-/// (Plex SC for Chinese, M PLUS 1p for Japanese) and letter-spacing (see [`tracking_for`]).
+/// Language-dependent typography reads it: the CJK typeface and letter-spacing (see [`tracking_for`]).
 pub fn set_ui_language(lang: dito_core::i18n::Lang) {
     LANGUAGE.store(
         dito_core::i18n::Lang::ALL.iter().position(|l| *l == lang).unwrap_or(0) as u8,
@@ -24,14 +23,13 @@ pub fn ui_language() -> dito_core::i18n::Lang {
     dito_core::i18n::Lang::ALL[LANGUAGE.load(std::sync::atomic::Ordering::Relaxed) as usize % 3]
 }
 
-/// Font for CJK text (and the UI root) in the current display language.
 pub fn cjk_family() -> &'static str {
     if ui_language() == dito_core::i18n::Lang::Zh { "IBM Plex Sans SC" } else { "M PLUS 1p" }
 }
 
-/// Letter-spacing (in em) for `s` where the design asks for `cjk_em`. Wide tracking is a Japanese/Chinese reading
-/// aid; Latin text keeps its natural spacing, so it is zero for English and for any string without CJK glyphs.
-/// Put every language-specific typographic difference here, so screens never branch on the language themselves.
+/// In em. Wide tracking is a Japanese/Chinese reading aid; Latin text keeps its natural spacing, so it is zero for
+/// English and for any string without CJK glyphs. Put every language-specific typographic difference here, so screens
+/// never branch on the language themselves.
 pub fn tracking_for(s: &str, cjk_em: f32) -> f32 {
     if ui_language() != dito_core::i18n::Lang::En && is_cjk(s) { cjk_em } else { 0. }
 }
@@ -40,7 +38,6 @@ pub fn family_for(s: &str) -> &'static str {
     if is_cjk(s) { cjk_family() } else { "Outfit" }
 }
 
-/// Plain text with the design's font choice (IBM Plex Sans SC for Chinese, M PLUS 1p for Japanese, Outfit for Latin).
 pub fn text(s: impl Into<SharedString>, size: f32, weight: FontWeight, color: Hsla) -> Div {
     let s: SharedString = s.into();
     div().font_family(family_for(&s)).text_size(px(size)).font_weight(weight).text_color(color).child(s)
@@ -50,12 +47,11 @@ thread_local! {
     static TEXT_SYSTEM: RefCell<Option<WindowTextSystem>> = const { RefCell::new(None) };
 }
 
-/// Give the UI kit the text system so controls can size themselves to their labels.
 pub fn init_text_system(cx: &App) {
     TEXT_SYSTEM.with(|t| *t.borrow_mut() = Some(WindowTextSystem::new(cx.text_system().clone())));
 }
 
-/// Width of one line of UI text, as the renderer will lay it out.
+/// Measured as the renderer will lay the text out.
 pub fn text_width(s: &str, size: f32, weight: FontWeight) -> f32 {
     TEXT_SYSTEM.with(|t| match t.borrow().as_ref() {
         Some(ts) => {
@@ -75,8 +71,7 @@ pub fn text_width(s: &str, size: f32, weight: FontWeight) -> f32 {
     })
 }
 
-/// How many lines `s` takes once wrapped to `width`, set in `family` as the renderer will lay it out. For windows
-/// that fit their text, where the height follows the line count.
+/// For windows that fit their text, where the height follows the line count.
 pub fn text_lines(s: &str, family: impl Into<SharedString>, size: f32, weight: FontWeight, width: f32) -> usize {
     TEXT_SYSTEM.with(|t| match t.borrow().as_ref() {
         Some(ts) => {
@@ -97,7 +92,6 @@ pub fn text_lines(s: &str, family: impl Into<SharedString>, size: f32, weight: F
     })
 }
 
-/// Measure the same glyph spacing as [`text_tracked`] for controls with fitted widths.
 pub fn text_tracked_width(s: &str, size: f32, weight: FontWeight, cjk_em: f32) -> f32 {
     let em = tracking_for(s, cjk_em);
     if em == 0. {
@@ -107,7 +101,6 @@ pub fn text_tracked_width(s: &str, size: f32, weight: FontWeight, cjk_em: f32) -
         + s.chars().count().saturating_sub(1) as f32 * size * em
 }
 
-/// Text with the design's CJK letter-spacing `cjk_em`, applied only where [`tracking_for`] says so.
 pub fn text_tracked(s: &str, size: f32, weight: FontWeight, color: Hsla, cjk_em: f32) -> Div {
     let em = tracking_for(s, cjk_em);
     if em == 0. {
@@ -120,7 +113,7 @@ pub fn text_tracked(s: &str, size: f32, weight: FontWeight, color: Hsla, cjk_em:
     d
 }
 
-/// Text with letter-spacing (GPUI has none): every glyph is its own flex item followed by `tracking` em.
+/// GPUI has no letter-spacing: every glyph is its own flex item followed by `tracking` em.
 pub fn tracked(s: &str, size: f32, weight: FontWeight, color: Hsla, tracking: f32) -> Div {
     let mut row = div().flex().items_end();
     for ch in s.chars() {
@@ -143,7 +136,7 @@ mod tests {
     #[test]
     fn english_text_keeps_natural_letter_spacing() {
         set_ui_language(Lang::En);
-        assert_eq!(tracking_for("Recognizing", 0.08), 0.);
+        assert_eq!(tracking_for("Transcribing", 0.08), 0.);
         assert_eq!(tracking_for("認識中", 0.08), 0.);
         set_ui_language(Lang::Ja);
         assert_eq!(tracking_for("認識中", 0.08), 0.08);

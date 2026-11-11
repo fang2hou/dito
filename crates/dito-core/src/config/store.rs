@@ -9,16 +9,14 @@ use crate::secrets::SecretStore;
 
 type Result<T> = std::result::Result<T, ConfigError>;
 
-/// Single source of truth for settings: persisted as TOML, observable through a watch channel.
 pub struct ConfigStore {
     path: PathBuf,
     tx: watch::Sender<Arc<Config>>,
 }
 
 impl ConfigStore {
-    /// Load the settings at `path`. A missing file yields the defaults and writes nothing. A file saved by an older
-    /// version is upgraded first: its original is kept beside it as `<file>.v<old version>.bak`, then the upgraded
-    /// settings replace it. A file saved by a newer version is refused and left untouched.
+    /// A missing file yields the defaults and writes nothing. An older file is upgraded first, its original kept as
+    /// `<file>.v<old version>.bak`. A newer file is refused and left untouched.
     pub fn open(path: impl Into<PathBuf>) -> Result<Self> {
         let path = path.into();
         let (cfg, found) = match std::fs::read_to_string(&path) {
@@ -59,15 +57,14 @@ impl ConfigStore {
         Ok(())
     }
 
-    /// Remove a cloud polish configuration and the key it holds. The list is saved first, so a failed save keeps the
-    /// configuration and its key together. The last configuration stays, and so does its key: `false`.
+    /// The list is saved first, so a failed save keeps the configuration and its key together. The last configuration
+    /// and its key stay: `false`.
     pub fn remove_cloud_polish_configuration(&self, id: &str, secrets: &dyn SecretStore) -> Result<bool> {
         let mut removed = None;
         self.update(|c| removed = c.polish.engine.polish_configurations_mut(c.general.lang()).remove(id))?;
         Ok(forget_key(removed.map(|configuration| configuration.account()), secrets))
     }
 
-    /// The same for a cloud speech configuration.
     pub fn remove_cloud_asr_configuration(&self, id: &str, secrets: &dyn SecretStore) -> Result<bool> {
         let mut removed = None;
         self.update(|c| removed = c.asr.cloud_asr.get_or_insert_with(CloudAsrConfigurations::default).remove(id))?;
@@ -79,8 +76,8 @@ impl ConfigStore {
     }
 }
 
-/// Delete the key of an entry that was removed, and say whether there was one. A key that cannot be deleted stays in the
-/// Keychain under an id that is never used again: that is logged, because the entry is gone either way.
+/// Delete the key of an entry that was removed, and say whether there was one. A key that cannot be deleted stays in
+/// the Keychain under an id that is never used again: that is logged, because the entry is gone either way.
 fn forget_key(account: Option<String>, secrets: &dyn SecretStore) -> bool {
     let Some(account) = account else { return false };
     if let Err(error) = secrets.delete(&account) {
@@ -102,7 +99,6 @@ pub(super) fn write_file(path: &Path, cfg: &Config) -> Result<()> {
     Ok(())
 }
 
-/// Parse `text`, upgrade it to the current schema and return the settings together with the version the file was at.
 fn load(path: &Path, text: &str) -> Result<(Config, u32)> {
     let invalid = |source| ConfigError::Invalid { path: path.to_owned(), source };
     let mut table = text.parse::<toml::Table>().map_err(invalid)?;
@@ -141,7 +137,6 @@ mod tests {
     use crate::i18n::Lang;
     use crate::prompts::{Style, default_set};
 
-    /// A fresh directory holding `config.toml` with `contents`.
     fn config_file(contents: &str) -> (tempfile::TempDir, PathBuf) {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("config.toml");
@@ -233,7 +228,6 @@ mod tests {
         let upgraded = std::fs::read_to_string(&path).unwrap();
         assert!(upgraded.starts_with(&format!("schema_version = {SCHEMA_VERSION}\n")), "{upgraded}");
 
-        // The upgraded file is current: opening it again changes nothing and adds no backup.
         assert_eq!(ConfigStore::open(&path).unwrap().get(), cfg);
         assert_eq!(std::fs::read_to_string(&path).unwrap(), upgraded);
         assert_eq!(file_count(&dir), 2);
@@ -298,7 +292,6 @@ profiles = ['{untouched}', '{untouched}', '{edited}']
         assert_eq!(active.config, expected, "edits and nulls stay");
         assert!(dir.path().join("config.toml.v1.bak").exists(), "the original is kept");
 
-        // The rewritten file is in the new shape and loads back unchanged.
         assert_eq!(ConfigStore::open(&path).unwrap().get(), cfg);
     }
 
@@ -371,7 +364,6 @@ reasoning_effort = "minimal"
         assert!(upgraded.contains("[polish.cloud_polish]"), "{upgraded}");
         assert!(!upgraded.contains("[polish.provider") && !upgraded.contains("[asr.provider"), "{upgraded}");
 
-        // The upgraded file is current: opening it again changes nothing and adds no backup.
         assert_eq!(ConfigStore::open(&path).unwrap().get(), cfg);
         assert_eq!(std::fs::read_to_string(&path).unwrap(), upgraded);
         assert_eq!(file_count(&dir), 2);
@@ -419,7 +411,6 @@ reasoning_effort = "minimal"
             secrets.set(account, "key").unwrap();
         }
 
-        // The configuration in use goes, its neighbour takes over, the other keys stay.
         assert!(store.remove_cloud_polish_configuration("azure", &secrets).unwrap());
         let config = store.get();
         let list = config.polish.engine.polish_configurations(config.general.lang());
@@ -430,13 +421,11 @@ reasoning_effort = "minimal"
         let reopened = ConfigStore::open(&path).unwrap().get();
         assert_eq!(reopened.polish.engine.polish_configurations(reopened.general.lang()).items.len(), 2, "on disk");
 
-        // The last one stays with its key; an unknown id is not a removal.
         assert!(store.remove_cloud_polish_configuration("bedrock", &secrets).unwrap());
         assert!(!store.remove_cloud_polish_configuration("compat", &secrets).unwrap());
         assert!(!store.remove_cloud_polish_configuration("missing", &secrets).unwrap());
         assert_eq!(secrets.get("polish.compat").as_deref(), Some("key"));
 
-        // Speech configurations go the same way.
         assert!(store.remove_cloud_asr_configuration("funasr", &secrets).unwrap());
         assert_eq!(secrets.get("asr.funasr"), None);
         assert_eq!(secrets.get("asr.openrouter").as_deref(), Some("key"));

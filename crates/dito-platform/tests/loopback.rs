@@ -1,6 +1,6 @@
 //! Posts synthetic events into the real event stream and expects the tap to report them.
-//! Uses F20 — no physical keyboard has that key — so the injected events cannot collide with
-//! real user shortcuts (right-modifier dictation tools and the like).
+//! Uses F20, which no physical keyboard has, so the injected events cannot collide with real user shortcuts
+//! (right-modifier dictation tools and the like).
 //! Needs Accessibility for the test runner, so it is ignored by default.
 //!   cargo test -p dito-platform --test loopback -- --ignored
 

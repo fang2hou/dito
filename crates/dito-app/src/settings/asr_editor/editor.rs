@@ -29,14 +29,12 @@ const CHECK_DELAY: Duration = Duration::from_millis(200);
 
 pub struct Changed;
 
-/// A change to the saved configurations was tried, and `.0` says whether it was saved. The Models page keeps the
-/// failure banner for the whole page, so the editor only reports.
+/// `.0` is whether the save worked. The Models page keeps the failure banner for the whole page, so the editor only
+/// reports.
 pub struct SaveOutcome(pub bool);
 
-/// Completion event for the onboarding wizard's legacy advanced editor.
 pub struct Closed(pub bool);
 
-/// How a frozen editor is set up for screenshots.
 #[cfg(feature = "screenshots")]
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum EditorPreview {
@@ -46,16 +44,12 @@ pub enum EditorPreview {
     Help,
 }
 
-/// The cloud speech form: the configurations as tiles, and the selected one's name, key and request JSON.
 pub struct AsrEditor {
     st: Arc<AppState>,
-    /// What each configuration that was shown keeps, by id.
     drafts: HashMap<String, Draft>,
-    /// The id of the configuration the form shows.
     shown: String,
     name: Entity<InputState>,
     key: Entity<InputState>,
-    /// The tile row, the menu of its plus button and the delete dialog.
     tiles: ConfigurationPanel,
     help_focus: FocusHandle,
     help: bool,
@@ -102,7 +96,7 @@ impl AsrEditor {
         editor
     }
 
-    /// The onboarding wizard keeps its advanced editor within its existing single overlay.
+    /// For the onboarding wizard, which keeps its advanced editor inside its one existing overlay.
     pub fn new_dialog(st: Arc<AppState>, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let mut editor = Self::new(st, window, cx);
         editor.dialog = true;
@@ -135,7 +129,6 @@ impl AsrEditor {
         cx.notify();
     }
 
-    /// The draft of the configuration the form shows.
     fn draft(&self) -> &Draft {
         self.drafts.get(&self.shown).expect("the configuration the form shows has a draft")
     }
@@ -145,8 +138,7 @@ impl AsrEditor {
         focus.focus(window, cx);
     }
 
-    /// Show the configuration the settings select, and let go of the drafts of configurations that are gone. It runs
-    /// before every draw, and after every change made here: the selection also changes elsewhere.
+    /// Runs before every draw and after every change made here, because the selection also changes elsewhere.
     fn sync(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let config = self.st.cfg.get();
         let list = configuration_list::of(&config);
@@ -166,7 +158,6 @@ impl AsrEditor {
         }
     }
 
-    /// Fill the form with the configuration `id`, starting its draft the first time.
     fn show(&mut self, id: &str, window: &mut Window, cx: &mut Context<Self>) {
         let config = self.st.cfg.get();
         let list = configuration_list::of(&config);
@@ -180,7 +171,6 @@ impl AsrEditor {
         cx.notify();
     }
 
-    /// The draft of `configuration`, from what is saved: its request JSON in an editor of its own, and its key.
     fn start_draft(&mut self, configuration: &CloudAsrConfiguration, window: &mut Window, cx: &mut Context<Self>) {
         if self.drafts.contains_key(&configuration.id) {
             return;
@@ -219,8 +209,7 @@ impl AsrEditor {
         );
     }
 
-    /// The name field changed: save it, and the tile follows. A blank name is not saved; the field goes back to the
-    /// saved one when it loses focus.
+    /// A blank name is not saved; the field goes back to the saved one when it loses focus.
     fn name_edited(&mut self, cx: &mut Context<Self>) {
         let name = self.name.read(cx).value().to_string();
         self.saved(configuration_list::rename(&self.st.cfg, &self.shown, &name), cx);
@@ -250,8 +239,6 @@ impl AsrEditor {
         self.edited(&id, cx);
     }
 
-    /// The draft of `id` changed: its result and validation are out of date, and it is checked and saved once typing
-    /// pauses.
     fn edited(&mut self, id: &str, cx: &mut Context<Self>) {
         let Some(draft) = self.drafts.get_mut(id) else { return };
         draft.test = ui::TestState::Idle;
@@ -299,7 +286,6 @@ impl AsrEditor {
         cx.notify();
     }
 
-    /// Save the draft of `id` into its configuration: its request JSON, and its key when that changed.
     fn persist(&mut self, id: &str, cx: &mut Context<Self>) {
         let lang = self.st.cfg.get().general.lang();
         let Some(draft) = self.drafts.get_mut(id) else { return };
@@ -329,7 +315,7 @@ impl AsrEditor {
         }
     }
 
-    /// Check and save what is typed in `id` now instead of waiting out the pause, for a change that has to start from it.
+    /// Skips the typing pause, for a change that has to start from what is typed.
     fn flush(&mut self, id: &str, cx: &mut Context<Self>) {
         if let Some(draft) = self.drafts.get(id).filter(|draft| draft.pending) {
             let revision = draft.revision;
@@ -337,8 +323,7 @@ impl AsrEditor {
         }
     }
 
-    /// What a change to the saved configurations came to. A save that fails leaves everything as it was; either way
-    /// the Models page is told, and its banner above the card follows.
+    /// A failed save leaves everything as it was. Either way the Models page is told.
     fn saved<T>(&mut self, result: anyhow::Result<T>, cx: &mut Context<Self>) -> Option<T> {
         if let Err(error) = &result {
             tracing::warn!("could not save the speech configurations: {error:#}");
@@ -426,7 +411,6 @@ impl AsrEditor {
         self.help = false;
     }
 
-    /// What the shell paints over the whole window: the delete dialog, or the help.
     pub(in crate::settings) fn overlay(&mut self, window: &mut Window, cx: &mut Context<Self>) -> Option<AnyElement> {
         if self.tiles.deleting().is_some() {
             return ui::with_motion_scope(self.motion.handle(), || self.delete_dialog(window, cx));

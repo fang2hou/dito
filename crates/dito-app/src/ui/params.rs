@@ -1,6 +1,5 @@
-//! The parameter block of a model (20.05.7 cloud, 20.04.2 local): a head line with a title and a hint, one row of equal
-//! form fields and, below it, fields of the full width. The caller supplies the labels, the inputs (with their
-//! placeholders) and which of them hold text that does not parse.
+//! The parameter block of a model (`design:settings/cloud-models/configurations`,
+//! `design:settings/local-models/parameters`).
 
 use gpui_kit::component::input::InputState;
 use gpui_kit::prelude::*;
@@ -10,7 +9,6 @@ use super::inputs::{form_field, text_input};
 use super::typography::text;
 use crate::theme::Palette;
 
-/// One field of a [`parameter_block`].
 pub struct ParamField {
     label: SharedString,
     input: Entity<InputState>,
@@ -22,7 +20,6 @@ impl ParamField {
         Self { label: label.into(), input: input.clone(), invalid: false }
     }
 
-    /// The text does not parse: the field takes the danger border.
     pub fn invalid(mut self, invalid: bool) -> Self {
         self.invalid = invalid;
         self
@@ -33,8 +30,6 @@ impl ParamField {
     }
 }
 
-/// The title (13 Medium) and the hint (13 Regular, muted) 12 apart, then `row` as equal fields 16 apart, then each
-/// of `wide` across the full width, 12 below the one before.
 pub fn parameter_block(
     p: &Palette,
     title: impl Into<SharedString>,

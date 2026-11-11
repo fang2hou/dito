@@ -10,7 +10,7 @@ use super::tween::RING_MS;
 use super::typography::text;
 use crate::theme::Palette;
 
-/// The bordered card that holds menu rows; it closes itself on any press outside it.
+/// Closes itself on any press outside it.
 pub fn menu_panel(id: ElementId, p: &Palette, on_close: Cb) -> Stateful<Div> {
     div()
         .id(id)
@@ -33,15 +33,14 @@ pub fn menu_panel(id: ElementId, p: &Palette, on_close: Cb) -> Stateful<Div> {
         .on_mouse_down_out(move |_, w, cx| on_close(w, cx))
 }
 
-/// A hoverable row of a menu panel; the caller adds its click handler and content. Clicking it retires the row with
-/// its menu, so the row forgets its own hover: GPUI never reports the end of a hover for an element that stops
-/// being drawn, and without this the next opening would draw that row pre-lit.
+/// Clicking it retires the row with its menu, so the row forgets its own hover: GPUI never reports the end of a hover
+/// for an element that stops being drawn, and without this the next opening would draw that row pre-lit.
 pub fn menu_row(id: ElementId, p: &Palette) -> Stateful<Div> {
     row(id, p, true)
 }
 
-/// [`menu_row`] for a menu that stays open after the click (multi-select): the pointer is still on the row, so it
-/// must keep its hover fill.
+/// The menu stays open after the click (multi-select), so the pointer is still on the row and it must keep its hover
+/// fill.
 pub fn menu_row_staying(id: ElementId, p: &Palette) -> Stateful<Div> {
     row(id, p, false)
 }
@@ -66,11 +65,10 @@ fn row(id: ElementId, p: &Palette, retires: bool) -> Stateful<Div> {
     row.on_click(move |_, _, _| reset_hover_in(scope.clone(), &id))
 }
 
-/// Places `panel` `top` px under its relative parent with the right edges aligned. It is drawn in the
-/// deferred layer: above siblings and not clipped by scroll or overflow containers; it only snaps to the
-/// window edges.
+/// Drawn in the deferred layer, so it sits above siblings and is not clipped by scroll or overflow containers; it
+/// only snaps to the window edges.
 pub fn float<E: IntoElement + Styled + 'static>(id: ElementId, top: f32, panel: E) -> Div {
-    // Fades in and settles 6px upwards on the same clock and easing as the focus ring.
+    // Same clock and easing as the focus ring.
     let appear = panel.with_animation((id, "appear"), Animation::new(Duration::from_millis(RING_MS)), |p, t| {
         let q = t * t * (3. - 2. * t);
         p.opacity(q).relative().top(px((1. - q) * -6.))
@@ -80,13 +78,11 @@ pub fn float<E: IntoElement + Styled + 'static>(id: ElementId, top: f32, panel: 
     )
 }
 
-/// Separators occupy layout space independently of option rows.
 pub fn menu_separator(p: &Palette) -> Div {
     div().h(px(9.)).w_full().flex_none().py(px(4.)).child(div().h(px(1.)).w_full().bg(p.border))
 }
 
-/// A caption inside a menu panel, naming what the rows under it are (`20.05.11`). It is not a row: it takes no hover
-/// and no click. 12 Medium `muted`, in a 28 pt slot (6 above the 18 pt line, 4 below) and set in like the rows.
+/// Not a row: it takes no hover and no click (`design:settings/cloud-models/add-from-template`).
 pub fn menu_label(p: &Palette, label: impl Into<SharedString>) -> Div {
     div()
         .h(px(28.))

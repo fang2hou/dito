@@ -22,8 +22,7 @@ fn post_key(keycode: u16, down: bool, flags: Option<CGEventFlags>, text: Option<
     true
 }
 
-/// Post `units` as unicode key events (no clipboard involved). Returns false only when events
-/// could not be posted at all; whether they land is verified separately.
+/// Returns false only when events could not be posted at all; whether they land is verified separately.
 pub(super) fn post_type(units: &[u16]) -> bool {
     let mut ok = true;
     for chunk in Utf16Chunks::new(units, TYPE_CHUNK_UNITS) {

@@ -5,8 +5,7 @@ use dito_core::store::HistoryEntry;
 use crate::timefmt::{hhmm, local_day, ymd};
 use crate::ui::history_style_label;
 
-/// CSV export with the same style classification the history list shows: a configured app by name, everything else
-/// as Other. Without the prompts a removal would leave raw bundle ids in the export.
+/// Without the prompts a removal would leave raw bundle ids in the export.
 pub(super) fn history_csv(rows: &[HistoryEntry], prompts: &Prompts, lang: Lang, utc_offset_secs: i32) -> String {
     let quoted = |s: &str| format!("\"{}\"", s.replace('"', "\"\""));
     let mut out = String::from("date,time,app,style,text,original\n");

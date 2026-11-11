@@ -33,7 +33,6 @@ impl StatusPage {
             },
         ];
         let mut card = ui::card(&p);
-        // Attention first: ungranted permissions lead the list.
         let mut order: Vec<usize> = (0..infos.len()).collect();
         order.sort_by_key(|&i| self.perms[i] == Status::Granted);
         for (k, &i) in order.iter().enumerate() {

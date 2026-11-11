@@ -1,4 +1,4 @@
-//! The HUD's clocks: progress fill, outcome hold and fade, and the copied label's growth.
+//! The HUD's animation clocks.
 
 use dito_core::controller::HudState;
 use dito_core::i18n::{Lang, Tr};
@@ -16,7 +16,7 @@ pub(super) const SETTLE_S: f32 = 0.18;
 /// Use the shared fill curve with a fixed forecast for synthetic HUD previews.
 pub(crate) fn fill_at(state: &HudState, t: f32, carry: Option<f32>) -> Option<f32> {
     let motion = match state {
-        HudState::Recognizing => ProcessingMotion::recognizing(1.5, false),
+        HudState::Transcribing => ProcessingMotion::transcribing(1.5, false),
         HudState::Polishing => ProcessingMotion::polishing(Fill::at_rest(carry.unwrap_or(0.5)), 1.5, 0., false),
         _ => return None,
     };
@@ -26,7 +26,7 @@ pub(crate) fn fill_at(state: &HudState, t: f32, carry: Option<f32>) -> Option<f3
 /// Success starts after the fill settles; the background is already becoming green/gold.
 pub(crate) const OUTCOME_ICON_DELAY: f32 = SETTLE_S + 0.08;
 pub(super) const OUTCOME_ICON_S: f32 = 0.32;
-/// The completed contour receives one gentle light pulse, then the whole capsule exits.
+/// The hold covers one gentle light pulse on the completed contour; then the capsule exits.
 pub(super) const OUTCOME_HOLD_END: f32 = OUTCOME_ICON_DELAY + 0.96;
 pub(crate) const OUTCOME_FADE_S: f32 = 0.18;
 pub(crate) const OUTCOME_END: f32 = OUTCOME_HOLD_END + OUTCOME_FADE_S;

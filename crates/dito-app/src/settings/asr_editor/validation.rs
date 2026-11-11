@@ -22,7 +22,6 @@ pub(super) fn error_row(source: &str) -> usize {
     }
 }
 
-/// Parse and validate a draft; the error is the localized message shown under the editor.
 pub(super) fn check(source: &str, lang: Lang) -> Result<Value, String> {
     let value = serde_json::from_str::<Value>(source).map_err(|e| {
         lang.tr(Tr::FmtLineColumnError)
@@ -38,7 +37,6 @@ pub(super) fn check(source: &str, lang: Lang) -> Result<Value, String> {
     Ok(value)
 }
 
-/// The failure as the editor words it: the field path, then the reason in the user's language.
 fn detail(error: &ValidationError, lang: Lang) -> Cow<'static, str> {
     let reason = reason_text(&error.reason, lang);
     if error.field.is_empty() { reason } else { Cow::Owned(format!("{}: {reason}", error.field)) }

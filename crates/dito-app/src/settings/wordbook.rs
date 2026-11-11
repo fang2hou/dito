@@ -19,7 +19,7 @@ use crate::theme::Palette;
 use crate::timefmt::now;
 use crate::ui::{self, BtnKind, InputEvent, InputState, cbk, text};
 
-/// The operation behind the failure banner. One at a time: the newest failure replaces the last.
+/// One at a time: the newest failure replaces the last.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Failure {
     Add,
@@ -78,7 +78,6 @@ pub struct WordbookPage {
     confirming_delete: bool,
     deleting: bool,
     delete_focus: FocusHandle,
-    /// The page's own motion scope: its controls' transient state, reset on navigation.
     motion: ui::MotionScope,
 }
 
@@ -104,8 +103,7 @@ impl QueryPage for WordbookPage {
 }
 
 impl WordbookPage {
-    /// Page visibility lifecycle, driven by `Settings`: entering loads the words, leaving
-    /// drops any result still in flight.
+    /// Leaving drops any result still in flight.
     pub fn set_active(&mut self, active: bool, cx: &mut Context<Self>) {
         self.words.set_active(active);
         if active {
@@ -335,7 +333,6 @@ impl WordbookPage {
         .detach();
     }
 
-    /// The next successful action clears the banner.
     fn succeeded(&mut self, cx: &mut Context<Self>) {
         if self.failure.take().is_some() {
             cx.notify();
@@ -363,12 +360,10 @@ async fn off_main<T: Send + 'static>(
 }
 
 impl WordbookPage {
-    /// Reset the page's transient motion state; its controls mount statically on the next entry.
     pub(super) fn reset_motion(&mut self) {
         self.motion.reset();
     }
 
-    /// The page's scope, for the screenshot harness.
     #[cfg(feature = "screenshots")]
     pub(super) fn motion_scope(&self) -> ui::ScopeHandle {
         self.motion.handle()
@@ -377,8 +372,8 @@ impl WordbookPage {
 
 impl Render for WordbookPage {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        // The page draws under its own scope: after a page switch its controls mount statically,
-        // never sliding to values remembered from another page or an earlier visit.
+        // Own scope: after a page switch the controls mount statically instead of sliding to values remembered from an
+        // earlier visit.
         ui::with_motion_scope(self.motion.handle(), || self.view(window, cx))
     }
 }
@@ -722,7 +717,7 @@ fn word_columns(window: &Window) -> u16 {
     if content_width(window) >= 720. { 4 } else { 3 }
 }
 
-/// What the screenshot harness drives and reads: the same handlers the controls call.
+/// The same handlers the controls call.
 #[cfg(feature = "screenshots")]
 impl WordbookPage {
     pub(super) fn probe(&mut self, case: &str, arg: &str, window: &mut Window, cx: &mut Context<Self>) {
@@ -739,7 +734,6 @@ impl WordbookPage {
         }
     }
 
-    /// The operation the banner reports, if any.
     pub(super) fn failure_name(&self) -> Option<&'static str> {
         self.failure.map(|f| match f {
             Failure::Add => "add",

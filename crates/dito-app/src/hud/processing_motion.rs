@@ -21,7 +21,7 @@ pub(super) struct ProcessingMotion {
 }
 
 impl ProcessingMotion {
-    pub fn recognizing(estimate: f32, reduced: bool) -> Self {
+    pub fn transcribing(estimate: f32, reduced: bool) -> Self {
         Self { from: Fill::default(), target: 0., catch_up: 0., estimate: (!reduced).then_some(estimate) }
     }
 
@@ -75,7 +75,7 @@ mod tests {
 
     #[test]
     fn starts_at_zero_and_never_claims_a_result_while_waiting() {
-        let asr = ProcessingMotion::recognizing(2., false);
+        let asr = ProcessingMotion::transcribing(2., false);
         assert_eq!(asr.at(0.).value, 0.);
         assert!(asr.at(0.05).value < 0.01);
         assert!(asr.at(3.).value > asr.at(2.).value);
@@ -106,7 +106,7 @@ mod tests {
 
     #[test]
     fn reduced_motion_updates_only_after_a_result() {
-        let asr = ProcessingMotion::recognizing(1., true);
+        let asr = ProcessingMotion::transcribing(1., true);
         assert_eq!(asr.at(10.).value, 0.);
         let polish = ProcessingMotion::polishing(asr.at(10.), 2., 0., true);
         assert_eq!(polish.at(0.).value, 0.);

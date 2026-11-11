@@ -1,6 +1,5 @@
-//! Pure decision logic for text insertion: chunking for synthetic key events, verification of
-//! what actually landed, and the type → paste → clipboard fallback flow. The macOS FFI lives in
-//! `dito_platform::insert`; this module holds everything that can be tested without a GUI.
+//! Decision logic for text insertion, kept apart from the macOS FFI in `dito_platform::insert` so it is testable
+//! without a GUI.
 
 use crate::config::InsertMethod;
 
@@ -12,9 +11,8 @@ pub const TYPE_CHUNK_UNITS: usize = 16;
 /// frame while giving slow consumers time to drain the event queue.
 pub const TYPE_CHUNK_GAP_MS: u64 = 10;
 
-/// Iterator over `units` in chunks of at most `max` UTF-16 units, never splitting a surrogate
-/// pair (unless `max == 1`, where splitting is unavoidable — the pair still round-trips through
-/// apps that buffer, and the alternative would be dropping units).
+/// Never splits a surrogate pair, unless `max == 1`, where splitting is unavoidable: the pair still round-trips
+/// through apps that buffer, and the alternative would be dropping units.
 #[derive(Debug, Clone)]
 pub struct Utf16Chunks<'a> {
     units: &'a [u16],
@@ -47,11 +45,10 @@ impl<'a> Iterator for Utf16Chunks<'a> {
     }
 }
 
-/// What an insertion attempt's verification showed. `Refuted.inserted` is the number of UTF-16
-/// units observed landing during this attempt (0 = nothing landed, partial = some chunks dropped).
+/// `Refuted.inserted` is the number of UTF-16 units observed landing during this attempt (0 = nothing landed, partial
+/// = some chunks dropped).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Outcome {
-    /// The target field's selection moved by at least the expected amount.
     Confirmed,
     /// The AX cursor could not be read before or after: retrying would risk duplicating text
     /// that may have landed, so the attempt is accepted.
@@ -61,8 +58,7 @@ pub enum Outcome {
     },
 }
 
-/// Verdict from the selection locations around one attempt. `expected` is the UTF-16 length of
-/// the attempted text.
+/// `expected` is the UTF-16 length of the attempted text.
 pub fn outcome(expected: usize, before: Option<usize>, after: Option<usize>) -> Outcome {
     match (before, after) {
         (Some(before), Some(after)) => {
@@ -73,15 +69,13 @@ pub fn outcome(expected: usize, before: Option<usize>, after: Option<usize>) -> 
     }
 }
 
-/// One planned insertion attempt. `Type { from }` types the UTF-16 suffix starting at `from`
-/// (`from > 0` means continuing after a partial insert).
+/// `Type { from }` starts at the UTF-16 offset `from`; `from > 0` continues after a partial insert.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Step {
     Type { from: usize },
     Paste,
 }
 
-/// Which mechanism an attempt used, independent of the continuation offset.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StepKind {
     Type,
@@ -97,19 +91,15 @@ impl Step {
     }
 }
 
-/// The next move after an attempt.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Next {
-    /// Verified, or unverifiable without duplication risk.
     Done,
     Attempt(Step),
-    /// Live insertion is not working; leave the text on the clipboard.
     CopyToClipboard,
 }
 
-/// Retry policy across one delivery: the configured method first, at most one attempt with the
-/// other method, and at most one continuation typing the missing suffix after a partial insert.
-/// Once anything has landed, the whole text is never retried (that would duplicate the prefix).
+/// At most one attempt with the other method and one continuation after a partial insert. Once anything has landed,
+/// the whole text is never retried (that would duplicate the prefix).
 #[derive(Debug, Clone)]
 pub struct Flow {
     typing_used: bool,
@@ -123,7 +113,6 @@ impl Flow {
         flow
     }
 
-    /// The first attempt for the configured method.
     pub fn first(configured: InsertMethod) -> Step {
         match configured {
             InsertMethod::KeyInput => Step::Type { from: 0 },
@@ -146,8 +135,7 @@ impl Flow {
         }
     }
 
-    /// Decide what follows `attempted` producing `result`. `Refuted.inserted` is always below
-    /// the attempted length, so a continuation offset is always within the text.
+    /// `Refuted.inserted` is always below the attempted length, so a continuation offset is always within the text.
     pub fn advance(&mut self, attempted: Step, result: Outcome) -> Next {
         let inserted = match result {
             Outcome::Confirmed | Outcome::Unknown => return Next::Done,

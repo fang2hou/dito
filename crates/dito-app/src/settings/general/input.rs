@@ -72,7 +72,6 @@ impl GeneralPage {
         )
     }
 
-    /// The master switch for polish lives here, not in Models or Prompts.
     fn polish_switch(&self, p: &Palette) -> Stateful<Div> {
         let st = self.st.clone();
         ui::switch(
@@ -89,11 +88,9 @@ impl GeneralPage {
         let p = &c.p;
         let field = if self.capturing { self.capturing_field(c) } else { self.idle_field(c, cx) };
         let hint = c.t(Tr::GeneralPressEscToCancel);
-        // One control, two states: the field keeps its width while capturing, and the same
-        // pop-in bubble the hover tips use floats above it. Static positioned box (an animated
-        // one re-lays out against the wrong ancestor); the symmetric box (non-zero insets)
-        // centres the bubble without measuring the text; the top offset clears the field.
-        // Deferred, so following rows' separators cannot paint over the bubble.
+        // Static positioned box: an animated one re-lays out against the wrong ancestor. The symmetric box (non-zero
+        // insets) centres the bubble without measuring the text, and the top offset clears the field. Deferred, so
+        // following rows' separators cannot paint over the bubble.
         div().relative().child(field).child(deferred(
             div()
                 .absolute()

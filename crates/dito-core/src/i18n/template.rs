@@ -1,17 +1,14 @@
-//! The syntax of a message in `messages.toml`. `build.rs` applies it (it includes this file with `#[path]`) and the
-//! tests below check it, so the rules are tested where the build uses them.
+//! The syntax of a message in `messages.toml`. `build.rs` includes this file with `#[path]`, so the rules are tested
+//! where the build uses them.
 //!
-//! Copy under `fmt.` is the template of a generated `format!` function: `{name}` is a placeholder, a bare identifier,
-//! and a literal brace is doubled, `{{` or `}}`, as in `format!`. All other copy is shown as written, so its braces are
-//! literal, except that a bare `{name}` is refused there: it is a placeholder outside `fmt.`.
+//! Copy under `fmt.` is a `format!` template: `{name}` is a placeholder and a literal brace is doubled. All other copy
+//! is shown as written, so its braces are literal, except that a bare `{name}` is refused there.
 
-/// The distinct placeholders of the `fmt.` template `text`, in order of appearance.
 pub fn placeholders(text: &str) -> Result<Vec<String>, String> {
     let mut found: Vec<String> = Vec::new();
     let mut rest = text;
     while let Some(at) = rest.find(['{', '}']) {
         let (brace, after) = (&rest[at..=at], &rest[at + 1..]);
-        // A doubled brace is a literal one.
         if after.starts_with(brace) {
             rest = &after[1..];
             continue;
@@ -36,7 +33,6 @@ pub fn placeholders(text: &str) -> Result<Vec<String>, String> {
     Ok(found)
 }
 
-/// Check copy that is shown as written: it may hold any braces except a bare `{name}`.
 pub fn plain(text: &str) -> Result<(), String> {
     let mut rest = text;
     while let Some(at) = rest.find('{') {

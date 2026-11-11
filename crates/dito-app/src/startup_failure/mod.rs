@@ -1,8 +1,8 @@
-//! The window Dito opens instead of exiting when its settings or history cannot be used (design 20.10).
+//! The window Dito opens instead of exiting when its settings or history cannot be used
+//! (`design:settings/startup-failure`).
 //!
-//! `AppState::build` fails before GPUI exists, so this starts GPUI without any app state: no hotkeys, HUD, menu bar
-//! or dictation, only the window. Restoring the default settings builds the app in this same process and hands the
-//! screen over to its first window, Onboarding.
+//! `AppState::build` fails before GPUI exists, so this starts GPUI without any app state. Restoring the default
+//! settings builds the app in this same process and hands the screen over to its first window, Onboarding.
 
 mod failure;
 mod view;
@@ -20,8 +20,8 @@ pub use failure::Failure;
 use view::Ending;
 pub use view::{Launch, open};
 
-/// Show the window for `error` and run until the person quits or the launch carries on. An error that has no window,
-/// and every error of a run nobody watches (smoke test, screenshots), is returned unchanged.
+/// An error that has no window, and every error of a run nobody watches (smoke test, screenshots), is returned
+/// unchanged.
 pub fn run(error: anyhow::Error, opts: Opts, rt: tokio::runtime::Handle) -> Result<()> {
     let Some(failure) = Failure::from_error(&error, &opts).filter(|_| !opts.is_headless()) else { return Err(error) };
     tracing::warn!("startup stopped: {error:#}");

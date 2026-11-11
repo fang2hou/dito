@@ -1,4 +1,4 @@
-//! The progress fill inside the capsule: a polygon cut to the capsule's rounded ends, with a crisp front and halo.
+//! The progress fill inside the capsule.
 
 use gpui_kit::prelude::*;
 use gpui_kit::*;
@@ -9,16 +9,14 @@ use crate::ui::hex_alpha;
 use super::Scale;
 use super::capsule::{CAPSULE_H, HAIRLINE};
 
-/// Outline of the capsule's inside (the part within its hairline border): height, and width for a capsule of width `w`.
 pub(super) const INNER_H: f32 = CAPSULE_H - 2. * HAIRLINE;
 
 fn inner_w(w: f32) -> f32 {
     w - 2. * HAIRLINE
 }
 
-/// Polygon of the capsule (width `w`, height `h`) cut to the vertical band `x0..x1`: both cut edges are straight
-/// vertical lines; the top and bottom follow the capsule's rounded ends. GPUI clips to rectangles only, so the
-/// progress fill is drawn as this shape rather than as a clipped box.
+/// GPUI clips to rectangles only, so the progress fill is drawn as a polygon that follows the capsule's rounded ends
+/// rather than as a clipped box.
 fn capsule_slice(w: f32, h: f32, x0: f32, x1: f32) -> Vec<(f32, f32)> {
     let r = h / 2.;
     let half = |x| capsule_half_height(w, h, x);
@@ -48,7 +46,6 @@ fn capsule_half_height(w: f32, h: f32, x: f32) -> f32 {
     (r * r - d * d).max(0.).sqrt()
 }
 
-/// The slice `x0..x1` of a capsule of width `w` (design points), painted in `fill`.
 fn slice_canvas(w: f32, x0: f32, x1: f32, fill: impl Into<Background> + 'static, scale: Scale) -> impl IntoElement {
     canvas(
         |_, _, _| (),
@@ -70,7 +67,6 @@ fn slice_canvas(w: f32, x0: f32, x1: f32, fill: impl Into<Background> + 'static,
     .inset_0()
 }
 
-/// A flat fill, a crisp 1 pt front and a narrow symmetric halo (4 pt each side).
 pub(super) fn progress_layer(frac: f32, w: f32, scale: Scale, p: &Palette, halo_strength: f32) -> impl IntoElement {
     let x = inner_w(w) * frac.clamp(0., 1.);
     let edge = theme::hud_color(p, "#AA8C40", "#E0C47D");
@@ -135,7 +131,8 @@ mod tests {
 
     #[test]
     fn the_narrow_capsule_cuts_its_rounded_ends_at_its_own_width() {
-        // Hold mode's 72 pt capsule: the cut near its right end is the shorter curve of *that* capsule, not of a 105 pt one.
+        // Hold mode's 72 pt capsule: the cut near its right end follows the curve of that capsule, not of a 105 pt
+        // one.
         let narrow = inner_w(NARROW_W);
         let near_end = narrow - 1.;
         let height_at = |w: f32, x: f32| {

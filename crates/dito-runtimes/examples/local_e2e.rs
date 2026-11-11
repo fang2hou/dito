@@ -1,11 +1,8 @@
-//! Real on-device check: download SenseVoice and a Qwen3 model, synthesize speech with macOS `say`, recognize it
-//! in three languages, check that silence yields no words, polish a transcript, and check that a damaged model
-//! file is refused.
+//! Real on-device check of SenseVoice and a Qwen3 model, with speech synthesized by macOS `say`.
 //!
 //!   cargo run --release -p dito-runtimes --example local_e2e -- /tmp/dito-models qwen3.5-2b-instruct
 //!
-//! Needs network access for the first download (models are cached in the given directory). Download pause,
-//! resume, cancel and delete are covered by `dito-local/tests/downloads.rs`.
+//! Needs network access for the first download (models are cached in the given directory).
 
 use std::process::Command;
 use std::sync::Arc;

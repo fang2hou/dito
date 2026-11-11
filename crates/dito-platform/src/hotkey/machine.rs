@@ -17,7 +17,6 @@ pub enum Action {
     /// Another key was pressed right after a lone modifier started a recording: it was a typing chord.
     ChordAbort,
     Escape,
-    /// While capturing: the user pressed this shortcut.
     Captured(Shortcut),
     CaptureCancelled,
 }
@@ -39,7 +38,7 @@ pub struct Machine {
     capturing: bool,
     capture_candidate: Option<(Modifier, Mods)>,
     capture_dirty: bool,
-    /// Consume Esc (only while a dictation is on screen).
+    /// Set only while a dictation is on screen.
     pub swallow_escape: bool,
 }
 
@@ -192,7 +191,6 @@ mod tests {
         flags_change_with(m, down, 0)
     }
 
-    /// `m` toggles while `extra` modifier flags stay held.
     fn flags_change_with(m: Modifier, down: bool, extra: u64) -> RawEvent {
         RawEvent::FlagsChanged { keycode: m.keycode(), flags: if down { m.event_flags() | extra } else { extra } }
     }
@@ -265,7 +263,6 @@ mod tests {
             o.actions,
             [Action::Captured(Shortcut::Combo { mods: Mods { command: true, ..Default::default() }, key: 49 })]
         );
-        // Releasing the modifier afterwards must not capture again.
         assert!(m.feed(flags_change(Modifier::RightCommand, false), now).actions.is_empty());
     }
 
@@ -320,7 +317,6 @@ mod tests {
         let now = t0();
         m.feed(flags_change(Modifier::LeftControl, true), now);
         m.feed(flags_change_with(Modifier::RightOption, true, L_CTRL | F_CTRL), now);
-        // Releasing the trigger while Control is still down must not capture a lone 右⌥ yet.
         let o = m.feed(flags_change_with(Modifier::RightOption, false, L_CTRL | F_CTRL), now);
         assert_eq!(o.actions, []);
         assert!(m.is_capturing());
@@ -340,7 +336,6 @@ mod tests {
         let now = t0();
         m.feed(flags_change(Modifier::LeftControl, true), now);
         m.feed(flags_change_with(Modifier::RightOption, true, L_CTRL | F_CTRL), now);
-        // Releasing the co-modifier first must not capture Control as a lone shortcut.
         let o = m.feed(flags_change_with(Modifier::LeftControl, false, R_ALT | F_ALT), now);
         assert_eq!(o.actions, []);
         assert!(m.is_capturing());
@@ -363,18 +358,15 @@ mod tests {
             m.feed(flags_change_with(Modifier::LeftControl, true, R_ALT | F_ALT), now).actions,
             [Action::ShortcutDown]
         );
-        // Releasing the co-modifier first ends it even though the trigger is still held.
         assert_eq!(
             m.feed(flags_change_with(Modifier::LeftControl, false, R_ALT | F_ALT), now).actions,
             [Action::ShortcutUp]
         );
-        // An extra modifier disqualifies the chord.
         assert_eq!(
             m.feed(flags_change_with(Modifier::LeftControl, true, R_ALT | F_ALT | L_SHIFT | F_SHIFT), now).actions,
             []
         );
         assert_eq!(m.feed(flags_change_with(Modifier::LeftControl, false, R_ALT | F_ALT), now).actions, []);
-        // The chord completes again once exactly the co-modifier is held.
         assert_eq!(
             m.feed(flags_change_with(Modifier::LeftControl, true, R_ALT | F_ALT), now).actions,
             [Action::ShortcutDown]

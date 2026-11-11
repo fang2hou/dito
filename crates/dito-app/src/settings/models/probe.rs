@@ -80,13 +80,11 @@ impl ModelsPage {
         cx.notify();
     }
 
-    /// The page's scope, for the screenshot harness.
     pub(in crate::settings) fn motion_scope(&self) -> ui::ScopeHandle {
         self.motion.handle()
     }
 
-    /// One step of the polish form probes: typing into a field the way the user does, or pressing one of its
-    /// controls. `arg` names the field, the configuration or the model; `text` is what is typed.
+    /// `arg` names the field, the configuration or the model; `text` is what is typed.
     pub(in crate::settings) fn probe(
         &mut self,
         case: &str,
@@ -107,9 +105,7 @@ impl ModelsPage {
             // A window that is never shown moves no focus, so focus leaving the name is delivered as the input's own
             // event, which is what the page listens to.
             "blur-name" => self.cloud_polish.form[CloudPolishField::Name].update(cx, |_, cx| cx.emit(InputEvent::Blur)),
-            // The Local and Cloud switch of the tab, as a click on one of its segments does it.
             "source" => self.set_source(self.tab, if arg == "local" { 0 } else { 1 }, cx),
-            // The Use button of the local model `arg` on the tab.
             "use-model" => self.use_model(self.tab, arg),
             // The form shows a configuration that was just deleted until the page is drawn again, and a key typed
             // into that gap has nowhere to go.
@@ -121,7 +117,6 @@ impl ModelsPage {
                 self.cloud_polish_edited(CloudPolishField::Key, cx);
             }
             "local-states" => {
-                // The first polish model is in use and downloaded, the second is downloaded, the rest are not.
                 let specs: Vec<_> = self
                     .st
                     .models
@@ -153,7 +148,6 @@ impl ModelsPage {
         }
     }
 
-    /// What the harness reads of the polish forms after a step.
     pub(in crate::settings) fn probe_state(&self, window: &Window, cx: &App) -> ModelsProbe {
         let cloud = &self.cloud_polish.form;
         let local = &self.local_polish;
@@ -193,30 +187,21 @@ impl ModelsPage {
     }
 }
 
-/// What the harness reads of the polish forms.
 pub struct ModelsProbe {
     pub save_failed: bool,
-    /// Whether the menu of the plus button next to the cloud polish tiles is open.
     pub menu_open: bool,
-    /// Whether the name field of the cloud polish form has the focus, and which part of its text is selected.
     pub name_focused: bool,
     pub name_selection: std::ops::Range<usize>,
-    /// The tile row's scroll offset, the furthest it goes, and the slot a dragged tile is over.
     pub tiles: (f32, f32, Option<usize>),
     /// `idle`, `running`, `ok` or `failed`: the connection test of the cloud polish form.
     pub test: &'static str,
-    /// The name the open delete dialog asks about.
     pub deleting: Option<String>,
-    /// Id of the cloud polish configuration the form shows, and the text of each of its fields.
     pub shown: Option<String>,
     pub texts: Vec<(&'static str, String)>,
-    /// The cloud fields whose text does not parse.
     pub invalid: Vec<&'static str>,
-    /// Id of the local polish model the parameters show, their texts and the ones that do not parse.
     pub local_shown: Option<String>,
     pub local_texts: Vec<(&'static str, String)>,
     pub local_invalid: Vec<&'static str>,
-    /// Ids of the local polish models.
     pub local_models: Vec<String>,
 }
 

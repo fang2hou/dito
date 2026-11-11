@@ -7,12 +7,12 @@ use super::motion::Motion;
 use super::scope::{self, ScopeHandle};
 use super::tween;
 
-/// Duration of a sliding plate: long enough for the spring to settle.
+/// Long enough for the spring to settle.
 pub const GLASS_MS: u64 = 460;
 const GLASS_STRETCH_DELAY: f32 = 0.14;
 
-/// Both edges (start, end) of a plate going from `from` to `to`. The edge it travels toward leads on the spring and
-/// the other follows a beat later, so the plate stretches in flight and snaps back as it arrives.
+/// The edge the plate travels toward leads on the spring and the other follows a beat later, so the plate stretches
+/// in flight and snaps back as it arrives.
 fn glass_edges(from: (f32, f32), to: (f32, f32), t: f32, motion: Motion) -> (f32, f32) {
     let forward = (to.0 + to.1) >= (from.0 + from.1);
     let lead = tween::spring(t, motion);
@@ -60,9 +60,8 @@ impl PlateMotion {
     }
 }
 
-/// The motion of a plate sliding to the edges `target` (start, end): spring, stretching along the way (see
-/// [`glass_edges`]), lit up while it moves. A new target mid-flight continues from where the plate currently is.
-/// The plate and the labels that follow it animate from one [`PlateState`], so they share one clock.
+/// A new target mid-flight continues from where the plate currently is. The plate and the labels that follow it
+/// animate from one [`PlateState`], so they share one clock.
 pub struct PlateState {
     id: ElementId,
     from: (f32, f32),
@@ -91,8 +90,7 @@ pub fn plate_state(id: ElementId, target: (f32, f32)) -> PlateState {
 }
 
 impl PlateState {
-    /// Draw a layer for the plate's current edges: `build(start, end, energy)`, where `energy` is 0 at rest and
-    /// peaks mid-flight. Layers of one plate, named by `layer`, run on the same clock; each build restores the
+    /// `energy` is 0 at rest and peaks mid-flight. Layers of one plate run on the same clock; each build restores the
     /// plate's scope.
     pub fn animate<E: IntoElement + 'static>(
         &self,
@@ -125,7 +123,6 @@ impl PlateState {
     }
 }
 
-/// How much of `[lo, hi]` the plate `[a, b]` covers, 0..1: labels light up as the plate arrives under them.
 pub fn coverage(a: f32, b: f32, lo: f32, hi: f32) -> f32 {
     ((b.min(hi) - a.max(lo)) / (hi - lo)).clamp(0., 1.)
 }

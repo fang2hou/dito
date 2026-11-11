@@ -12,11 +12,9 @@ use crate::theme::Palette;
 use crate::ui;
 
 thread_local! {
-    /// How many times the demo window's view rendered (one per animation frame while the loop runs).
     static RENDERS: Cell<usize> = const { Cell::new(0) };
 }
 
-/// A bare window with the wizard's usage demo on a card-coloured ground.
 struct DemoShot {
     p: Palette,
     lang: Lang,
@@ -59,8 +57,7 @@ fn open_demo_window(cx: &mut AsyncApp, view: DemoShot) -> Option<WindowHandle<De
     })
 }
 
-/// The usage demo on its own clock, not frozen: renders for a few seconds, switching the mode in between, and prints
-/// what each frame shows (`demo-live-<n>.png` for some). Opt-in: `DITO_SHOTS_ONLY=demolive`.
+/// Opt-in: `DITO_SHOTS_ONLY=demolive`.
 pub async fn demo_live_shots(dir: &Path, cx: &mut AsyncApp) {
     let Some(handle) = open_demo_window(cx, DemoShot::new(Palette::light(), Lang::Ja, RecordMode::Toggle)) else {
         return;
@@ -142,9 +139,7 @@ fn demo_jobs() -> Vec<DemoJob> {
     jobs
 }
 
-/// The wizard's usage demo held at several moments of its loop, both modes, light and dark
-/// (`demo-<mode>-<theme>-t<ms>.png`), the Reduce Motion still (`…-still.png`, the design's static frame), and the
-/// still and the recognizing capsule in English and Chinese (`demo-<mode>-<theme>-<lang>-…`).
+/// The `-still` shots are the Reduce Motion frame, the design's static one.
 pub async fn demo_shots(dir: &Path, cx: &mut AsyncApp) {
     let mut open: Option<((RecordMode, bool, Lang), WindowHandle<DemoShot>)> = None;
     for job in demo_jobs() {

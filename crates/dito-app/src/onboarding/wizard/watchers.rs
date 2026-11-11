@@ -24,7 +24,6 @@ impl Onboarding {
         ui::notify_on_change(st.models.subscribe(), cx);
     }
 
-    /// Track the three "try it" milestones from the HUD.
     pub(super) fn watch_try_progress(st: &AppState, cx: &mut Context<Self>) {
         ui::observe(st.dictation.hud(), cx, Self::record_try_progress);
     }
@@ -33,11 +32,11 @@ impl Onboarding {
         if self.step != Step::Try {
             return;
         }
-        // Hold: releasing the key (recognition starts) completes both "speak" and "release".
+        // Hold: releasing the key (transcription starts) completes both "speak" and "release".
         let hold = self.mode == RecordMode::Hold;
         match state {
             HudState::Listening { .. } => self.seen[0] = true,
-            HudState::Recognizing => {
+            HudState::Transcribing => {
                 self.seen[1] = true;
                 self.seen[2] |= hold;
             }

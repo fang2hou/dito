@@ -9,9 +9,7 @@ pub enum EngineStatus {
     Remote,
     Running,
     Loading,
-    /// The loaded runtime is being released.
     Stopping,
-    /// Model is installed but not loaded.
     Stopped,
     NotInstalled,
     Failed(String),
@@ -50,7 +48,6 @@ impl Health {
         !self.asr.is_problem() && !self.polish.is_problem()
     }
 
-    /// Model id shown in the tooltip, e.g. `qwen3.5-4b-instruct`.
     pub fn failing_model<'a>(&self, cfg: &'a Config) -> Option<&'a str> {
         if self.asr.is_problem() {
             Some(&cfg.asr.local_model)

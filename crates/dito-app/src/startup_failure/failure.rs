@@ -7,25 +7,22 @@ use dito_core::store::StoreError;
 use crate::opts::Opts;
 use crate::state::database_path;
 
-/// A startup failure that has a window of its own. Every other failure ends the process with its error, as before.
+/// A startup failure that has a window of its own. Every other failure ends the process with its error.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Failure {
-    /// `config.toml` could not be read: it does not parse, or it exists but cannot be opened or decoded. The person
-    /// can fix the file, or start over from the default settings, which keeps the file as a backup and leaves it
-    /// alone when even that copy cannot be made.
+    /// Starting over from the default settings keeps the file as a backup, and leaves it alone when even that copy
+    /// cannot be made.
     UnreadableSettings {
         path: PathBuf,
-        /// Line and column in the file (both from 1), when the parser knows where it stopped.
+        /// Line and column, both from 1.
         position: Option<(usize, usize)>,
-        /// What went wrong, in the words of the parser, the decoder or the operating system.
         message: String,
     },
-    /// `config.toml` or `dito.db` was saved by a newer Dito. Only an update helps, so nothing offers to change it.
+    /// Only an update helps, so nothing offers to change the data.
     NewerData { path: PathBuf, found: u32, supported: u32 },
 }
 
 impl Failure {
-    /// The window for `error`, which [`AppState::build`](crate::state::AppState::build) returned for a run with `opts`.
     pub fn from_error(error: &anyhow::Error, opts: &Opts) -> Option<Self> {
         if let Some(error) = error.downcast_ref::<ConfigError>() {
             return match error {
@@ -62,7 +59,6 @@ impl Failure {
         }
     }
 
-    /// Whether starting over from the default settings is on offer.
     pub fn can_restore(&self) -> bool {
         matches!(self, Self::UnreadableSettings { .. })
     }
@@ -81,12 +77,10 @@ impl Failure {
         })
     }
 
-    /// The line under the details that says what restoring does to the data.
     pub fn hint(&self, lang: Lang) -> Option<&'static str> {
         self.can_restore().then(|| lang.tr(Tr::StartupUnreadableHint))
     }
 
-    /// Why the file cannot be used.
     pub fn reason(&self, lang: Lang) -> String {
         match self {
             Self::UnreadableSettings { position: Some((line, column)), message, .. } => {
@@ -105,7 +99,6 @@ fn absolute(path: &Path) -> PathBuf {
     std::path::absolute(path).unwrap_or_else(|_| path.to_owned())
 }
 
-/// `path` for the window, with the home folder written as `~`.
 pub fn display_path(path: &Path) -> String {
     tilde(path, std::env::var_os("HOME").map(PathBuf::from).as_deref())
 }

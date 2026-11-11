@@ -26,7 +26,6 @@ pub fn reset_hover_in(scope: ScopeHandle, id: &ElementId) {
     reg.tweens.remove(&ElementId::from((id.clone(), "hover-fill")));
 }
 
-/// Put on an interactive element to make [`is_hovered`] work for `id`.
 pub fn hover_tracker(id: ElementId) -> impl Fn(&bool, &mut Window, &mut App) + 'static {
     // Captured at build time: hover events fire outside the render that scoped the element.
     let (scope, key) = (scope::motion_scope(), id);
@@ -49,7 +48,7 @@ pub fn is_hovered_in(scope: &ScopeHandle, id: &ElementId) -> bool {
     scope.registry().is_some_and(|r| r.borrow().hovered.get(id).copied().unwrap_or(false))
 }
 
-/// Pretend the pointer is over `id` (screenshots), in the scope the id actually renders under.
+/// `scope` must be the one `id` renders under.
 #[cfg(feature = "screenshots")]
 pub fn force_hover(scope: &ScopeHandle, id: ElementId, over: bool) {
     if let Some(reg) = scope.registry() {
@@ -87,9 +86,8 @@ pub fn hover_pop<E: IntoElement + 'static>(id: ElementId, on: bool, build: impl 
     )
 }
 
-/// [`hover_pop`] that also grows the content out of its bottom edge, from `from` to full size. GPUI has no
-/// transform for a plain element, so `build(k)` redraws the content at scale `k` on every frame of the pop and
-/// at `k = 1` once settled. The rise is a relative offset, so the layout never moves.
+/// GPUI has no transform for a plain element, so `build(k)` redraws the content at scale `k` on every frame of the
+/// pop and at `k = 1` once settled. The rise is a relative offset, so the layout never moves.
 pub fn hover_pop_scaled<E: IntoElement + 'static>(
     id: ElementId,
     on: bool,
@@ -115,13 +113,12 @@ pub fn hover_pop_scaled<E: IntoElement + 'static>(
     }))
 }
 
-/// A rounded fill laid over an element whose opacity follows hover: `color` fades in when `id` is hovered.
 pub fn hover_fill(id: &ElementId, radius: Option<f32>, color: Hsla) -> AnyElement {
     hover_fill_if(id, radius, color, true)
 }
 
-/// Like [`hover_fill`], but only while `enabled`; turning it off (e.g. the item became the selected one) fades the
-/// fill out instead of dropping it, so nothing blinks.
+/// Turning `enabled` off (e.g. the item became the selected one) fades the fill out instead of dropping it, so
+/// nothing blinks.
 pub fn hover_fill_if(id: &ElementId, radius: Option<f32>, color: Hsla, enabled: bool) -> AnyElement {
     let target = if enabled && is_hovered(id) { 1. } else { 0. };
     tweened(ElementId::from((id.clone(), "hover-fill")), target, HOVER_MS, move |v| {
@@ -133,7 +130,6 @@ pub fn hover_fill_if(id: &ElementId, radius: Option<f32>, color: Hsla, enabled: 
     })
 }
 
-/// Label of a choice card: medium weight always, brightness eased between idle, hovered and chosen.
 pub fn choice_label(id: &ElementId, p: &Palette, label: SharedString, size: f32, on: bool) -> AnyElement {
     let level = if on {
         1.

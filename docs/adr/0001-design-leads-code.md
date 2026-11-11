@@ -11,7 +11,7 @@ UI and motion drift when code is allowed to redefine them: whoever edits last de
 
 `design/dito.figcraft` is the source of truth for UI and motion; code implements approved design sections.
 
-- Every UI change starts in the design. Shared components and motion are edited on pages `11` and `12`; anything that belongs to one screen is edited in that screen's section.
+- Every UI change starts in the design. Shared components and motion are edited in `design:components` and `design:motion`; anything that belongs to one screen is edited in that screen's section.
 - Code changes start only after the owner has reviewed the section.
 - Screen copy in the design equals the `ja` values in `messages.toml`.
 

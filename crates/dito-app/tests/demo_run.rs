@@ -16,7 +16,7 @@ fn mock_dictation_runs_end_to_end_through_the_http_providers() {
         .expect("run dito");
     let stdout = String::from_utf8_lossy(&out.stdout);
     assert!(out.status.success(), "exit {:?}\n{stdout}\n{}", out.status, String::from_utf8_lossy(&out.stderr));
-    assert!(stdout.contains("HUD states: Listening { mode: Toggle } -> Recognizing"), "{stdout}");
+    assert!(stdout.contains("HUD states: Listening { mode: Toggle } -> Transcribing"), "{stdout}");
     assert!(stdout.contains("-> Polishing -> Inserted"), "{stdout}");
     // The mock server's transcript, polished by its rule-based chat endpoint.
     assert!(stdout.contains("polished=Some(\"明日の3時に会議があります。\")"), "{stdout}");

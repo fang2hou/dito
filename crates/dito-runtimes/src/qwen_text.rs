@@ -1,6 +1,6 @@
 use dito_local::AsrOutput;
 
-/// The model answers as `language Chinese<asr_text>今天……`; map the label to an ISO code.
+/// The model answers as `language <Name><asr_text><transcript>`; map the label to an ISO code.
 pub(crate) fn parse_output(raw: &str) -> AsrOutput {
     match raw.split_once("<asr_text>") {
         Some((head, text)) => AsrOutput {
@@ -51,10 +51,10 @@ pub(crate) fn asr_prompt(language: Option<&str>, hotwords: &[String]) -> (String
     (prompt, forced.map(|(_, code)| code))
 }
 
-/// A bare list of multiple vocabulary entries is a known context-echo failure on silence
+/// A bare list of multiple hotwords is a known context-echo failure on silence
 /// or noise. Confirm this narrow case without context instead of deleting words from a
 /// potentially legitimate transcript. Ordinary sentences and a single dictated name pass through.
-pub(crate) fn is_vocabulary_echo(text: &str, hotwords: &[String]) -> bool {
+pub(crate) fn is_hotword_echo(text: &str, hotwords: &[String]) -> bool {
     let normalize =
         |s: &str| s.chars().filter(|c| c.is_alphanumeric()).flat_map(char::to_lowercase).collect::<String>();
     let terms: std::collections::HashSet<_> =
@@ -73,7 +73,6 @@ pub(crate) fn is_vocabulary_echo(text: &str, hotwords: &[String]) -> bool {
     matched.len() >= 2
 }
 
-/// Drop a leading `<think>…</think>` block if the model produced one.
 pub(crate) fn strip_think(s: &str) -> String {
     match s.find("</think>") {
         Some(end) => s[end + "</think>".len()..].trim().to_string(),
@@ -112,16 +111,16 @@ mod tests {
     }
 
     #[test]
-    fn vocabulary_confirmation_is_limited_to_lists_of_multiple_terms() {
+    fn hotword_echo_is_limited_to_lists_of_multiple_terms() {
         let terms = vec!["Dito".into(), "Qwen".into(), "Qwen".into(), "QA".into()];
-        assert!(is_vocabulary_echo("Dito, Qwen。", &terms));
-        assert!(is_vocabulary_echo("QWEN / dito / QA", &terms));
-        assert!(!is_vocabulary_echo("Dito", &terms));
-        assert!(!is_vocabulary_echo("I use Dito with Qwen.", &terms));
-        assert!(!is_vocabulary_echo("Dito Dito", &terms));
-        assert!(!is_vocabulary_echo("", &terms));
-        assert!(!is_vocabulary_echo("Database", &["Data".into(), "Base".into()]));
-        assert!(!is_vocabulary_echo("Dito and Qwen", &terms));
+        assert!(is_hotword_echo("Dito, Qwen。", &terms));
+        assert!(is_hotword_echo("QWEN / dito / QA", &terms));
+        assert!(!is_hotword_echo("Dito", &terms));
+        assert!(!is_hotword_echo("I use Dito with Qwen.", &terms));
+        assert!(!is_hotword_echo("Dito Dito", &terms));
+        assert!(!is_hotword_echo("", &terms));
+        assert!(!is_hotword_echo("Database", &["Data".into(), "Base".into()]));
+        assert!(!is_hotword_echo("Dito and Qwen", &terms));
     }
 
     #[test]

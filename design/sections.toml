@@ -1,0 +1,140 @@
+[foundations]
+board = "10"
+layer = "Color"
+page = true
+
+[components]
+board = "11"
+layer = "Type, Space & Components"
+page = true
+
+[motion]
+board = "12"
+layer = "Motion"
+page = true
+
+[settings]
+board = "20"
+layer = "Settings"
+page = true
+
+[hud]
+board = "21"
+layer = "HUD & Menu Bar"
+page = true
+
+[onboarding]
+board = "22"
+layer = "Onboarding"
+page = true
+
+[foundations.color]
+board = "10"
+layer = "Color"
+
+[components.control-icon-contracts]
+board = "11.05"
+item = "11.05.6"
+layer = "Control icon contracts"
+
+[settings.prompts]
+board = "20.03"
+layer = "Prompts"
+
+[settings.local-models.parameters]
+board = "20.04"
+item = "20.04.2"
+layer = ""
+
+[settings.cloud-models]
+board = "20.05"
+layer = "Cloud Models"
+
+[settings.cloud-models.speech-form]
+board = "20.05"
+item = "20.05.1"
+layer = ""
+
+[settings.cloud-models.compact-window]
+board = "20.05"
+item = "20.05.5"
+layer = ""
+
+[settings.cloud-models.configurations]
+board = "20.05"
+item = "20.05.7"
+layer = "Configurations"
+
+[settings.cloud-models.failed-test]
+board = "20.05"
+item = "20.05.10"
+layer = "Failed test and effort suggestions"
+
+[settings.cloud-models.add-from-template]
+board = "20.05"
+item = "20.05.11"
+layer = "Add from template"
+
+[settings.cloud-models.delete-configuration]
+board = "20.05"
+item = "20.05.12"
+layer = "Delete configuration"
+
+[settings.cloud-models.tile-row]
+board = "20.05"
+item = "20.05.13"
+layer = "Scrolling and reordering"
+
+[hud.listening-ocean]
+board = "21.02"
+item = "21.02.3"
+layer = "Listening Ocean"
+
+[hud.buttons]
+board = "21.09"
+layer = "HUD Buttons"
+
+[onboarding.usage-demo]
+board = "22.09"
+layer = "Usage Demo"
+
+[components.controls]
+board = "11.03"
+layer = "Controls"
+
+[settings.general]
+board = "20.01"
+layer = "General"
+
+[settings.wordbook.failure-banner]
+board = "20.02"
+item = "20.02.4"
+layer = "Operation failure"
+
+[settings.local-models]
+board = "20.04"
+layer = "Local Models"
+
+[settings.status]
+board = "20.08"
+layer = "Status"
+
+[settings.startup-failure]
+board = "20.10"
+layer = "Startup Failure"
+
+[motion.tokens]
+board = "12.01"
+layer = "Motion Tokens"
+
+[components.icons]
+board = "11.02"
+layer = "Icons"
+
+[hud.motion-tokens]
+board = "21.05"
+layer = "HUD Motion Tokens"
+
+[hud.processing]
+board = "21.06"
+layer = "HUD Processing"

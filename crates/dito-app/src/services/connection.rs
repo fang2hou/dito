@@ -1,5 +1,4 @@
-//! Operations that talk to the currently configured engines: the connection test and the
-//! prompt page's "try it" panel.
+//! Operations that talk to the configured engines.
 
 use std::sync::Arc;
 
@@ -10,7 +9,6 @@ use dito_core::secrets::Role;
 
 use crate::state::AppState;
 
-/// Run the one-button connection test for `role` against the currently configured engine.
 pub async fn test_connection(st: Arc<AppState>, role: Role) -> TestOutcome {
     let cfg = st.cfg.get();
     let engine = match role {
@@ -35,7 +33,7 @@ pub async fn test_connection(st: Arc<AppState>, role: Role) -> TestOutcome {
     job.await.unwrap_or_else(|e| TestOutcome::Failed { kind: ErrorKind::Other, message: e.to_string() })
 }
 
-/// Test the validated ASR draft with its transient key, without changing saved settings.
+/// Uses the draft and its transient key; saved settings stay untouched.
 pub async fn test_asr_draft(
     st: Arc<AppState>,
     config: serde_json::Value,
@@ -53,7 +51,7 @@ pub async fn test_asr_draft(
         .unwrap_or_else(|error| TestOutcome::Failed { kind: ErrorKind::Other, message: error.to_string() })
 }
 
-/// Polish `text` with the given prompt set (the prompt page's "try it" panel).
+/// Uses the given prompts rather than the saved ones.
 pub async fn try_polish(
     st: Arc<AppState>,
     prompts: dito_core::prompts::Prompts,

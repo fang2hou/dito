@@ -1,6 +1,5 @@
 use super::Lang;
 
-/// A messy spoken sentence in `lang`, for trying out polishing.
 pub fn sample_utterance(lang: Lang) -> &'static str {
     match lang {
         Lang::Ja => "えーと 明日の3時に会議、いや4時に会議があるので、資料を、あの、事前に共有しておいてください",

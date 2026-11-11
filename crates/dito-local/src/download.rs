@@ -32,15 +32,14 @@ impl From<std::io::Error> for DlError {
     }
 }
 
-/// Bytes of *this file* written so far, and the instantaneous speed.
+/// `done` counts this file only.
 #[derive(Debug, Clone, Copy)]
 pub struct FileProgress {
     pub done: u64,
     pub bytes_per_sec: f64,
 }
 
-/// Phase of a single-file fetch, reported through the progress callback so the UI can
-/// tell "still transferring" from "verifying the checksum" (seconds for multi-GB files).
+/// Verifying takes seconds for multi-GB files, so the UI shows it apart from transferring.
 #[derive(Debug, Clone, Copy)]
 pub enum Phase {
     Fetching(FileProgress),
@@ -67,7 +66,6 @@ pub async fn sha256_file(path: &Path) -> std::io::Result<String> {
     .map_err(std::io::Error::other)?
 }
 
-/// What to fetch and where it goes.
 pub struct Target<'a> {
     pub url: &'a str,
     pub part: &'a Path,
@@ -78,11 +76,8 @@ pub struct Target<'a> {
 
 const PROGRESS_INTERVAL: Duration = Duration::from_millis(100);
 
-/// Download `t.url` into `t.part` (resuming if it already has bytes), verify, and rename to `t.dest`.
-///
-/// The checksum pass runs for several seconds on multi-GB model files; it is cancel-aware
-/// (`Cancelled` keeps the completed `.part` so a later attempt skips straight to verifying)
-/// and is announced through the callback as [`Phase::Verifying`].
+/// The checksum pass is cancel-aware: `Cancelled` keeps the completed `.part` so a later attempt skips straight to
+/// verifying.
 pub async fn fetch(
     client: &reqwest::Client,
     t: &Target<'_>,
@@ -110,7 +105,7 @@ async fn resumable_len(t: &Target<'_>) -> Result<u64, DlError> {
     Ok(have)
 }
 
-/// Sends the request and opens `.part`, returning the response, the file and the offset the body starts at.
+/// The returned offset is where the response body starts in the file.
 async fn begin_transfer(
     client: &reqwest::Client,
     t: &Target<'_>,

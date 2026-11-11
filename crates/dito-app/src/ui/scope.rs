@@ -10,7 +10,7 @@ use super::plate::PlateMotion;
 
 static NEXT_SCOPE_ID: AtomicU64 = AtomicU64::new(1);
 
-/// Identity of one registry generation, fresh for every [`MotionScope::new`] and [`MotionScope::reset`].
+/// Fresh for every [`MotionScope::new`] and [`MotionScope::reset`].
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct MotionScopeId(u64);
 
@@ -20,17 +20,15 @@ impl MotionScopeId {
     }
 }
 
-/// The transient per-owner UI state: tweens, hover, sliding plates, flips, tooltip labels, select widths and the
-/// open-menu press marks. It lives and dies with its owner; ids are unique only inside one registry.
+/// Lives and dies with its owner; ids are unique only inside one registry.
 pub(super) struct Registry {
     /// Per animated value: (from, to, start, key).
     pub(super) tweens: HashMap<ElementId, (f32, f32, Instant, usize)>,
     pub(super) hovered: HashMap<ElementId, bool>,
-    /// Per sliding plate.
     pub(super) plates: HashMap<ElementId, PlateMotion>,
     /// Last value and number of flips seen per element id; a flip starts a new animation keyed by the count.
     pub(super) flips: HashMap<ElementId, (bool, usize, Instant)>,
-    /// Label per element id, captured at build time for the tooltip.
+    /// Captured at build time for the tooltip.
     pub(super) tips: HashMap<ElementId, SharedString>,
     pub(super) tip_epoch: u64,
     /// Width of the last painted fill-width select button, read by its menu panel. The panel is built before the
@@ -58,9 +56,6 @@ impl Registry {
     }
 }
 
-/// The owner of one bubble of transient motion state: a window's shell, a settings page, a wizard step. Everything
-/// its controls remember between frames lives in its [`Registry`].
-///
 /// [`reset`](Self::reset) swaps in a fresh registry, so every handle handed out before dies: a control drawn again
 /// later never replays a remembered value, and a late callback from the old generation can neither read nor
 /// reinsert state.
@@ -73,21 +68,19 @@ impl MotionScope {
         Self { registry: Rc::new(RefCell::new(Registry::fresh())) }
     }
 
-    /// Forget everything remembered under this scope: the elements that follow start un-hovered and
-    /// at their targets, and GPUI then reports the real pointer state on the first frame, so a
-    /// pointer already over a control lights it up again. Old handles expire.
+    /// Elements that follow start un-hovered and at their targets; GPUI then reports the real pointer state on the
+    /// first frame, so a pointer already over a control lights it up again.
     pub fn reset(&mut self) {
         self.registry = Rc::new(RefCell::new(Registry::fresh()));
     }
 
-    /// A weak handle to this scope's current registry generation, for `with_motion_scope` and for
-    /// closures that run after the build (hover events, paint, animation frames). It never keeps the
-    /// registry alive.
+    /// For closures that run after the build (hover events, paint, animation frames). It never keeps the registry
+    /// alive.
     pub fn handle(&self) -> ScopeHandle {
         ScopeHandle { registry: Rc::downgrade(&self.registry) }
     }
 
-    /// Identity of the current registry generation (tests; production reads it via `Debug`).
+    /// Tests only; production reads it via `Debug`.
     #[cfg(test)]
     pub fn id(&self) -> MotionScopeId {
         self.registry.borrow().id
@@ -108,8 +101,7 @@ impl std::fmt::Debug for MotionScope {
     }
 }
 
-/// A weak reference to one [`MotionScope`] generation. Cheap to clone and safe to capture in
-/// closures that outlive the build; once the owner resets or drops the scope, the handle is
+/// Safe to capture in closures that outlive the build; once the owner resets or drops the scope, the handle is
 /// [`expired`](Self::expired) and every access through it yields the static default.
 #[derive(Clone)]
 pub struct ScopeHandle {
@@ -121,7 +113,6 @@ impl ScopeHandle {
         Self { registry: Weak::new() }
     }
 
-    /// Whether the generation this handle was built under is gone (owner reset or dropped).
     pub fn expired(&self) -> bool {
         self.registry.strong_count() == 0
     }
@@ -145,14 +136,12 @@ thread_local! {
     static AMBIENT: RefCell<ScopeHandle> = RefCell::new(ScopeHandle::detached());
 }
 
-/// The ambient scope of the current build. Detached (never live) outside a
-/// [`with_motion_scope`] region: reads then take their static defaults.
+/// Detached (never live) outside a [`with_motion_scope`] region: reads then take their static defaults.
 pub fn motion_scope() -> ScopeHandle {
     AMBIENT.with(|s| s.borrow().clone())
 }
 
-/// Run `f` with every motion registry access inside it keyed under `scope`'s owner. Restores the
-/// previous ambient scope when `f` returns or unwinds, so nesting and early exits keep the parent's
+/// Restores the previous ambient scope when `f` returns or unwinds, so nesting and early exits keep the parent's
 /// scope.
 pub fn with_motion_scope<R>(scope: ScopeHandle, f: impl FnOnce() -> R) -> R {
     struct Restore {
@@ -230,10 +219,8 @@ mod tests {
         let late = scope.handle();
         scope.reset();
         let fresh = scope.handle();
-        // A late tween retarget settles at once and writes nothing anywhere.
         let id = ElementId::from("late");
         assert_eq!(tween_to_at(&late, &id, 7., Duration::from_millis(100)), (7., 7., false, 0));
-        // A late hover read is false; the ambient variant through the expired handle too.
         with_motion_scope(late.clone(), || {
             assert!(!is_hovered(&id));
             assert_eq!(count_flips(&id, true, Duration::from_millis(100)), 0, "no flip to replay");

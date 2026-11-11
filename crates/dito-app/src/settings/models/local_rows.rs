@@ -12,10 +12,9 @@ use crate::settings::{Ctx, role};
 use crate::theme::Palette;
 use crate::ui::{self, BtnKind, cbk, text};
 
-/// Fixed two-line cards matching 20.04 Local Models.
+/// Fixed two-line cards matching `design:settings/local-models`.
 const ROW_SLOT_H: f32 = 88.;
 
-/// The name and status column and the controls column of one model row, built up by the row's state.
 pub(super) struct RowParts {
     pub(super) body: Div,
     pub(super) ctl: Div,
@@ -41,7 +40,6 @@ impl RowParts {
     }
 }
 
-/// Bytes moved so far and in total, for the states that show a transfer.
 #[derive(Clone, Copy)]
 struct Transfer {
     done: u64,
@@ -353,7 +351,7 @@ pub(super) fn status_line(label: impl Into<SharedString>, color: Hsla) -> Div {
     div().h(px(24.)).flex().items_center().child(text(label, 13., FontWeight::NORMAL, color).truncate())
 }
 
-/// Clip a full-radius card to the advancing edge, preserving its arc even below 12 px.
+/// The arc is preserved even below 12 px.
 fn progress_fill(fraction: f32, tint: Hsla) -> impl IntoElement {
     canvas(
         |_, _, _| (),

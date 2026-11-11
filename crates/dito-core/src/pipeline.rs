@@ -1,5 +1,4 @@
-//! Recognize → polish for one recorded clip. No recording, no delivery: those belong to the controller.
-//! The polish step is also available alone ([`polish_text`]) for text that is already recognized.
+//! Transcribe, then polish, for one recorded clip; recording and delivery belong to the controller.
 
 use std::time::Instant;
 
@@ -14,8 +13,8 @@ use crate::prompts::{PromptInput, Prompts, Style, build_system_prompt, build_sys
 use crate::provider::{AsrRequest, PolishRequest, Polisher};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Phase {
-    Recognizing,
+pub enum PipelinePhase {
+    Transcribing,
     Polishing { input_chars: usize, started: Instant },
 }
 
@@ -42,7 +41,7 @@ pub enum PipelineError {
     Failed(ProviderError),
 }
 
-pub struct Job<'a> {
+pub struct PipelineJob<'a> {
     pub clip: &'a AudioClip,
     pub style: Style,
     pub wordbook: &'a [String],
@@ -56,17 +55,17 @@ async fn or_cancel<T>(cancel: &CancellationToken, fut: impl Future<Output = T>) 
     }
 }
 
-/// Recognize and (if enabled) polish. A polish failure never loses the recognized text.
+/// A polish failure never loses the transcript.
 pub async fn run(
     engines: &dyn Engines,
     cfg: &Config,
-    job: &Job<'_>,
-    on_phase: &(dyn Fn(Phase) + Send + Sync),
+    job: &PipelineJob<'_>,
+    on_phase: &(dyn Fn(PipelinePhase) + Send + Sync),
     cancel: &CancellationToken,
 ) -> Result<Output, PipelineError> {
     reject_silent(job.clip)?;
-    on_phase(Phase::Recognizing);
-    let mut out = recognize(engines, cfg, job, cancel).await?;
+    on_phase(PipelinePhase::Transcribing);
+    let mut out = transcribe(engines, cfg, job, cancel).await?;
     polish(engines, cfg, job, on_phase, cancel, &mut out).await?;
     Ok(out)
 }
@@ -79,10 +78,10 @@ fn reject_silent(clip: &AudioClip) -> Result<(), PipelineError> {
     Err(PipelineError::Failed(ProviderError::new(ErrorKind::NoSpeech, "silent or too short")))
 }
 
-async fn recognize(
+async fn transcribe(
     engines: &dyn Engines,
     cfg: &Config,
-    job: &Job<'_>,
+    job: &PipelineJob<'_>,
     cancel: &CancellationToken,
 ) -> Result<Output, PipelineError> {
     let started = Instant::now();
@@ -99,18 +98,18 @@ async fn recognize(
     .map_err(PipelineError::Failed)?;
     let asr_ms = started.elapsed().as_millis() as u64;
     if transcript.text.trim().is_empty() {
-        return Err(PipelineError::Failed(ProviderError::new(ErrorKind::NoSpeech, "nothing was recognized")));
+        return Err(PipelineError::Failed(ProviderError::new(ErrorKind::NoSpeech, "nothing was transcribed")));
     }
     let lang = transcript.language.as_deref().and_then(lang_from_code).unwrap_or_else(|| detect_lang(&transcript.text));
     Ok(Output { raw: transcript.text, polished: None, polish_error: None, lang, asr_ms, polish_ms: 0 })
 }
 
-/// Fills `out.polished` or `out.polish_error`; leaves `out` untouched when polishing is off.
+/// Leaves `out` untouched when polishing is off.
 async fn polish(
     engines: &dyn Engines,
     cfg: &Config,
-    job: &Job<'_>,
-    on_phase: &(dyn Fn(Phase) + Send + Sync),
+    job: &PipelineJob<'_>,
+    on_phase: &(dyn Fn(PipelinePhase) + Send + Sync),
     cancel: &CancellationToken,
     out: &mut Output,
 ) -> Result<(), PipelineError> {
@@ -124,7 +123,7 @@ async fn polish(
     };
 
     let started = Instant::now();
-    on_phase(Phase::Polishing { input_chars: out.raw.chars().count(), started });
+    on_phase(PipelinePhase::Polishing { input_chars: out.raw.chars().count(), started });
     let polish_job = PolishJob {
         prompts: &cfg.prompts,
         style: job.style.clone(),
@@ -140,26 +139,23 @@ async fn polish(
     Ok(())
 }
 
-/// What one polish call needs: the text and everything its system prompt is built from.
 pub struct PolishJob<'a> {
     /// Passed in rather than read from the config because the Prompts page previews unsaved drafts.
     pub prompts: &'a Prompts,
     pub style: Style,
     pub text: &'a str,
-    /// Spelling references for the prompt: the saved wordbook run through [`polish_wordbook`], or none.
     pub wordbook: &'a [String],
     /// Prompt language; `None` detects it from `text`, as dictation does.
     pub lang: Option<Lang>,
 }
 
-/// The wordbook words the polish prompt may carry: all of `words` when the user turned on
-/// `wordbook_for_polish`, none otherwise. Recognition hotwords are not subject to it.
+/// ASR hotwords are not subject to `wordbook_for_polish`.
 pub fn polish_wordbook<'a>(cfg: &Config, words: &'a [String]) -> &'a [String] {
     if cfg.wordbook_for_polish { words } else { &[] }
 }
 
-/// Polish `job.text` with `polisher`. The one place that builds the system prompt and calls the model; dictation,
-/// polishing a history entry again and the Prompts page preview all use it.
+/// The one place that builds the system prompt and calls the model; dictation, polishing a history entry again and the
+/// Prompts page preview all use it.
 pub async fn polish_text(polisher: &dyn Polisher, job: PolishJob<'_>) -> ProviderResult<String> {
     let PolishJob { prompts, style, text, wordbook, lang } = job;
     let input = PromptInput { prompts, style, text, wordbook };
@@ -197,17 +193,18 @@ mod tests {
     }
 
     async fn go(e: &FixedEngines, cfg: &Config, clip: &AudioClip) -> Result<Output, PipelineError> {
-        run(e, cfg, &Job { clip, style: Style::General, wordbook: &[] }, &|_| {}, &CancellationToken::new()).await
+        run(e, cfg, &PipelineJob { clip, style: Style::General, wordbook: &[] }, &|_| {}, &CancellationToken::new())
+            .await
     }
 
     #[tokio::test]
-    async fn recognizes_then_polishes_in_order() {
+    async fn transcribes_then_polishes_in_order() {
         let e = engines(MockTranscriber::new("えーと 会議です"), MockPolisher::default());
         let phases = std::sync::Mutex::new(Vec::new());
         let out = run(
             &e,
             &Config::default(),
-            &Job { clip: &tone(), style: Style::General, wordbook: &[] },
+            &PipelineJob { clip: &tone(), style: Style::General, wordbook: &[] },
             &|p| phases.lock().unwrap().push(p),
             &CancellationToken::new(),
         )
@@ -215,7 +212,7 @@ mod tests {
         .unwrap();
         assert!(matches!(
             phases.lock().unwrap().as_slice(),
-            [Phase::Recognizing, Phase::Polishing { input_chars: 8, .. }]
+            [PipelinePhase::Transcribing, PipelinePhase::Polishing { input_chars: 8, .. }]
         ));
         assert_eq!(out.raw, "えーと 会議です");
         assert_eq!(out.text(), "会議です。");
@@ -234,7 +231,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn polish_failure_falls_back_to_the_recognized_text() {
+    async fn polish_failure_falls_back_to_the_transcript() {
         let e = engines(MockTranscriber::new("hello"), MockPolisher::default().script([Err(ErrorKind::RateLimit)]));
         let out = go(&e, &Config::default(), &tone()).await.unwrap();
         assert_eq!(out.text(), "hello");
@@ -281,8 +278,8 @@ mod tests {
         let cancel = CancellationToken::new();
         let seen = Arc::new(AtomicUsize::new(0));
         let (c2, s2) = (cancel.clone(), seen.clone());
-        let on_phase = move |p: Phase| {
-            if matches!(p, Phase::Polishing { .. }) {
+        let on_phase = move |p: PipelinePhase| {
+            if matches!(p, PipelinePhase::Polishing { .. }) {
                 s2.fetch_add(1, Ordering::SeqCst);
                 c2.cancel();
             }
@@ -290,7 +287,7 @@ mod tests {
         let r = run(
             &e,
             &Config::default(),
-            &Job { clip: &tone(), style: Style::General, wordbook: &[] },
+            &PipelineJob { clip: &tone(), style: Style::General, wordbook: &[] },
             &on_phase,
             &cancel,
         )
@@ -313,7 +310,7 @@ mod tests {
         let e = FixedEngines { asr: Arc::new(MockTranscriber::new("Acme")), polish: spy.clone() };
         let dict = vec!["Acme".to_string()];
         let clip = tone();
-        let job = Job { clip: &clip, style: Style::General, wordbook: &dict };
+        let job = PipelineJob { clip: &clip, style: Style::General, wordbook: &dict };
         let mut cfg = Config::default();
         run(&e, &cfg, &job, &|_| {}, &CancellationToken::new()).await.unwrap();
         assert!(!spy.0.lock().unwrap().contains("<reference_vocabulary>"));

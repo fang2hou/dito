@@ -7,7 +7,6 @@ use gpui_kit::*;
 
 use crate::state::AppState;
 
-/// Headless end-to-end check: key down → finish → wait for delivery → print what was stored.
 pub fn run(st: Arc<AppState>, cx: &mut App) {
     cx.spawn(async move |cx| {
         let mut hud = st.dictation.hud();

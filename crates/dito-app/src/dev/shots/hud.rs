@@ -59,14 +59,14 @@ fn hud_cases() -> Vec<HudCase> {
         HudCase::new("hover-cancel", toggle(), 1.0).hovering(PreviewHover::Dismiss),
         HudCase::new("hold", hold(), 1.0),
         HudCase::new("hold-countdown", hold(), 240.2),
-        HudCase::new("hold-release-0", HudState::Recognizing, 0.0).after_hold(),
-        HudCase::new("hold-release-mid", HudState::Recognizing, 0.07).after_hold(),
-        HudCase::new("hold-release-end", HudState::Recognizing, 0.25).after_hold(),
-        HudCase::new("recognizing", HudState::Recognizing, 1.48),
-        HudCase::new("recognizing-hover", HudState::Recognizing, 1.48).hovering(PreviewHover::Zone),
+        HudCase::new("hold-release-0", HudState::Transcribing, 0.0).after_hold(),
+        HudCase::new("hold-release-mid", HudState::Transcribing, 0.07).after_hold(),
+        HudCase::new("hold-release-end", HudState::Transcribing, 0.25).after_hold(),
+        HudCase::new("transcribing", HudState::Transcribing, 1.48),
+        HudCase::new("transcribing-hover", HudState::Transcribing, 1.48).hovering(PreviewHover::Zone),
         HudCase::new("polishing", HudState::Polishing, 1.03),
         HudCase::new("polishing-late", HudState::Polishing, 5.0),
-        HudCase::new("recognizing-early", HudState::Recognizing, 0.15),
+        HudCase::new("transcribing-early", HudState::Transcribing, 0.15),
         HudCase::new("inserted", HudState::Inserted, 0.0),
         HudCase::new("copied", HudState::Copied, 0.0),
         HudCase::new("error-auth", error(ErrorKind::Auth, ErrorAction::Retry), 0.0),
@@ -108,7 +108,6 @@ pub async fn hud_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     }
 }
 
-/// Follow the real success clock from the processing fill through icon drawing and exit.
 pub async fn hud_outcome_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     for (appearance, backdrop) in [(Appearance::Light, BACKDROP_WHITE), (Appearance::Dark, BACKDROP_DARK)] {
         let tag = theme_tag(appearance);
@@ -130,7 +129,6 @@ pub async fn hud_outcome_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp
     }
 }
 
-/// Native waveform recordings against white/dark content, driven through the live normalization filter.
 pub async fn hud_wave_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     for (appearance, backdrop) in [(Appearance::Light, BACKDROP_WHITE), (Appearance::Dark, BACKDROP_DARK)] {
         let tag = theme_tag(appearance);
@@ -165,7 +163,7 @@ pub async fn hud_wave_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     }
 }
 
-/// Capture the real, continuously ticking native renderer; no frozen timestamps or HTML animation.
+/// The real, continuously ticking native renderer: no frozen timestamps or HTML animation.
 pub async fn hud_motion_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     for (appearance, backdrop) in [(Appearance::Light, BACKDROP_LIGHT), (Appearance::Dark, BACKDROP_DARK)] {
         let tag = theme_tag(appearance);
@@ -218,7 +216,7 @@ fn has_crisp_brush(canvas: &RgbaImage, appearance: Appearance) -> bool {
     })
 }
 
-/// Width in design points of the capsule in a HUD window shot (the opaque run of the row through its middle).
+/// In design points: the opaque run of the row through the capsule's middle.
 fn capsule_width_pt(img: &RgbaImage) -> f32 {
     let y = (img.height() as f32 - (35. + WIN_PAD + 16.5) * HUD_SCALE).round() as u32;
     let opaque: Vec<u32> = (0..img.width()).filter(|&x| img.get_pixel(x, y)[3] >= 250).collect();
@@ -237,9 +235,7 @@ fn count_display_frames(window: &Window, frames: Rc<Cell<usize>>, until: Instant
     });
 }
 
-/// The live HUD window (not a frozen preview) through a hold-mode dictation against the mock pipeline: the capsule
-/// pops in narrow, stays narrow while the key is down, and widens when it is released. Prints the capsule's width
-/// in design points per frame and saves some of the frames (`hud-live-hold-<n>.png`). Opt-in: `DITO_SHOTS_ONLY=hudlive`.
+/// Drives the live HUD window, not a frozen preview. Opt-in: `DITO_SHOTS_ONLY=hudlive`.
 pub async fn hud_live_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     let before = st.cfg.get();
     services::save_config(st, |c| {
@@ -298,7 +294,6 @@ pub async fn hud_live_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     });
 }
 
-/// Exercise the real tooltip layer on the HUD, including an interrupted transfer and exit.
 pub async fn hud_tooltip_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     let original = st.cfg.get();
     for dark in [false, true] {
@@ -357,7 +352,7 @@ pub async fn hud_tooltip_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp
     });
 }
 
-/// The same pointer poll and render paths as the live non-activating panel.
+/// Uses the same pointer poll and render paths as the live non-activating panel.
 pub async fn hud_interaction_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     let original = st.cfg.get();
     for (appearance, backdrop) in [(Appearance::Light, BACKDROP_LIGHT), (Appearance::Dark, BACKDROP_DARK)] {
@@ -377,7 +372,7 @@ pub async fn hud_interaction_shots(st: &Arc<AppState>, dir: &Path, cx: &mut Asyn
         close_window(cx, window);
         let preview = st.clone();
         let window = open_hud_window(cx, move |_| {
-            HudView::preview(preview, HudState::Recognizing, 1., PreviewHover::Away, None)
+            HudView::preview(preview, HudState::Transcribing, 1., PreviewHover::Away, None)
         })
         .expect("Stop HUD");
         for (name, x, y, delay) in [

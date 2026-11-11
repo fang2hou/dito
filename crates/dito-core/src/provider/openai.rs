@@ -74,7 +74,6 @@ impl OpenAiEngine {
         }
     }
 
-    /// The model and the messages, then each parameter that is set, then `extra` over all of it.
     fn body(&self, req: &PolishRequest<'_>) -> Value {
         let mut body = json!({
             "model": self.model(),

@@ -1,4 +1,4 @@
-//! Download manager against the mock file server: progress, resume, pause, checksum, space, move.
+//! Download manager against the mock file server.
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -58,7 +58,7 @@ async fn rig(models: &[(&str, usize, bool)]) -> Rig {
     Rig { srv, mgr, cfg, dir }
 }
 
-/// Waits on state-change events; the timeout only turns a hang into a failure.
+/// The timeout only turns a hang into a failure.
 async fn until(mgr: &ModelManager, id: &str, pred: impl Fn(&ModelState) -> bool) -> ModelState {
     let mut rx = mgr.subscribe();
     tokio::time::timeout(HANG_GUARD, async {
@@ -157,8 +157,8 @@ async fn cancel_removes_partial_data() {
     assert!(!r.mgr.model_dir("a").join("m.bin.part").exists());
 }
 
-/// Pause then cancel must discard the bytes: the old exit path keyed on the `paused` flag,
-/// which `cancel` never cleared, so a cancel after a pause silently kept the file.
+/// Pause then cancel must discard the bytes: `cancel` has to clear the `paused` flag, or the exit path keeps the file
+/// as if the download were only paused.
 #[tokio::test]
 async fn cancel_after_pause_discards_the_partial_file() {
     let r = rig(&[("a", 400_000, true)]).await;

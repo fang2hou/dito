@@ -11,8 +11,9 @@
 #         mock+screenshots, and with the default features (pulls dito-runtimes: needs cmake and
 #         the Xcode Metal toolchain).
 #
-# Not run here, see docs/IMPLEMENTATION.md (Testing): dito-platform --test keychain and --test loopback (ignored; Keychain, Accessibility), dito-runtimes tests
-# and examples (real models), screenshot rendering, clippy (mise run lint:rust) and release builds.
+# Not run here, see docs/IMPLEMENTATION.md (Testing): dito-platform --test keychain and --test loopback (ignored;
+# Keychain, Accessibility), dito-runtimes tests and examples (real models), screenshot rendering, clippy
+# (mise run lint:rust) and release builds.
 #
 # Notes:
 #   - Steps run sequentially and all run even after a failure; the exit code is 1 if any failed.

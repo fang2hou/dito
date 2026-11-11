@@ -1,5 +1,3 @@
-//! Small OS integrations: frontmost app, keychain, audio playback, login item, locale and the HUD's native window.
-
 mod accessibility;
 mod app_icon;
 mod applications;

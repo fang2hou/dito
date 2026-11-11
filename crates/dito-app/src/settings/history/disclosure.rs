@@ -5,9 +5,8 @@ use gpui_kit::*;
 use crate::theme::Palette;
 use crate::ui::text;
 
-/// Keep one measured reveal mounted throughout animation and rest. Wrapping it
-/// in `tweened` changed its ancestor identity at settle, discarded its measured
-/// height and briefly laid it out at zero height.
+/// Keep one measured reveal mounted throughout animation and rest. Wrapping it in `tweened` would change its ancestor
+/// identity at settle, discard its measured height and briefly lay it out at zero height.
 #[derive(IntoElement)]
 pub(super) struct OriginalDisclosure {
     pub(super) id: i64,

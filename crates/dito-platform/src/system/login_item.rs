@@ -13,7 +13,6 @@ fn agent_plist(exe: &std::path::Path) -> String {
     )
 }
 
-/// Register or remove a LaunchAgent that starts this executable at login.
 pub fn set_launch_at_login(enabled: bool) -> std::io::Result<()> {
     let Some(path) = agent_path() else { return Ok(()) };
     if !enabled {

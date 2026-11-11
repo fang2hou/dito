@@ -1,5 +1,5 @@
-//! Getting out of a `config.toml` that cannot be read: say where it went wrong, and start over from the defaults
-//! without losing the file.
+//! Recovery from a `config.toml` that cannot be read: report where it went wrong and restart from the defaults without
+//! losing the file.
 
 use std::fs::{File, OpenOptions};
 use std::io;
@@ -8,17 +8,14 @@ use std::path::{Path, PathBuf};
 use super::store::write_file;
 use super::{Config, ConfigError};
 
-/// What the parser reported about an unreadable settings file.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParseProblem {
-    /// Line and column, both counted from 1, of the text the parser stopped at, when it can say.
+    /// Counted from 1, where the parser stopped, when it can say.
     pub position: Option<(usize, usize)>,
-    /// The parser's own message, without the excerpt of the file that its `Display` adds.
+    /// Without the file excerpt that its `Display` adds.
     pub message: String,
 }
 
-/// Describe why the file at `path` failed to load with `error`.
-///
 /// A syntax error carries its position. A value of the wrong type is found after the file parsed into a table, which
 /// no longer remembers where each value came from, so the text is parsed once more straight into the settings: that
 /// pass reports the same problem together with its position.
@@ -33,7 +30,7 @@ pub fn parse_problem(path: &Path, error: &toml::de::Error) -> ParseProblem {
     ParseProblem { position, message }
 }
 
-/// Line and column, counted from 1 in characters, of the byte `offset` in `text`.
+/// Counted from 1, in characters.
 fn position(text: &str, offset: usize) -> (usize, usize) {
     let mut end = offset.min(text.len());
     while !text.is_char_boundary(end) {
@@ -45,18 +42,14 @@ fn position(text: &str, offset: usize) -> (usize, usize) {
     (line, column)
 }
 
-/// Start over from the default settings after the file at `path` could not be read.
-///
-/// The unreadable file is kept beside it as `<file>.broken.bak`, or `<file>.broken-2.bak`, `-3` and so on while earlier
-/// backups exist: a backup is never replaced. The default settings are then written in its place. Returns the backup,
-/// or `None` when there was no file left to keep.
+/// The unreadable file is kept as `<file>.broken.bak`, or `<file>.broken-2.bak`, `-3` and so on while earlier backups
+/// exist: a backup is never replaced. Returns the backup, or `None` when there was no file left to keep.
 pub fn restore_defaults(path: &Path) -> Result<Option<PathBuf>, ConfigError> {
     let backup = keep_a_copy(path)?;
     write_file(path, &Config::default())?;
     Ok(backup)
 }
 
-/// Copy the bytes of `path` to the first backup name nobody has taken yet.
 fn keep_a_copy(path: &Path) -> io::Result<Option<PathBuf>> {
     let mut original = match File::open(path) {
         Ok(file) => file,
@@ -101,7 +94,6 @@ mod tests {
         dir.path().join("config.toml")
     }
 
-    /// The problem `ConfigStore::open` reports for a file holding `text`.
     fn problem_with(text: &str) -> ParseProblem {
         let dir = tempfile::tempdir().unwrap();
         let path = config_in(&dir);

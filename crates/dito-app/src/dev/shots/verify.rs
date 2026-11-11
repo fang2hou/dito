@@ -13,7 +13,6 @@ use crate::state::AppState;
 
 const KNOB_RADIUS: f32 = 14.;
 
-/// Clicking the ends, dragging the thumb, the arrow keys and the mode switch, with the fill measured on both themes.
 pub async fn hud_height_slider(st: &Arc<AppState>, cx: &mut AsyncApp) {
     for expected in [-2, 12] {
         on_settings_window(cx, |w, cx, view| {
@@ -62,9 +61,8 @@ fn slider_bounds(cx: &mut AsyncApp) -> Bounds<Pixels> {
     })
 }
 
-/// The slider's fill must be invisible at the lowest level and end in a straight vertical edge at
-/// every other one (the left end follows the track's own rounding). Measured from the rendered
-/// window, cropped to the track, ignoring the knob's own columns.
+/// The left end of the fill follows the track's own rounding. Measured from the rendered window, cropped to the
+/// track, ignoring the knob's own columns.
 async fn hud_height_fill(st: &Arc<AppState>, cx: &mut AsyncApp) {
     let original = st.cfg.get();
     for appearance in [Appearance::Light, Appearance::Dark] {
@@ -76,8 +74,8 @@ async fn hud_height_fill(st: &Arc<AppState>, cx: &mut AsyncApp) {
             Some(capture::paint_to_image(window.into(), cx))
         });
         let Some(Ok(img)) = img else { continue };
-        // The slider reports its indicator's bounds: inset by half the knob on each side, so
-        // expand them back out to the full 220 × 28 track.
+        // The slider reports its indicator's bounds, inset by half the knob on each side, so expand them back to the
+        // full 220 × 28 track.
         let indicator = slider_bounds(cx);
         let track = Bounds::new(
             point(indicator.origin.x - px(KNOB_RADIUS), indicator.origin.y),
@@ -135,8 +133,7 @@ impl TrackShot<'_> {
     }
 
     /// The straight edge sits on the thumb's centre line: at the rows near the track's top and bottom the thumb's
-    /// circle has curved away, so the edge is in the open. At the lowest level no fill may exist anywhere right of
-    /// the thumb.
+    /// circle has curved away, so the edge is in the open.
     fn assert_no_fill_right_of_knob(&self, appearance: Appearance, level: i8) {
         let knob_right = self.x0 as f32 + self.knob_center(level) + KNOB_RADIUS;
         let from = knob_right as u32 + 3;
@@ -149,10 +146,9 @@ impl TrackShot<'_> {
         }
     }
 
-    /// The straight edge hides under the thumb; what the eye sees is that the fill still reaches the thumb's
+    /// The straight edge hides under the thumb, so what the eye sees is that the fill still reaches the thumb's
     /// silhouette near the top and bottom rows. A rounded trailing edge would leave a gray gap there (the bug this
-    /// guards against). The left end keeps the track's rounding: near the top and bottom rows the fill starts
-    /// noticeably further right than on the track's centre row.
+    /// guards against).
     fn assert_fill_reaches_knob_and_left_end_rounded(&self, appearance: Appearance, level: i8) {
         let center = self.knob_center(level);
         let silhouette_at_row = center - 9.;
@@ -173,7 +169,6 @@ impl TrackShot<'_> {
     }
 }
 
-/// The health dot opens its card, moving into the card keeps it open, and leaving closes it.
 pub fn health_hover_lifecycle(cx: &mut AsyncApp, dot: Point<Pixels>) {
     on_settings_window(cx, |w, cx, view| {
         let elsewhere = point(px(800.), px(700.));

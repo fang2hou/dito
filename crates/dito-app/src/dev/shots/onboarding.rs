@@ -16,7 +16,6 @@ use crate::ui::Root;
 const CUSTOM_SHORTCUT: &str = "Control+Option+Space";
 const STEP_COUNT: usize = 7;
 
-/// Every wizard step, plus the provider form and the shortcut and mode variants, in both appearances.
 pub async fn onboarding_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     demo::freeze(Some(Frozen::Still));
     for appearance in [Appearance::Light, Appearance::Dark] {

@@ -1,6 +1,4 @@
-//! What a configuration row remembers between frames: how far it is scrolled, the press or drag in progress and the
-//! motion of the tiles that slide aside. The owner of the row holds one [`TileRowState`], like it holds a
-//! `ScrollHandle`; the row reads and advances it every time it draws.
+//! What a configuration row remembers between frames. The owner holds one [`TileRowState`], like a `ScrollHandle`.
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -16,14 +14,12 @@ use crate::ui::tween::{RING_MS, ease};
 const SLIDE_MS: u64 = RING_MS;
 /// Bringing a tile into view is a longer move (`motion/sidebar`).
 const GLIDE_MS: u64 = 260;
-/// How far a press must move before it lifts the tile instead of being a click.
 const DRAG_THRESHOLD: f32 = 4.;
 /// A frame after a long pause advances at most this far, so a stall never throws the row across.
 const MAX_DT: f32 = 0.05;
-/// How long a request to reveal a tile waits for that tile to exist.
 const REVEAL_PATIENCE: Duration = Duration::from_secs(1);
 
-/// A value that eases from one number to another; asking for a new target mid-flight continues from where it is.
+/// Asking for a new target mid-flight continues from where the value is.
 #[derive(Clone, Copy, Debug)]
 struct Tween {
     from: f32,
@@ -48,7 +44,6 @@ impl Tween {
     }
 }
 
-/// Fraction of a `ms` long motion that started at `start` and has run until `now`; a motion of no length is done.
 fn progress(start: Instant, now: Instant, ms: u64) -> f32 {
     if ms == 0 {
         return 1.;
@@ -77,7 +72,6 @@ struct Drag {
     since: Instant,
 }
 
-/// A dropped tile settling into its slot.
 struct Settle {
     id: SharedString,
     from: f32,
@@ -92,7 +86,6 @@ struct Reveal {
 }
 
 struct Inner {
-    /// The tile ids and their geometry as of the last frame.
     ids: Vec<SharedString>,
     layout: Layout,
     /// Left edge and width of the scrolling area in window coordinates, once it has been painted.
@@ -103,40 +96,35 @@ struct Inner {
     press: Option<Press>,
     drag: Option<Drag>,
     settle: Option<Settle>,
-    /// How far each tile is displaced from its place in the row, by id.
     slides: HashMap<SharedString, Tween>,
     tick: Option<Instant>,
-    /// Whether a frame with a measured row has been drawn: what is asked before that appears in place.
+    /// Requests made before the first measured frame take effect in place.
     shown: bool,
     reduced: bool,
 }
 
-/// What the row draws for one frame.
 pub(super) struct Frame {
     pub layout: Layout,
     pub offset: f32,
-    /// How far each tile is displaced from its place, in points.
+    /// In points.
     pub shifts: Vec<f32>,
-    /// The tile that is drawn as the floating one (or as it settles) instead of in the row.
+    /// Drawn as the floating tile instead of in the row.
     pub hidden: Option<usize>,
     pub overlay: Option<Overlay>,
-    /// Strength of the fade over the left and right edge.
     pub fades: (f32, f32),
     /// Whether anything is still moving, so the next frame has to be asked for.
     pub animating: bool,
 }
 
-/// The floating tile: its left edge from the left edge of the scrolling area and how far it is lifted, 0 to 1.
+/// `left` is from the left edge of the scrolling area; the lift runs from 0 to 1.
 pub(super) struct Overlay {
     pub index: usize,
     pub left: f32,
     pub lift: f32,
 }
 
-/// What letting go of the pointer meant.
 #[derive(Debug, PartialEq)]
 pub(super) enum Outcome {
-    /// Nothing was going on.
     Ignored,
     /// A drag ended where it started.
     Back,
@@ -176,13 +164,12 @@ impl TileRowState {
         })))
     }
 
-    /// Scroll tile `id` fully into view the next time the row draws (after selecting or adding it). It waits for the
-    /// row to be on screen and for the tile to exist; a row that is not on screen yet shows it in place.
+    /// Waits for the row to be on screen and for the tile to exist; a row that is not on screen yet shows it in place.
     pub fn reveal(&self, id: impl Into<SharedString>) {
         self.0.borrow_mut().reveal = Some(Reveal { id: id.into(), at: Instant::now() });
     }
 
-    /// Remember where the scrolling area was painted. `true` when its width changed.
+    /// `true` when the width changed.
     pub(super) fn measure(&self, left: f32, width: f32) -> bool {
         let mut s = self.0.borrow_mut();
         let widened = s.view.is_none_or(|(_, w)| (w - width).abs() > 0.5);
@@ -198,7 +185,6 @@ impl TileRowState {
         self.0.borrow().drag.is_some()
     }
 
-    /// The pointer went down on tile `index` at window position (`x`, `y`).
     pub(super) fn press(&self, index: usize, id: SharedString, x: f32, y: f32) {
         let mut s = self.0.borrow_mut();
         let grab = s.view.map(|(left, _)| (x - left) - (s.layout.left(index) - s.offset));
@@ -206,7 +192,7 @@ impl TileRowState {
         s.settle = None;
     }
 
-    /// The pointer moved to window position (`x`, `y`). `true` when the row has to draw again.
+    /// `true` when the row has to draw again.
     pub(super) fn moved(&self, x: f32, y: f32, left_down: bool, now: Instant) -> bool {
         let mut s = self.0.borrow_mut();
         if s.press.is_none() && s.drag.is_none() {
@@ -236,7 +222,6 @@ impl TileRowState {
         true
     }
 
-    /// The pointer was let go at window x position `x`.
     pub(super) fn released(&self, x: f32, now: Instant) -> Outcome {
         let mut s = self.0.borrow_mut();
         if let Some(drop) = s.end_drag(x, now) {
@@ -251,9 +236,9 @@ impl TileRowState {
         }
     }
 
-    /// One scroll event; `true` when the row takes it, which then keeps it from scrolling whatever is behind it.
-    /// A vertical wheel is the row's while it can still move that way and passes on to the page at either end; a
-    /// sideways swipe is always the row's, since nothing behind it scrolls sideways.
+    /// `true` when the row takes the event, which keeps it from scrolling whatever is behind it. A vertical wheel is
+    /// the row's only while it can still move that way; a sideways swipe is always the row's, since nothing behind it
+    /// scrolls sideways.
     pub(super) fn wheel(&self, dx: f32, dy: f32) -> bool {
         let mut s = self.0.borrow_mut();
         let max = s.layout.max_offset();
@@ -270,7 +255,6 @@ impl TileRowState {
         moved || dx.abs() > dy.abs()
     }
 
-    /// For the screenshot harness: the scroll offset, the furthest it goes and the slot a dragged tile is over.
     #[cfg(feature = "screenshots")]
     pub fn probe(&self) -> (f32, f32, Option<usize>) {
         let s = self.0.borrow();
@@ -279,7 +263,6 @@ impl TileRowState {
 }
 
 impl Inner {
-    /// Settle a drag at window x position `x`; the drop it amounts to, if it moved the tile.
     fn end_drag(&mut self, x: f32, now: Instant) -> Option<Outcome> {
         let d = self.drag.take()?;
         let view_left = self.view.map_or(0., |(left, _)| left);
@@ -291,7 +274,6 @@ impl Inner {
         Some(if to == d.from { Outcome::Back } else { Outcome::Drop { id: d.id, to } })
     }
 
-    /// Keep the lifted tile inside the scrolling area.
     fn lifted_left(&self, left: f32) -> f32 {
         left.clamp(0., (self.layout.view - TILE_W).max(0.))
     }
@@ -372,7 +354,6 @@ impl Inner {
         Frame { layout, offset: self.offset, shifts, hidden, overlay, fades: layout.fades(self.offset), animating }
     }
 
-    /// The tile that floats above the row: the dragged one, or the dropped one on its way into its slot.
     fn floating(&mut self, now: Instant, ids: &[SharedString], layout: &Layout) -> (Option<Overlay>, Option<usize>) {
         if let Some(d) = &self.drag {
             let ms = if self.reduced { 0 } else { SLIDE_MS };
@@ -391,8 +372,8 @@ impl Inner {
         (Some(Overlay { index, left: s.from + (to - s.from) * e, lift: s.lift * (1. - e) }), Some(index))
     }
 
-    /// The tiles changed order, number or identity. Every tile that was already there keeps the place it was drawn at
-    /// and slides from it to its new one, so a drop, an addition or a removal never makes the row jump.
+    /// Every tile that was already there keeps the place it was drawn at and slides from it to its new one, so a drop,
+    /// an addition or a removal never makes the row jump.
     fn reorder(&mut self, now: Instant, ids: &[SharedString], layout: &Layout, ms: u64) {
         let mut slides = HashMap::new();
         for (now_index, id) in ids.iter().enumerate() {
@@ -437,7 +418,6 @@ mod tests {
         ["a", "b", "c", "d", "e"][..n].iter().map(|s| SharedString::from(*s)).collect()
     }
 
-    /// A row of five tiles drawn once at `LEFT`, 672 wide.
     fn row() -> (TileRowState, Instant) {
         let state = TileRowState::new();
         let t0 = Instant::now();
@@ -450,8 +430,6 @@ mod tests {
         t0 + Duration::from_millis(ms)
     }
 
-    /// Window x of the pointer that holds tile `index` (unscrolled) `grab` from its left edge, with the tile `left` from
-    /// the left edge of the row.
     fn pointer(left: f32, grab: f32) -> f32 {
         LEFT + left + grab
     }
@@ -471,7 +449,7 @@ mod tests {
         let (state, t0) = row();
         state.press(1, "b".into(), pointer(228., 50.), 30.);
         assert!(state.moved(pointer(300., 50.), 30., true, at(t0, 10)), "past the threshold the tile lifts");
-        // The design's drag specimen: the tile 446 from the left edge of the row, so its centre is over slot 2.
+        // The design's drag specimen: 446 from the left edge of the row puts the tile centre over slot 2.
         let x = pointer(446., 50.);
         assert!(state.moved(x, 30., true, at(t0, 20)));
         let frame = state.frame(at(t0, 30), &ids(5), false);

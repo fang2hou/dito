@@ -7,26 +7,26 @@ What the app is for and what it does, from the user's side. How it looks and mov
 - **Speak instead of type, anywhere.** One shortcut, then talk; polished text appears where the cursor is, in any app.
 - **Never lose what was said.** If polishing fails, the raw text is inserted. If there is nowhere to type, the text goes to the clipboard. Every result stays in History.
 - **Stay out of the way.** The HUD never takes focus, never covers menus, and disappears when done. Starting Dito opens no window. Settings change in one place each.
-- **Local first, cloud when wanted.** Recognition and polishing each run on the Mac or through a provider, chosen separately.
+- **Local first, cloud when wanted.** Speech recognition and polishing each run on the Mac or through a provider, chosen separately.
 - **Japanese first.** The UI is designed in Japanese; English and Simplified Chinese are available. The speech language is a separate setting.
 - **Calm and precise.** Short, purposeful motion; no flashing; Reduce Motion respected everywhere.
 
 ## Dictation
 
-- Press the shortcut (right ⌘ alone by default), speak, and the text is recognized, optionally polished, and typed at the cursor.
+- Press the shortcut (right ⌘ alone by default), speak, and the speech is transcribed, optionally polished, and typed at the cursor.
 - **Toggle mode** (default): press to start, press again to finish. **Hold mode**: speak while holding, release to finish.
-- Esc or × cancels while recording; ✓ finishes; Stop cancels recognition or polishing.
+- Esc or × cancels while recording; ✓ finishes; Stop cancels transcription or polishing.
 - A lone-modifier shortcut followed quickly by another key counts as typing, not as a dictation.
 - Recordings stop at 5 minutes; a countdown appears in the last minute.
 - Insertion uses key input (default) or paste, with automatic fallback, and restores the clipboard afterwards.
 - Other audio is muted while the microphone is live (on by default).
 - Silent or very short clips are discarded quietly.
-- The polishing style follows the app in front: installed Slack, Teams and Herdr presets, custom app profiles, or Other.
+- The polishing style follows the app in front: the built-in Slack, Teams and Herdr styles when those apps are installed, custom app styles, or Other.
 
 ## HUD
 
 - A small capsule above the Dock, or following the pointer. It never takes focus and stays above app windows.
-- States: listening (with a live waveform), recognizing, polishing, inserted, copied, and errors (authentication, no speech, microphone, network, other).
+- States: listening (with a live waveform), transcribing, polishing, inserted, copied, and errors (authentication, no speech, microphone, network, other).
 - Errors explain the reason and offer Retry or Open Settings; they close after 3 seconds, and hovering keeps them open.
 - Hovering shows the speech language selector, button tooltips and the Stop button.
 - Its appearance (system, light or dark; dark by default) is set separately from the settings window.
@@ -37,9 +37,9 @@ What the app is for and what it does, from the user's side. How it looks and mov
 | --- | --- |
 | 一般 (General) | Shortcut, record mode, insert method, music mute, microphone (automatic or fixed), speech language, display language, appearance, HUD appearance and position, launch at login, restart onboarding |
 | モデル (Models) | Local models (download, pause, resume, verify, delete, switch with 使用する, move the folder), with request parameters per local polish model; cloud configurations for speech and for polishing, shown as a scrolling row of tiles that can be added from a template (FunASR, Qwen ASR, OpenRouter for speech; Azure OpenAI, Amazon Bedrock, OpenAI-compatible for polishing), duplicated, renamed, reordered by dragging and deleted; cloud speech edits the full request in the inline JSON editor with valid-draft autosave, native undo and redo, and a single documentation help dialog with four scrollable reference cards; cloud polishing has request parameters (temperature, top-p, max tokens, reasoning effort, extra JSON); connection tests |
-| 単語帳 (Wordbook) | Words passed to recognition as hotwords, optionally also to polishing; import, export and confirmed bulk deletion; a banner when an action fails |
-| プロンプト (Prompts) | Shared rules and app writing profiles per language, installed-app icons, add or remove an app profile, copy settings to another app, optional style examples and a safe preview. 20.03: taller editors, grouped undo and redo, draft autosave, scoped reset confirmation and plain-text before and after panes |
-| 履歴 (History) | Search and filter by period, text or app; entries from configured apps carry the app name and the rest read as Other; each entry shows the polished text and the original; re-recognize, re-polish, copy, play audio, delete |
+| 単語帳 (Wordbook) | Words passed to speech recognition as hotwords, optionally also to polishing; import, export and confirmed bulk deletion; a banner when an action fails |
+| プロンプト (Prompts) | Shared rules and app writing styles per language, installed-app icons, add or remove an app style, copy settings to another app, optional style examples and a safe preview. `design:settings/prompts`: taller editors, grouped undo and redo, draft autosave, scoped reset confirmation and plain-text before and after panes |
+| 履歴 (History) | Search and filter by period, text or app; entries from configured apps carry the app name and the rest read as Other; each entry shows the polished text and the original; transcribe again, polish again, copy, play audio, delete |
 | 統計 (Stats) | Characters, speaking speed, time saved, recordings, top apps and languages |
 | ステータス (Status) | Engine state, connection tests, macOS permissions (Microphone and Accessibility) |
 
@@ -47,7 +47,7 @@ The sidebar shows a health dot (green when ready, red with the reason when a loc
 
 ## Models
 
-- Local recognition: Qwen3-ASR 1.7B (default, most accurate) and 0.6B, both with hotwords; SenseVoice Small (fastest).
+- Local speech recognition: Qwen3-ASR 1.7B (default, most accurate) and 0.6B, both with hotwords; SenseVoice Small (fastest).
 - Local polishing: Qwen3.5 Instruct 2B, 4B and 9B.
 - Nothing downloads until the user asks; downloads resume and are verified. Models in use start at launch.
 

@@ -49,7 +49,6 @@ impl MockServer {
         self.shared.update_behavior(f);
     }
 
-    /// Serve `bytes` at `{url}/files/{name}` with HTTP Range support.
     pub fn add_file(&self, name: &str, bytes: Vec<u8>) {
         self.shared.add_file(name, bytes);
     }

@@ -17,8 +17,8 @@ impl HistoryPage {
         F: FnOnce(Arc<AppState>, HistoryEntry) -> Fut + 'static,
         Fut: Future<Output = Result<(), String>> + 'static,
     {
-        // Reserve before the first await: repeated clicks while the lookup runs must not
-        // launch a second job for the same row.
+        // Reserve before the first await: repeated clicks while the lookup runs must not launch a second lookup for the
+        // same row.
         if !self.busy.insert(id) {
             return;
         }

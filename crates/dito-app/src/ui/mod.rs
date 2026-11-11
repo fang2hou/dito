@@ -1,4 +1,4 @@
-//! Small UI kit matching the FigCraft design: controls, pill buttons, grouped cards.
+//! The app's UI kit, built from the FigCraft design.
 
 mod appearance_seg;
 mod banner;

@@ -31,13 +31,11 @@ pub fn handle(cx: &App) -> Option<(WindowHandle<Root>, Entity<Settings>)> {
     cx.try_global::<SettingsHandle>().map(|h| (h.window, h.view.clone()))
 }
 
-/// The settings shell's motion scope, for the screenshot harness.
 #[cfg(feature = "screenshots")]
 pub fn shell_motion(cx: &App) -> Option<ui::ScopeHandle> {
     cx.try_global::<SettingsHandle>().map(|h| h.view.read(cx).motion.handle())
 }
 
-/// One page's motion scope, for the screenshot harness.
 #[cfg(feature = "screenshots")]
 pub fn page_motion(page: Page, cx: &App) -> Option<ui::ScopeHandle> {
     cx.try_global::<SettingsHandle>().map(|h| {
@@ -58,7 +56,6 @@ pub fn is_open(cx: &App) -> bool {
     cx.has_global::<SettingsHandle>()
 }
 
-/// Open (or focus) the settings window on `page`.
 pub fn open(st: Arc<AppState>, page: Page, cx: &mut App) {
     let foreground = !st.opts.is_headless();
     if !show_in_existing_window(page, foreground, cx) {
@@ -70,14 +67,13 @@ pub fn open(st: Arc<AppState>, page: Page, cx: &mut App) {
     }
 }
 
-/// Bring the open settings window to `page`; `false` when there is none.
+/// `false` when there is none.
 fn show_in_existing_window(page: Page, foreground: bool, cx: &mut App) -> bool {
     let Some(h) = cx.try_global::<SettingsHandle>() else { return false };
     let (window, view) = (h.window, h.view.clone());
-    // Navigating from inside the settings window (a button click): that window is mid-update
-    // and gpui rejects nested window updates, so update the view directly — notify re-renders
-    // the window, and a clicked window is by definition already active. Doing window.update
-    // here would report "window not found" and open a duplicate window.
+    // Navigating from inside the settings window (a button click): that window is mid-update and gpui rejects nested
+    // window updates, so update the view directly. Notify re-renders the window, and a clicked window is by definition
+    // already active. Calling window.update here would report "window not found" and open a duplicate window.
     if cx.active_window().is_some_and(|active| active.window_id() == window.window_id()) {
         view.update(cx, |s, cx| s.set_page(page, cx));
         return true;
@@ -123,11 +119,9 @@ fn open_new_window(st: Arc<AppState>, page: Page, cx: &mut App) {
     }
 }
 
-/// The global holds the view strongly, so closing the window alone would not release it. Watch
-/// for exactly this window's close: stop the page's data lifecycle, invalidate every shell and
-/// page scope, and drop the handle. Both ids must match — the closed window and the window of the
-/// handle currently installed — so neither a close of any other window nor an old observer can
-/// touch a newer window's handle.
+/// The global holds the view strongly, so closing the window alone would not release it. Both ids must match, the
+/// closed window and the window of the handle currently installed, so neither a close of any other window nor an old
+/// observer can touch a newer window's handle.
 fn watch_close(id: WindowId, cx: &mut App) {
     let close = cx.on_window_closed(move |cx, closed| {
         if closed != id {

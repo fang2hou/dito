@@ -14,8 +14,7 @@ use crate::{hotkeys, hud, menubar, onboarding, settings};
 
 actions!(dito, [Quit, OpenSettings, OpenHistory, OpenWordbook, OpenStatus]);
 
-/// Everything a window needs once GPUI is running, with or without the app state: the UI kit, the icon, the bundled
-/// fonts, text measurement, and Quit with its shortcut.
+/// Needs no app state: the startup failure window runs it too.
 pub fn init(cx: &mut App) {
     gpui_kit::init(cx);
     dito_platform::system::set_app_icon(include_bytes!("../../../assets/icon/AppIcon-1024.png"));
@@ -25,14 +24,12 @@ pub fn init(cx: &mut App) {
     cx.bind_keys([KeyBinding::new("cmd-q", Quit, None)]);
 }
 
-/// A healthy launch: set GPUI up, then start the app.
 pub fn run(st: Arc<AppState>, cx: &mut App) {
     init(cx);
     launch(st, cx);
 }
 
-/// Wire the global state, the application menu and the first windows. Runs once the services are built, which is
-/// after GPUI started when the startup failure window had to be dealt with first.
+/// Runs once the services are built. That is after GPUI started when the startup failure window came first.
 pub fn launch(st: Arc<AppState>, cx: &mut App) {
     cx.set_global(AppGlobal(st.clone()));
 
@@ -62,7 +59,6 @@ pub fn launch(st: Arc<AppState>, cx: &mut App) {
     open_first_window(&st, cx);
 }
 
-/// Release local models before the process exits (see `LocalEngines::unload_all`).
 fn unload_local_models_on_quit(st: &AppState, cx: &mut App) {
     let local = st.local.clone();
     cx.on_app_quit(move |_| {
@@ -102,7 +98,6 @@ fn set_menus(lang: Lang, cx: &mut App) {
     set_dock_menu(lang, cx);
 }
 
-/// The application menu holds only Quit.
 pub fn set_app_menu(lang: Lang, cx: &mut App) {
     cx.set_menus(vec![Menu {
         name: "Dito".into(),
@@ -111,7 +106,6 @@ pub fn set_app_menu(lang: Lang, cx: &mut App) {
     }]);
 }
 
-/// The Dock menu repeats the menu bar item's page shortcuts, Settings first.
 fn set_dock_menu(lang: Lang, cx: &mut App) {
     cx.set_dock_menu(vec![
         MenuItem::action(lang.tr(Tr::MenubarSettings), OpenSettings),
@@ -121,8 +115,8 @@ fn set_dock_menu(lang: Lang, cx: &mut App) {
     ]);
 }
 
-/// The window a launch opens by itself. Starting Dito means the user wants to dictate, so everything else waits
-/// for a request from the menu bar, the Dock or a second launch.
+/// Starting Dito means the user wants to dictate, so every other window waits for a request from the menu bar, the
+/// Dock or a second launch.
 #[derive(Debug, PartialEq, Eq)]
 enum LaunchWindow {
     Onboarding,
@@ -148,8 +142,7 @@ fn launch_window(
     }
 }
 
-/// Clicking the Dock icon, or opening Dito again from Finder or Spotlight, while it runs with no window open. Does
-/// nothing while the startup failure window is all there is: there is no app state to open a page of.
+/// Does nothing while the startup failure window is all there is: there is no app state to open a page of.
 pub fn reopen(cx: &mut App) {
     let Some(st) = cx.try_global::<AppGlobal>().map(|g| g.0.clone()) else { return };
     if st.opts.is_headless() {
@@ -193,8 +186,7 @@ fn start_hotkeys(st: &Arc<AppState>) {
     }
 }
 
-/// Load the local models the settings use as soon as the app starts, and again whenever the settings start using
-/// one that was not in use before. A model the user stopped by hand stays stopped: only newly selected ones start.
+/// A model the user stopped by hand stays stopped: only newly selected ones start.
 fn autostart_local_models(st: &Arc<AppState>) {
     let (local, mut cfg) = (st.local.clone(), st.cfg.subscribe());
     st.rt.spawn(async move {
@@ -215,8 +207,7 @@ fn autostart_local_models(st: &Arc<AppState>) {
     });
 }
 
-/// Permissions are granted in System Settings while the app runs; the event tap cannot be created before that.
-/// Try again every two seconds until it works, so the shortcut starts the moment the switch is turned on.
+/// The event tap cannot be created until the user grants permission in System Settings, while the app runs.
 fn retry_hotkeys_when_allowed(st: Arc<AppState>, cx: &mut App) {
     cx.spawn(async move |cx| {
         loop {

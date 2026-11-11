@@ -45,13 +45,13 @@ impl Shared {
         self.files.lock().expect("files mutex poisoned").get(name).cloned()
     }
 
-    /// Consumes the one-shot download cut and returns it with the per-chunk delay.
+    /// The cut is one-shot: taking it clears it.
     pub(crate) fn take_download_plan(&self) -> (Option<usize>, Duration) {
         let mut b = self.behavior.lock().expect("behavior mutex poisoned");
         (b.cut_download_after.take(), b.download_chunk_delay)
     }
 
-    /// Common gate: latency, forced failure, and key check. Returns an error response to send, if any.
+    /// Returns the error response to send, if any.
     pub(crate) async fn gate(&self, headers: &HeaderMap) -> Option<Response> {
         let b = self.behavior();
         if !b.latency.is_zero() {

@@ -1,4 +1,4 @@
-//! LocalEngines with a fake runtime: lazy load, status, restart, failure reasons, cancellation, truncation.
+//! LocalEngines with a fake runtime.
 
 use std::path::Path;
 use std::sync::Arc;
@@ -16,7 +16,6 @@ use dito_local::{
     AsrOutput, AsrRuntime, LlmRuntime, LocalEngines, ModelManager, NoRuntime, RuntimeError, RuntimeLoader,
 };
 
-/// What the user's parameters are not set for: the recommendation of the fixture's language model.
 const RECOMMENDED: Sampling = Sampling { temperature: 0.2, top_p: Some(0.9), top_k: None, max_tokens: None };
 
 const NO_PARAMS: LocalPolishParams =
@@ -106,7 +105,6 @@ async fn loads_lazily_once_and_runs_inference_off_the_async_thread() {
     assert_eq!(p.polish(&PolishRequest { system: "s", text: "hi" }).await.unwrap(), "HI");
 }
 
-/// A language model that remembers the sampling of its last call.
 struct Probe(Arc<std::sync::Mutex<Option<Sampling>>>);
 impl LlmRuntime for Probe {
     fn generate(&self, _: &str, user: &str, sampling: &Sampling, _: &AtomicBool) -> Result<String, RuntimeError> {
@@ -262,7 +260,6 @@ fn engine_with<R: AsrRuntime + LlmRuntime + 'static>(runtime: R) -> (Arc<LocalEn
 }
 
 /// Keeps decoding until the stop flag is raised, like a model still generating when its dictation is cancelled.
-/// It reports "started" when a call is under way and "saw stop" when it observes the flag.
 struct Spinning(std::sync::mpsc::Sender<&'static str>);
 impl Spinning {
     fn spin(&self, stop: &AtomicBool) -> RuntimeError {
@@ -295,7 +292,6 @@ impl LlmRuntime for Spinning {
     }
 }
 
-/// Aborts `call` once the runtime is mid-generation, then waits for the runtime to see the stop flag.
 async fn abort_and_expect_stop<T>(call: tokio::task::JoinHandle<T>, events: &std::sync::mpsc::Receiver<&'static str>) {
     // Let the task reach its blocking call before waiting on the runtime's signal.
     tokio::task::yield_now().await;
@@ -326,7 +322,6 @@ async fn dropping_a_transcription_call_raises_the_stop_flag_for_the_runtime() {
     abort_and_expect_stop(call, &observed).await;
 }
 
-/// Every call uses its whole token budget, so its output is cut off mid-text.
 struct CutOff;
 impl AsrRuntime for CutOff {
     fn transcribe(&self, _: &[f32], _: Option<&str>, _: &[String], _: &AtomicBool) -> Result<AsrOutput, RuntimeError> {

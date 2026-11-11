@@ -46,6 +46,10 @@ run = "scripts/check.sh full"
 description = "Check shared icon geometry in the saved FigCraft design"
 run = "python scripts/check-design-icons.py"
 
+[tasks."check:design-refs"]
+description = "Check that every design:<id> reference resolves and matches the saved design"
+run = "python scripts/check-design-refs.py"
+
 [tasks.lint]
 description = "Clippy for the workspace, ruff and ty for bench, and actionlint for workflows"
 depends = ["lint:rust", "bench:lint", "lint:actions"]

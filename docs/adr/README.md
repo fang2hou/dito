@@ -14,7 +14,7 @@ Before changing something an ADR covers, read it. When a request conflicts with 
 | [0006](0006-minimal-permissions.md) | Only Microphone and Accessibility |
 | [0007](0007-declarative-cloud-asr.md) | Cloud speech vendors through a declarative config |
 | [0008](0008-data-stays-local.md) | User data and secrets stay on the Mac |
-| [0009](0009-portable-core.md) | The core is independent of UI and macOS; one actor owns the session |
+| [0009](0009-portable-core.md) | The core is independent of UI and macOS; one actor owns the dictation |
 | [0010](0010-one-home-per-setting.md) | Each setting has exactly one home |
 | [0011](0011-japanese-first.md) | Japanese first, three languages compiled in |
 | [0012](0012-structure-over-prompting.md) | Fix model behavior with structure, not longer prompts |

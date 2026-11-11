@@ -12,15 +12,12 @@ use super::typography::text;
 use crate::assets::Ic;
 use crate::theme::Palette;
 
-/// Re-render `view` whenever focus enters or leaves an input, so focus rings can animate.
 pub fn notify_on_focus<V: 'static>(state: &Entity<InputState>, window: &mut Window, cx: &mut Context<V>) {
     let handle = state.read(cx).focus_handle(cx);
     cx.on_focus_in(&handle, window, |_, _, cx| cx.notify()).detach();
     cx.on_focus_out(&handle, window, |_, _, _, cx| cx.notify()).detach();
 }
 
-/// A single-line input for the view `V`, which draws again as focus enters and leaves it so the focus ring can
-/// animate. `masked` shows what is typed as dots.
 pub fn new_input<V: 'static>(window: &mut Window, cx: &mut Context<V>, masked: bool) -> Entity<InputState> {
     let state = cx.new(|cx| {
         let input = InputState::new(window, cx);
@@ -30,9 +27,8 @@ pub fn new_input<V: 'static>(window: &mut Window, cx: &mut Context<V>, masked: b
     state
 }
 
-/// A 1px outline that grows to 2px and shifts to `on_color` while `active`, animated both ways.
-/// Put it as a child of an element that is `.relative().border_1()` with a transparent border (see
-/// [`with_ring`]): the outline is an overlay, so nothing inside the element moves when it thickens.
+/// Put it as a child of an element that is `.relative().border_1()` with a transparent border (see [`with_ring`]): the
+/// outline is an overlay, so nothing inside the element moves when it thickens.
 pub fn ring_overlay(
     id: impl Into<ElementId>,
     active: bool,
@@ -69,8 +65,8 @@ pub fn with_ring<E: Styled + ParentElement>(
     base.relative().border_1().border_color(transparent()).child(ring_overlay(id, active, radius, off_color, on_color))
 }
 
-/// The hairline color of a field at rest and the ring color while it has focus. An invalid field keeps the danger
-/// color in both, so it reads as invalid whether or not it is being edited.
+/// An invalid field keeps the danger color at rest and in focus, so it reads as invalid whether or not it is being
+/// edited.
 fn ring_colors(p: &Palette, rest: Hsla, invalid: bool) -> (Hsla, Hsla) {
     if invalid { (p.danger, p.danger) } else { (rest, p.accent) }
 }
@@ -80,21 +76,19 @@ pub fn field_chrome(id: impl Into<ElementId>, p: &Palette, focused: bool) -> Div
 }
 
 fn field_chrome_with(id: impl Into<ElementId>, p: &Palette, focused: bool, invalid: bool) -> Div {
-    // 12 px content inset ≈ a third of the 36 px control — the ratio macOS fields use, so the
-    // horizontal padding reads as large as the (optically centered) vertical one.
+    // A 12 px content inset is a third of the 36 px control, the ratio macOS fields use, so the horizontal padding
+    // reads as large as the (optically centered) vertical one.
     let base = div().h(px(CONTROL_H)).px(px(12.)).flex().items_center().gap(px(8.)).rounded(px(12.)).bg(p.input_bg);
     let (rest, on) = ring_colors(p, p.border_strong, invalid);
     with_ring(base, id, focused, 12., rest, on)
 }
 
-/// The taller configuration-form field, on the form field surface.
 pub(super) fn form_chrome(id: impl Into<ElementId>, p: &Palette, focused: bool, invalid: bool) -> Div {
     let base = div().h(px(40.)).px(px(14.)).flex().items_center().gap(px(8.)).rounded(px(8.)).bg(p.field_bg);
     let (rest, on) = ring_colors(p, p.field_border, invalid);
     with_ring(base, id, focused, 8., rest, on)
 }
 
-/// Bordered single-line text field backed by an `InputState`; the border turns accent while it has focus.
 pub fn text_input(p: &Palette, state: &Entity<InputState>, leading: Option<Ic>) -> TextInput {
     TextInput { p: *p, state: state.clone(), leading, scope: motion_scope(), form: false, invalid: false }
 }
@@ -112,13 +106,11 @@ pub struct TextInput {
 }
 
 impl TextInput {
-    /// Use the configuration-form look (see [`form_field`]).
     pub fn form(mut self) -> Self {
         self.form = true;
         self
     }
 
-    /// The text does not mean anything to its setting: the border takes the danger color until it does.
     pub fn invalid(mut self, invalid: bool) -> Self {
         self.invalid = invalid;
         self
@@ -165,12 +157,10 @@ impl RenderOnce for TextInput {
     }
 }
 
-/// Labelled form field: caption above a control.
 pub fn field(p: &Palette, label: impl Into<SharedString>, control: impl IntoElement) -> Div {
     div().flex().flex_col().gap(px(8.)).child(text(label, 13., FontWeight::MEDIUM, p.text)).child(control)
 }
 
-/// A configuration-form field: a quieter caption on a 20 pt line above a [`TextInput::form`] control, 8 pt below it.
 pub fn form_field(p: &Palette, label: impl Into<SharedString>, control: impl IntoElement) -> Div {
     div()
         .flex()

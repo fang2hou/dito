@@ -1,7 +1,7 @@
 //! The seam between local model management and the inference runtimes (sherpa-onnx, llama.cpp).
 //!
-//! Runtimes are plugged in through [`RuntimeLoader`]. Without one, loading fails with a clear reason and the status
-//! dot turns red; it never fakes a result.
+//! Without a [`RuntimeLoader`], loading fails with a clear reason and the status dot turns red; it never fakes a
+//! result.
 
 use std::path::Path;
 use std::sync::Arc;
@@ -10,7 +10,6 @@ use std::sync::atomic::AtomicBool;
 use crate::catalog::{ModelSpec, Sampling};
 use crate::runtime_error::RuntimeError;
 
-/// Recognized text and, when the engine reports it, the detected language code.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AsrOutput {
     pub text: String,
@@ -31,9 +30,8 @@ pub trait AsrRuntime: Send + Sync {
 }
 
 pub trait LlmRuntime: Send + Sync {
-    /// `sampling` is the model's recommended sampling with the user's parameters laid over it. Its `max_tokens` caps
-    /// the output budget the runtime computes from the input, and a runtime must not run past the cap. `stop` works as
-    /// in [`AsrRuntime::transcribe`]. When the token budget runs out before the model ends its turn, return
+    /// A runtime must not run past `sampling.max_tokens`, which caps the budget it computes from the input. `stop`
+    /// works as in [`AsrRuntime::transcribe`]. When the token budget runs out before the model ends its turn, return
     /// [`RuntimeError::Truncated`], never the cut-off text.
     fn generate(
         &self,
@@ -49,7 +47,6 @@ pub trait RuntimeLoader: Send + Sync {
     fn load_llm(&self, spec: &ModelSpec, dir: &Path) -> Result<Arc<dyn LlmRuntime>, RuntimeError>;
 }
 
-/// Loader used when no inference runtime is compiled in.
 pub struct NoRuntime;
 
 impl RuntimeLoader for NoRuntime {

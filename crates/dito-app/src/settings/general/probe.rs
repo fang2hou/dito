@@ -24,7 +24,6 @@ impl GeneralPage {
         cx.notify();
     }
 
-    /// The page's scope, for the screenshot harness.
     pub(in crate::settings) fn motion_scope(&self) -> ui::ScopeHandle {
         self.motion.handle()
     }

@@ -22,14 +22,11 @@ impl Groups {
         self.0.as_ref().is_some_and(|only| only.split(',').any(|g| g == group))
     }
 
-    /// A default group: runs unless the filter leaves it out.
     fn runs_by_default(&self, group: &str) -> bool {
         self.0.is_none() || self.selects(group)
     }
 }
 
-/// Render the groups (pages, extra, onboarding, startup, hud, demo, min by default; the rest only when named) to
-/// `dir`, then quit.
 pub fn run(dir: PathBuf, cx: &mut App) {
     std::fs::create_dir_all(&dir).expect("screenshot dir");
     let st = cx.global::<AppGlobal>().0.clone();

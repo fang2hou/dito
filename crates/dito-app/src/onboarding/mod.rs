@@ -1,8 +1,4 @@
 //! First-run wizard. It only sets initial values; every setting stays editable in exactly one place afterwards.
-//!
-//! One `Onboarding` entity coordinates the whole wizard: it owns the state, the step transitions
-//! ([`transition`]) and the window ([`window`]); each step's content lives in [`steps`], and the
-//! pieces reused across steps in [`components`].
 
 mod components;
 pub(crate) mod demo;

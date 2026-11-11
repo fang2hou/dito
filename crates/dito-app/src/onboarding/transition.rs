@@ -1,4 +1,4 @@
-//! The math of a step change: durations, easing, and where both pages sit while one replaces the other.
+//! The math of a step change.
 
 use std::time::Instant;
 
@@ -6,7 +6,6 @@ use crate::ui::Motion;
 
 use super::Step;
 
-/// How long a step change takes, and the shorter cross-fade used with Reduce Motion.
 pub(super) const SLIDE_S: f32 = 0.36;
 pub(super) const SLIDE_REDUCED_S: f32 = 0.16;
 
@@ -23,8 +22,6 @@ fn ease_in_out(u: f32) -> f32 {
     u * u * (3. - 2. * u)
 }
 
-/// A step change in progress: the page of `from` slides out while the current step's page slides in. Forward moves
-/// slide toward the left, going back toward the right.
 pub(super) struct Slide {
     pub(super) from: Step,
     pub(super) forward: bool,
@@ -32,7 +29,6 @@ pub(super) struct Slide {
     pub(super) at: Instant,
 }
 
-/// Where both pages are `t` seconds into a slide: their opacities and horizontal offsets, plus the art panel's.
 pub(super) struct SlideView {
     pub(super) out_a: f32,
     pub(super) in_a: f32,
@@ -41,10 +37,8 @@ pub(super) struct SlideView {
     pub(super) art_dx: f32,
 }
 
-/// Both pages `t` seconds into a slide that moves `forward` (or back). The old page leaves toward where we are
-/// going and is gone early; the new one fades in late and arrives from the other side, so the two are barely
-/// visible together. Reduce Motion keeps both in place and only cross-fades. The art panel follows the page
-/// slightly later.
+/// The old page leaves toward where we are going and is gone early; the new one fades in late and arrives from the
+/// other side, so the two are barely visible together. The art panel follows the page slightly later.
 pub(super) fn view(forward: bool, motion: Motion, t: f32) -> SlideView {
     let reduced = motion.is_reduced();
     let total = total(motion);

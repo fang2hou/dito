@@ -19,11 +19,9 @@ use crate::ui::{self, BtnKind, TestState, cbk, text};
 /// General settings. This page reports engine state, provider facts, permissions — nothing else.
 pub struct StatusPage {
     pub(super) st: Arc<AppState>,
-    /// Last provider connection check per role; probed once on open and via "recheck all".
     pub(super) checks: [TestState; 2],
     pub(super) checked_at: [Option<u64>; 2],
     pub(super) perms: [Status; 2],
-    /// The page's own motion scope: its controls' transient state, reset on navigation.
     pub(super) motion: ui::MotionScope,
 }
 
@@ -32,12 +30,10 @@ fn now_epoch() -> u64 {
 }
 
 impl StatusPage {
-    /// Reset the page's transient motion state; its controls mount statically on the next entry.
     pub(in crate::settings) fn reset_motion(&mut self) {
         self.motion.reset();
     }
 
-    /// The page's scope, for the screenshot harness.
     #[cfg(feature = "screenshots")]
     pub(in crate::settings) fn motion_scope(&self) -> ui::ScopeHandle {
         self.motion.handle()
@@ -46,8 +42,8 @@ impl StatusPage {
 
 impl Render for StatusPage {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        // The page draws under its own scope: after a page switch its controls mount statically,
-        // never sliding to values remembered from another page or an earlier visit.
+        // Own scope: after a page switch the controls mount statically instead of sliding to values remembered from an
+        // earlier visit.
         ui::with_motion_scope(self.motion.handle(), || self.view(window, cx))
     }
 }

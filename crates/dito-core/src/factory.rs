@@ -17,13 +17,11 @@ use crate::provider::openai::{Flavor, OpenAiEngine};
 use crate::provider::{Polisher, Transcriber};
 use crate::secrets::SecretStore;
 
-/// On-device engines, implemented by `dito-local`.
 #[async_trait]
 pub trait LocalBackend: Send + Sync {
     /// Local speech models decode greedily and take no parameters.
     async fn transcriber(&self, model_id: &str) -> ProviderResult<Arc<dyn Transcriber>>;
-    /// `params` are the user's sampling settings for this model; a field they leave unset takes the value the model's
-    /// catalog entry recommends.
+    /// A field the user leaves unset takes the value the model's catalog entry recommends.
     async fn polisher(&self, model_id: &str, params: &LocalPolishParams) -> ProviderResult<Arc<dyn Polisher>>;
     fn status(&self, model_id: &str) -> EngineStatus;
 }
@@ -36,7 +34,6 @@ pub trait Engines: Send + Sync {
     async fn polisher(&self, cfg: &Config) -> ProviderResult<Option<Arc<dyn Polisher>>>;
 }
 
-/// An engine together with the config it was built from.
 type Slot<T> = Option<(EngineConfig, Arc<T>)>;
 
 /// Cloud engines reused across dictations so HTTP connections and cloud credentials survive between them.
@@ -69,7 +66,6 @@ impl EngineFactory {
         self
     }
 
-    /// Drop the cached engines; the next dictation builds them again from the current config and secrets.
     pub fn invalidate_engines(&self) {
         let mut cache = self.lock_cache();
         cache.epoch += 1;
@@ -126,7 +122,7 @@ impl EngineFactory {
             .ok_or_else(|| ProviderError::new(ErrorKind::Unavailable, "local engines are not available in this build"))
     }
 
-    /// Build the ASR engine for an explicit engine config (used by the connection test too).
+    /// Takes an explicit engine config so the connection test can build from it.
     pub async fn transcriber_for(&self, e: &EngineConfig) -> ProviderResult<Arc<dyn Transcriber>> {
         match e.source {
             Source::Local => self.require_local()?.transcriber(&e.local_model).await,
@@ -134,7 +130,8 @@ impl EngineFactory {
                 if let Some(config) = &self.speech_config {
                     return Ok(Arc::new(ConfiguredAsr::new(config.clone(), String::new())?));
                 }
-                // `cloud_asr` stays `None` until a configuration list is first saved; the bundled configurations stand in.
+                // `cloud_asr` stays `None` until a configuration list is first saved; the bundled configurations
+                // stand in.
                 let bundled;
                 let configurations = match &e.cloud_asr {
                     Some(configurations) => configurations,
@@ -219,14 +216,12 @@ impl Engines for EngineFactory {
     }
 }
 
-/// Fixed engines regardless of config.
 pub struct FixedEngines {
     pub asr: Arc<dyn Transcriber>,
     pub polish: Arc<dyn Polisher>,
 }
 
 impl FixedEngines {
-    /// Offline demo engines used by `--mock`.
     pub fn demo() -> Self {
         Self {
             asr: Arc::new(
@@ -316,7 +311,6 @@ mod tests {
         assert!(!Arc::ptr_eq(&second, &third), "another configuration is another engine");
     }
 
-    /// A local backend that remembers which model it was asked to polish with, and under which parameters.
     #[derive(Default)]
     struct Recorder(Mutex<Vec<(String, LocalPolishParams)>>);
 

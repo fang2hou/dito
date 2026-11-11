@@ -1,7 +1,5 @@
-//! The dictation controller: key events in, HUD states out.
-//!
-//! One actor task owns the whole session so that rapid key presses, cancels and finishing jobs are
-//! serialized. Platform pieces (microphone, text delivery, frontmost app) are injected as traits.
+//! The dictation controller: key events in, HUD states out. One actor task owns the state of the current dictation, so
+//! rapid key presses, cancels and finishing pipeline runs are serialized.
 
 mod actor;
 mod command;

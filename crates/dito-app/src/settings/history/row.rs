@@ -14,7 +14,6 @@ use crate::ui::{self, BtnKind, Cb, MenuItem, MenuTone, cbk, text};
 
 type PageAction = Box<dyn Fn(&mut HistoryPage, &mut Context<HistoryPage>)>;
 
-/// The meta line, the text and the actions of one row.
 struct RowParts {
     meta: Div,
     body: Div,
@@ -32,9 +31,9 @@ impl HistoryPage {
         let mut items = vec![
             MenuItem {
                 icon: Some(Ic::Mic),
-                label: c.t(Tr::HistoryRecognizeAgain),
+                label: c.t(Tr::HistoryTranscribeAgain),
                 tone: MenuTone::Default,
-                on_click: wrap(cx, Box::new(move |t, cx| t.run_job(id, cx, services::recognize_again))),
+                on_click: wrap(cx, Box::new(move |t, cx| t.run_job(id, cx, services::transcribe_again))),
             },
             MenuItem {
                 icon: Some(Ic::Sparkles),
@@ -102,7 +101,6 @@ impl HistoryPage {
         row
     }
 
-    /// The meta line, the text and the actions of a row, by what the entry recorded.
     fn kind_parts(&self, c: &Ctx, cx: &mut Context<Self>, e: &HistoryEntry, off: i32) -> RowParts {
         let p = &c.p;
         let meta = div().flex().items_center().gap(px(10.)).child(
@@ -155,7 +153,7 @@ impl HistoryPage {
             p.muted,
         ));
         body = body.child(text(c.t(Tr::HistoryCancelled), 14., FontWeight::NORMAL, p.muted));
-        actions = actions.child(self.retry_button(c, cx, e.id, c.t(Tr::HistoryRecognizeAgain), Ic::Mic));
+        actions = actions.child(self.retry_button(c, cx, e.id, c.t(Tr::HistoryTranscribeAgain), Ic::Mic));
         RowParts { meta, body, actions }
     }
 
@@ -184,7 +182,7 @@ impl HistoryPage {
             &label,
             BtnKind::Secondary,
             Some(icon),
-            cbk(cx, move |t: &mut Self, _, cx| t.run_job(id, cx, services::recognize_again)),
+            cbk(cx, move |t: &mut Self, _, cx| t.run_job(id, cx, services::transcribe_again)),
         )
         .into_any_element()
     }
@@ -216,7 +214,6 @@ impl HistoryPage {
         w
     }
 
-    /// The clickable text column; rows with an original also toggle it by mouse hover and keyboard.
     fn trigger(
         &self,
         cx: &mut Context<Self>,
@@ -284,7 +281,6 @@ pub(super) fn update_original_hover(current: &mut Option<i64>, id: i64, over: bo
     changed
 }
 
-/// Only successful, polished records with original text offer disclosure.
 pub(super) fn expandable(entry: &HistoryEntry) -> bool {
     entry.kind == HistoryKind::Dictation && entry.polished.is_some() && !entry.raw.is_empty()
 }

@@ -10,7 +10,6 @@ use async_trait::async_trait;
 use super::{AsrRequest, PolishRequest, Polisher, Transcriber, Transcript};
 use crate::error::{ErrorKind, ProviderError, ProviderResult};
 
-/// One scripted reply: text, or a failure class.
 pub type Reply = Result<String, ErrorKind>;
 
 pub struct MockTranscriber {
@@ -70,7 +69,6 @@ impl Default for MockPolisher {
 
 const FILLERS: &[&str] = &["えーと", "えっと", "あの", "その", "まあ", "um", "uh", "嗯", "那个"];
 
-/// Rule-based stand-in for the model: strips fillers and normalizes spacing and the final period.
 pub fn rule_polish(text: &str) -> String {
     let mut out = text.to_string();
     for f in FILLERS {

@@ -47,8 +47,7 @@ pub(crate) async fn download(State(s): SharedState, headers: HeaderMap, Path(nam
     resp
 }
 
-/// Streams `body` in chunks with an optional per-chunk delay. When `truncated`, the stream ends with an I/O error so
-/// the client sees a broken download rather than a short one.
+/// When `truncated`, the stream ends with an I/O error so the client sees a broken download rather than a short one.
 fn chunk_stream(body: Vec<u8>, delay: Duration, truncated: bool) -> ReceiverStream {
     let (tx, rx) = mpsc::channel(1);
     tokio::spawn(async move {

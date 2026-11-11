@@ -1,11 +1,6 @@
-//! i18n guard. The compiler already rejects unknown message IDs, missing languages and
-//! placeholder drift (`build.rs` validates `messages.toml`, and `Ctx::t` takes a `Tr`), so
-//! what is left to guard here is Japanese that never went through `Tr` at all: no CJK string
-//! literal may live outside `messages.toml` or the exemption list below.
-//!
-//! Adding UI copy: add the message to `crates/dito-core/src/i18n/messages.toml` and reference
-//! the generated `Tr` variant. Exemptions are for text that is intentionally *not* translated
-//! (language self-names, demo/seed data) and name the exact file, relative to `src`.
+//! No CJK string literal may live outside `messages.toml` or the exemption list below. The compiler already rejects
+//! unknown message IDs, missing languages and placeholder drift, so only text that never went through `Tr` is left to
+//! catch. Exemptions name the exact file, relative to `src`.
 
 use std::path::PathBuf;
 
@@ -14,7 +9,7 @@ const EXEMPT: &[(&str, &str)] = &[
     ("dev/seed.rs", "*"),
     // Configuration names the polish form shots type into the form (user content, not UI copy).
     ("dev/shots/polish_form.rs", "*"),
-    // List separator chosen per language in code (、 only for Japanese).
+    // List separator chosen per language in code (the ideographic comma, only for Japanese).
     ("settings/models/page.rs", "、"),
     // Test fixture inside #[cfg(test)] (letter-spacing assertions).
     ("ui/typography.rs", "認識中"),
@@ -66,7 +61,6 @@ fn no_hard_coded_cjk_outside_messages_toml() {
             let mut probe = at;
             while let Some(n) = text[probe..].find('"').map(|i| probe + i) {
                 if b[n - 1] == b'\\' {
-                    // Escaped quote inside the literal: skip past it.
                     probe = n + 1;
                     continue;
                 }

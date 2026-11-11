@@ -16,7 +16,6 @@ const KNOB_INSET: f32 = 3.;
 const SWITCH_TRAVEL: f32 = SWITCH_W - KNOB - 2. * KNOB_INSET;
 const SWITCH_MS: u64 = 380;
 
-/// Switch: the knob slides and the track colour cross-fades, both on the same eased clock.
 pub fn switch(id: impl Into<ElementId>, p: &Palette, on: bool, on_toggle: ToggleCb) -> Stateful<Div> {
     let id: ElementId = id.into();
     let flips = count_flips(&id, on, Duration::from_millis(SWITCH_MS));

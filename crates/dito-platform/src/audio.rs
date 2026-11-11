@@ -81,7 +81,7 @@ fn set_u32(id: AudioObjectID, selector: u32, scope: u32, value: u32) -> bool {
     if !has_property(id, &address) {
         return false;
     }
-    // SAFETY: the property exists, `value` is the 4-byte buffer the size argument describes, and no qualifier is passed.
+    // SAFETY: the property exists, `value` is the 4-byte buffer `size` describes, and no qualifier is passed.
     let status = unsafe {
         AudioObjectSetPropertyData(
             id,
@@ -110,7 +110,6 @@ fn should_mute(running: Option<u32>, mute: Option<u32>) -> bool {
     running == Some(IS_RUNNING) && mute == Some(UNMUTED)
 }
 
-/// Restores the previous mute state of the output device when dropped.
 pub struct MusicMuteGuard {
     device: Option<(AudioObjectID, u32)>,
     was_muted: bool,
@@ -131,7 +130,7 @@ impl Drop for MusicMuteGuard {
     }
 }
 
-/// Mute the default output while something is playing there; a no-op guard otherwise.
+/// A no-op guard when nothing is playing.
 fn mute_default_output() -> MusicMuteGuard {
     let Some(device) = default_output_device() else {
         return MusicMuteGuard::none();
@@ -148,7 +147,6 @@ fn mute_default_output() -> MusicMuteGuard {
 
 impl MuteSession for MusicMuteGuard {}
 
-/// [`MusicMute`] backed by CoreAudio.
 pub struct MacMusicMute;
 
 impl MusicMute for MacMusicMute {

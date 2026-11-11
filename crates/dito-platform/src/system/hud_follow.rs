@@ -16,7 +16,6 @@ const CAPSULE_CENTER_Y: f64 = 61.5;
 const CAPSULE_HALF_WIDTH: f64 = 52.5;
 const CAPSULE_HALF_HEIGHT: f64 = 16.5;
 const CURSOR_GAP: f64 = 5.;
-/// Window origin below the cursor when the HUD no longer fits above it.
 const FLIPPED_DROP: f64 = 132.;
 
 const FREEZE_ENTER_DISTANCE: f64 = 64.;
@@ -25,14 +24,14 @@ const FREEZE_APPROACH_SPEED: f64 = 0.1;
 
 type Point = (f64, f64);
 
-/// Whether the pointer is working the HUD's controls; the window then holds still.
+/// The window holds still while the pointer works the HUD's controls.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PointerContact {
     Away,
     OnControls,
 }
 
-/// A screen's usable rectangle in AppKit's global coordinates.
+/// In AppKit's global coordinates.
 #[derive(Debug, Clone, Copy)]
 pub(super) struct Area {
     pub x: f64,
@@ -41,7 +40,6 @@ pub(super) struct Area {
     pub height: f64,
 }
 
-/// Limits for the window origin.
 #[derive(Debug, Clone, Copy)]
 pub(super) struct Bounds {
     pub x_min: f64,
@@ -50,7 +48,6 @@ pub(super) struct Bounds {
     pub y_max: f64,
 }
 
-/// State of the continuous pointer-follow spring, retained for the lifetime of the HUD.
 #[derive(Default)]
 pub struct HudFollowState {
     pub(super) position: Option<Point>,
@@ -60,7 +57,6 @@ pub struct HudFollowState {
     frozen: bool,
 }
 
-/// Everything one frame of following depends on besides the retained state.
 pub(super) struct FollowFrame {
     pub cursor: Point,
     pub window_width: f64,
@@ -71,8 +67,7 @@ pub(super) struct FollowFrame {
 }
 
 impl HudFollowState {
-    /// Advances one frame from `current`, the window origin as last placed. Returns the origin to move
-    /// the window to, or `None` while the window holds still for the pointer.
+    /// `current` is the window origin as last placed. Returns `None` while the window holds still for the pointer.
     pub(super) fn step(&mut self, current: Point, frame: &FollowFrame, now: Instant) -> Option<Point> {
         let capsule = (current.0 + frame.window_width / 2., current.1 + CAPSULE_CENTER_Y);
         self.freeze_for_pointer(frame, capsule);
@@ -145,7 +140,6 @@ fn freeze_for_interaction(frozen: bool, contact: PointerContact, distance: f64, 
     }
 }
 
-/// Where the window origin should go for `cursor`, and the limits it must stay within.
 pub(super) fn pointer_target(cursor: Point, window_width: f64, area: Area) -> (Point, Bounds) {
     let bounds = Bounds {
         x_min: area.x,

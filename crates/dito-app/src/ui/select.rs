@@ -22,8 +22,7 @@ pub struct SelectItem {
     pub badge: Option<SelectBadge>,
 }
 
-/// The select's arrow: points down when closed and turns to point up while the menu is open, on the same
-/// clock as the menu's appearance.
+/// Same clock as the menu's appearance.
 fn chevron(id: ElementId, color: Hsla, open: bool) -> AnyElement {
     let flips = count_flips(&id, open, Duration::from_millis(RING_MS));
     let at = move |f: f32| {
@@ -45,8 +44,7 @@ fn chevron(id: ElementId, color: Hsla, open: bool) -> AnyElement {
         .into_any_element()
 }
 
-/// How a select is drawn: the standard 36 pt control, or the 40 pt control of configuration forms that sits beside the
-/// form fields (see `form_field`). Only the chrome and its text size differ; the menu and the motion are the same.
+/// Only the chrome and its text size differ; the menu and the motion are the same.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Look {
     Standard,
@@ -83,8 +81,7 @@ impl Look {
     }
 }
 
-/// The select's hover outline: a hairline in `color` that fades in over the resting
-/// border while hovered, and stays out of the way while the menu is open (the accent ring takes over).
+/// Stays out of the way while the menu is open (the accent ring takes over).
 fn hover_border(id: &ElementId, radius: f32, color: Hsla, open: bool) -> AnyElement {
     let target = if !open && is_hovered(id) { 1. } else { 0. };
     tweened(ElementId::from((id.clone(), "hover-border")), target, HOVER_MS, move |v| {
@@ -92,8 +89,7 @@ fn hover_border(id: &ElementId, radius: f32, color: Hsla, open: bool) -> AnyElem
     })
 }
 
-/// An inert select in the configuration-form look: same chrome, muted content, no menu. For the "nothing to pick" case
-/// (e.g. no AWS profiles configured) — the control must not look operable.
+/// For the "nothing to pick" case (e.g. no AWS profiles configured): the control must not look operable.
 pub fn select_form_disabled(p: &Palette, label: SharedString) -> Div {
     let look = Look::Form;
     look.chrome((ElementId::from("select-disabled"), "ring"), p, false)
@@ -106,8 +102,7 @@ pub fn select_form_disabled(p: &Palette, label: SharedString) -> Div {
         .child(icon(Ic::ChevronDown, 14., p.muted))
 }
 
-/// Drop-down: a bordered button that opens a list below it. The menu is never narrower than the
-/// button; longer options (device names) may widen it beyond.
+/// The menu is never narrower than the button; longer options (device names) may widen it beyond.
 #[allow(clippy::too_many_arguments)]
 pub fn select(
     id: &'static str,
@@ -123,7 +118,6 @@ pub fn select(
     select_items(id, p, &items, selected, open, width, on_toggle, on_pick)
 }
 
-/// Shared trigger for plain and application selects. Content varies; chrome, hover, arrow and toggling do not.
 pub fn select_trigger(
     id: &'static str,
     p: &Palette,
@@ -211,7 +205,6 @@ fn select_row(
         .child(div().size(px(14.)).flex_none().when(on, |d| d.child(icon(Ic::Check, 14., p.accent_text))))
 }
 
-/// [`select`] with per-row badges.
 #[allow(clippy::too_many_arguments)]
 pub fn select_items(
     id: &'static str,
@@ -227,7 +220,6 @@ pub fn select_items(
     select_control(Look::Standard, id, p, options, |i| i == selected, label, open, width, on_toggle, on_pick, true)
 }
 
-/// [`select`] in the configuration-form look: as wide as its parent and 40 pt high, beside the form fields.
 #[allow(clippy::too_many_arguments)]
 pub fn select_form(
     id: &'static str,
@@ -243,7 +235,7 @@ pub fn select_form(
     select_control(Look::Form, id, p, &items, |i| i == selected, label, open, None, on_toggle, on_pick, true)
 }
 
-/// Multi-select with the same menu and checkmarks. Picking an option keeps the menu open.
+/// Picking an option keeps the menu open.
 #[allow(clippy::too_many_arguments)]
 pub fn select_multi(
     id: &'static str,

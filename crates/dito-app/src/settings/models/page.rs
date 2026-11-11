@@ -25,10 +25,7 @@ use crate::ui::{self, BtnKind, Cb, InputEvent, TestState, cbk, cbk_idx, text};
 
 pub struct ModalChanged;
 
-/// What the cloud polish half of the page keeps: the form that edits the configuration in use, the tiles that choose
-/// it with their menu and delete dialog, and the result of the connection test. Cloud speech has its own editor.
 pub(super) struct CloudPolishPanel {
-    /// The inputs show the configuration in use.
     pub(super) form: CloudPolishForm,
     pub(super) tiles: ConfigurationPanel,
     pub(super) test: TestState,
@@ -38,8 +35,7 @@ pub(super) struct CloudPolishPanel {
 }
 
 impl CloudPolishPanel {
-    /// A panel that shows nothing yet: the first draw puts the configuration in use into the inputs. What is typed into
-    /// them is saved as it changes.
+    /// Shows nothing yet: the first draw puts the configuration in use into the inputs.
     pub(super) fn new(window: &mut Window, cx: &mut Context<ModelsPage>) -> Self {
         let form = CloudPolishForm::new(window, cx);
         for field in CloudPolishField::ALL {
@@ -71,7 +67,6 @@ pub struct ModelsPage {
     pub(super) menu: Option<String>,
     pub(super) select: Option<&'static str>,
     pub(super) cloud_polish: CloudPolishPanel,
-    /// The parameters of the local polish model in use.
     pub(super) local_polish: LocalPolishForm,
     /// The last save on this page failed: the banner above the card says so until it is closed or a save works. The
     /// cloud speech editor reports its saves here too.
@@ -80,7 +75,6 @@ pub struct ModelsPage {
     pub(super) last_status: String,
     #[cfg(feature = "screenshots")]
     pub(super) preview_snapshot: Option<Snapshot>,
-    /// The page's own motion scope: its controls' transient state, reset on navigation.
     pub(super) motion: ui::MotionScope,
 }
 
@@ -152,7 +146,6 @@ impl ModelsPage {
         .detach();
     }
 
-    /// A test result belongs to the engine settings it ran against; any later change clears it.
     fn reset_stale_cloud_polish_test(&mut self, cx: &mut Context<Self>) {
         let cfg = self.st.cfg.get();
         if self.cloud_polish.test_config.as_ref().is_some_and(|engine| engine != &cfg.polish.engine) {
@@ -162,7 +155,6 @@ impl ModelsPage {
         }
     }
 
-    /// The cloud speech editor, listened to: what it changes in the window shell's overlay, and how its saves go.
     pub(super) fn make_editor(st: Arc<AppState>, window: &mut Window, cx: &mut Context<Self>) -> Entity<AsrEditor> {
         let editor = cx.new(|cx| AsrEditor::new(st, window, cx));
         cx.subscribe(&editor, |_, _, _: &asr_editor::Changed, cx| {
@@ -178,8 +170,6 @@ impl ModelsPage {
         editor
     }
 
-    /// What the shell paints over the whole window: the cloud polish delete dialog, or what the speech editor has to
-    /// show there (its delete dialog, its help).
     pub(in crate::settings) fn overlay(&mut self, window: &mut Window, cx: &mut Context<Self>) -> Option<AnyElement> {
         self.cloud_polish_delete_dialog(window, cx)
             .or_else(|| self.editor.update(cx, |editor, cx| editor.overlay(window, cx)))
@@ -194,14 +184,12 @@ impl ModelsPage {
         k
     }
 
-    /// Record how a save on this page went: the failure banner shows while the last save failed, whichever control
-    /// made it, and the next one that works takes it down.
+    /// The next save that works takes the banner down, whichever control made it.
     pub(super) fn note_save(&mut self, saved: bool) {
         self.save_failed = !saved;
     }
 
-    /// A field of the cloud polish form was typed into. Everything saves as it changes, into the configuration the
-    /// form shows: the key into the Keychain account of that configuration, the rest into the settings. Text the
+    /// The key goes into the Keychain account of the configuration the form shows, the rest into the settings. Text the
     /// setting cannot take is not saved, so the last valid value stays in use.
     pub(super) fn cloud_polish_edited(&mut self, field: CloudPolishField, cx: &mut Context<Self>) {
         let Some(id) = self.cloud_polish.form.shown().map(str::to_owned) else { return };
@@ -234,12 +222,11 @@ impl ModelsPage {
             .is_ok()
         };
         self.note_save(saved);
-        // A changed setting invalidates the previous test result.
         self.cloud_polish.test = TestState::Idle;
         cx.notify();
     }
 
-    /// Focus left the name field of the cloud polish form. A name that was emptied goes back to the last saved one.
+    /// A name that was emptied goes back to the last saved one.
     fn settle_cloud_polish_name(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(id) = self.cloud_polish.form.shown().map(str::to_owned) else { return };
         let typed = self.cloud_polish.form.text(CloudPolishField::Name, cx);
@@ -252,8 +239,6 @@ impl ModelsPage {
         }
     }
 
-    /// A field of the parameters under the local polish models was typed into: it changes the parameters of the model
-    /// the fields show, and nothing else.
     fn local_polish_edited(&mut self, field: LocalPolishField, cx: &mut Context<Self>) {
         let Some(model) = self.local_polish.shown().map(str::to_owned) else { return };
         let text = self.local_polish.text(field, cx);
@@ -271,9 +256,8 @@ impl ModelsPage {
         cx.notify();
     }
 
-    /// The inputs show what the settings say: the cloud polish configuration in use and the local polish model in
-    /// use. They follow a selection however it was made, and the text typed into them is the only other way their
-    /// content changes.
+    /// They follow a selection however it was made, and the text typed into them is the only other way their content
+    /// changes.
     pub(super) fn follow_polish_settings(&mut self, lang: Lang, window: &mut Window, cx: &mut Context<Self>) {
         let cfg = self.st.cfg.get();
         let secrets = self.st.secrets.clone();
@@ -287,8 +271,8 @@ impl ModelsPage {
         self.local_polish.follow(model, &cfg.polish.engine.local_params_for(model), lang, window, cx);
     }
 
-    /// Make `id` the local model `role` uses. `false` when the save failed: the model in use stays as it was, and so
-    /// does everything that would have followed from the change.
+    /// `false` when the save failed: the model in use stays as it was, and so does everything that would have followed
+    /// from the change.
     pub(super) fn select_local_model(&mut self, role: Role, id: &str) -> bool {
         let id = id.to_owned();
         let saved = services::try_save_config(&self.st, |cfg| role::engine_mut(cfg, role).local_model = id).is_ok();
@@ -296,7 +280,6 @@ impl ModelsPage {
         saved
     }
 
-    /// The Local and Cloud switch of `role` was set to the segment `index`.
     pub(super) fn set_source(&mut self, role: Role, index: usize, cx: &mut Context<Self>) {
         let saved = services::try_save_config(&self.st, |cfg| {
             role::engine_mut(cfg, role).source = if index == 0 { Source::Local } else { Source::Provider };
@@ -352,7 +335,6 @@ impl ModelsPage {
 }
 
 impl ModelsPage {
-    /// Reset the page's transient motion state; its controls mount statically on the next entry.
     pub(in crate::settings) fn reset_motion(&mut self, cx: &mut Context<Self>) {
         self.motion.reset();
         self.cloud_polish.tiles.reset();
@@ -362,8 +344,8 @@ impl ModelsPage {
 
 impl Render for ModelsPage {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        // The page draws under its own scope: after a page switch its controls mount statically,
-        // never sliding to values remembered from another page or an earlier visit.
+        // Own scope: after a page switch the controls mount statically instead of sliding to values remembered from an
+        // earlier visit.
         ui::with_motion_scope(self.motion.handle(), || self.view(window, cx))
     }
 }
@@ -428,7 +410,6 @@ impl ModelsPage {
             ))
     }
 
-    /// The shared failure banner, while the last save on this page failed, whichever control made it.
     fn save_banner(&self, c: &Ctx, cx: &mut Context<Self>) -> Option<Div> {
         self.save_failed.then(|| {
             ui::dismissible_banner(

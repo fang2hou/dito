@@ -1,4 +1,4 @@
-//! Embedded assets: fonts, the icon sets used by the design, with gpui-kit's bundle as fallback.
+//! Embedded fonts and icons, with gpui-kit's bundle as fallback.
 
 use std::borrow::Cow;
 
@@ -29,7 +29,6 @@ impl AssetSource for AppAssets {
     }
 }
 
-/// All bundled font files.
 pub fn fonts() -> Vec<Cow<'static, [u8]>> {
     Embedded::iter()
         .filter(|p| p.starts_with("fonts/") && (p.ends_with(".ttf") || p.ends_with(".otf")))
@@ -148,7 +147,7 @@ const TRAY_GLYPH_BARS: [(usize, usize); 5] = [(8, 10), (14, 22), (20, 30), (26, 
 const TRAY_GLYPH_BAR_HALF_WIDTH: usize = 2;
 const TRAY_GLYPH_ROUNDING: usize = 2;
 
-/// Five rounded waveform bars, drawn as a template (black + alpha) image.
+/// A template image (black with alpha), so macOS tints it for the menu bar.
 pub fn tray_glyph() -> Icon {
     let size = TRAY_GLYPH_SIZE;
     let mut rgba = vec![0u8; size * size * 4];

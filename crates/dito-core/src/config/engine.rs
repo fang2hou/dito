@@ -59,8 +59,7 @@ impl From<ReasoningEffort> for String {
     }
 }
 
-/// How a local polish model samples its reply. A field that is not set uses the value the catalog recommends for that
-/// model.
+/// A field that is not set uses the value the catalog recommends for the model.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default)]
 #[serde(default)]
 pub struct LocalPolishParams {
@@ -74,12 +73,10 @@ pub struct LocalPolishParams {
 #[serde(default)]
 pub struct EngineConfig {
     pub cloud_asr: Option<CloudAsrConfigurations>,
-    /// Polish only. `None` until a list is first saved; the three templates stand in, as the bundled configurations do for
-    /// speech.
+    /// Polish only. `None` until a list is first saved; the templates stand in.
     pub cloud_polish: Option<CloudPolishConfigurations>,
     pub source: Source,
     pub local_model: String,
-    /// Polish only: the sampling of each local model that has any set, by model id.
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub local_params: BTreeMap<String, LocalPolishParams>,
 }
@@ -95,19 +92,17 @@ impl EngineConfig {
         }
     }
 
-    /// The saved polish configurations, or the templates' three while none are saved, named in `lang`: the language
-    /// the UI is shown in, which is not necessarily the system's.
+    /// `lang` is the UI language, not necessarily the system's; it names the templates' three while none are saved.
     pub fn polish_configurations(&self, lang: Lang) -> Cow<'_, CloudPolishConfigurations> {
         self.cloud_polish.as_ref().map_or_else(|| Cow::Owned(CloudPolishConfigurations::new(lang)), Cow::Borrowed)
     }
 
-    /// The saved polish configurations for editing; the first edit saves the templates' three, named in `lang`.
+    /// The first edit saves the templates' three, named in `lang`.
     pub fn polish_configurations_mut(&mut self, lang: Lang) -> &mut CloudPolishConfigurations {
         self.cloud_polish.get_or_insert_with(|| CloudPolishConfigurations::new(lang))
     }
 
-    /// The configuration polish requests run: the selected one of the saved list, or the first template's while none
-    /// is saved. For the code that sends requests, which reads no name and so needs no language.
+    /// For the code that sends requests: it reads no name, so it needs no language.
     pub fn active_polish(&self) -> Option<Cow<'_, CloudPolishConfiguration>> {
         match &self.cloud_polish {
             Some(saved) => saved.active().map(Cow::Borrowed),
@@ -115,7 +110,6 @@ impl EngineConfig {
         }
     }
 
-    /// The parameters set for the local model `model`; all unset when there are none.
     pub fn local_params_for(&self, model: &str) -> LocalPolishParams {
         self.local_params.get(model).copied().unwrap_or_default()
     }
@@ -129,8 +123,8 @@ impl EngineConfig {
         }
     }
 
-    /// The engine's identity in history, see [`EngineLabels`]. A cloud source with a configured cloud speech
-    /// configuration is labelled by that configuration, the same condition `EngineFactory::transcriber_for` uses to run it.
+    /// A cloud source with a configured speech list is labelled by that configuration, the condition
+    /// `EngineFactory::transcriber_for` uses to run it.
     pub fn label(&self) -> String {
         match (self.source, &self.cloud_asr) {
             (Source::Local, _) => format!("local:{}", self.local_model),
@@ -152,13 +146,13 @@ impl Default for EngineConfig {
 }
 
 /// Which engines produced a history entry: `local:<model id>` for an on-device model, `<template>:<model>` for a cloud
-/// polish configuration (`azure:<deployment>`, `bedrock:<model id>`, `compat:<model>`), and `<keychain account>:<model>`
-/// for a configured cloud speech configuration (for example `asr.funasr:paraformer-v2`).
+/// polish configuration (`azure:<deployment>`, `bedrock:<model id>`, `compat:<model>`), and
+/// `<keychain account>:<model>` for a configured cloud speech configuration (for example `asr.funasr:paraformer-v2`).
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct EngineLabels {
-    /// Speech recognition. `None` for an entry from before labels were recorded, or one that never reached recognition.
+    /// `None` for an entry from before labels were recorded, or one that never reached transcription.
     pub asr: Option<String>,
-    /// Polishing. `None` when polishing was off, was never reached, or the entry predates labels.
+    /// `None` when polishing was off, was never reached, or the entry predates labels.
     pub polish: Option<String>,
 }
 

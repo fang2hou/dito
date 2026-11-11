@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use dito_core::audio::AudioClip;
 use dito_core::controller::{Recorder, RecorderError};
 
-/// Stand-in microphone: a steady tone, so the mock pipeline always has speech to "recognize".
+/// A steady tone, so the mock pipeline always has speech to transcribe.
 #[derive(Default)]
 pub struct SyntheticRecorder {
     phase: AtomicU32,

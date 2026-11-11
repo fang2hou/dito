@@ -5,7 +5,6 @@ use super::Lang;
 const UNSET: u8 = u8::MAX;
 static SYSTEM: AtomicU8 = AtomicU8::new(UNSET);
 
-/// Tell the UI which language the operating system prefers (the platform layer calls this at startup).
 pub fn set_system_language(lang: Lang) {
     SYSTEM.store(Lang::ALL.iter().position(|l| *l == lang).unwrap_or(1) as u8, Ordering::Relaxed);
 }

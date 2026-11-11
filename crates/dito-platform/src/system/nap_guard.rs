@@ -2,11 +2,9 @@ use objc2::rc::Retained;
 use objc2::runtime::ProtocolObject;
 use objc2_foundation::{NSActivityOptions, NSObjectProtocol, NSProcessInfo, NSString};
 
-/// A held process activity (`beginActivity`, options `UserInteractive`). While one is alive macOS
-/// keeps scheduling this process at interactive rates: without it a background app (the HUD is
-/// never the key window, dictation runs while the user types elsewhere) gets App-Napped and the
-/// window server throttles its frame commits, which showed as the HUD animating at a crawl.
-/// Drop the guard to end the activity.
+/// Holds a `UserInteractive` process activity until dropped. Without it a background app (the HUD is never the key
+/// window, dictation runs while the user types elsewhere) gets App-Napped and the window server throttles its frame
+/// commits, which showed as the HUD animating at a crawl.
 pub struct NapGuard {
     token: Option<Retained<ProtocolObject<dyn NSObjectProtocol>>>,
 }

@@ -15,7 +15,6 @@ pub(in crate::onboarding) fn starting_cloud_asr(
     configurations.active().or_else(|| configurations.items.first())
 }
 
-/// The endpoint and model `configuration` names, empty for what it leaves out.
 pub(in crate::onboarding) fn connection_fields(configuration: Option<&CloudAsrConfiguration>) -> (String, String) {
     let field = |name: &str| configuration.and_then(|c| c.config["connection"][name].as_str()).unwrap_or("").to_owned();
     (field("base_url"), field("model"))
@@ -36,16 +35,16 @@ fn edit_cloud_asr(configurations: &mut CloudAsrConfigurations, id: &str, base_ur
 
 impl Onboarding {
     /// The tested configuration changed (endpoint, key or configuration edit): the recorded result no longer
-    /// describes it, and any in-flight request must be superseded so its success cannot later overwrite
-    /// the fresh idle state for the obsolete configuration.
+    /// describes it, and any in-flight request must be superseded so its success cannot later overwrite the fresh idle
+    /// state for the obsolete configuration.
     pub(in crate::onboarding) fn invalidate_test(&mut self) {
         self.reqs.bump();
         self.test = TestState::Idle;
     }
 
-    /// A step change makes any in-flight connection test stale: entering, leaving or restarting a step
-    /// supersedes the pending request, and a "connecting" state whose result is dropped would never clear.
-    /// A result that already landed before the change stays.
+    /// A step change makes any in-flight connection test stale: entering, leaving or restarting a step supersedes the
+    /// pending request, and a "connecting" state whose result is dropped would never clear. A result that already
+    /// landed before the change stays.
     pub(in crate::onboarding) fn supersede_pending_test(&mut self) {
         self.reqs.bump();
         if matches!(self.test, TestState::Running) {
@@ -53,8 +52,6 @@ impl Onboarding {
         }
     }
 
-    /// Switch the cloud speech configuration the step edits to `id`: keep the edits of the old one, then show the new
-    /// configuration's endpoint, model and key.
     pub(in crate::onboarding) fn select_cloud_asr(&mut self, id: &str, window: &mut Window, cx: &mut Context<Self>) {
         self.apply_cloud_asr(cx);
         self.cloud_asr_id = id.to_owned();
@@ -65,7 +62,6 @@ impl Onboarding {
         cx.notify();
     }
 
-    /// Fill the endpoint, model and key inputs from `configuration`; none leaves them empty.
     fn show_cloud_asr(
         &self,
         configuration: Option<&CloudAsrConfiguration>,
@@ -98,8 +94,7 @@ impl Onboarding {
         cx.notify();
     }
 
-    /// Save what the step shows into the configuration it edits, and make that configuration the one in use. Nothing
-    /// is written, key included, when that configuration no longer exists: another one must not take the edits.
+    /// Nothing is written, key included, when the configuration no longer exists: another one must not take the edits.
     pub(in crate::onboarding) fn apply_cloud_asr(&self, cx: &App) {
         let (id, base, model) = (
             self.cloud_asr_id.clone(),

@@ -32,7 +32,6 @@ struct Metrics {
     last_ms: AtomicU64,
 }
 
-/// Live numbers for the status page.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct EngineMetrics {
     pub inflight: usize,
@@ -71,7 +70,7 @@ impl LocalEngines {
         EngineMetrics { inflight: m.inflight.load(Ordering::Relaxed), last_ms: m.last_ms.load(Ordering::Relaxed) }
     }
 
-    /// Drop the loaded runtime; it is reloaded on next use.
+    /// The runtime is reloaded on next use.
     pub fn unload(&self, id: &str) {
         let old = {
             let mut slots = self.slots.lock().expect("engine state mutex poisoned");
@@ -92,20 +91,18 @@ impl LocalEngines {
         }
     }
 
-    /// Drop every loaded runtime. The app calls this before it quits: llama.cpp's Metal backend asserts at process
-    /// exit if a model is still resident, which would crash the app on every quit.
+    /// Call before quitting: llama.cpp's Metal backend asserts at process exit if a model is still resident.
     pub fn unload_all(&self) {
         self.slots.lock().expect("engine state mutex poisoned").clear();
     }
 
-    /// Unload and load again, returning the new status.
     pub async fn restart(&self, id: &str) -> EngineStatus {
         self.unload(id);
         let _ = self.ensure_loaded(id).await;
         self.status(id)
     }
 
-    /// Load the model ahead of its first use. A failure is recorded in the engine status, not returned.
+    /// A failure is recorded in the engine status, not returned.
     pub async fn warm(&self, id: &str) {
         let _ = self.ensure_loaded(id).await;
     }
@@ -187,8 +184,8 @@ impl Drop for InflightGuard<'_> {
     }
 }
 
-/// Raises the stop flag of a blocking inference call when the call's future is dropped, so a cancelled dictation frees
-/// the model for the next one instead of letting it finish for nobody. After a normal finish nothing reads the flag.
+/// Raises the stop flag when the call's future is dropped, so a cancelled dictation frees the model for the next one
+/// instead of letting it finish for nobody.
 struct StopOnDrop(Arc<AtomicBool>);
 impl Drop for StopOnDrop {
     fn drop(&mut self) {
@@ -196,8 +193,7 @@ impl Drop for StopOnDrop {
     }
 }
 
-/// Output that used the whole token budget is cut off mid-text; returning it as a result would type it as if it were
-/// complete.
+/// Output that used the whole token budget is cut off mid-text and would be typed as if it were complete.
 fn runtime_failure(error: RuntimeError) -> ProviderError {
     match error {
         RuntimeError::Truncated => ProviderError::new(ErrorKind::BadResponse, "output was cut off at the token limit"),

@@ -20,6 +20,7 @@ cargo fmt --all -- --check                   # format check
 mise run lint:rust                           # clippy, also with the mock and screenshots features (the one lint command)
 ./scripts/check.sh fast                      # fmt and fast tests (`mise run check`); the commit hooks run it
 ./scripts/check.sh full                      # adds compile checks of every build flavor
+mise run check:design-refs                   # every design:<id> reference resolves against design/sections.toml
 figcraft-cli render design/dito.figcraft -o out.png --page "<page>"  # render a design page headlessly
 ```
 
@@ -44,8 +45,8 @@ Project-specific overrides:
 - `crates/dito-audio`, `crates/dito-local`, `crates/dito-runtimes`: capture, local model management, on-device inference.
 - `crates/dito-testkit`: mock cloud servers.
 - `bench/`: Python benchmark harness for ASR and polish models (`dito-bench`), with stored results per chip. See `bench/README.md`.
-- `design/`: `dito.figcraft` (source of truth for UI and motion), its conventions, `features.md` (goals and features), and `asr-templates/` (compiled into the app; never move or delete).
-- `docs/`: architecture, implementation, contributing and ADRs. `docs/workflow/`: step-by-step workflows. `scripts/`: bundling, install, signing, checks.
+- `design/`: `dito.figcraft` (source of truth for UI and motion), its conventions, `sections.toml` (the ids behind `design:<id>`), `features.md` (goals and features), and `asr-templates/` (compiled into the app; never move or delete).
+- `docs/`: architecture, glossary, implementation, debugging, contributing and ADRs. `docs/workflow/`: step-by-step workflows. `scripts/`: bundling, install, signing, checks.
 
 ## Boundaries
 
@@ -54,7 +55,7 @@ Always:
 - Reuse shared UI controls in `crates/dito-app/src/ui` before composing screen-specific chrome. Extend the shared component when a new content type needs the same behavior; keep sizing, arrow and hover animation, disabled states, and input focus ownership in that shared path.
 
 - Treat `design/dito.figcraft` as the source of truth: the design leads and the code follows it. Change the design first for any UI change, through the `figcraft-live` MCP, and save it with `file.save` after every change without asking.
-- Before editing the design, decide whether the change is a shared component or belongs to one screen. Shared components live on `11 Type, Space & Components` and `12 Motion`; screen-specific parts live in that screen's section on pages `20`–`22`.
+- Before editing the design, decide whether the change is a shared component or belongs to one screen. Shared components live in `design:components` and `design:motion`; screen-specific parts live in that screen's section under `design:settings`, `design:hud` or `design:onboarding`. Refer to sections by these ids (`design/sections.toml`), never by number; `mise run check:design-refs` verifies them.
 - Change code only after the user has reviewed the design section in FigCraft and approved it, then make the code match it and name the section in your reply.
 - After adding an icon or changing an icon's shape, run the `icon-keylines` skill (`.agents/skills/icon-keylines`) so its optical size and centering follow the shared rule.
 - Run `./scripts/check.sh fast` and `mise run lint:rust` before handing work back; the commit hooks run both.
@@ -93,4 +94,4 @@ Do not infer UI language from conversation language.
 - Design file structure, naming, note cards and where shared versus screen-specific changes go: `design/README.md`.
 - Before changing code an ADR covers, read it in `docs/adr/`; update or supersede it in the same change instead of working around it.
 
-Depth: `docs/workflow/` for the UI and code-fix workflows, `docs/README.md` for architecture, implementation, contributing and ADRs, `design/README.md` and `design/features.md` for design.
+Depth: `docs/GLOSSARY.md` for terms and where each concept lives, `docs/DEBUGGING.md` to run and diagnose, `docs/workflow/` for the UI and code-fix workflows, `docs/README.md` for architecture, implementation, contributing and ADRs, `design/README.md` and `design/features.md` for design.

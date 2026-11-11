@@ -1,5 +1,4 @@
-//! The confirmation dialog (20.03 Prompts, 20.05.12 cloud configurations): a card over the dimmed window with a title,
-//! some content and, right-aligned, the answer that backs out and the one that goes ahead.
+//! The confirmation dialog (`design:settings/prompts`, `design:settings/cloud-models/delete-configuration`).
 
 use gpui_kit::prelude::*;
 use gpui_kit::*;
@@ -12,10 +11,9 @@ use super::scope::motion_scope;
 use super::typography::text;
 use crate::theme::Palette;
 
-/// One of the two answers of a dialog.
 pub struct DialogAnswer {
     pub label: SharedString,
-    /// What it does. `None` shows the answer as unavailable.
+    /// `None` shows the answer as unavailable.
     pub on_click: Option<Cb>,
 }
 
@@ -25,8 +23,8 @@ pub enum ConfirmStyle {
     CompactDestructive,
 }
 
-/// The dialog `id` with its `content` between the title and the answers. Cancel is also what Escape does. `focus` is
-/// the handle that owns the keyboard while the dialog is open; the caller focuses it when it opens the dialog.
+/// Cancel is also what Escape does. `focus` owns the keyboard while the dialog is open; the caller focuses it when it
+/// opens the dialog.
 #[allow(clippy::too_many_arguments)]
 pub fn confirm_dialog(
     window: &Window,
@@ -84,7 +82,7 @@ fn answer(p: &Palette, id: ElementId, kind: BtnKind, answer: DialogAnswer) -> St
     let Some(on_click) = on_click else {
         return disabled_button(id, p, &label, kind, BtnSize::Regular, None, None).opacity(0.5);
     };
-    // The dialog goes away under the pointer, which never reports the end of the hover: forget it here, so the next
+    // The dialog goes away under the pointer, which never reports the end of the hover. Forget it here so the next
     // dialog does not open with this button lit.
     let (scope, hovered) = (motion_scope(), id.clone());
     button(

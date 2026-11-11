@@ -28,7 +28,6 @@ pub struct BedrockParams {
     pub region: String,
     pub model_id: String,
     pub params: CloudPolishParams,
-    /// Test hook: point the SDK at a local mock instead of AWS.
     pub endpoint_override: Option<String>,
 }
 
@@ -66,8 +65,7 @@ fn adaptive_thinking(model_id: &str, params: &CloudPolishParams) -> bool {
     model_id.contains("anthropic") && !params.reasoning_effort.as_str().trim().is_empty()
 }
 
-/// The inference configuration of a request: each of temperature, top-p and the token limit that is set, and nothing
-/// when none is. Bedrock refuses temperature and top-p while adaptive thinking is on, so those are left out then.
+/// Bedrock refuses temperature and top-p while adaptive thinking is on, so those are left out then.
 fn inference_config(model_id: &str, params: &CloudPolishParams) -> Option<InferenceConfiguration> {
     let sampling = !adaptive_thinking(model_id, params);
     let temperature = params.temperature.filter(|_| sampling);
@@ -85,7 +83,6 @@ fn inference_config(model_id: &str, params: &CloudPolishParams) -> Option<Infere
     )
 }
 
-/// The model-specific request fields: the reasoning effort in the form the model family takes it, then `extra` over it.
 fn additional_fields(model_id: &str, params: &CloudPolishParams) -> Option<Document> {
     let text = |value: &str| Document::String(value.to_owned());
     let mut fields = HashMap::new();

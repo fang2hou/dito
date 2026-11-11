@@ -15,7 +15,6 @@ const RESTORE_FLOOR: Duration = Duration::from_millis(500);
 /// When verification cannot confirm the insert (e.g. secure fields), give slow apps longer.
 const RESTORE_FLOOR_UNVERIFIED: Duration = Duration::from_millis(1000);
 
-/// The real text sink: insert at the cursor when possible, otherwise leave the text on the clipboard.
 pub struct MacSink;
 
 impl Sink for MacSink {
@@ -34,8 +33,7 @@ fn terminal_clipboard(text: &str) -> Delivery {
     }
 }
 
-/// The focused element live insertion can go to, or `None` (after logging why) when the text
-/// should be left on the clipboard instead.
+/// `None` (after logging why) when the text should stay on the clipboard instead.
 fn deliverable_target() -> Option<FocusTarget> {
     let Some(target) = wait_for_stable_focus() else {
         tracing::warn!("insert: no readable focused element (Accessibility permission?); text left on clipboard");
@@ -68,7 +66,6 @@ fn deliverable_target() -> Option<FocusTarget> {
     Some(target)
 }
 
-/// What to do with the saved clipboard once an attempt is over.
 enum Restore {
     InBackground(Duration),
     Now(Duration),
@@ -84,7 +81,6 @@ impl Restore {
     }
 }
 
-/// One delivery in progress: the text as UTF-16, where the cursor was, and the clipboard to give back.
 struct Attempts<'a> {
     text: &'a str,
     target: &'a FocusTarget,
@@ -94,7 +90,7 @@ struct Attempts<'a> {
 }
 
 impl Attempts<'_> {
-    /// Runs one live attempt and verifies it. Returns the verdict and the last selection location seen.
+    /// Returns the verdict and the last selection location seen.
     fn run(&mut self, step: Step) -> (Outcome, Option<usize>) {
         let result = match step {
             Step::Type { from } => self.type_suffix(from),
@@ -142,8 +138,6 @@ impl Attempts<'_> {
     }
 }
 
-/// The delivery spine: wait for stable focus, then type/paste with verification and the
-/// [`dito_core::insert`] fallback flow, ending on the clipboard if nothing live worked.
 fn deliver_text(text: &str, method: InsertMethod) -> Delivery {
     let Some(target) = deliverable_target() else { return terminal_clipboard(text) };
     let mut attempts =

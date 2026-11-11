@@ -35,7 +35,6 @@ pub struct StatsPage {
     range: Range,
     /// Owned stats snapshot; render never touches the database.
     query: PageQuery<Stats>,
-    /// The page's own motion scope: its controls' transient state, reset on navigation.
     motion: ui::MotionScope,
 }
 
@@ -73,8 +72,7 @@ impl StatsPage {
         }
     }
 
-    /// Page visibility lifecycle, driven by `Settings`. Stats loads on entry and on range
-    /// changes; while inactive no queries run and late results are ignored.
+    /// While inactive no queries run and late results are ignored.
     pub fn set_active(&mut self, active: bool, cx: &mut Context<Self>) {
         self.query.set_active(active);
         if active {
@@ -91,12 +89,10 @@ fn lang_name(code: &str, lang: dito_core::i18n::Lang) -> String {
 }
 
 impl StatsPage {
-    /// Reset the page's transient motion state; its controls mount statically on the next entry.
     pub(super) fn reset_motion(&mut self) {
         self.motion.reset();
     }
 
-    /// The page's scope, for the screenshot harness.
     #[cfg(feature = "screenshots")]
     pub(super) fn motion_scope(&self) -> ui::ScopeHandle {
         self.motion.handle()
@@ -105,8 +101,8 @@ impl StatsPage {
 
 impl Render for StatsPage {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        // The page draws under its own scope: after a page switch its controls mount statically,
-        // never sliding to values remembered from another page or an earlier visit.
+        // Own scope: after a page switch the controls mount statically instead of sliding to values remembered from an
+        // earlier visit.
         ui::with_motion_scope(self.motion.handle(), || self.view(_window, cx))
     }
 }
@@ -205,7 +201,6 @@ fn headline_card(c: &Ctx, stats: &Stats, avail: f32) -> Div {
     head
 }
 
-/// How many days the per-day chart shows: a week gets wide labelled bars, a month thin ones.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Span {
     Week,
@@ -385,7 +380,7 @@ fn languages_card(c: &Ctx, stats: &Stats) -> Div {
         .flex_1()
         .p(px(26.))
         .gap(px(18.))
-        .child(text(c.t(Tr::StatsRecognizedLanguages), 15., FontWeight::BOLD, p.text))
+        .child(text(c.t(Tr::StatsDetectedLanguages), 15., FontWeight::BOLD, p.text))
         .child(stack)
         .child(legend)
 }

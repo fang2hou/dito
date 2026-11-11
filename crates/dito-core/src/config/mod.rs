@@ -1,4 +1,4 @@
-//! Settings: the schema, its versioned migrations, the persisted store and the default data directory.
+//! Persisted settings.
 
 mod cloud_asr;
 mod cloud_polish;

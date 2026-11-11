@@ -1,10 +1,4 @@
 //! Inference runtimes for the on-device models.
-//!
-//! | model files | runtime | feature |
-//! | --- | --- | --- |
-//! | SenseVoice, NeMo TDT (ONNX) | sherpa-onnx | `sherpa` |
-//! | Qwen3-ASR (GGUF + mmproj) | llama.cpp (Metal) | `llama` |
-//! | Chat models (GGUF, prompt from its chat template, `disable_thinking` is the Qwen think prefill) | llama.cpp (Metal) | `llama` |
 
 use std::path::Path;
 use std::sync::Arc;
@@ -23,7 +17,6 @@ mod qwen_text;
 #[cfg(feature = "sherpa")]
 mod sherpa;
 
-/// Chooses the runtime from the model's catalog entry.
 #[derive(Default)]
 pub struct Runtimes;
 
@@ -73,7 +66,7 @@ fn unavailable(runtime: Runtime, name: &str) -> RuntimeError {
     RuntimeError::NotCompiled { name: name.to_string(), runtime }
 }
 
-/// Resolve the catalog's exact file role, never an arbitrary matching file in the directory.
+/// Never an arbitrary matching file in the directory: the catalog names the exact file.
 #[cfg(any(feature = "llama", feature = "sherpa", test))]
 fn model_file(dir: &Path, name: &str) -> Result<std::path::PathBuf, RuntimeError> {
     let path = dir.join(name);

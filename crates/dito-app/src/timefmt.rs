@@ -25,7 +25,6 @@ pub fn weekday(day: i64) -> usize {
     (day + 3).rem_euclid(7) as usize
 }
 
-/// Unix seconds at local midnight of `day`.
 pub fn day_start(day: i64, off: i32) -> i64 {
     day * 86_400 - off as i64
 }

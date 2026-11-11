@@ -1,9 +1,4 @@
-//! The row of configuration tiles above a cloud form (`20.05.13`).
-//!
-//! Every tile is 216 wide and 64 high, whatever the window and the number of tiles; tiles sit at the left. A row that
-//! does not fit scrolls sideways, without a scrollbar, fading into the card where tiles continue past an edge; a
-//! wider one leaves the rest empty. The plus button sits outside the scrolling area. A press that stays put selects, a
-//! press that moves lifts the tile and reorders by dragging.
+//! The row of configuration tiles above a cloud form (`design:settings/cloud-models/tile-row`).
 //!
 //! The row knows nothing about configurations: it takes plain tiles and reports ids. Its owner keeps one
 //! [`TileRowState`] next to the data, passes the same one every frame and, after selecting or adding a tile,
@@ -32,12 +27,10 @@ use super::scope::{ScopeHandle, motion_scope, with_motion_scope};
 use crate::assets::Ic;
 use crate::theme::Palette;
 
-/// Called with the id of the tile that was clicked.
 pub type IdCb = Rc<dyn Fn(&str, &mut Window, &mut App)>;
-/// Called with the id of the tile that was dropped and the index it now has.
+/// Gets the id of the dropped tile and the index it now has.
 pub type MoveCb = Rc<dyn Fn(&str, usize, &mut Window, &mut App)>;
 
-/// [`IdCb`] that updates the view `V`.
 pub fn cbk_id<V: 'static>(
     cx: &mut Context<V>,
     f: impl Fn(&mut V, &str, &mut Window, &mut Context<V>) + 'static,
@@ -48,7 +41,6 @@ pub fn cbk_id<V: 'static>(
     })
 }
 
-/// [`MoveCb`] that updates the view `V`.
 pub fn cbk_move<V: 'static>(
     cx: &mut Context<V>,
     f: impl Fn(&mut V, &str, usize, &mut Window, &mut Context<V>) + 'static,
@@ -59,7 +51,6 @@ pub fn cbk_move<V: 'static>(
     })
 }
 
-/// One tile: the name over what it is set up with, and whether it is the one in use.
 pub struct ConfigTile {
     pub id: SharedString,
     pub name: SharedString,
@@ -67,17 +58,14 @@ pub struct ConfigTile {
     pub selected: bool,
 }
 
-/// The plus button that ends the row, outside the scrolling area.
 pub struct TilePlus {
-    /// Whether the menu the press opens is showing; the button stays lit and a press then closes it.
+    /// While the menu is showing the button stays lit, and a press closes it.
     pub open: bool,
-    /// The press, to open or close the menu.
     pub on_press: Cb,
-    /// The menu, drawn as a child of the button's own 36 pt box: pass `add_menu(...)`.
+    /// Drawn as a child of the button's own 36 pt box: pass `add_menu(...)`.
     pub menu: Option<AnyElement>,
 }
 
-/// The row of `tiles`, in order. `state` is the owner's, the same one every frame.
 pub fn tile_row(id: impl Into<ElementId>, p: &Palette, state: &TileRowState, tiles: Vec<ConfigTile>) -> TileRow {
     TileRow {
         id: id.into(),
@@ -105,13 +93,12 @@ pub struct TileRow {
 }
 
 impl TileRow {
-    /// A click on a tile.
     pub fn on_select(mut self, on_select: IdCb) -> Self {
         self.on_select = Some(on_select);
         self
     }
 
-    /// A tile dropped in a new place; the owner reorders its data and draws again.
+    /// The owner reorders its data and draws again.
     pub fn on_move(mut self, on_move: MoveCb) -> Self {
         self.on_move = Some(on_move);
         self
@@ -215,7 +202,6 @@ impl RenderOnce for TileRow {
     }
 }
 
-/// The 36 pt circle at the end of the row, with the owner's menu hanging off it.
 fn plus_button(p: &Palette, id: ElementId, plus: TilePlus) -> Div {
     let TilePlus { open, on_press, menu } = plus;
     let scope = motion_scope();
@@ -236,7 +222,6 @@ fn plus_button(p: &Palette, id: ElementId, plus: TilePlus) -> Div {
     div().relative().flex_none().size(px(CONTROL_H)).child(button).children(menu)
 }
 
-/// An edge of the row fading into the card: opaque at the edge, clear `FADE_W` in.
 fn fade(p: &Palette, strength: f32, left: bool) -> Div {
     let (solid, clear) = (hex_alpha(p.card, p.card.a * strength), hex_alpha(p.card, 0.));
     let strip = div().absolute().top_0().h(px(TILE_H)).w(px(FADE_W));
@@ -247,8 +232,7 @@ fn fade(p: &Palette, strength: f32, left: bool) -> Div {
     }
 }
 
-/// Measures the scrolling area and, while it is painted, listens to the pointer wherever it goes: a drag keeps
-/// going when the pointer leaves the row.
+/// Listens to the pointer wherever it goes, because a drag keeps going when the pointer leaves the row.
 fn gestures(state: &TileRowState, on_select: Option<IdCb>, on_move: Option<MoveCb>) -> Canvas<()> {
     let measure = state.clone();
     let state = state.clone();

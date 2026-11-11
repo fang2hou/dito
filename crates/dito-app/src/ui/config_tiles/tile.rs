@@ -1,4 +1,4 @@
-//! One tile of a configuration row (`20.05.13`): the name over the detail, the radio on the right.
+//! One tile of a configuration row (`design:settings/cloud-models/tile-row`).
 
 use gpui_kit::prelude::*;
 use gpui_kit::*;
@@ -8,9 +8,7 @@ use super::geometry::TILE_H;
 use crate::theme::Palette;
 use crate::ui::{hex_alpha, hover_fill_if, hover_tracker, radio, ring_overlay, text, transparent};
 
-/// The tile as the row draws it. It hovers like the choice tiles of the Models page: a quiet fill fades in on an idle
-/// one, the border grows and turns to the accent when it becomes the selected one. `hover` turns the fill off while
-/// another tile is dragged. The caller sizes and places it.
+/// Hovers like the choice tiles of the Models page. `hover` turns the fill off while another tile is dragged.
 pub(super) fn tile(p: &Palette, id: ElementId, spec: &ConfigTile, hover: bool) -> Stateful<Div> {
     let on = spec.selected;
     let text_block = div()
@@ -42,7 +40,6 @@ pub(super) fn tile(p: &Palette, id: ElementId, spec: &ConfigTile, hover: bool) -
         .child(radio(p, on))
 }
 
-/// One line of a tile: a 21 pt box that cuts its text with an ellipsis.
 fn line(s: SharedString, size: f32, weight: FontWeight, color: Hsla, line_height: f32) -> Div {
     text(s, size, weight, color).h(px(21.)).line_height(px(line_height)).truncate()
 }

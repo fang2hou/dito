@@ -1,6 +1,6 @@
-//! The saved list of cloud speech configurations, and the changes the speech editor makes to it. Each change names its
-//! configuration by id, never by place: tiles are reordered and the selection moves, and a draft that is still being
-//! checked must land in the configuration it was typed into.
+//! Changes to the saved cloud speech configurations. Each names its configuration by id, never by place: tiles are
+//! reordered and the selection moves, and a draft that is still being checked must land in the configuration it was
+//! typed into.
 
 use std::borrow::Cow;
 
@@ -9,8 +9,7 @@ use dito_core::config::{CloudAsrConfigurations, CloudAsrTemplate, Config, Config
 use dito_core::secrets::SecretStore;
 use serde_json::Value;
 
-/// The list in `config`: what was saved, or the bundled templates until something was saved (and for a list that was
-/// emptied by hand).
+/// The saved list, or the bundled templates before anything was saved and after the list was emptied by hand.
 pub(super) fn of(config: &Config) -> Cow<'_, CloudAsrConfigurations> {
     match &config.asr.cloud_asr {
         Some(list) if !list.items.is_empty() => Cow::Borrowed(list),
@@ -18,7 +17,7 @@ pub(super) fn of(config: &Config) -> Cow<'_, CloudAsrConfigurations> {
     }
 }
 
-/// The list to change: the first change saves the bundled templates that stood in for it.
+/// The first change saves the bundled templates that stood in for the list.
 fn of_mut(config: &mut Config) -> &mut CloudAsrConfigurations {
     let list = config.asr.cloud_asr.get_or_insert_with(CloudAsrConfigurations::default);
     if list.items.is_empty() {
@@ -27,7 +26,6 @@ fn of_mut(config: &mut Config) -> &mut CloudAsrConfigurations {
     list
 }
 
-/// Make `id` the configuration in use.
 pub(super) fn select(cfg: &ConfigStore, id: &str) -> Result<()> {
     cfg.update(|config| {
         of_mut(config).select(id);
@@ -35,7 +33,7 @@ pub(super) fn select(cfg: &ConfigStore, id: &str) -> Result<()> {
     Ok(())
 }
 
-/// Rename `id`. A blank name is refused and the last one stays.
+/// A blank name is refused and the last one stays.
 pub(super) fn rename(cfg: &ConfigStore, id: &str, name: &str) -> Result<()> {
     cfg.update(|config| {
         of_mut(config).rename(id, name);
@@ -51,37 +49,34 @@ pub(super) fn move_to(cfg: &ConfigStore, id: &str, index: usize) -> Result<()> {
     Ok(())
 }
 
-/// Append a configuration that starts from `template` and select it. Returns its id.
+/// Also selects the new configuration.
 pub(super) fn add(cfg: &ConfigStore, template: CloudAsrTemplate, name: &str) -> Result<String> {
     let mut added = String::new();
     cfg.update(|config| added = of_mut(config).add_from_template(template, name))?;
     Ok(added)
 }
 
-/// Append a copy of `id` and select it, without the key. Returns the id of the copy, `None` when there is no `id`.
+/// The copy is selected and does not get the key. `None` when there is no `id`.
 pub(super) fn duplicate(cfg: &ConfigStore, id: &str, name: &str) -> Result<Option<String>> {
     let mut copy = None;
     cfg.update(|config| copy = of_mut(config).duplicate(id, name))?;
     Ok(copy)
 }
 
-/// Remove `id` with its key, and select its neighbour when it was the one in use. `false` for the last configuration,
-/// which stays, and for an id nobody has.
+/// Also removes the key, and selects the neighbour when `id` was in use. `false` for the last configuration, which
+/// stays, and for an unknown id.
 pub(super) fn remove(cfg: &ConfigStore, secrets: &dyn SecretStore, id: &str) -> Result<bool> {
     Ok(cfg.remove_cloud_asr_configuration(id, secrets)?)
 }
 
-/// A key as typed and as the Keychain holds it.
 pub(super) struct KeyChange<'a> {
     pub typed: &'a str,
     pub saved: &'a str,
 }
 
-/// Save a validated draft into the configuration `id`: its request JSON, and its key when that changed. Nothing else
-/// moves, not the selection and not another configuration. A failed save leaves the key as it was.
-///
-/// `false` when no configuration has that id any more: it was deleted while its draft was still being checked, and
-/// neither its JSON nor its key may come back.
+/// Touches nothing but configuration `id`: not the selection, not another configuration. A failed save leaves the key
+/// as it was. `false` when no configuration has that id any more: it was deleted while its draft was still being
+/// checked, and neither its JSON nor its key may come back.
 pub(super) fn save_draft(
     cfg: &ConfigStore,
     secrets: &dyn SecretStore,

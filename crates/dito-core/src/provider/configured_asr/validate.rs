@@ -15,7 +15,6 @@ const ALLOWED_KEYS: [(&str, &[&str]); 4] = [
     ("/response", &["text_pointer", "language_pointer"]),
 ];
 
-/// A request JSON that breaks its contract, and where.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidationError {
     /// Path of the offending value: a JSON Pointer such as `/connection/model` or a dotted path such as
@@ -24,65 +23,49 @@ pub struct ValidationError {
     pub reason: ValidationReason,
 }
 
-/// What is wrong with a request JSON. The `Display` text is English technical detail for logs and [`ProviderError`]; the
-/// UI words each reason in the user's language.
+/// The `Display` text is English technical detail for logs and [`ProviderError`]; the UI words each reason in the
+/// user's language.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum ValidationReason {
-    /// A required string is missing, blank or not a string.
     #[error("a value is required")]
     Required,
-    /// `version` is not 1.
     #[error("must be 1")]
     UnsupportedVersion,
-    /// `connection.base_url` does not parse as a URL.
     #[error("not a valid URL")]
     InvalidUrl,
     /// `connection.base_url` is not a plain HTTP(S) URL: another scheme, no host, a query, a fragment or credentials.
     #[error("must be an http or https URL without query, fragment or credentials")]
     NotHttpUrl,
-    /// A section that must be a JSON object is not.
     #[error("must be an object")]
     ObjectRequired,
     /// `language_map` has an invalid or duplicate key, or a blank value.
     #[error("invalid language code or value")]
     InvalidLanguageMap,
-    /// `request.method` is neither POST nor PUT.
     #[error("must be POST or PUT")]
     InvalidMethod,
-    /// `request.path` is not a relative path starting with `/`.
     #[error("must be a relative path starting with /")]
     PathNotRelative,
-    /// `request.encoding` does not match `body` and `fields`.
     #[error("encoding does not match body and fields")]
     EncodingMismatch,
-    /// A response pointer is not a JSON Pointer.
     #[error("not a valid JSON Pointer")]
     InvalidJsonPointer,
-    /// A key the contract does not define.
     #[error("unknown key")]
     UnknownKey,
     /// A header has an invalid name, or a value that is not a single-line string.
     #[error("invalid header name or value")]
     InvalidHeaders,
-    /// A `query` or `fields` value is an array or an object.
     #[error("values must be strings, numbers, booleans or null")]
     NonScalarValue,
-    /// `{{audio.file}}` outside `fields` in a multipart request.
     #[error("audio.file is only allowed in fields")]
     AudioFileOutsideFields,
-    /// `{{language}}` as an array element.
     #[error("language cannot be an array element")]
     LanguageInArray,
-    /// A `{{` without its `}}`.
     #[error("variable is missing its closing braces")]
     UnclosedVariable,
-    /// A variable the contract does not define.
     #[error("unknown variable: {name}")]
     UnknownVariable { name: String },
-    /// `{{audio.file}}` that is not the whole value of a multipart field.
     #[error("audio.file must be the whole value of a multipart field")]
     AudioFileNotWholeValue,
-    /// `{{language}}` inside a longer string.
     #[error("language must be the whole value")]
     LanguageNotWholeValue,
 }
@@ -130,7 +113,7 @@ fn is_json_pointer(s: &str) -> bool {
     s.starts_with('/') && !s.ends_with('~') && !s.as_bytes().windows(2).any(|x| x[0] == b'~' && !b"01".contains(&x[1]))
 }
 
-/// Checks a request JSON against its contract (`design/asr-json-config.md`).
+/// The contract is `design/asr-json-config.md`.
 pub fn validate(v: &Value) -> Result<(), ValidationError> {
     if v["version"] != 1 {
         return Err(ValidationError::new("version", ValidationReason::UnsupportedVersion));
@@ -189,7 +172,6 @@ fn check_language_map(v: &Value) -> Result<(), ValidationError> {
     Ok(())
 }
 
-/// Validates method, path and the body shape, and returns the request encoding.
 fn check_request_head(v: &Value) -> Result<&str, ValidationError> {
     if !["POST", "PUT"].contains(&string(v, "/request/method")?) {
         return Err(ValidationError::new("request.method", ValidationReason::InvalidMethod));

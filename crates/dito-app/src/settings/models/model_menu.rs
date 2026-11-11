@@ -39,8 +39,7 @@ impl ModelsPage {
         )
     }
 
-    /// Engine commands follow the runtime: Stop + Restart while the engine runs, Start otherwise. Starting a
-    /// non-selected model also switches the engine to it.
+    /// Starting a non-selected model also switches the engine to it.
     fn engine_command_items(
         &self,
         c: &Ctx,
@@ -79,7 +78,7 @@ impl ModelsPage {
         }]
     }
 
-    /// Start the model `id`, which also makes it the one `role` uses. A selection that cannot be saved starts nothing.
+    /// Also makes `id` the model `role` uses. A selection that cannot be saved starts nothing.
     fn start_model(&mut self, role: Role, id: &str, cx: &mut Context<Self>) {
         if self.select_local_model(role, id) {
             restart_engine(&self.st, id);
@@ -87,7 +86,6 @@ impl ModelsPage {
         cx.notify();
     }
 
-    /// Download again, show in Finder and delete.
     fn file_command_items(&self, c: &Ctx, id: &str) -> Vec<MenuItem> {
         let (st, again_id, delete_id) = (self.st.clone(), id.to_string(), id.to_string());
         let dir = self.st.models.model_dir(id);

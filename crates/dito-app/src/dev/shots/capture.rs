@@ -9,7 +9,6 @@ use super::input::redraw;
 use crate::hud::{HUD_SCALE, HudView, WIN_H, WIN_PAD, WIN_W};
 use crate::settings;
 
-/// Frame rate of the frame-by-frame HUD captures.
 const FRAME_RATE: f32 = 30.;
 
 pub const BACKDROP_LIGHT: Rgba<u8> = Rgba([0xF7, 0xF5, 0xF0, 255]);
@@ -28,8 +27,7 @@ pub fn theme_tag(appearance: Appearance) -> &'static str {
     if appearance == Appearance::Dark { "dark" } else { "light" }
 }
 
-/// Redraw from the current state, then read the image. Shots run in windows that are never shown, and a window
-/// that is not on screen does not commit frames by itself.
+/// Shots run in windows that are never shown, and a window that is not on screen does not commit frames by itself.
 ///
 /// Goes through `update_window` on an untyped handle: a typed `WindowHandle::update` leases the window's root view,
 /// and drawing needs it.
@@ -65,14 +63,13 @@ pub fn close_window(cx: &mut AsyncApp, window: impl Into<AnyWindowHandle>) {
     let _ = cx.update(|cx| window.update(cx, |_, w, _| w.remove_window()));
 }
 
-/// Paint a transparent window shot over an opaque backdrop.
 pub fn over_backdrop(img: &RgbaImage, backdrop: Rgba<u8>) -> RgbaImage {
     let mut canvas = RgbaImage::from_pixel(img.width(), img.height(), backdrop);
     image::imageops::overlay(&mut canvas, img, 0, 0);
     canvas
 }
 
-/// Sleep until frame `frame` (zero-based) of a capture that started at `start` is due.
+/// `frame` is zero-based.
 pub async fn wait_for_frame(cx: &mut AsyncApp, start: Instant, frame: u32) {
     let due = Duration::from_secs_f32((frame + 1) as f32 / FRAME_RATE);
     cx.background_executor().timer(due.saturating_sub(start.elapsed()).max(Duration::from_millis(2))).await;

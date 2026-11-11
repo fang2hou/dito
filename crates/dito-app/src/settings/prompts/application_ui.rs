@@ -1,4 +1,4 @@
-//! Application-profile selection, copying and reset dialogs.
+//! Selection, copying and reset dialogs for the Styles of configured applications.
 
 use super::*;
 use crate::assets::Ic;
@@ -62,7 +62,7 @@ impl PromptsPage {
         self.load(window, cx);
     }
 
-    /// A neutral action appears only for an application profile, never for the Other fallback.
+    /// A neutral action appears only for a configured application, never for the Other fallback.
     pub(super) fn remove_app_control(&self, c: &Ctx, cx: &mut Context<Self>) -> Option<Stateful<Div>> {
         if self.style == Style::General {
             return None;
@@ -86,7 +86,7 @@ impl PromptsPage {
     fn remove_application(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let style = self.style.clone();
         let before = self.drafts.clone();
-        self.drafts.remove_profile(&style);
+        self.drafts.remove_style(&style);
         self.save(cx);
         if self.save_error.is_some() {
             self.drafts = before;

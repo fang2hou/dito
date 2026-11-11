@@ -34,7 +34,6 @@ fn open_page_sized(st: &Arc<AppState>, page: Page, width: f32, height: f32, cx: 
     });
 }
 
-/// Every page in both appearances at the default window size.
 pub async fn page_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     for appearance in [Appearance::Light, Appearance::Dark] {
         services::save_config(st, |c| c.general.appearance = appearance);
@@ -54,7 +53,6 @@ pub async fn page_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     }
 }
 
-/// Capture contextual-help entrance, exit, and interrupted re-entry at native render frames.
 pub async fn prompt_motion_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     let original = st.cfg.get();
     for appearance in [Appearance::Light, Appearance::Dark] {
@@ -101,7 +99,6 @@ pub async fn prompt_motion_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncA
     });
 }
 
-/// Prompt controls at default and narrow widths, with both appearances.
 pub async fn prompt_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     let original = st.cfg.get();
     for language in [DisplayLanguage::Ja, DisplayLanguage::En, DisplayLanguage::Zh] {
@@ -155,7 +152,6 @@ pub async fn prompt_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     });
 }
 
-/// Verify committed input, IME, autosave and native Undo/Redo through real input events.
 pub async fn prompt_editing_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     let original = st.cfg.get();
     for appearance in [Appearance::Light, Appearance::Dark] {
@@ -203,7 +199,6 @@ pub async fn prompt_editing_shots(st: &Arc<AppState>, dir: &Path, cx: &mut Async
     });
 }
 
-/// Status layout in both appearances, including narrow windows and long provider facts.
 pub async fn status_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     let original = st.cfg.get();
     for appearance in [Appearance::Light, Appearance::Dark] {
@@ -235,7 +230,7 @@ pub async fn status_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     });
 }
 
-/// Click through the sidebar in a fixed pattern, to reproduce navigation glitches. Opt-in: `DITO_SHOTS_ONLY=navrepro`.
+/// Opt-in: `DITO_SHOTS_ONLY=navrepro`.
 pub async fn nav_repro(cx: &mut AsyncApp) {
     cx.background_executor().timer(Duration::from_millis(700)).await;
     for _ in 0..3 {
@@ -248,9 +243,8 @@ pub async fn nav_repro(cx: &mut AsyncApp) {
     cx.background_executor().timer(Duration::from_millis(600)).await;
 }
 
-/// Every page at the settings window's minimum width (900): catches narrow-layout overflow that
-/// the default 1120×860 shots cannot see. Height goes past the 640 minimum so below-fold cards
-/// (e.g. the models storage card) are captured too.
+/// Catches narrow-layout overflow that the default 1120×860 shots cannot see. The height goes past the 640 minimum
+/// so below-fold cards (e.g. the models storage card) are captured too.
 pub async fn min_size_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     for appearance in [Appearance::Light, Appearance::Dark] {
         services::save_config(st, |c| c.general.appearance = appearance);
@@ -262,14 +256,13 @@ pub async fn min_size_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     }
 }
 
-/// Pages in non-default states (local models, shortcut recording, open selects), then hover states.
 pub async fn extra_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     let original = st.cfg.get();
     for appearance in [Appearance::Light, Appearance::Dark] {
         non_default_page_shots(st, dir, cx, appearance).await;
     }
-    // force_hover writes the scope the id actually renders under: the shell (nav, health) or the
-    // open page, so no guessing a visit counter.
+    // force_hover writes the scope the id actually renders under: the shell (nav, health) or the open page, so no
+    // guessing a visit counter.
     let (shell, general) = cx.update(|cx| {
         settings::open(st.clone(), Page::General, cx);
         (settings::shell_motion(cx), settings::page_motion(Page::General, cx))
@@ -313,7 +306,6 @@ fn open_general_select(cx: &mut AsyncApp, id: &'static str) {
     });
 }
 
-/// A nav item, a segment cell, a select.
 async fn general_hover_shots(dir: &Path, cx: &mut AsyncApp, shell: &ScopeHandle, general: &ScopeHandle) {
     let mode_cell = ElementId::from((ElementId::from("mode"), SharedString::from("i1")));
     let nav_item = || ElementId::from(("nav", 2usize));
@@ -327,7 +319,6 @@ async fn general_hover_shots(dir: &Path, cx: &mut AsyncApp, shell: &ScopeHandle,
     ui::force_hover(general, ElementId::from("ui-lang"), false);
 }
 
-/// A cloud polish tile and the test button on the Models page.
 async fn models_hover_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     services::save_config(st, |c| c.polish.engine.source = Source::Provider);
     let models = cx
@@ -352,9 +343,8 @@ async fn models_hover_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     page_shot(cx, dir, "models-hover.png").await;
 }
 
-/// Health dot hover: the halo + status card on the expanded logo, then on the rail's mark.
-/// force_hover only writes the hover table: without a refresh the window would keep painting
-/// the pre-hover element tree, so nudge a rebuild before each pair.
+/// force_hover only writes the hover table: without a refresh the window would keep painting the pre-hover element
+/// tree, so nudge a rebuild before each pair.
 async fn health_dot_hover_shots(dir: &Path, cx: &mut AsyncApp, shell: &ScopeHandle) {
     ui::force_hover(shell, ElementId::from("health-dot-hit"), true);
     cx.update(refresh_settings_window);
@@ -370,7 +360,7 @@ struct ModelCase {
     name: &'static str,
     role: Role,
     local: bool,
-    preset: usize,
+    template: usize,
     editor: Option<EditorPreview>,
 }
 
@@ -378,10 +368,10 @@ const fn model_case(
     name: &'static str,
     role: Role,
     local: bool,
-    preset: usize,
+    template: usize,
     editor: Option<EditorPreview>,
 ) -> ModelCase {
-    ModelCase { name, role, local, preset, editor }
+    ModelCase { name, role, local, template, editor }
 }
 
 const MODEL_CASES: [ModelCase; 12] = [
@@ -399,7 +389,7 @@ const MODEL_CASES: [ModelCase; 12] = [
     model_case("help", Role::Asr, false, 1, Some(EditorPreview::Help)),
 ];
 
-/// The Models page in each preset state. Opt-in: `DITO_SHOTS_ONLY=models`, `DITO_MODEL_SHOTS=<case names>`.
+/// Opt-in: `DITO_SHOTS_ONLY=models`, `DITO_MODEL_SHOTS=<case names>`.
 pub async fn model_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     let original = st.cfg.get();
     let only = std::env::var("DITO_MODEL_SHOTS").ok();
@@ -444,9 +434,12 @@ fn apply_model_case(st: &AppState, appearance: Appearance, case: &ModelCase) {
         c.general.appearance = appearance;
         c.asr.source = if case.local { Source::Local } else { Source::Provider };
         c.polish.engine.source = c.asr.source;
-        c.polish.engine.polish_configurations_mut(c.general.lang()).select(["azure", "bedrock", "compat"][case.preset]);
+        c.polish
+            .engine
+            .polish_configurations_mut(c.general.lang())
+            .select(["azure", "bedrock", "compat"][case.template]);
         let mut configurations = CloudAsrConfigurations::default();
-        configurations.select(["funasr", "qwen_asr", "openrouter"][case.preset]);
+        configurations.select(["funasr", "qwen_asr", "openrouter"][case.template]);
         for configuration in &mut configurations.items {
             configuration.config["connection"]["model"] = "my-asr-model".into();
         }
@@ -454,7 +447,7 @@ fn apply_model_case(st: &AppState, appearance: Appearance, case: &ModelCase) {
     });
 }
 
-/// Exercise independent interface/HUD selections without touching the user's config (run with --mock --data-dir).
+/// Run with --mock --data-dir so the user's config stays untouched.
 pub async fn hud_settings_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     for appearance in [Appearance::Light, Appearance::Dark] {
         for hud in [Appearance::Light, Appearance::Dark] {
@@ -469,7 +462,6 @@ pub async fn hud_settings_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncAp
     }
 }
 
-/// Capture both position modes and themes against an isolated mock configuration.
 pub async fn hud_height_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     for appearance in [Appearance::Light, Appearance::Dark] {
         for position in [HudPosition::Centered, HudPosition::Pointer] {
@@ -514,7 +506,6 @@ pub async fn hud_height_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp)
     }
 }
 
-/// Compare the shared text/icon segment feedback, including hovering the selected cell.
 pub async fn appearance_hover_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     let original = st.cfg.get();
     let scope = cx.update(|cx| {
@@ -554,11 +545,10 @@ const HEALTH_CASES: [HealthCase; 4] = [
     HealthCase { rail: true, polish_enabled: false, source: Source::Provider },
 ];
 
-/// The logo-anchored health card: both sidebar widths, themes, languages and disabled polish.
 pub async fn health_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     let original = st.cfg.get();
-    // The health dot and card render under the settings shell scope; it survives navigation for
-    // the window's whole life, so one handle serves every iteration.
+    // The health dot and card render under the settings shell scope; it survives navigation for the window's whole
+    // life, so one handle serves every iteration.
     let shell = cx
         .update(|cx| {
             settings::open(st.clone(), Page::General, cx);
@@ -629,8 +619,7 @@ async fn health_card_shot(
     println!("verified health hover enter / card transfer / leave: {name}");
 }
 
-/// Select the HUD appearance through the same action as the Settings control, including replacement and
-/// side-effect checks. Opt-in: `DITO_SHOTS_ONLY=hudstylepreview`.
+/// Goes through the same action as the Settings control. Opt-in: `DITO_SHOTS_ONLY=hudstylepreview`.
 pub async fn hud_style_preview_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     let history_before = history_len(st);
     services::save_config(st, |c| c.general.hud_appearance = Appearance::System);

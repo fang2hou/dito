@@ -18,11 +18,10 @@ const MIN: i8 = -2;
 const MAX: i8 = 12;
 const TRACK: f32 = 220.;
 const KNOB: f32 = 24.;
-/// Only pressing expands the thumb; hover changes its color and shadow.
 const KNOB_PRESSED: f32 = 32.;
 const TRAVEL: f32 = TRACK - KNOB;
 
-/// A damped, time-based transition; the target may change without restarting the motion.
+/// The target may change without restarting the motion.
 fn spring_step(x: f32, v: f32, target: f32, dt: f32) -> (f32, f32) {
     if dt <= 0. {
         return (x, v);
@@ -149,7 +148,6 @@ impl HudHeightSlider {
         active
     }
 
-    /// Follow a level changed elsewhere, unless the user is dragging the thumb.
     fn follow_config(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let level = self.st.cfg.get().general.hud_height_level() as f32;
         if self.config_level == level as i8 {
@@ -163,8 +161,7 @@ impl HudHeightSlider {
         }
     }
 
-    /// The knob's shape: lifted off the track while pressed with a deeper, wider shadow that scales with the press
-    /// expansion, so the enlarged edge stays readable against the fill. It stretches a little with its speed.
+    /// The shadow scales with the press expansion so the enlarged edge stays readable against the fill.
     fn knob(&self, p: &Palette, motion: Motion) -> Div {
         let press = match motion {
             Motion::Reduced => f32::from(self.pressed),
@@ -217,8 +214,7 @@ impl HudHeightSlider {
         )
     }
 
-    /// One continuous fill ending at the thumb's centre line, with only its left corners rounded.
-    /// Separate overlapping cap and body layers reveal their join when the page fades out.
+    /// Separate overlapping cap and body layers would reveal their join when the page fades out.
     fn fill(&self, p: &Palette, track: SliderTrack) -> SliderTrack {
         let center = self.center();
         track.when(self.position > 0.001, |track| {
@@ -261,7 +257,6 @@ impl HudHeightSlider {
         self.fill(p, track).child(self.thumb(p, motion, cx))
     }
 
-    /// The focusable hit area around the slider: tracks the press for the thumb's grow and handles the arrow keys.
     fn input(&self, cx: &mut Context<Self>) -> Stateful<Div> {
         let focus = self.focus.clone();
         let slider_for_keys = self.slider.clone();

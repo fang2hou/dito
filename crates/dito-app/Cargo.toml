@@ -16,11 +16,8 @@ tempfile = "3"
 
 [features]
 default = ["runtimes"]
-# On-device inference (sherpa-onnx SenseVoice + llama.cpp Qwen3). Heavy native build.
 runtimes = ["dep:dito-runtimes"]
-# In-process mock cloud endpoints (`dito --mock`).
 mock = ["dep:dito-testkit"]
-# Dev only: render windows to PNG (`dito --screenshots <dir>`).
 screenshots = ["gpui-kit/test-support"]
 
 [dependencies]

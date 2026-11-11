@@ -18,7 +18,7 @@ struct OceanPreset {
     quick_speed: f32,
 }
 
-// 21.02.3. Swap the default or tune a field here without changing the renderer.
+// `design:hud/listening-ocean`. Swap the default or tune a field here without changing the renderer.
 const PRESETS: [OceanPreset; 5] = [
     OceanPreset {
         frequency: 0.29,
@@ -173,7 +173,6 @@ impl Waveform {
         false
     }
 
-    /// Repeatable input for both previews, including when a storyboard is frozen.
     pub(crate) fn demo(t: f32) -> OceanFrame {
         let mut model = Self::default();
         let end = t.max(0.) % 4.;

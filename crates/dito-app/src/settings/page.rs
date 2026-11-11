@@ -39,7 +39,7 @@ impl Page {
         }
     }
 
-    /// Every page in sidebar order.
+    /// In sidebar order.
     pub const ALL: [Page; 7] =
         [Self::General, Self::Models, Self::Wordbook, Self::Prompts, Self::History, Self::Stats, Self::Status];
 
@@ -59,10 +59,10 @@ impl Page {
 pub(super) const NAV_H: f32 = 44.;
 pub(super) const NAV_SECTION_H: f32 = 36.;
 pub(super) const NAV_GAP: f32 = 4.;
-/// Below this width the sidebar collapses into an icon rail on its own — never a user toggle:
-/// small windows reserve more space for content. Expanding again needs RAIL_EXPAND so dragging across
-/// the boundary cannot flicker. Row positions relative to the nav column are identical in both
-/// modes, so the nav plate and hover state survive the collapse without replaying.
+/// Below this width the sidebar collapses into an icon rail on its own, never as a user toggle: small windows reserve
+/// more space for content. Expanding again needs RAIL_EXPAND so dragging across the boundary cannot flicker. Row
+/// positions relative to the nav column are identical in both modes, so the nav plate and hover state survive the
+/// collapse without replaying.
 pub(super) const RAIL_COLLAPSE: f32 = 1024.;
 pub(super) const RAIL_EXPAND: f32 = 1088.;
 pub(super) const RAIL_MS: u64 = 180;
@@ -82,7 +82,7 @@ pub(super) const fn sidebar_top_height(rail: bool) -> f32 {
 /// Top of the collapsed nav column: drag strip + brand slot (51) + two gaps (4 each).
 pub(super) const NAV_COL_Y: f32 = sidebar_top_height(true) + 51. + 2. * NAV_GAP;
 
-/// Top of the sidebar item for `page` inside the nav column: two section headers, items in order.
+/// Two section headers, then the items in order.
 pub(super) fn nav_y(page: Page) -> f32 {
     let step = NAV_H + NAV_GAP;
     let header = NAV_SECTION_H + NAV_GAP;

@@ -1,7 +1,6 @@
 use dito_core::config::{DEFAULT_ASR_LOCAL, DEFAULT_POLISH_LOCAL};
 use dito_core::i18n::Tr;
 
-/// Local model bundles offered on the prepare step; the last one is the app default.
 pub(in crate::onboarding) struct Tier {
     pub(in crate::onboarding) name: Tr,
     pub(in crate::onboarding) desc: Tr,
@@ -9,6 +8,7 @@ pub(in crate::onboarding) struct Tier {
     pub(in crate::onboarding) polish: &'static str,
 }
 
+/// The last one is the app default.
 pub(in crate::onboarding) const TIERS: [Tier; 3] = [
     Tier {
         name: Tr::OnboardingTierLight,
