@@ -53,6 +53,16 @@ pub(super) fn verify(
             return (Outcome::Confirmed, last);
         }
     }
+    // Terminals (Ghostty and friends) expose an AXTextArea whose selection stays fixed while the
+    // screen text changes. Nothing moved, so look for the text in the whole value before a retry
+    // types or pastes it a second time.
+    if matches!(verdict, Outcome::Refuted { inserted: 0 })
+        && let Some(value) = target.element.string("AXValue")
+        && contained_in_content(&value, text)
+    {
+        tracing::info!("insert: cursor never moved but the text is in the field; counting it as confirmed");
+        return (Outcome::Confirmed, last);
+    }
     (verdict, last)
 }
 
@@ -81,9 +91,24 @@ fn landed_by_content(value: Option<&str>, text: &str) -> bool {
     needle.chars().count() >= 4 && fold_content(value).ends_with(&needle)
 }
 
+/// The field's value contains (a rewritten form of) `text` anywhere. Weaker than
+/// [`landed_by_content`], for fields whose caret cannot be read; same minimum evidence.
+fn contained_in_content(value: &str, text: &str) -> bool {
+    let needle = fold_content(text);
+    needle.chars().count() >= 4 && fold_content(value).contains(&needle)
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{landed_by_content, prefix_at_utf16};
+    use super::{contained_in_content, landed_by_content, prefix_at_utf16};
+
+    #[test]
+    fn terminal_screen_text_counts_even_with_a_stuck_caret() {
+        let screen = "$ echo hi\nhello wor\nld again\n$ ";
+        assert!(contained_in_content(screen, "hello world again"));
+        assert!(!contained_in_content(screen, "goodbye"));
+        assert!(!contained_in_content(screen, "hi"));
+    }
 
     #[test]
     fn verification_uses_the_caret_in_the_middle_of_the_field() {
