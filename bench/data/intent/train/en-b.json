@@ -1,0 +1,1969 @@
+[
+  {
+    "id": "en-tb001",
+    "lang": "en",
+    "text": "can you proofread this essay intro for me i think like there's a few typos hiding in there because i wrote it on the bus this morning and i'm handing it in at nine",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "question",
+      "polite",
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb002",
+    "lang": "en",
+    "text": "pro read this please",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "polite"
+    ],
+    "slots": {},
+    "note": "pro read -> proofread"
+  },
+  {
+    "id": "en-tb003",
+    "lang": "en",
+    "text": "fix the grammar in this paragraph um it's for my english seminar and i wrote it really late last night so it's probably full of mistakes",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb004",
+    "lang": "en",
+    "text": "clean it up",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb005",
+    "lang": "en",
+    "text": "polish this dogs section so it reads smoothly but keep exactly what it says",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "dogs -> docs"
+  },
+  {
+    "id": "en-tb006",
+    "lang": "en",
+    "text": "pol ish this read me",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "pol ish -> polish, read me -> readme"
+  },
+  {
+    "id": "en-tb007",
+    "lang": "en",
+    "text": "fix the typos and the punctuation please",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "polite"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb008",
+    "lang": "en",
+    "text": "expand this um no sorry just check the spelling and grammar before i post it",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "self_correction",
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb009",
+    "lang": "en",
+    "text": "make this read more naturally the commas are all over the place and a couple of words got miss heard because i was talking really fast into the mic while walking to class",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "miss heard -> misheard"
+  },
+  {
+    "id": "en-tb010",
+    "lang": "en",
+    "text": "hey uh could you like tidy this up a bit it's got a ton of ums in it from when i dictated the whole thing",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "filler",
+      "polite",
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb011",
+    "lang": "en",
+    "text": "just edit this for typos don't rewrite it",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "negation"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb012",
+    "lang": "en",
+    "text": "no need to translate just fix the grammar",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "negation"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb013",
+    "lang": "en",
+    "text": "i don't want a summary i just want you to clean up the wording and the commas in my lab report",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "negation"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb014",
+    "lang": "en",
+    "text": "polish these sub titles the speech thing got a few words wrong but don't shorten them because the timing has to match the video and i already synced everything",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "asr_error",
+      "negation"
+    ],
+    "slots": {},
+    "note": "sub titles -> subtitles"
+  },
+  {
+    "id": "en-tb015",
+    "lang": "en",
+    "text": "make it shorter no wait just fix the typos",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb016",
+    "lang": "en",
+    "text": "translate this into spanish actually no it's fine in english just clean up the grammar so it sounds right for my professor",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb017",
+    "lang": "en",
+    "text": "summarize this oh sorry i meant proofread it",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb018",
+    "lang": "en",
+    "text": "proof reed this commit message",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "proof reed -> proofread"
+  },
+  {
+    "id": "en-tb019",
+    "lang": "en",
+    "text": "check it for grammar mistakes it's my cover letter and i'm like kind of nervous",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb020",
+    "lang": "en",
+    "text": "uh get rid of the ums and ahs and fix the punctuation",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb021",
+    "lang": "en",
+    "text": "fix the grandma in this section of my thesis",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "grandma -> grammar"
+  },
+  {
+    "id": "en-tb022",
+    "lang": "en",
+    "text": "collect the mistakes in this note",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "collect -> correct"
+  },
+  {
+    "id": "en-tb023",
+    "lang": "en",
+    "text": "prove read the whole thing and fix whatever's wrong with the punctuation",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "prove read -> proofread"
+  },
+  {
+    "id": "en-tb024",
+    "lang": "en",
+    "text": "um so this is my statement of purpose and i basically just need it cleaned up like the grammar and stuff nothing fancy because the deadline is tonight",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb025",
+    "lang": "en",
+    "text": "tidy cup this paragraph",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "tidy cup -> tidy up"
+  },
+  {
+    "id": "en-tb026",
+    "lang": "en",
+    "text": "bhai just proofread this assignment before i submit it",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "code_mix"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb027",
+    "lang": "en",
+    "text": "polish this por favor it's a blog draft",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "code_mix",
+      "polite"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb028",
+    "lang": "en",
+    "text": "can you fix the type owes in here and make the sentences read right",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "question",
+      "polite"
+    ],
+    "slots": {},
+    "note": "type owes -> typos"
+  },
+  {
+    "id": "en-tb029",
+    "lang": "en",
+    "text": "could you possibly go through this and sort out any grammar slips i'd really appreciate it i've been staring at this document for hours and my eyes are just glazing over",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "polite",
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb030",
+    "lang": "en",
+    "text": "right so this is my reflective essay and i've read it so many times i can't see the mistakes anymore so please just correct the spelling and grammar and leave my voice alone",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb031",
+    "lang": "en",
+    "text": "not a summary i want it longer with more detail about the method ology because the reviewers said that section was way too thin in the last round of feedback",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "negation",
+      "asr_error"
+    ],
+    "slots": {
+      "op": "expand"
+    },
+    "note": "method ology -> methodology"
+  },
+  {
+    "id": "en-tb032",
+    "lang": "en",
+    "text": "ex pand this a bit s'il te plait",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "code_mix",
+      "polite"
+    ],
+    "slots": {
+      "op": "expand"
+    },
+    "note": "ex pand -> expand"
+  },
+  {
+    "id": "en-tb033",
+    "lang": "en",
+    "text": "make it shorter no actually a lab or ate on the second point and give a couple of examples it feels too thin for a five paragraph essay",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "self_correction",
+      "asr_error"
+    ],
+    "slots": {
+      "op": "expand"
+    },
+    "note": "a lab or ate -> elaborate"
+  },
+  {
+    "id": "en-tb034",
+    "lang": "en",
+    "text": "um can you flesh this out for the documentation i need like a full paragraph not just one line because the new engineers keep asking what this function actually does",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "filler",
+      "question",
+      "polite"
+    ],
+    "slots": {
+      "op": "expand"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tb035",
+    "lang": "en",
+    "text": "summarize this no actually ad more detail instead",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "self_correction",
+      "asr_error"
+    ],
+    "slots": {
+      "op": "expand"
+    },
+    "note": "ad -> add"
+  },
+  {
+    "id": "en-tb036",
+    "lang": "en",
+    "text": "the intro to my blog post is way too short so add some more context and maybe a personal story and make it about twice as long",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [],
+    "slots": {
+      "op": "expand"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tb037",
+    "lang": "en",
+    "text": "don't translate it just tram this down so it fits in a tweed",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "negation",
+      "asr_error"
+    ],
+    "slots": {
+      "op": "shorten"
+    },
+    "note": "tram -> trim, tweed -> tweet"
+  },
+  {
+    "id": "en-tb038",
+    "lang": "en",
+    "text": "make it short her",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "op": "shorten"
+    },
+    "note": "short her -> shorter"
+  },
+  {
+    "id": "en-tb039",
+    "lang": "en",
+    "text": "cut this to under a hundred words and fix the typos for the abstract because the conference form just cuts everything off after that and i've got no room left",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "op": "shorten"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tb040",
+    "lang": "en",
+    "text": "make it longer no wait scratch that make it shorter",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {
+      "op": "shorten"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tb041",
+    "lang": "en",
+    "text": "this caption is too long for the platform so can you tighten it up and get it down to one line you know because i keep hitting the limit",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "question",
+      "polite",
+      "filler"
+    ],
+    "slots": {
+      "op": "shorten"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tb042",
+    "lang": "en",
+    "text": "con dense this paragraph",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "op": "shorten"
+    },
+    "note": "con dense -> condense"
+  },
+  {
+    "id": "en-tb043",
+    "lang": "en",
+    "text": "fix the grammar and then make this sound more professional it's going to my manager and i really don't want him thinking i rushed the status update this time",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "op": "formal"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tb044",
+    "lang": "en",
+    "text": "just fix the grammar uh no wait turn this into for mall english for the report because my supervisor said the whole thing reads like a chat message",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "self_correction",
+      "filler",
+      "asr_error"
+    ],
+    "slots": {
+      "op": "formal"
+    },
+    "note": "for mall -> formal"
+  },
+  {
+    "id": "en-tb045",
+    "lang": "en",
+    "text": "don't polish it yaar make it more formal",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "negation",
+      "code_mix"
+    ],
+    "slots": {
+      "op": "formal"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tb046",
+    "lang": "en",
+    "text": "can you make this more polite i sound kind of rude in this email to my land lord but honestly i'm just stressed about the broken heater and want to stay on good terms",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "question",
+      "polite",
+      "asr_error"
+    ],
+    "slots": {
+      "op": "formal"
+    },
+    "note": "land lord -> landlord"
+  },
+  {
+    "id": "en-tb047",
+    "lang": "en",
+    "text": "re right this in a more businesslike tone",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "op": "formal"
+    },
+    "note": "re right -> rewrite"
+  },
+  {
+    "id": "en-tb048",
+    "lang": "en",
+    "text": "i'm sending this to a client so could you rewrite it to be a bit more respectful and less chatty and you know proper for someone i've never met before",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "filler"
+    ],
+    "slots": {
+      "op": "formal"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tb049",
+    "lang": "en",
+    "text": "make this friend lier like i'm talking to my teammates on chat",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "op": "casual"
+    },
+    "note": "friend lier -> friendlier"
+  },
+  {
+    "id": "en-tb050",
+    "lang": "en",
+    "text": "make it more formal uh actually no make it more casual",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "self_correction",
+      "filler"
+    ],
+    "slots": {
+      "op": "casual"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tb051",
+    "lang": "en",
+    "text": "soft in this a bit and tidy up the grammar it comes across really harsh in the pr comment and the other developer is new to the team so i don't want to scare them off",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "multi_request",
+      "asr_error"
+    ],
+    "slots": {
+      "op": "casual"
+    },
+    "note": "soft in -> soften"
+  },
+  {
+    "id": "en-tb052",
+    "lang": "en",
+    "text": "can you make it sound less robotic and more like how i actually talk on my channel because right now my subscribers say it feels like a school textbook",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "question",
+      "polite"
+    ],
+    "slots": {
+      "op": "casual"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tb053",
+    "lang": "en",
+    "text": "make this more causal",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "op": "casual"
+    },
+    "note": "causal -> casual"
+  },
+  {
+    "id": "en-tb054",
+    "lang": "en",
+    "text": "rewrite this casually for the read me the whole thing sounds like a legal document and nobody on the team is going to read it like that so make it chill",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "op": "casual"
+    },
+    "note": "read me -> readme"
+  },
+  {
+    "id": "en-tb055",
+    "lang": "en",
+    "text": "turn this into bullet pints bitte",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "code_mix"
+    ],
+    "slots": {
+      "op": "format"
+    },
+    "note": "pints -> points"
+  },
+  {
+    "id": "en-tb056",
+    "lang": "en",
+    "text": "put this in a numbered list for the setup steps and clean up the wording",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "op": "format"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tb057",
+    "lang": "en",
+    "text": "make this an email to my professor asking for an extension",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [],
+    "slots": {
+      "op": "format"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tb058",
+    "lang": "en",
+    "text": "write a headline for this blog post no wait give me bullet points instead",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {
+      "op": "format"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tb059",
+    "lang": "en",
+    "text": "turn this into a mark down table",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "op": "format"
+    },
+    "note": "mark down -> markdown"
+  },
+  {
+    "id": "en-tb060",
+    "lang": "en",
+    "text": "convert this paragraph into a bullet list um with each step on its own line so it works in the readme file for the repo",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "filler"
+    ],
+    "slots": {
+      "op": "format"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tb061",
+    "lang": "en",
+    "text": "translate this actually no just say it in other words",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {
+      "op": "paraphrase"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tb062",
+    "lang": "en",
+    "text": "don't summarize it just paraphrase this sentence it repeats the word important three times",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "negation"
+    ],
+    "slots": {
+      "op": "paraphrase"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tb063",
+    "lang": "en",
+    "text": "para phrase this",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "op": "paraphrase"
+    },
+    "note": "para phrase -> paraphrase"
+  },
+  {
+    "id": "en-tb064",
+    "lang": "en",
+    "text": "reward this sentence",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "op": "paraphrase"
+    },
+    "note": "reward -> reword"
+  },
+  {
+    "id": "en-tb065",
+    "lang": "en",
+    "text": "put this a different way um i like what it says but the sentence structure is the same as the one before it",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {
+      "op": "paraphrase"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tb066",
+    "lang": "en",
+    "text": "rewrite this so a ten year old could follow it and fix any typos it's for my little cousin's school project about how volcanoes work",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "op": "audience"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tb067",
+    "lang": "en",
+    "text": "make this understandable for people who aren't engine ears",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "op": "audience"
+    },
+    "note": "engine ears -> engineers"
+  },
+  {
+    "id": "en-tb068",
+    "lang": "en",
+    "text": "change this to third person for my buy oh",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "op": "audience"
+    },
+    "note": "buy oh -> bio"
+  },
+  {
+    "id": "en-tb069",
+    "lang": "en",
+    "text": "adopt this for a customer facing release note so like the current version talks about internal stuff nobody outside the team cares about",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "filler"
+    ],
+    "slots": {
+      "op": "audience"
+    },
+    "note": "adopt -> adapt"
+  },
+  {
+    "id": "en-tb070",
+    "lang": "en",
+    "text": "do not translate it just rewrite this for be gin errs",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "negation"
+    ],
+    "slots": {
+      "op": "audience"
+    },
+    "note": "be gin errs -> beginners"
+  },
+  {
+    "id": "en-tb071",
+    "lang": "en",
+    "text": "don't summarize it just transplant it into english for my classmates",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "negation",
+      "asr_error"
+    ],
+    "slots": {
+      "target": "en"
+    },
+    "note": "transplant -> translate"
+  },
+  {
+    "id": "en-tb072",
+    "lang": "en",
+    "text": "put this into english and fix the grammar while you're at it my friend wrote it in a hurry and she asked me to send it to the exchange office before noon",
+    "intent": "translate",
+    "complexity": "long",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "target": "en"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tb073",
+    "lang": "en",
+    "text": "um translate this to english and then give me the key points because i have to present it in the group meeting and i honestly haven't read the whole document yet",
+    "intent": "translate",
+    "complexity": "long",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {
+      "target": "en"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tb074",
+    "lang": "en",
+    "text": "make it more formal and then translate it to english",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "target": "en"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tb075",
+    "lang": "en",
+    "text": "traduce this into english please",
+    "intent": "translate",
+    "complexity": "simple",
+    "tags": [
+      "code_mix",
+      "polite"
+    ],
+    "slots": {
+      "target": "en"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tb076",
+    "lang": "en",
+    "text": "trans late this to japan ease",
+    "intent": "translate",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "target": "ja"
+    },
+    "note": "trans late -> translate, japan ease -> japanese"
+  },
+  {
+    "id": "en-tb077",
+    "lang": "en",
+    "text": "summarize this and then put it into japanese",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "target": "ja"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tb078",
+    "lang": "en",
+    "text": "uh can you translate this into nihongo for my exchange student",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "code_mix",
+      "question",
+      "polite",
+      "filler"
+    ],
+    "slots": {
+      "target": "ja"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tb079",
+    "lang": "en",
+    "text": "i want the sub titles in japanese so translate them and oh keep each line short",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "multi_request",
+      "asr_error"
+    ],
+    "slots": {
+      "target": "ja"
+    },
+    "note": "sub titles -> subtitles"
+  },
+  {
+    "id": "en-tb080",
+    "lang": "en",
+    "text": "translet this into chinese actually make that japanese",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "self_correction",
+      "asr_error"
+    ],
+    "slots": {
+      "target": "ja"
+    },
+    "note": "translet -> translate"
+  },
+  {
+    "id": "en-tb081",
+    "lang": "en",
+    "text": "my grandmother only reads chinese so translate this paragraph for her and make the words really simple",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "target": "zh"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tb082",
+    "lang": "en",
+    "text": "tran slate this to mandarin",
+    "intent": "translate",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "target": "zh"
+    },
+    "note": "tran slate -> translate"
+  },
+  {
+    "id": "en-tb083",
+    "lang": "en",
+    "text": "translate this into simplified chinese and then shorten it",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "target": "zh"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tb084",
+    "lang": "en",
+    "text": "um could you like translate this into chinese and make it a bit more casual i'm posting it on a mainland forum for my study group",
+    "intent": "translate",
+    "complexity": "long",
+    "tags": [
+      "filler",
+      "question",
+      "polite",
+      "multi_request"
+    ],
+    "slots": {
+      "target": "zh"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tb085",
+    "lang": "en",
+    "text": "translate this into traditional chinese for the taiwan office and make it sound more formal",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "target": "zh-Hant"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tb086",
+    "lang": "en",
+    "text": "can you trance late this into traditional chinese and fix the typos",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "question",
+      "polite",
+      "multi_request"
+    ],
+    "slots": {
+      "target": "zh-Hant"
+    },
+    "note": "trance late -> translate"
+  },
+  {
+    "id": "en-tb087",
+    "lang": "en",
+    "text": "fix the grammar first and then give me the traditional chinese version for the hong kong readers of the newsletter since the editor said it should go out tonight",
+    "intent": "translate",
+    "complexity": "long",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "target": "zh-Hant"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tb088",
+    "lang": "en",
+    "text": "don't make it shorter just translate this to korean i'm putting subtitles on my fan edit",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "negation"
+    ],
+    "slots": {
+      "target": "ko"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tb089",
+    "lang": "en",
+    "text": "summarize this actually could you put it in korean for me",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "self_correction",
+      "question",
+      "polite"
+    ],
+    "slots": {
+      "target": "ko"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tb090",
+    "lang": "en",
+    "text": "translate this to french and then summarize it in one line for the caption because i'm posting the same video to my french speaking audience too",
+    "intent": "translate",
+    "complexity": "long",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "target": "other"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tb091",
+    "lang": "en",
+    "text": "summarize this actually no trans plate it into spanish for my host family",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "self_correction",
+      "asr_error"
+    ],
+    "slots": {
+      "target": "other"
+    },
+    "note": "trans plate -> translate"
+  },
+  {
+    "id": "en-tb092",
+    "lang": "en",
+    "text": "summer eyes this and clean it up i've got an exam tomorrow",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "multi_request"
+    ],
+    "slots": {},
+    "note": "summer eyes -> summarize"
+  },
+  {
+    "id": "en-tb093",
+    "lang": "en",
+    "text": "give me the tldr",
+    "intent": "summarize",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb094",
+    "lang": "en",
+    "text": "some rise this",
+    "intent": "summarize",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "some rise -> summarize"
+  },
+  {
+    "id": "en-tb095",
+    "lang": "en",
+    "text": "can you pull out the main points and turn them into bullets",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "question",
+      "polite",
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb096",
+    "lang": "en",
+    "text": "boil this down to one sentence and make it sound less stiff i just need the gist for my notes",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb097",
+    "lang": "en",
+    "text": "summarise this meeting trans script in two or three sentences and keep it casual",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "multi_request"
+    ],
+    "slots": {},
+    "note": "trans script -> transcript"
+  },
+  {
+    "id": "en-tb098",
+    "lang": "en",
+    "text": "sum a rise this kudasai",
+    "intent": "summarize",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "code_mix",
+      "polite"
+    ],
+    "slots": {},
+    "note": "sum a rise -> summarize"
+  },
+  {
+    "id": "en-tb099",
+    "lang": "en",
+    "text": "give me a one line description of this for the ripple about section",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "ripple -> repo"
+  },
+  {
+    "id": "en-tb100",
+    "lang": "en",
+    "text": "uh just the gist please",
+    "intent": "summarize",
+    "complexity": "simple",
+    "tags": [
+      "filler",
+      "polite"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb101",
+    "lang": "en",
+    "text": "some arise this then make it more formal",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "multi_request",
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "some arise -> summarize"
+  },
+  {
+    "id": "en-tb102",
+    "lang": "en",
+    "text": "make it sound more casual and give me the summary",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb103",
+    "lang": "en",
+    "text": "give me the key points and clean up the grammar",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb104",
+    "lang": "en",
+    "text": "tidy it up and then give me a quick sum ary of what's in it because my teammate pasted the whole design doc in here and i only have a minute",
+    "intent": "summarize",
+    "complexity": "long",
+    "tags": [
+      "multi_request",
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "sum ary -> summary"
+  },
+  {
+    "id": "en-tb105",
+    "lang": "en",
+    "text": "translate this oh wait just summarize it",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb106",
+    "lang": "en",
+    "text": "give me an abstract for this section of my the sis it needs to cover the problem and the main result and my advisor wants it before friday",
+    "intent": "summarize",
+    "complexity": "long",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "the sis -> thesis"
+  },
+  {
+    "id": "en-tb107",
+    "lang": "en",
+    "text": "proofread this oh wait give me the summery",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "self_correction",
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "summery -> summary"
+  },
+  {
+    "id": "en-tb108",
+    "lang": "en",
+    "text": "i've got this huge wall of text from the class discussion board and i don't have time to read it all so just give me the main takeaways",
+    "intent": "summarize",
+    "complexity": "long",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb109",
+    "lang": "en",
+    "text": "um give me the zusammenfassung of this",
+    "intent": "summarize",
+    "complexity": "simple",
+    "tags": [
+      "code_mix",
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb110",
+    "lang": "en",
+    "text": "i don't want it translated or rewritten just summarize it",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "negation"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb111",
+    "lang": "en",
+    "text": "don't polish it just give me the keep points",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "negation",
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "keep points -> key points"
+  },
+  {
+    "id": "en-tb112",
+    "lang": "en",
+    "text": "never mind",
+    "intent": "cancel",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb113",
+    "lang": "en",
+    "text": "for get it",
+    "intent": "cancel",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "for get -> forget"
+  },
+  {
+    "id": "en-tb114",
+    "lang": "en",
+    "text": "cancel that i don't want it anymore",
+    "intent": "cancel",
+    "complexity": "simple",
+    "tags": [
+      "retraction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb115",
+    "lang": "en",
+    "text": "polish this um no wait forget it",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "retraction",
+      "self_correction",
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb116",
+    "lang": "en",
+    "text": "summarize this actually never mind",
+    "intent": "cancel",
+    "complexity": "simple",
+    "tags": [
+      "retraction",
+      "self_correction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb117",
+    "lang": "en",
+    "text": "translate this into japanese cancel that",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "retraction",
+      "self_correction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb118",
+    "lang": "en",
+    "text": "make it shorter actually no leave it",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "retraction",
+      "self_correction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb119",
+    "lang": "en",
+    "text": "scratch that",
+    "intent": "cancel",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb120",
+    "lang": "en",
+    "text": "on second thought i don't need the translation after all forget it i just remembered that everyone in the group chat can read the original anyway",
+    "intent": "cancel",
+    "complexity": "long",
+    "tags": [
+      "retraction",
+      "negation"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb121",
+    "lang": "en",
+    "text": "can sell that i changed my mind",
+    "intent": "cancel",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "retraction"
+    ],
+    "slots": {},
+    "note": "can sell -> cancel"
+  },
+  {
+    "id": "en-tb122",
+    "lang": "en",
+    "text": "never mine forget that last thing i said",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "retraction"
+    ],
+    "slots": {},
+    "note": "never mine -> never mind"
+  },
+  {
+    "id": "en-tb123",
+    "lang": "en",
+    "text": "expand it no don't bother cancel the whole thing",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "retraction",
+      "self_correction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb124",
+    "lang": "en",
+    "text": "nah don't translate it don't do anything just leave it as is",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "negation"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb125",
+    "lang": "en",
+    "text": "cancel lah forget what i asked",
+    "intent": "cancel",
+    "complexity": "simple",
+    "tags": [
+      "code_mix",
+      "retraction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb126",
+    "lang": "en",
+    "text": "ok so i was gonna ask you to proofread this but actually i think i'll leave it for now i've got a lot going on so never mind",
+    "intent": "cancel",
+    "complexity": "long",
+    "tags": [
+      "retraction",
+      "self_correction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb127",
+    "lang": "en",
+    "text": "yeh kya hai what does this word mean",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "code_mix",
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb128",
+    "lang": "en",
+    "text": "is this sentence grammatically correct",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb129",
+    "lang": "en",
+    "text": "um is this a strong the sis statement or is it too vague because my tutor said it doesn't really take a position and i can't tell what's wrong with it",
+    "intent": "ask",
+    "complexity": "long",
+    "tags": [
+      "question",
+      "filler",
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "the sis -> thesis"
+  },
+  {
+    "id": "en-tb130",
+    "lang": "en",
+    "text": "what does pole ish mean in this sentence",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "question",
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "pole ish -> polish"
+  },
+  {
+    "id": "en-tb131",
+    "lang": "en",
+    "text": "summarize this oh wait actually what does this paragraph mean",
+    "intent": "ask",
+    "complexity": "compound",
+    "tags": [
+      "self_correction",
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb132",
+    "lang": "en",
+    "text": "um how many words is this essay right now",
+    "intent": "ask",
+    "complexity": "compound",
+    "tags": [
+      "question",
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb133",
+    "lang": "en",
+    "text": "uh send this to tom and cc my sensei",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [
+      "code_mix",
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb134",
+    "lang": "en",
+    "text": "save this to my notes app",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb135",
+    "lang": "en",
+    "text": "open the sub title editor",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "sub title -> subtitle"
+  },
+  {
+    "id": "en-tb136",
+    "lang": "en",
+    "text": "translate this uh no just search for it on the web",
+    "intent": "none",
+    "complexity": "compound",
+    "tags": [
+      "self_correction",
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb137",
+    "lang": "en",
+    "text": "rewrite this no actually just delete the whole paragraph",
+    "intent": "none",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb138",
+    "lang": "en",
+    "text": "post this on my storey",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "storey -> story"
+  },
+  {
+    "id": "en-tb139",
+    "lang": "en",
+    "text": "set a reminder to submit this essay tomorrow at nine",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb140",
+    "lang": "en",
+    "text": "hey wie geht's",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [
+      "code_mix"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb141",
+    "lang": "en",
+    "text": "i think the main argument of the essay is that cities should invest more in public transport because it reduces traffic and it's cheaper than building more roads in the long run",
+    "intent": "none",
+    "complexity": "long",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb142",
+    "lang": "en",
+    "text": "thanks that's really helpful",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb143",
+    "lang": "en",
+    "text": "dear professor smith i am writing to ask for an extension on the final paper",
+    "intent": "none",
+    "complexity": "compound",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb144",
+    "lang": "en",
+    "text": "the function returns null if the user isn't found",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb145",
+    "lang": "en",
+    "text": "um what time is it",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "question",
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb146",
+    "lang": "en",
+    "text": "the the uh in on",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb147",
+    "lang": "en",
+    "text": "mm hm fluh bluh",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb148",
+    "lang": "en",
+    "text": "ka ka kuh the in",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb149",
+    "lang": "en",
+    "text": "and then the of if to",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tb150",
+    "lang": "en",
+    "text": "blah blah wuh the",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  }
+]

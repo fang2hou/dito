@@ -1,0 +1,110 @@
+[
+ {
+  "model": "qwen3.5-2b",
+  "path": "readout, whole prompt",
+  "accuracy": 0.495,
+  "unparsed": 0,
+  "output_tokens": 0.0,
+  "p50_ms": 86.988021,
+  "p95_ms": 89.61818335
+ },
+ {
+  "model": "qwen3.5-2b",
+  "path": "readout, resident prefix",
+  "accuracy": 0.495,
+  "unparsed": 0,
+  "output_tokens": 0.0,
+  "p50_ms": 29.784916499999998,
+  "p95_ms": 31.832002049999993
+ },
+ {
+  "model": "qwen3.5-2b",
+  "path": "generate a letter, whole prompt",
+  "accuracy": 0.495,
+  "unparsed": 0,
+  "output_tokens": 1.0,
+  "p50_ms": 95.4668125,
+  "p95_ms": 102.61021665000001
+ },
+ {
+  "model": "qwen3.5-2b",
+  "path": "generate JSON, whole prompt",
+  "accuracy": 0.5016666666666667,
+  "unparsed": 0,
+  "output_tokens": 6.5216666666666665,
+  "p50_ms": 138.49758350000002,
+  "p95_ms": 160.47560689999997
+ },
+ {
+  "model": "qwen3.5-4b",
+  "path": "readout, whole prompt",
+  "accuracy": 0.8266666666666667,
+  "unparsed": 0,
+  "output_tokens": 0.0,
+  "p50_ms": 209.380333,
+  "p95_ms": 214.27314789999997
+ },
+ {
+  "model": "qwen3.5-4b",
+  "path": "readout, resident prefix",
+  "accuracy": 0.8266666666666667,
+  "unparsed": 0,
+  "output_tokens": 0.0,
+  "p50_ms": 65.91689550000001,
+  "p95_ms": 69.29801875
+ },
+ {
+  "model": "qwen3.5-4b",
+  "path": "generate a letter, whole prompt",
+  "accuracy": 0.8266666666666667,
+  "unparsed": 0,
+  "output_tokens": 1.0,
+  "p50_ms": 223.28666650000002,
+  "p95_ms": 228.13800115000004
+ },
+ {
+  "model": "qwen3.5-4b",
+  "path": "generate JSON, whole prompt",
+  "accuracy": 0.8216666666666667,
+  "unparsed": 0,
+  "output_tokens": 6.318333333333333,
+  "p50_ms": 303.45856249999997,
+  "p95_ms": 359.41472435
+ },
+ {
+  "model": "qwen3.5-9b",
+  "path": "readout, whole prompt",
+  "accuracy": 0.8916666666666667,
+  "unparsed": 0,
+  "output_tokens": 0.0,
+  "p50_ms": 358.5683335,
+  "p95_ms": 364.43583305
+ },
+ {
+  "model": "qwen3.5-9b",
+  "path": "readout, resident prefix",
+  "accuracy": 0.8916666666666667,
+  "unparsed": 0,
+  "output_tokens": 0.0,
+  "p50_ms": 108.448542,
+  "p95_ms": 112.97902855000001
+ },
+ {
+  "model": "qwen3.5-9b",
+  "path": "generate a letter, whole prompt",
+  "accuracy": 0.8916666666666667,
+  "unparsed": 0,
+  "output_tokens": 1.0,
+  "p50_ms": 381.174208,
+  "p95_ms": 387.04554765
+ },
+ {
+  "model": "qwen3.5-9b",
+  "path": "generate JSON, whole prompt",
+  "accuracy": 0.8933333333333333,
+  "unparsed": 0,
+  "output_tokens": 6.335,
+  "p50_ms": 500.0317915,
+  "p95_ms": 601.68757325
+ }
+]

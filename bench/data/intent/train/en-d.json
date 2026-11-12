@@ -1,0 +1,1237 @@
+[
+  {
+    "id": "en-td001",
+    "lang": "en",
+    "text": "uh this male is for a client, fix the typos first and then make it shorter",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "filler",
+      "multi_request"
+    ],
+    "slots": {
+      "op": "shorten"
+    },
+    "note": "male -> mail"
+  },
+  {
+    "id": "en-td002",
+    "lang": "en",
+    "text": "um make this, make it shorter and fix the typos while you're at it",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {
+      "op": "shorten"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-td003",
+    "lang": "en",
+    "text": "it's going to the dean so make it more formal and fix the grammar",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "op": "formal"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-td004",
+    "lang": "en",
+    "text": "uh it's for the bored, fix the grammar and then make it sound more formal",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "filler",
+      "multi_request"
+    ],
+    "slots": {
+      "op": "formal"
+    },
+    "note": "bored -> board"
+  },
+  {
+    "id": "en-td005",
+    "lang": "en",
+    "text": "like polish this bit and then add a couple more sentences",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {
+      "op": "expand"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-td006",
+    "lang": "en",
+    "text": "um I put this peace together for our team newsletter earlier today, add a bit more to it and then clean the whole thing up for me",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "asr_error",
+      "filler",
+      "multi_request"
+    ],
+    "slots": {
+      "op": "expand"
+    },
+    "note": "peace -> piece"
+  },
+  {
+    "id": "en-td007",
+    "lang": "en",
+    "text": "turn this into a list and sort out the punctuation",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "op": "format"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-td008",
+    "lang": "en",
+    "text": "uh this is just for our team chat so fix the punctuation and make it more relaxed",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {
+      "op": "casual"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-td009",
+    "lang": "en",
+    "text": "um summarize, summarize this thing and then make it sound formal",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td010",
+    "lang": "en",
+    "text": "my manager needs this for next weak, make it formal and then boil it down to three points",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "multi_request"
+    ],
+    "slots": {},
+    "note": "weak -> week"
+  },
+  {
+    "id": "en-td011",
+    "lang": "en",
+    "text": "fix the typos in this and give me a summary",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td012",
+    "lang": "en",
+    "text": "uh sum this up and fix the grammar two",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "filler",
+      "multi_request"
+    ],
+    "slots": {},
+    "note": "two -> too"
+  },
+  {
+    "id": "en-td013",
+    "lang": "en",
+    "text": "uh you know a coworker just dumped this huge project doc on me earlier today, shorten it and pull out the key points here for me",
+    "intent": "summarize",
+    "complexity": "long",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td014",
+    "lang": "en",
+    "text": "just give me the gist of this in casual words",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td015",
+    "lang": "en",
+    "text": "um this came from the Tokyo office, summarize this and then put it into English",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {
+      "target": "en"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-td016",
+    "lang": "en",
+    "text": "put this bit into English and then summarize it",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "target": "en"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-td017",
+    "lang": "en",
+    "text": "we need this for the trade fare, polish this and translate it into Japanese",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "multi_request"
+    ],
+    "slots": {
+      "target": "ja"
+    },
+    "note": "fare -> fair"
+  },
+  {
+    "id": "en-td018",
+    "lang": "en",
+    "text": "uh translate this, translate it into Japanese and then smooth it out",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {
+      "target": "ja"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-td019",
+    "lang": "en",
+    "text": "shorten this paragraph and then put it into Chinese",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "target": "zh"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-td020",
+    "lang": "en",
+    "text": "like it's for my cousin in Shanghai, put it into Chinese and make it casual",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {
+      "target": "zh"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-td021",
+    "lang": "en",
+    "text": "reply to this in English",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td022",
+    "lang": "en",
+    "text": "uh a buyer in Madrid sent this, write back in Spanish",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td023",
+    "lang": "en",
+    "text": "sum up what he said threw the whole thread and then draft a reply",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "multi_request"
+    ],
+    "slots": {},
+    "note": "threw -> through"
+  },
+  {
+    "id": "en-td024",
+    "lang": "en",
+    "text": "um write a reply to this and then translate it into French",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td025",
+    "lang": "en",
+    "text": "draft a reply here and clean it up after",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td026",
+    "lang": "en",
+    "text": "it's from legal so reply to this and make it formal",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td027",
+    "lang": "en",
+    "text": "uh tell him Wednesday works",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td028",
+    "lang": "en",
+    "text": "uh my sister just texted me, let her know, let her know I'm downstairs",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td029",
+    "lang": "en",
+    "text": "um let the customer know it ships tomorrow mourning",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "filler"
+    ],
+    "slots": {},
+    "note": "mourning -> morning"
+  },
+  {
+    "id": "en-td030",
+    "lang": "en",
+    "text": "thank Dr. Patel for all the advice",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td031",
+    "lang": "en",
+    "text": "thank everyone here for me",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td032",
+    "lang": "en",
+    "text": "tell are landlord rent's coming Monday",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "are -> our"
+  },
+  {
+    "id": "en-td033",
+    "lang": "en",
+    "text": "um just say I agree",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td034",
+    "lang": "en",
+    "text": "I'm stuck with a fever so say I can't come today",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td035",
+    "lang": "en",
+    "text": "um traffic on the bridge is still backed up all the way to the exit right now so tell him I'm running like ten minutes late",
+    "intent": "reply",
+    "complexity": "long",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td036",
+    "lang": "en",
+    "text": "the fourth flour room got booked, let them know the meeting moved to tomorrow",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "flour -> floor"
+  },
+  {
+    "id": "en-td037",
+    "lang": "en",
+    "text": "uh mom's freaking out again, tell her not to worry I'm fine",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td038",
+    "lang": "en",
+    "text": "just thank the customer here for being so patient",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td039",
+    "lang": "en",
+    "text": "um thank the interviewer for there time",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "filler"
+    ],
+    "slots": {},
+    "note": "there -> their"
+  },
+  {
+    "id": "en-td040",
+    "lang": "en",
+    "text": "tell him, tell him I'll send the file tonight",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td041",
+    "lang": "en",
+    "text": "like let my boss know the monthly report's done",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td042",
+    "lang": "en",
+    "text": "just say got it I'll take care of it",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td043",
+    "lang": "en",
+    "text": "answer this in English",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td044",
+    "lang": "en",
+    "text": "respond to him in German",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td045",
+    "lang": "en",
+    "text": "um reply in Japanese",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td046",
+    "lang": "en",
+    "text": "uh write back thank you in core ian",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "filler"
+    ],
+    "slots": {},
+    "note": "core ian -> Korean"
+  },
+  {
+    "id": "en-td047",
+    "lang": "en",
+    "text": "when you reply to this use English",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td048",
+    "lang": "en",
+    "text": "just answer him in Chinese",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td049",
+    "lang": "en",
+    "text": "say got it, in English",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td050",
+    "lang": "en",
+    "text": "tell him sea you next week in French",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "sea -> see"
+  },
+  {
+    "id": "en-td051",
+    "lang": "en",
+    "text": "put that message into English",
+    "intent": "translate",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {
+      "target": "en"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-td052",
+    "lang": "en",
+    "text": "um I don't read Portuguese at all, translate what this guy sent into English for me",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {
+      "target": "en"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-td053",
+    "lang": "en",
+    "text": "just translate my reply here into German",
+    "intent": "translate",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {
+      "target": "other"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-td054",
+    "lang": "en",
+    "text": "put that email into Japanese",
+    "intent": "translate",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {
+      "target": "ja"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-td055",
+    "lang": "en",
+    "text": "uh clean up the reply I just wrote",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td056",
+    "lang": "en",
+    "text": "I typed this on the rode, fix the typos in my answer to him",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "rode -> road"
+  },
+  {
+    "id": "en-td057",
+    "lang": "en",
+    "text": "um check the, check the grammar in my reply to my boss",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td058",
+    "lang": "en",
+    "text": "uh honestly I've been staring at this thing to our vendor for twenty minutes and my reply still reads really awkward, smooth it out for me",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td059",
+    "lang": "en",
+    "text": "touch up my drafted response",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td060",
+    "lang": "en",
+    "text": "fix the punctuation in my reply to the sails client",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "sails -> sales"
+  },
+  {
+    "id": "en-td061",
+    "lang": "en",
+    "text": "um you know just check my reply here for spelling mistakes",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td062",
+    "lang": "en",
+    "text": "this is going on the public forum, fix the grammar in the comment I'm posting",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td063",
+    "lang": "en",
+    "text": "uh it's to the VP and my reply is way too casual, make it formal",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {
+      "op": "formal"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-td064",
+    "lang": "en",
+    "text": "my reply's to long, shorten it a bit",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "op": "shorten"
+    },
+    "note": "to -> too"
+  },
+  {
+    "id": "en-td065",
+    "lang": "en",
+    "text": "like my reply here sounds kinda cold, make it warmer",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {
+      "op": "casual"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-td066",
+    "lang": "en",
+    "text": "my reply here is way too short, add a few lines",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [],
+    "slots": {
+      "op": "expand"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-td067",
+    "lang": "en",
+    "text": "um reply to this one, keep it natural",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td068",
+    "lang": "en",
+    "text": "answer what she just sent",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td069",
+    "lang": "en",
+    "text": "just write back sounding upbeat",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td070",
+    "lang": "en",
+    "text": "um draft a short reply",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td071",
+    "lang": "en",
+    "text": "what's that whole chat about",
+    "intent": "summarize",
+    "complexity": "simple",
+    "tags": [
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td072",
+    "lang": "en",
+    "text": "uh my director forwarded this thread, what does this email say overall",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td073",
+    "lang": "en",
+    "text": "recap this whole group thread",
+    "intent": "summarize",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td074",
+    "lang": "en",
+    "text": "management posted this in the haul, what's this long notice even about",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "question"
+    ],
+    "slots": {},
+    "note": "haul -> hall"
+  },
+  {
+    "id": "en-td075",
+    "lang": "en",
+    "text": "um give me, give me the rough idea of what he's saying here",
+    "intent": "summarize",
+    "complexity": "simple",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td076",
+    "lang": "en",
+    "text": "what's that document mainly about",
+    "intent": "summarize",
+    "complexity": "simple",
+    "tags": [
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td077",
+    "lang": "en",
+    "text": "what deadline did he give",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td078",
+    "lang": "en",
+    "text": "uh I'm ordering a cab right now, what address does the email say",
+    "intent": "ask",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td079",
+    "lang": "en",
+    "text": "um how much is the late fee it mentions hear",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "filler",
+      "question"
+    ],
+    "slots": {},
+    "note": "hear -> here"
+  },
+  {
+    "id": "en-td080",
+    "lang": "en",
+    "text": "who's the person he's talking about here",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td081",
+    "lang": "en",
+    "text": "what time does it say to meat",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "question"
+    ],
+    "slots": {},
+    "note": "meat -> meet"
+  },
+  {
+    "id": "en-td082",
+    "lang": "en",
+    "text": "how much is that penalty in the contract",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td083",
+    "lang": "en",
+    "text": "uh never mind",
+    "intent": "cancel",
+    "complexity": "simple",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td084",
+    "lang": "en",
+    "text": "no, no don't",
+    "intent": "cancel",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td085",
+    "lang": "en",
+    "text": "no nothing",
+    "intent": "cancel",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td086",
+    "lang": "en",
+    "text": "reply here, actually no",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "retraction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td087",
+    "lang": "en",
+    "text": "put this in English, nah",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "retraction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td088",
+    "lang": "en",
+    "text": "summarize this bit, wait I'll reed it myself",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "retraction"
+    ],
+    "slots": {},
+    "note": "reed -> read"
+  },
+  {
+    "id": "en-td089",
+    "lang": "en",
+    "text": "make this formal for HR, hmm actually leave it",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "retraction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td090",
+    "lang": "en",
+    "text": "oh stop",
+    "intent": "cancel",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td091",
+    "lang": "en",
+    "text": "expand this, no forget it",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "retraction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td092",
+    "lang": "en",
+    "text": "not right now",
+    "intent": "cancel",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td093",
+    "lang": "en",
+    "text": "send this reply now",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td094",
+    "lang": "en",
+    "text": "delete this whole paragraph",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td095",
+    "lang": "en",
+    "text": "forward my reply to Sam",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td096",
+    "lang": "en",
+    "text": "just copy this",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td097",
+    "lang": "en",
+    "text": "mark this one as read",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td098",
+    "lang": "en",
+    "text": "save this somewhere",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td099",
+    "lang": "en",
+    "text": "archive that email",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td100",
+    "lang": "en",
+    "text": "um the hole team's waiting, paste this into the group chat",
+    "intent": "none",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "filler"
+    ],
+    "slots": {},
+    "note": "hole -> whole"
+  },
+  {
+    "id": "en-td101",
+    "lang": "en",
+    "text": "send that to my boss",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-td102",
+    "lang": "en",
+    "text": "take a screenshot of this",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  }
+]

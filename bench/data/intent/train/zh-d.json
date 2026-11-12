@@ -1,0 +1,1244 @@
+[
+  {
+    "id": "zh-td001",
+    "lang": "zh",
+    "text": "嗯那个把这个，先帮我把错别字改了再压短一点",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {
+      "op": "shorten"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-td002",
+    "lang": "zh",
+    "text": "这是同时刚写完的，帮我缩短一点，顺便把错字也改了",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "multi_request"
+    ],
+    "slots": {
+      "op": "shorten"
+    },
+    "note": "同时 -> 同事"
+  },
+  {
+    "id": "zh-td003",
+    "lang": "zh",
+    "text": "这段要递给大客户的，呃改正式点，然后帮我顺一下语病",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {
+      "op": "formal"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-td004",
+    "lang": "zh",
+    "text": "那个这是我刚在备忘录里瞎敲的一段自我介绍，下周要给院里领导看的，你先帮我顺一下语病，再改得正式一点",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {
+      "op": "formal"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-td005",
+    "lang": "zh",
+    "text": "把这句把这一段先润色一下，然后再扩写几句吧",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "op": "expand"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-td006",
+    "lang": "zh",
+    "text": "我们经历嫌这段太干巴了，帮我多写几句，写完再整体润色一下",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "multi_request"
+    ],
+    "slots": {
+      "op": "expand"
+    },
+    "note": "经历 -> 经理"
+  },
+  {
+    "id": "zh-td007",
+    "lang": "zh",
+    "text": "嗯这段我要贴到 PPT 里的，帮我改成列表，顺便把标点理一下",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "code_mix",
+      "multi_request"
+    ],
+    "slots": {
+      "op": "format"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-td008",
+    "lang": "zh",
+    "text": "这几句标点改改，语气再随意一点",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "op": "casual"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-td009",
+    "lang": "zh",
+    "text": "能不能先帮我总结一下这段，然后写得正式一点",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "polite",
+      "multi_request",
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td010",
+    "lang": "zh",
+    "text": "一会儿要往公私大群里丢的，这段改正式一点，再帮我总结成三条",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "multi_request"
+    ],
+    "slots": {},
+    "note": "公私 -> 公司"
+  },
+  {
+    "id": "zh-td011",
+    "lang": "zh",
+    "text": "呃你把这段先把错字改了，再给我个摘要",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td012",
+    "lang": "zh",
+    "text": "就是我刚用语音记了一大段开会时候大家七嘴八舌聊的东西特别乱，你帮我概括一下，顺便改改语病",
+    "intent": "summarize",
+    "complexity": "long",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td013",
+    "lang": "zh",
+    "text": "把这个，把这段压短一点再总结出重点",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td014",
+    "lang": "zh",
+    "text": "把这段的要点拎出来，写得口语一点",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td015",
+    "lang": "zh",
+    "text": "嗯海外团队那边急着看，先总结一下再翻成英文",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {
+      "target": "en"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-td016",
+    "lang": "zh",
+    "text": "把这整篇先翻成英文，然后帮我总结一下",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "target": "en"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-td017",
+    "lang": "zh",
+    "text": "把这段润色完翻成日语",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "target": "ja"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-td018",
+    "lang": "zh",
+    "text": "东京家访那边等着看呢，先翻成日语，再润色一下",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "multi_request"
+    ],
+    "slots": {
+      "target": "ja"
+    },
+    "note": "家访 -> 甲方"
+  },
+  {
+    "id": "zh-td019",
+    "lang": "zh",
+    "text": "那个这段太啰嗦了，帮我改短一点再翻成中文",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {
+      "target": "zh"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-td020",
+    "lang": "zh",
+    "text": "把这段，把这段先翻成中文然后改得口语点",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "target": "zh"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-td021",
+    "lang": "zh",
+    "text": "伦敦那边刚在 Slack 上戳我了，用英文帮我回他一下",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "code_mix",
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td022",
+    "lang": "zh",
+    "text": "呃帮我回他，用日语写",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td023",
+    "lang": "zh",
+    "text": "哎老板大清早甩了这么长一串小作文过来我实在没空细看，你先总结一下他说了啥，再帮我回一句",
+    "intent": "reply",
+    "complexity": "long",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td024",
+    "lang": "zh",
+    "text": "这条你先帮我回一下，再翻成英文",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td025",
+    "lang": "zh",
+    "text": "淘宝电源刚弹消息过来了，帮我回复，写完帮我润色一下",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "multi_request"
+    ],
+    "slots": {},
+    "note": "电源 -> 店员"
+  },
+  {
+    "id": "zh-td026",
+    "lang": "zh",
+    "text": "嗯对面是头一回打交道的合作方，帮我回个消息，写正式点",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td027",
+    "lang": "zh",
+    "text": "跟他说周三可以哈",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td028",
+    "lang": "zh",
+    "text": "告诉她我已经到楼下了哈",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td029",
+    "lang": "zh",
+    "text": "克服后台一直在催单，跟客户讲一声货明天发",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "克服 -> 客服"
+  },
+  {
+    "id": "zh-td030",
+    "lang": "zh",
+    "text": "那个谢谢王老实给的建议",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "filler"
+    ],
+    "slots": {},
+    "note": "老实 -> 老师"
+  },
+  {
+    "id": "zh-td031",
+    "lang": "zh",
+    "text": "群里大伙儿都在祝我生日快乐呢，替我谢谢一下大家",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td032",
+    "lang": "zh",
+    "text": "呃跟那个，跟房东说下周一交房租",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td033",
+    "lang": "zh",
+    "text": "就说我同意就行",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td034",
+    "lang": "zh",
+    "text": "我今儿发烧起不来床了，嗯说我今天来不了",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td035",
+    "lang": "zh",
+    "text": "我还在地铁上换成呢，嗯跟他讲我晚十分钟到",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "filler"
+    ],
+    "slots": {},
+    "note": "换成 -> 换乘"
+  },
+  {
+    "id": "zh-td036",
+    "lang": "zh",
+    "text": "通知他回忆改到明天吧",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "回忆 -> 会议"
+  },
+  {
+    "id": "zh-td037",
+    "lang": "zh",
+    "text": "我妈看新闻说我们这边下大暴雨一直在微信上轰炸我，哎你跟她说别担心我没事我已经到家了",
+    "intent": "reply",
+    "complexity": "long",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td038",
+    "lang": "zh",
+    "text": "麻烦帮我感谢一下客户的耐心等待",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [
+      "polite"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td039",
+    "lang": "zh",
+    "text": "替我跟那个面食馆说声谢谢",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "面食馆 -> 面试官"
+  },
+  {
+    "id": "zh-td040",
+    "lang": "zh",
+    "text": "告诉他文件我晚上发过去",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td041",
+    "lang": "zh",
+    "text": "跟老板说这个月的保镖做好了",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "保镖 -> 报表"
+  },
+  {
+    "id": "zh-td042",
+    "lang": "zh",
+    "text": "呃就说好的我马上处理",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td043",
+    "lang": "zh",
+    "text": "这条用英文回他",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td044",
+    "lang": "zh",
+    "text": "用英语答复油箱里这封邮件",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "油箱 -> 邮箱"
+  },
+  {
+    "id": "zh-td045",
+    "lang": "zh",
+    "text": "这段拿日语回一下吧",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td046",
+    "lang": "zh",
+    "text": "首尔分部那个妹子帮了大忙，用韩语回她说谢谢",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td047",
+    "lang": "zh",
+    "text": "那个回他的时候，回他的时候用英文写",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td048",
+    "lang": "zh",
+    "text": "直接用中文回复这个老外就行",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td049",
+    "lang": "zh",
+    "text": "那个英文回一句收到",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td050",
+    "lang": "zh",
+    "text": "拿英语跟他说下周见哈",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td051",
+    "lang": "zh",
+    "text": "就是大群里王哥刚发的那条项目进度美国那边的同事看不懂，你帮我把他这条消息翻成英文吧",
+    "intent": "translate",
+    "complexity": "long",
+    "tags": [
+      "filler"
+    ],
+    "slots": {
+      "target": "en"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-td052",
+    "lang": "zh",
+    "text": "呃把这个，把这个老外发的翻成中文给我看一眼",
+    "intent": "translate",
+    "complexity": "simple",
+    "tags": [
+      "filler"
+    ],
+    "slots": {
+      "target": "zh"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-td053",
+    "lang": "zh",
+    "text": "帮我把我刚写的这条回复翻成英文",
+    "intent": "translate",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {
+      "target": "en"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-td054",
+    "lang": "zh",
+    "text": "把这封邮件翻成日语吧",
+    "intent": "translate",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {
+      "target": "ja"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-td055",
+    "lang": "zh",
+    "text": "我写好的这条回复帮我顺一下哈",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td056",
+    "lang": "zh",
+    "text": "那个我在手机上打字太快了手指头老按偏，这是我要回他的，你帮我改改错字别让人家笑话我",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td057",
+    "lang": "zh",
+    "text": "把我，我回老板的这段帮我检查一下语病",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td058",
+    "lang": "zh",
+    "text": "论坛铁子下面我准备发的回复读着别扭，帮我捋一捋",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "铁子 -> 帖子"
+  },
+  {
+    "id": "zh-td059",
+    "lang": "zh",
+    "text": "呃这条回复是我写的，能不能帮我润色一下",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "polite",
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td060",
+    "lang": "zh",
+    "text": "我回客户的话你帮我把标点改一下",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td061",
+    "lang": "zh",
+    "text": "嗯微信输入框里我打好的回复帮我看看有没有错字",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td062",
+    "lang": "zh",
+    "text": "帮我修一下我回帖里的病句吧",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td063",
+    "lang": "zh",
+    "text": "这是给人士那边的，我写的回复太随便了，帮我改正式点",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "op": "formal"
+    },
+    "note": "人士 -> 人事"
+  },
+  {
+    "id": "zh-td064",
+    "lang": "zh",
+    "text": "哎我这条回复太长了，帮我，帮我缩短一点",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {
+      "op": "shorten"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-td065",
+    "lang": "zh",
+    "text": "就是人家好心好意给我推了个工作机会，但我回他的这段太冷了看着像不想搭理人，帮我改热情点",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "filler"
+    ],
+    "slots": {
+      "op": "casual"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-td066",
+    "lang": "zh",
+    "text": "光这么干巴巴几个字我的回复太短了，帮我加几句",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [],
+    "slots": {
+      "op": "expand"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-td067",
+    "lang": "zh",
+    "text": "族长刚私聊我的，这条消息帮我回一下，顺一点",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "族长 -> 组长"
+  },
+  {
+    "id": "zh-td068",
+    "lang": "zh",
+    "text": "租房终结刚微信我的，他发的这段你帮我回",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "终结 -> 中介"
+  },
+  {
+    "id": "zh-td069",
+    "lang": "zh",
+    "text": "这条帮我回她，语气热情点",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td070",
+    "lang": "zh",
+    "text": "对着这封帮我起草个回复，别太长",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td071",
+    "lang": "zh",
+    "text": "呃这整段聊天主要在说啥呀",
+    "intent": "summarize",
+    "complexity": "simple",
+    "tags": [
+      "filler",
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td072",
+    "lang": "zh",
+    "text": "老板刚 CC 我的，这封邮件大概讲了什么",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "code_mix",
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td073",
+    "lang": "zh",
+    "text": "哎我刚才去开了一个钟头的会没看手机项目群里刷了九十多条，这个群聊记录帮我概括一下吧",
+    "intent": "summarize",
+    "complexity": "long",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td074",
+    "lang": "zh",
+    "text": "这么长的公告到底讲了啥呀",
+    "intent": "summarize",
+    "complexity": "simple",
+    "tags": [
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td075",
+    "lang": "zh",
+    "text": "说说他这几段话的大意吧",
+    "intent": "summarize",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td076",
+    "lang": "zh",
+    "text": "福建里这份文档主要内容是什么",
+    "intent": "summarize",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "question"
+    ],
+    "slots": {},
+    "note": "福建 -> 附件"
+  },
+  {
+    "id": "zh-td077",
+    "lang": "zh",
+    "text": "他说的截至时间是哪天啊",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "question"
+    ],
+    "slots": {},
+    "note": "截至 -> 截止"
+  },
+  {
+    "id": "zh-td078",
+    "lang": "zh",
+    "text": "哎邮件里说的地址在哪儿",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "filler",
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td079",
+    "lang": "zh",
+    "text": "午夜群里这里提到的费用是多少",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "question"
+    ],
+    "slots": {},
+    "note": "午夜 -> 物业"
+  },
+  {
+    "id": "zh-td080",
+    "lang": "zh",
+    "text": "他说的那个人到底是谁呀",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td081",
+    "lang": "zh",
+    "text": "这条同志里几点集合啊",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "question"
+    ],
+    "slots": {},
+    "note": "同志 -> 通知"
+  },
+  {
+    "id": "zh-td082",
+    "lang": "zh",
+    "text": "财物刚传过来的这一版，合同里写的违约金是多少",
+    "intent": "ask",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "question"
+    ],
+    "slots": {},
+    "note": "财物 -> 财务"
+  },
+  {
+    "id": "zh-td083",
+    "lang": "zh",
+    "text": "呃算了算了",
+    "intent": "cancel",
+    "complexity": "simple",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td084",
+    "lang": "zh",
+    "text": "哎不用了",
+    "intent": "cancel",
+    "complexity": "simple",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td085",
+    "lang": "zh",
+    "text": "没事了没事了",
+    "intent": "cancel",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td086",
+    "lang": "zh",
+    "text": "把这条帮我回一下，算了别回了",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "negation",
+      "retraction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td087",
+    "lang": "zh",
+    "text": "这段翻成英文，哎不用了",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "retraction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td088",
+    "lang": "zh",
+    "text": "那个帮我总结一下，呃算了我自己看吧",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "retraction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td089",
+    "lang": "zh",
+    "text": "把这段帮我改正式点，算了就这样吧",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "retraction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td090",
+    "lang": "zh",
+    "text": "停停停",
+    "intent": "cancel",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td091",
+    "lang": "zh",
+    "text": "这段扩写一下，哎不了不了",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "retraction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td092",
+    "lang": "zh",
+    "text": "先不弄了哈",
+    "intent": "cancel",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td093",
+    "lang": "zh",
+    "text": "直接把这条回复发出去吧",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td094",
+    "lang": "zh",
+    "text": "帮我把这段删了吧",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td095",
+    "lang": "zh",
+    "text": "把这个回复转给小王看一下",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td096",
+    "lang": "zh",
+    "text": "把这个，帮我把这段复制一下",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td097",
+    "lang": "zh",
+    "text": "把这条未读，把这条消息标为已读",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td098",
+    "lang": "zh",
+    "text": "那个帮我把这段存起来吧",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td099",
+    "lang": "zh",
+    "text": "把这封邮件归档吧",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td100",
+    "lang": "zh",
+    "text": "帮我把这段贴到群里去",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td101",
+    "lang": "zh",
+    "text": "钉钉上把这个发给老板吧",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-td102",
+    "lang": "zh",
+    "text": "哎帮我截个图",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  }
+]

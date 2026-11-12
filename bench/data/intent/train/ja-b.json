@@ -1,0 +1,2010 @@
+[
+  {
+    "id": "ja-tb001",
+    "lang": "ja",
+    "text": "ごじ脱字だけ直しといて",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "ごじ -> 誤字 (hiragana for kanji)"
+  },
+  {
+    "id": "ja-tb002",
+    "lang": "ja",
+    "text": "えーと、このレポートの文章、ちょっと読みにくいから自然な感じに整えてもらえますか",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "filler",
+      "polite",
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb003",
+    "lang": "ja",
+    "text": "ゼミの発表で使うスピーチ原稿なんですけど、校生してください。明日の朝までに仕上げたいので",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "asr_error",
+      "polite"
+    ],
+    "slots": {},
+    "note": "校生 -> 校正"
+  },
+  {
+    "id": "ja-tb004",
+    "lang": "ja",
+    "text": "書き換えまではいらないから、ここの文なんか変だから、手には話だけ見て直して",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "negation"
+    ],
+    "slots": {},
+    "note": "手には話 -> てにをは"
+  },
+  {
+    "id": "ja-tb005",
+    "lang": "ja",
+    "text": "訳して、やっぱり句読点をいい感じに打つだけでいい",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb006",
+    "lang": "ja",
+    "text": "あのー、えっとね、このブログの下書きなんだけど、音声入力でしゃべったまんまだから、えー、変な言い回しとか、てにをはとか、全部ちゃんとした日本語に直してくれる？",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "filler",
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb007",
+    "lang": "ja",
+    "text": "これポリシーしてくれる？",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "question"
+    ],
+    "slots": {},
+    "note": "ポリシー -> ポリッシュ"
+  },
+  {
+    "id": "ja-tb008",
+    "lang": "ja",
+    "text": "タイポだけ治して、中身はいじらないで",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "治して -> 直して (wrong kanji)"
+  },
+  {
+    "id": "ja-tb009",
+    "lang": "ja",
+    "text": "この原稿、考閲お願いします。内容はそのままで",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "polite"
+    ],
+    "slots": {},
+    "note": "考閲 -> 校閲"
+  },
+  {
+    "id": "ja-tb010",
+    "lang": "ja",
+    "text": "ドキュメントの誤字を直してほしいのと、あと表記ゆれも統一したい。ただ翻訳はしなくていいからね",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "negation"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb011",
+    "lang": "ja",
+    "text": "動画の字幕のテキストなんだけど、アップする前にちょっとだけproofreadしてもらえるとうれしいな",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "code_mix",
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb012",
+    "lang": "ja",
+    "text": "授業の録音を音声認識で起こしたんやけど、変になっとるとこ、自然な日本語に治してくれへん？",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "asr_error",
+      "question"
+    ],
+    "slots": {},
+    "note": "治して -> 直して (wrong kanji)"
+  },
+  {
+    "id": "ja-tb013",
+    "lang": "ja",
+    "text": "あの、ちょっと整えてくれませんか、投稿する前に一回見直したくて",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "polite",
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb014",
+    "lang": "ja",
+    "text": "レポート全体のようやくはいらないので、そのまま読みやすくなるよう、えーと、整えてください",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "asr_error",
+      "negation",
+      "filler",
+      "polite"
+    ],
+    "slots": {},
+    "note": "ようやく -> 要約 (hiragana, negated intent word)"
+  },
+  {
+    "id": "ja-tb015",
+    "lang": "ja",
+    "text": "typoだけ見て",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "code_mix"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb016",
+    "lang": "ja",
+    "text": "提出前のレポートだから、誤職を直しておいて",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "誤職 -> 誤植"
+  },
+  {
+    "id": "ja-tb017",
+    "lang": "ja",
+    "text": "えっとですね、卒論の考察のとこなんですけど、分末がですますになったり、であるになったりしてるので、統一して、おかしな日本語も直してもらえますか",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "asr_error",
+      "filler",
+      "polite",
+      "question"
+    ],
+    "slots": {},
+    "note": "分末 -> 文末"
+  },
+  {
+    "id": "ja-tb018",
+    "lang": "ja",
+    "text": "このゼミのレジュメ、ですます調を揃えて、あと五時もよろしく",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "五時 -> 誤字"
+  },
+  {
+    "id": "ja-tb019",
+    "lang": "ja",
+    "text": "この文章のえーと、不自然なところを調えてほしい",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "filler"
+    ],
+    "slots": {},
+    "note": "調えて -> 整えて (wrong kanji)"
+  },
+  {
+    "id": "ja-tb020",
+    "lang": "ja",
+    "text": "短くして、あ、違う、そのままでええから誤字だけ直して",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb021",
+    "lang": "ja",
+    "text": "要約…じゃなくて、普通に文章を整えてほしい",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "self_correction",
+      "negation"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb022",
+    "lang": "ja",
+    "text": "本役しなくていいから、てにをはだけ直して",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "negation"
+    ],
+    "slots": {},
+    "note": "本役 -> 翻訳 (negated intent word)"
+  },
+  {
+    "id": "ja-tb023",
+    "lang": "ja",
+    "text": "ここの変換ミスを全部治して、えー内容はそのままで",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "filler"
+    ],
+    "slots": {},
+    "note": "治して -> 直して (wrong kanji)"
+  },
+  {
+    "id": "ja-tb024",
+    "lang": "ja",
+    "text": "えーっとね、ブログに投稿する前にちょっと見て、誤字ないか確認して、あったら直しといて",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb025",
+    "lang": "ja",
+    "text": "この原稿をこうせいしてください",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "polite"
+    ],
+    "slots": {},
+    "note": "こうせい -> 校正 (hiragana for kanji)"
+  },
+  {
+    "id": "ja-tb026",
+    "lang": "ja",
+    "text": "インタビューを書き起こしたんだけど、えーとかあのーとか、ファイラーを消して読みやすくしてくれる？",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "asr_error",
+      "filler",
+      "question"
+    ],
+    "slots": {},
+    "note": "ファイラー -> フィラー"
+  },
+  {
+    "id": "ja-tb027",
+    "lang": "ja",
+    "text": "このエッセイを遂行してもらえませんか。内容はいじらずに、言葉づかいだけ見てほしいです",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "asr_error",
+      "polite",
+      "question"
+    ],
+    "slots": {},
+    "note": "遂行 -> 推敲"
+  },
+  {
+    "id": "ja-tb028",
+    "lang": "ja",
+    "text": "このエッセイ、書いてるうちに文のねじれができちゃったと思うから、直して、読みやすくして",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb029",
+    "lang": "ja",
+    "text": "要約しないで、ここ、主語と術語がかみ合ってないから直して",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "negation"
+    ],
+    "slots": {},
+    "note": "術語 -> 述語"
+  },
+  {
+    "id": "ja-tb030",
+    "lang": "ja",
+    "text": "ちょっと見てほしいんだけど、返還間違いと送り仮名のミスだけ、内容は触らずに直してもらえないかな",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "asr_error",
+      "polite",
+      "question"
+    ],
+    "slots": {},
+    "note": "返還 -> 変換"
+  },
+  {
+    "id": "ja-tb031",
+    "lang": "ja",
+    "text": "要約はしなくていいので、もう少し詳しく書き足してくれませんか",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "negation",
+      "polite",
+      "question"
+    ],
+    "slots": {
+      "op": "expand"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-tb032",
+    "lang": "ja",
+    "text": "ここの段落、読者に伝わるように理由とか経緯とかを足して、倍くらいの長さにしてほしい",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [],
+    "slots": {
+      "op": "expand"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-tb033",
+    "lang": "ja",
+    "text": "下筆して、背景も入れてほしい",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "op": "expand"
+    },
+    "note": "下筆 -> 加筆"
+  },
+  {
+    "id": "ja-tb034",
+    "lang": "ja",
+    "text": "肉付けして、誤字もついでに直して",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "op": "expand"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-tb035",
+    "lang": "ja",
+    "text": "ここの説明が短すぎるから、えーと、もうちょい長くして、背景とかも足してくれる？読む人に伝わるように",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "filler",
+      "question"
+    ],
+    "slots": {
+      "op": "expand"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-tb036",
+    "lang": "ja",
+    "text": "短くして、あ、いや、逆にもうちょっと詳しく書いてほしい",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {
+      "op": "expand"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-tb037",
+    "lang": "ja",
+    "text": "詳しく書いて、いや待って、もっと短くして",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {
+      "op": "shorten"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-tb038",
+    "lang": "ja",
+    "text": "SNSの文字数制限に収まるように縮めてほしいんやけど",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "code_mix"
+    ],
+    "slots": {
+      "op": "shorten"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-tb039",
+    "lang": "ja",
+    "text": "ここ情調だから、えーと、半分くらいに絞って",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "filler"
+    ],
+    "slots": {
+      "op": "shorten"
+    },
+    "note": "情調 -> 冗長"
+  },
+  {
+    "id": "ja-tb040",
+    "lang": "ja",
+    "text": "ようやくじゃなくて、内容はそのままで文字数だけ減らしてほしい",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "negation"
+    ],
+    "slots": {
+      "op": "shorten"
+    },
+    "note": "ようやく -> 要約 (hiragana, negated intent word)"
+  },
+  {
+    "id": "ja-tb041",
+    "lang": "ja",
+    "text": "誤字を直して、もっと短くして",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "op": "shorten"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-tb042",
+    "lang": "ja",
+    "text": "このタイトル、長すぎるから、短宿してください",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "polite"
+    ],
+    "slots": {
+      "op": "shorten"
+    },
+    "note": "短宿 -> 短縮"
+  },
+  {
+    "id": "ja-tb043",
+    "lang": "ja",
+    "text": "カジュアルじゃなくて、敬語にして",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "negation"
+    ],
+    "slots": {
+      "op": "formal"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-tb044",
+    "lang": "ja",
+    "text": "丁寧な文面にして、あと誤字も見ておいて",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "op": "formal"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-tb045",
+    "lang": "ja",
+    "text": "この文章、常時に送るので、失礼のないように丁寧な言葉づかいに直してもらえますか、お願いします",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "asr_error",
+      "polite",
+      "question"
+    ],
+    "slots": {
+      "op": "formal"
+    },
+    "note": "常時 -> 上司"
+  },
+  {
+    "id": "ja-tb046",
+    "lang": "ja",
+    "text": "警護にして",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "op": "formal"
+    },
+    "note": "警護 -> 敬語"
+  },
+  {
+    "id": "ja-tb047",
+    "lang": "ja",
+    "text": "整えて、ついでに敬語にして",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "op": "formal"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-tb048",
+    "lang": "ja",
+    "text": "formalにして",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "code_mix"
+    ],
+    "slots": {
+      "op": "formal"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-tb049",
+    "lang": "ja",
+    "text": "敬語にしないで、もうちょっと砕けた感じにして",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "negation"
+    ],
+    "slots": {
+      "op": "casual"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-tb050",
+    "lang": "ja",
+    "text": "友達に送る文だから、硬苦しくなくてフレンドリーな口調にしてくれへん？ええ感じに頼むわ",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "asr_error",
+      "question"
+    ],
+    "slots": {
+      "op": "casual"
+    },
+    "note": "硬苦しく -> 堅苦しく"
+  },
+  {
+    "id": "ja-tb051",
+    "lang": "ja",
+    "text": "ブログの記事なんだけど、もうちょっとカジュワルにしてください、堅すぎて読者が離れそうなので",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "asr_error",
+      "polite"
+    ],
+    "slots": {
+      "op": "casual"
+    },
+    "note": "カジュワル -> カジュアル"
+  },
+  {
+    "id": "ja-tb052",
+    "lang": "ja",
+    "text": "えーと、整えたうえで、もうちょっとくだけた感じにして",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {
+      "op": "casual"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-tb053",
+    "lang": "ja",
+    "text": "かしこまった感じにして…あ、やっぱ逆で、もう少し親しみ安くタメ口でもいいよ",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "self_correction"
+    ],
+    "slots": {
+      "op": "casual"
+    },
+    "note": "親しみ安く -> 親しみやすく"
+  },
+  {
+    "id": "ja-tb054",
+    "lang": "ja",
+    "text": "敬語にして、やっぱりカジュアルな感じで",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "self_correction",
+      "code_mix"
+    ],
+    "slots": {
+      "op": "casual"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-tb055",
+    "lang": "ja",
+    "text": "要約して、あ、違う、小学生にもわかるように書き直して",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {
+      "op": "audience"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-tb056",
+    "lang": "ja",
+    "text": "専門用語がわからない人向けに、えーと、やさしく説明する感じに直してほしい",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {
+      "op": "audience"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-tb057",
+    "lang": "ja",
+    "text": "整えてから、お客さん目線の文章にして",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "op": "audience"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-tb058",
+    "lang": "ja",
+    "text": "大三者の視点に変えてほしい",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "op": "audience"
+    },
+    "note": "大三者 -> 第三者"
+  },
+  {
+    "id": "ja-tb059",
+    "lang": "ja",
+    "text": "このドキュメント、プログラミング初めての人が読むので、所新者向けに書き直してもらえますか",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "asr_error",
+      "polite",
+      "question"
+    ],
+    "slots": {
+      "op": "audience"
+    },
+    "note": "所新者 -> 初心者"
+  },
+  {
+    "id": "ja-tb060",
+    "lang": "ja",
+    "text": "会議のメモなんだけど、だらだら書いちゃったから、あとで読み返しやすいように箇条書きにして",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [],
+    "slots": {
+      "op": "format"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-tb061",
+    "lang": "ja",
+    "text": "この長い説明文、手順がわかりにくいので、過剰書きにして、えーと、順番に並べて",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "filler"
+    ],
+    "slots": {
+      "op": "format"
+    },
+    "note": "過剰書き -> 箇条書き"
+  },
+  {
+    "id": "ja-tb062",
+    "lang": "ja",
+    "text": "短くして、あ、そうじゃなくて、これをメール形式にしてほしい、宛先は研究室の先輩で",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {
+      "op": "format"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-tb063",
+    "lang": "ja",
+    "text": "手順ごとに番号付きリストにして、てにをはも整えて",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "op": "format"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-tb064",
+    "lang": "ja",
+    "text": "マーク ダウンの表にしてくれる？",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "question"
+    ],
+    "slots": {
+      "op": "format"
+    },
+    "note": "マーク ダウン -> マークダウン (split word)"
+  },
+  {
+    "id": "ja-tb065",
+    "lang": "ja",
+    "text": "この段落、ブログのブロックごとに身出しにして、読む人が探しやすいように",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "op": "format"
+    },
+    "note": "身出し -> 見出し"
+  },
+  {
+    "id": "ja-tb066",
+    "lang": "ja",
+    "text": "同じ言葉が何回も出てきて気になるから、意味は変えずに言い換えて、えー自然な感じで",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "filler"
+    ],
+    "slots": {
+      "op": "paraphrase"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-tb067",
+    "lang": "ja",
+    "text": "英語にして…じゃなくて、同じ日本語で、違う言い回しにしてほしい、意味はそのままで、お願いします",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "self_correction",
+      "negation",
+      "polite"
+    ],
+    "slots": {
+      "op": "paraphrase"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-tb068",
+    "lang": "ja",
+    "text": "別の言い方にして、誤字も直してもらえる？",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "polite",
+      "multi_request",
+      "question"
+    ],
+    "slots": {
+      "op": "paraphrase"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-tb069",
+    "lang": "ja",
+    "text": "短くしないで、言い変えて",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "negation"
+    ],
+    "slots": {
+      "op": "paraphrase"
+    },
+    "note": "言い変えて -> 言い換えて"
+  },
+  {
+    "id": "ja-tb070",
+    "lang": "ja",
+    "text": "パラフレイズして、えーと、ニュアンスはそのままで",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "filler"
+    ],
+    "slots": {
+      "op": "paraphrase"
+    },
+    "note": "パラフレイズ -> パラフレーズ"
+  },
+  {
+    "id": "ja-tb071",
+    "lang": "ja",
+    "text": "summarizeして、あー、やっぱり英語にして",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "self_correction",
+      "filler",
+      "code_mix"
+    ],
+    "slots": {
+      "target": "en"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-tb072",
+    "lang": "ja",
+    "text": "英語に本訳して、投稿のキャプションにしたいから",
+    "intent": "translate",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "target": "en"
+    },
+    "note": "本訳 -> 翻訳"
+  },
+  {
+    "id": "ja-tb073",
+    "lang": "ja",
+    "text": "このメモ、あとで同僚にも見せたいから、日本語にtranslateしてもらえるとありがたいんだけど",
+    "intent": "translate",
+    "complexity": "long",
+    "tags": [
+      "code_mix",
+      "polite"
+    ],
+    "slots": {
+      "target": "ja"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-tb074",
+    "lang": "ja",
+    "text": "日本語に翻訳してほしい、えーと、研究室で読んでる論文のアブストラクトなんだけど、できるだけ正確に",
+    "intent": "translate",
+    "complexity": "long",
+    "tags": [
+      "filler"
+    ],
+    "slots": {
+      "target": "ja"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-tb075",
+    "lang": "ja",
+    "text": "中国語に本約して",
+    "intent": "translate",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "target": "zh"
+    },
+    "note": "本約 -> 翻訳"
+  },
+  {
+    "id": "ja-tb076",
+    "lang": "ja",
+    "text": "この文章、中国後に翻訳して、日本に留学に来てる友達に送ってあげたいんだ、お願い",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "polite"
+    ],
+    "slots": {
+      "target": "zh"
+    },
+    "note": "中国後 -> 中国語"
+  },
+  {
+    "id": "ja-tb077",
+    "lang": "ja",
+    "text": "簡体字じゃなくて、反対字の中国語にして",
+    "intent": "translate",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "negation"
+    ],
+    "slots": {
+      "target": "zh-Hant"
+    },
+    "note": "反対字 -> 繁体字"
+  },
+  {
+    "id": "ja-tb078",
+    "lang": "ja",
+    "text": "整えて、あ、違う、韓国語にして",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {
+      "target": "ko"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-tb079",
+    "lang": "ja",
+    "text": "短くして…いや、フランス語にしてください",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "self_correction",
+      "polite"
+    ],
+    "slots": {
+      "target": "other"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-tb080",
+    "lang": "ja",
+    "text": "容約して英語にして",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "multi_request"
+    ],
+    "slots": {
+      "target": "en"
+    },
+    "note": "容約 -> 要約"
+  },
+  {
+    "id": "ja-tb081",
+    "lang": "ja",
+    "text": "日本語に翻訳して、そのあと要点を三つにまとめて",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "target": "ja"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-tb082",
+    "lang": "ja",
+    "text": "整えてから中国語に訳して",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "target": "zh"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-tb083",
+    "lang": "ja",
+    "text": "誤字を直して、漢国語にしてもらえますか",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "polite",
+      "multi_request",
+      "question"
+    ],
+    "slots": {
+      "target": "ko"
+    },
+    "note": "漢国語 -> 韓国語"
+  },
+  {
+    "id": "ja-tb084",
+    "lang": "ja",
+    "text": "繁体時に訳して、あと、ちょっと柔らかい感じで",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "multi_request"
+    ],
+    "slots": {
+      "target": "zh-Hant"
+    },
+    "note": "繁体時 -> 繁体字"
+  },
+  {
+    "id": "ja-tb085",
+    "lang": "ja",
+    "text": "この旅行ブログの記事、フランス語にして、あと、読みやすいように少し短くしてほしい",
+    "intent": "translate",
+    "complexity": "long",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "target": "other"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-tb086",
+    "lang": "ja",
+    "text": "敬語にして中国語に翻訳して",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "target": "zh"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-tb087",
+    "lang": "ja",
+    "text": "短くしてドイツ語に反訳して",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "multi_request"
+    ],
+    "slots": {
+      "target": "other"
+    },
+    "note": "反訳 -> 翻訳"
+  },
+  {
+    "id": "ja-tb088",
+    "lang": "ja",
+    "text": "英語にして、誤字も治して",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "multi_request"
+    ],
+    "slots": {
+      "target": "en"
+    },
+    "note": "治して -> 直して (wrong kanji)"
+  },
+  {
+    "id": "ja-tb089",
+    "lang": "ja",
+    "text": "ハングルにして、えーと、てにをはも整えて",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {
+      "target": "ko"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-tb090",
+    "lang": "ja",
+    "text": "三行に要約してから韓国語に訳して",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "target": "ko"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-tb091",
+    "lang": "ja",
+    "text": "英語に翻訳して、それから用点をまとめて",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "multi_request"
+    ],
+    "slots": {
+      "target": "en"
+    },
+    "note": "用点 -> 要点"
+  },
+  {
+    "id": "ja-tb092",
+    "lang": "ja",
+    "text": "この長い記事、時間がないから、要約して、ざっくり内容だけ知りたい、五行くらいで",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb093",
+    "lang": "ja",
+    "text": "箇条書きにして…やめた、要点をまとめて",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb094",
+    "lang": "ja",
+    "text": "敬語にしてって言ったけど、やっぱりざっくり三行でまとめてほしい、時間がないから",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb095",
+    "lang": "ja",
+    "text": "ようやくして",
+    "intent": "summarize",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "ようやく -> 要約 (hiragana)"
+  },
+  {
+    "id": "ja-tb096",
+    "lang": "ja",
+    "text": "このスライドの説明、長いから要訳して",
+    "intent": "summarize",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "要訳 -> 要約"
+  },
+  {
+    "id": "ja-tb097",
+    "lang": "ja",
+    "text": "いったい何が言いたいのか、一言でまとめて",
+    "intent": "summarize",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb098",
+    "lang": "ja",
+    "text": "翻訳じゃなくて、TLDRにして",
+    "intent": "summarize",
+    "complexity": "simple",
+    "tags": [
+      "negation",
+      "code_mix"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb099",
+    "lang": "ja",
+    "text": "議事録が長いから、えーと、要点だけ抜き出してくれる？後で共有したいんだよね、チームのみんなに",
+    "intent": "summarize",
+    "complexity": "long",
+    "tags": [
+      "filler",
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb100",
+    "lang": "ja",
+    "text": "この仕様書、長くてあんまり読めてないから、外要を一文で教えてほしい、明日の会議までに把握しておきたい",
+    "intent": "summarize",
+    "complexity": "long",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "外要 -> 概要"
+  },
+  {
+    "id": "ja-tb101",
+    "lang": "ja",
+    "text": "ホンヤクはいいから、要点だけまとめて",
+    "intent": "summarize",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "negation"
+    ],
+    "slots": {},
+    "note": "ホンヤク -> 翻訳 (katakana for kanji, negated)"
+  },
+  {
+    "id": "ja-tb102",
+    "lang": "ja",
+    "text": "リライドして、あ、やっぱり要約で",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "self_correction"
+    ],
+    "slots": {},
+    "note": "リライド -> リライト"
+  },
+  {
+    "id": "ja-tb103",
+    "lang": "ja",
+    "text": "英語にして…じゃなくて、内容を簡単にまとめて",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "self_correction",
+      "negation"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb104",
+    "lang": "ja",
+    "text": "この記事、要約して、あと敬語にして、ええと、先生にメールで送れるように、お願いします",
+    "intent": "summarize",
+    "complexity": "long",
+    "tags": [
+      "filler",
+      "polite",
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb105",
+    "lang": "ja",
+    "text": "えーと、丁寧語にして、それから要点をまとめて",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb106",
+    "lang": "ja",
+    "text": "用約してtypoも直しておいて",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "code_mix",
+      "multi_request"
+    ],
+    "slots": {},
+    "note": "用約 -> 要約"
+  },
+  {
+    "id": "ja-tb107",
+    "lang": "ja",
+    "text": "まず文章を整えて、そのあと動画の説明欄に使うから一行でまとめて",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb108",
+    "lang": "ja",
+    "text": "ポイントを抜き出して、もうちょっと砕けた口調で",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb109",
+    "lang": "ja",
+    "text": "全体をくだけた口調にして、最後に今日の要点を箇条書きで、ブログの読者向けにね",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb110",
+    "lang": "ja",
+    "text": "要点だけ抜き出して、てにをはも直して",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb111",
+    "lang": "ja",
+    "text": "誤字を直してから、概要を一分で",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "multi_request"
+    ],
+    "slots": {},
+    "note": "一分 -> 一文"
+  },
+  {
+    "id": "ja-tb112",
+    "lang": "ja",
+    "text": "あー、えっと、やっぱりいいです、自分でもう少し考えてから、また改めて頼むかもしれません",
+    "intent": "cancel",
+    "complexity": "long",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb113",
+    "lang": "ja",
+    "text": "あのーすみません、キャンセルでお願いします",
+    "intent": "cancel",
+    "complexity": "simple",
+    "tags": [
+      "filler",
+      "polite"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb114",
+    "lang": "ja",
+    "text": "すみません、キャンサーでお願いします、やっぱり必要なくなったので",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "polite"
+    ],
+    "slots": {},
+    "note": "キャンサー -> キャンセル"
+  },
+  {
+    "id": "ja-tb115",
+    "lang": "ja",
+    "text": "あ、いいです、やっぱり大丈夫です",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "retraction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb116",
+    "lang": "ja",
+    "text": "要約して…いや、いいや、やっぱりやめとく",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "self_correction",
+      "retraction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb117",
+    "lang": "ja",
+    "text": "ホンヤクお願いしま、あ、やっぱいらないです",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "self_correction",
+      "retraction",
+      "polite"
+    ],
+    "slots": {},
+    "note": "ホンヤク -> 翻訳 (katakana for kanji)"
+  },
+  {
+    "id": "ja-tb118",
+    "lang": "ja",
+    "text": "えーっと、整えてほしかったんだけど、よく見たらこのままでいいや、やっぱり大丈夫、ごめんね",
+    "intent": "cancel",
+    "complexity": "long",
+    "tags": [
+      "retraction",
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb119",
+    "lang": "ja",
+    "text": "短くして、ううん、いいや、そのままにする",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "self_correction",
+      "retraction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb120",
+    "lang": "ja",
+    "text": "あ、やば、今のなし、なしで、全部なかったことにして",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "retraction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb121",
+    "lang": "ja",
+    "text": "ごめん、間違えた、これ別のウィンドウの文章だった、まだ何も頼んでないことにして、やめて",
+    "intent": "cancel",
+    "complexity": "long",
+    "tags": [
+      "retraction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb122",
+    "lang": "ja",
+    "text": "鳥消しで",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "retraction"
+    ],
+    "slots": {},
+    "note": "鳥消し -> 取り消し"
+  },
+  {
+    "id": "ja-tb123",
+    "lang": "ja",
+    "text": "never mindでいいや",
+    "intent": "cancel",
+    "complexity": "simple",
+    "tags": [
+      "code_mix"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb124",
+    "lang": "ja",
+    "text": "さっきのお願い、辞めますので取り消してください",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "retraction",
+      "polite"
+    ],
+    "slots": {},
+    "note": "辞めます -> やめます (wrong kanji)"
+  },
+  {
+    "id": "ja-tb125",
+    "lang": "ja",
+    "text": "ちょっと待って、やっぱり自分で書くわ",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "retraction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb126",
+    "lang": "ja",
+    "text": "永遠にしてほしいって思ったけど、やっぱ今のなしで",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "self_correction",
+      "retraction"
+    ],
+    "slots": {},
+    "note": "永遠 -> 英語"
+  },
+  {
+    "id": "ja-tb127",
+    "lang": "ja",
+    "text": "この文章って誰が書いたの？",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb128",
+    "lang": "ja",
+    "text": "この単語の意味は何ですか、論文を読んでいて出てきたんだけどよくわからなくて",
+    "intent": "ask",
+    "complexity": "compound",
+    "tags": [
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb129",
+    "lang": "ja",
+    "text": "構成ってどういう意味？",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "question"
+    ],
+    "slots": {},
+    "note": "構成 -> 校正"
+  },
+  {
+    "id": "ja-tb130",
+    "lang": "ja",
+    "text": "ここの敬語なんですけど、先生に出すレポートの冒頭なので、これで合ってますか？変じゃないでしょうか",
+    "intent": "ask",
+    "complexity": "long",
+    "tags": [
+      "polite",
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb131",
+    "lang": "ja",
+    "text": "ようやくと要点ってどう違うんだっけ",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "question"
+    ],
+    "slots": {},
+    "note": "ようやく -> 要約 (hiragana)"
+  },
+  {
+    "id": "ja-tb132",
+    "lang": "ja",
+    "text": "えーと、この表現、ビジネスで使っても失礼じゃないかな",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "filler",
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb133",
+    "lang": "ja",
+    "text": "翻訳はしなくていいから、これを田中さんにメールで贈って",
+    "intent": "none",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "negation"
+    ],
+    "slots": {},
+    "note": "贈って -> 送って"
+  },
+  {
+    "id": "ja-tb134",
+    "lang": "ja",
+    "text": "短くして、あ、やっぱりファイルを保存しといて",
+    "intent": "none",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb135",
+    "lang": "ja",
+    "text": "要約して、あ、間違えた、ブラウザでこの言葉を検索して",
+    "intent": "none",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb136",
+    "lang": "ja",
+    "text": "ホンヤクして、ああ違う、これ田中さんに送って",
+    "intent": "none",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "self_correction"
+    ],
+    "slots": {},
+    "note": "ホンヤク -> 翻訳 (katakana for kanji)"
+  },
+  {
+    "id": "ja-tb137",
+    "lang": "ja",
+    "text": "構成して、あ、やっぱり先に保存して",
+    "intent": "none",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "self_correction"
+    ],
+    "slots": {},
+    "note": "構成 -> 校正"
+  },
+  {
+    "id": "ja-tb138",
+    "lang": "ja",
+    "text": "選択してる部分をコピーしてSlackに貼っといて",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [
+      "code_mix"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb139",
+    "lang": "ja",
+    "text": "今日はいい転機ですね、外に出てお昼でも食べに行こうかな、課題も終わったし",
+    "intent": "none",
+    "complexity": "compound",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "転機 -> 天気"
+  },
+  {
+    "id": "ja-tb140",
+    "lang": "ja",
+    "text": "ありがとう、さっきのは助かった、また明日もお願いするね",
+    "intent": "none",
+    "complexity": "compound",
+    "tags": [
+      "polite"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb141",
+    "lang": "ja",
+    "text": "おはよう、今日も朝から眠いなあ、昨日の夜遅くまで課題やってたから",
+    "intent": "none",
+    "complexity": "compound",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb142",
+    "lang": "ja",
+    "text": "えーっと、お腹すいたから、なんか食べに行こうかな",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb143",
+    "lang": "ja",
+    "text": "明日の三時からゼミの発表があるので、死料を忘れないように",
+    "intent": "none",
+    "complexity": "compound",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "死料 -> 資料"
+  },
+  {
+    "id": "ja-tb144",
+    "lang": "ja",
+    "text": "レポートの提出機嫌は金曜日の十七時です",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "提出機嫌 -> 提出期限"
+  },
+  {
+    "id": "ja-tb145",
+    "lang": "ja",
+    "text": "拝啓、自家ますますご清栄のこととお慶び申し上げます",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "自家 -> 時下"
+  },
+  {
+    "id": "ja-tb146",
+    "lang": "ja",
+    "text": "えー、本日はお忙しいところ、ゼミの発表会にお集まりいただきありがとうございます",
+    "intent": "none",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "polite"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb147",
+    "lang": "ja",
+    "text": "この関数は引数が空のときnullを返します",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [
+      "code_mix"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb148",
+    "lang": "ja",
+    "text": "あのえっとそのでそれがなんとかでええと",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb149",
+    "lang": "ja",
+    "text": "ざざ、うんちくをがたとれのすてき、えっと、ぷつ、あのれつがでて",
+    "intent": "none",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-tb150",
+    "lang": "ja",
+    "text": "ンー、ブツ、ハイ、ええとシ",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  }
+]

@@ -1,0 +1,1980 @@
+[
+  {
+    "id": "en-tc001",
+    "lang": "en",
+    "text": "uh write a reply to this",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc002",
+    "lang": "en",
+    "text": "um like what do I even say back to this",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [
+      "filler",
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc003",
+    "lang": "en",
+    "text": "my thesis advisor just sent this over, how should I answer her here",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc004",
+    "lang": "en",
+    "text": "drop a quick comment back on this post and uh proof reed it for typos before I hit send",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "multi_request",
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "proof reed -> proofread"
+  },
+  {
+    "id": "en-tc005",
+    "lang": "en",
+    "text": "help me write back to this email",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc006",
+    "lang": "en",
+    "text": "so a buyer on Etsy just asked me this and I'm blanking, what's a good way to answer them",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc007",
+    "lang": "en",
+    "text": "wait what is he even getting at here, actually never mind don't explain it just draft a reply for me",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "self_correction",
+      "negation"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc008",
+    "lang": "en",
+    "text": "replay to this Google review",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "replay -> reply"
+  },
+  {
+    "id": "en-tc009",
+    "lang": "en",
+    "text": "um how do I reply to this without making things super awkward between us",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc010",
+    "lang": "en",
+    "text": "write back to my landlord about this",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc011",
+    "lang": "en",
+    "text": "everyone in the family group chat is waiting on me, what should I say back to this message",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc012",
+    "lang": "en",
+    "text": "right back to this Slack message",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "right -> write"
+  },
+  {
+    "id": "en-tc013",
+    "lang": "en",
+    "text": "could you reply to this comment on my video",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [
+      "polite",
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc014",
+    "lang": "en",
+    "text": "uh give me a quick summary of this note from the recruiter and then draft a response I can send back",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc015",
+    "lang": "en",
+    "text": "sum this up for me, oh wait no it's just scheduling, tell him sure Wednesday afternoon works fine",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc016",
+    "lang": "en",
+    "text": "reply no problem I'll have it wrapped up this weak",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "weak -> week"
+  },
+  {
+    "id": "en-tc017",
+    "lang": "en",
+    "text": "um say yes to this invite and make me sound genuinely excited about it",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc018",
+    "lang": "en",
+    "text": "rely got it I'm setting the staging server up right now",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "rely -> reply"
+  },
+  {
+    "id": "en-tc019",
+    "lang": "en",
+    "text": "tell her okay count me in and ask what time doors open",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc020",
+    "lang": "en",
+    "text": "this is from the print vendor, um write a proper reply saying we accept the coat as is",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "coat -> quote"
+  },
+  {
+    "id": "en-tc021",
+    "lang": "en",
+    "text": "tell them sounds good I'm free all weekend",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc022",
+    "lang": "en",
+    "text": "uh say I'm in on the project, say I'm in but it's gonna take me till the end of the month",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc023",
+    "lang": "en",
+    "text": "my manager just pinged me this, tell her will do and I'll send the deck over first thing tomorrow morning",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc024",
+    "lang": "en",
+    "text": "write back shore thing",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "shore -> sure"
+  },
+  {
+    "id": "en-tc025",
+    "lang": "en",
+    "text": "torn down this dinner invite nicely",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "torn -> turn"
+  },
+  {
+    "id": "en-tc026",
+    "lang": "en",
+    "text": "um say no to this, like tell them I'm completely swamped with launches right now, and also check the grammar before I send it out",
+    "intent": "reply",
+    "complexity": "long",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc027",
+    "lang": "en",
+    "text": "so the recruiter sent over the offer letter and the pay is way too low, uh decline it politely for me without burning any bridges",
+    "intent": "reply",
+    "complexity": "long",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc028",
+    "lang": "en",
+    "text": "tell her I gotta skip this one, uh let's catch the next one though",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc029",
+    "lang": "en",
+    "text": "this supplier in Lyon keeps emailing us, reply in French saying we aren't looking for new vendors right now, merci",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "multi_request",
+      "code_mix"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc030",
+    "lang": "en",
+    "text": "my college roommate is asking to borrow money again, um say no to this without ruining our friendship",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc031",
+    "lang": "en",
+    "text": "translate this listing, actually no don't bother, just write back to the broker saying we're passing on this apartment",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "self_correction",
+      "negation"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc032",
+    "lang": "en",
+    "text": "tell them sorry I can't make it tonight",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc033",
+    "lang": "en",
+    "text": "the climb this sponsorship pitch in Spanish",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [
+      "multi_request",
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "the climb -> decline"
+  },
+  {
+    "id": "en-tc034",
+    "lang": "en",
+    "text": "ugh I really don't wanna go to this networking mixer, um write back with a polite excuse for me",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc035",
+    "lang": "en",
+    "text": "write back and ask him which day he means",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc036",
+    "lang": "en",
+    "text": "uh reply to the registrar's office and ask weather they need a hard copy or just a PDF",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "weather -> whether"
+  },
+  {
+    "id": "en-tc037",
+    "lang": "en",
+    "text": "sum up what this agency is pitching us first and then write a reply asking what kind of budget they have in mind",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc038",
+    "lang": "en",
+    "text": "clean up the grammar on this, oh wait no that's the text from the courier, uh reply and ask them for the tracking number",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "self_correction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc039",
+    "lang": "en",
+    "text": "uh ask him which file he's talking about here",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc040",
+    "lang": "en",
+    "text": "it's my Airbnb guests texting, ask what time they're getting in",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc041",
+    "lang": "en",
+    "text": "um write back, write back to the wholesaler and ask if they can do a better price on bulk orders",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc042",
+    "lang": "en",
+    "text": "replay asking for the submission deadline and what file format they want",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "replay -> reply"
+  },
+  {
+    "id": "en-tc043",
+    "lang": "en",
+    "text": "message them back and ask who the invoice receipt should be made out two",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "two -> to"
+  },
+  {
+    "id": "en-tc044",
+    "lang": "en",
+    "text": "ask them what time pickup is",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc045",
+    "lang": "en",
+    "text": "just write back thanks a bunch",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc046",
+    "lang": "en",
+    "text": "this note from my mentor is super long so um boil down what she said first and then draft a really heartfelt thank you reply back to her",
+    "intent": "reply",
+    "complexity": "long",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc047",
+    "lang": "en",
+    "text": "my neighbor helped me haul my couch up three flights of stairs yesterday, write back and think him properly for me",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "think -> thank"
+  },
+  {
+    "id": "en-tc048",
+    "lang": "en",
+    "text": "uh thank Professor Miller for all the detailed feedback on my draft",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc049",
+    "lang": "en",
+    "text": "thank them for the holiday wishes and say happy new year back",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc050",
+    "lang": "en",
+    "text": "thank this guest for leaving such a sweet five star review",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc051",
+    "lang": "en",
+    "text": "um write a quick thank you reply to this, nothing stiff or overly formal though",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc052",
+    "lang": "en",
+    "text": "reply to the thread thanking everybody for the birthday wishes",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc053",
+    "lang": "en",
+    "text": "polish this up, wait no I mean reply to him and say I already emailed over the signed PDF an hour ago",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "self_correction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc054",
+    "lang": "en",
+    "text": "just reply got it thanks",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc055",
+    "lang": "en",
+    "text": "uh tell my coworker I'm on PTO today so I'll take a look first thing tomorrow",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc056",
+    "lang": "en",
+    "text": "it's the dog walker texting, tell her the spare key is right under the doormat",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc057",
+    "lang": "en",
+    "text": "let them know the standup got pushed to for",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "for -> four"
+  },
+  {
+    "id": "en-tc058",
+    "lang": "en",
+    "text": "um this buyer in Munich is asking where his parcel is, write back to him in German saying it shipped this morning and should arrive in three days",
+    "intent": "reply",
+    "complexity": "long",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc059",
+    "lang": "en",
+    "text": "say I'm stuck in a client meeting right now and I'll ring him back later",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc060",
+    "lang": "en",
+    "text": "uh reply to this support ticket that we're patching that crash now and the fix will go out in the next point release",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc061",
+    "lang": "en",
+    "text": "this is from our Tokyo office, um reply in Japanese letting him know his VPN password has been reset",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc062",
+    "lang": "en",
+    "text": "tell the super I'll be home all afternoon so the plumber can check the leek under the sink",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "leek -> leak"
+  },
+  {
+    "id": "en-tc063",
+    "lang": "en",
+    "text": "write back to my kid's homeroom teacher and let her know Leo woke up with a fever so we're keeping him home today",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc064",
+    "lang": "en",
+    "text": "um tell the distributor we really can't budge any lower on unit price and put the whole reply into core ian for me",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "multi_request",
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "core ian -> Korean"
+  },
+  {
+    "id": "en-tc065",
+    "lang": "en",
+    "text": "uh what does this part actually mean",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "filler",
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc066",
+    "lang": "en",
+    "text": "be honest with me, is she basically turning me down here",
+    "intent": "ask",
+    "complexity": "compound",
+    "tags": [
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc067",
+    "lang": "en",
+    "text": "I'm about to move out next month and I'm reading my lease, um under this claws do I actually get my security deposit back or not",
+    "intent": "ask",
+    "complexity": "long",
+    "tags": [
+      "filler",
+      "question",
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "claws -> clause"
+  },
+  {
+    "id": "en-tc068",
+    "lang": "en",
+    "text": "is anything grammatically off in this sentence",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc069",
+    "lang": "en",
+    "text": "who scent this memo",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "question",
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "scent -> sent"
+  },
+  {
+    "id": "en-tc070",
+    "lang": "en",
+    "text": "uh when is the dead line mentioned in here",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "filler",
+      "question",
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "dead line -> deadline"
+  },
+  {
+    "id": "en-tc071",
+    "lang": "en",
+    "text": "wait what's the difference between reply and reply all in Outlook",
+    "intent": "ask",
+    "complexity": "compound",
+    "tags": [
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc072",
+    "lang": "en",
+    "text": "um does this reply I drafted come across as rude",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "filler",
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc073",
+    "lang": "en",
+    "text": "if I send this to my new teammate as is will it come off kinda cold",
+    "intent": "ask",
+    "complexity": "compound",
+    "tags": [
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc074",
+    "lang": "en",
+    "text": "what does EBITDA stand for again",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc075",
+    "lang": "en",
+    "text": "uh I inherited this legacy repo, what is this weird comment above the function even talking about",
+    "intent": "ask",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc076",
+    "lang": "en",
+    "text": "you think my VP is gonna follow this explanation or is it too in the weeds",
+    "intent": "ask",
+    "complexity": "compound",
+    "tags": [
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc077",
+    "lang": "en",
+    "text": "how do you pronounce this name",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc078",
+    "lang": "en",
+    "text": "got a sketchy text from customs, um does this URL look safe to click or is it phishing",
+    "intent": "ask",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc079",
+    "lang": "en",
+    "text": "do I even need to answer this automated notice",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc080",
+    "lang": "en",
+    "text": "hmm should I summarize this whole thread for the channel or just reply straight to Sarah",
+    "intent": "ask",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc081",
+    "lang": "en",
+    "text": "hey what time is it right now",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc082",
+    "lang": "en",
+    "text": "translate this bit, oh wait hold on, just tell me what language this even is first",
+    "intent": "ask",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc083",
+    "lang": "en",
+    "text": "um when HR says until further notice here does that mean they still haven't made a call",
+    "intent": "ask",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc084",
+    "lang": "en",
+    "text": "is sales tax already baked into this contractor quote",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc085",
+    "lang": "en",
+    "text": "like if you read this second paragraph critically does my argument actually hold water",
+    "intent": "ask",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc086",
+    "lang": "en",
+    "text": "am I using this idiom rite here",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "question",
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "rite -> right"
+  },
+  {
+    "id": "en-tc087",
+    "lang": "en",
+    "text": "this reply I wrote to an angry customer sounds way too blunt, uh soft in it up a bit",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "asr_error"
+    ],
+    "slots": {
+      "op": "casual"
+    },
+    "note": "soft in -> soften"
+  },
+  {
+    "id": "en-tc088",
+    "lang": "en",
+    "text": "my reply looks kinda curt, ad a little more detail to it",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "op": "expand"
+    },
+    "note": "ad -> add"
+  },
+  {
+    "id": "en-tc089",
+    "lang": "en",
+    "text": "um turn these rough notes into a proper reply email with a greeting and everything",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {
+      "op": "format"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tc090",
+    "lang": "en",
+    "text": "this is my own draft back to the dean, could you make it sound more respectful",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "polite",
+      "question"
+    ],
+    "slots": {
+      "op": "formal"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tc091",
+    "lang": "en",
+    "text": "ugh I'm rambling like crazy in this draft reply, uh trim it way down for me",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {
+      "op": "shorten"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tc092",
+    "lang": "en",
+    "text": "make this reply sound warmer",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {
+      "op": "casual"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tc093",
+    "lang": "en",
+    "text": "read write this explanation so a ten year old could get it",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "op": "audience"
+    },
+    "note": "read write -> rewrite"
+  },
+  {
+    "id": "en-tc094",
+    "lang": "en",
+    "text": "um ex band on this section a bit and flesh out the reasoning behind the delay",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "asr_error"
+    ],
+    "slots": {
+      "op": "expand"
+    },
+    "note": "ex band -> expand"
+  },
+  {
+    "id": "en-tc095",
+    "lang": "en",
+    "text": "pair of phrase this sentence so I'm not repeating the exact same words as the line above",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "op": "paraphrase"
+    },
+    "note": "pair of phrase -> paraphrase"
+  },
+  {
+    "id": "en-tc096",
+    "lang": "en",
+    "text": "turn this into bullet points",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {
+      "op": "format"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tc097",
+    "lang": "en",
+    "text": "I'm about to send this note to our outside counsel, um make it sound more buttoned up and professional",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {
+      "op": "formal"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tc098",
+    "lang": "en",
+    "text": "short in this reply to under fifty words",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "op": "shorten"
+    },
+    "note": "short in -> shorten"
+  },
+  {
+    "id": "en-tc099",
+    "lang": "en",
+    "text": "write a reply to this, oh wait no I highlighted my own draft that I'm about to send out, just um make the tone way more polite",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "filler",
+      "self_correction"
+    ],
+    "slots": {
+      "op": "formal"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tc100",
+    "lang": "en",
+    "text": "this note to my director reads way too casual, make the register more form all",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "op": "formal"
+    },
+    "note": "form all -> formal"
+  },
+  {
+    "id": "en-tc101",
+    "lang": "en",
+    "text": "take these scattered Slack blurbs and combine them into one clean email",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [],
+    "slots": {
+      "op": "format"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tc102",
+    "lang": "en",
+    "text": "uh tack a sign-off onto the bottom and make the whole thing a bit longer",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {
+      "op": "expand"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tc103",
+    "lang": "en",
+    "text": "this sounds like a press release, um rewrite it so it sounds like how I actually talk",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {
+      "op": "casual"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tc104",
+    "lang": "en",
+    "text": "my aunt is asking about my lab work so uh rewrite this abstract in plain language that somebody outside cardiology can actually follow",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {
+      "op": "audience"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tc105",
+    "lang": "en",
+    "text": "titan this paragraph up",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "op": "shorten"
+    },
+    "note": "titan -> tighten"
+  },
+  {
+    "id": "en-tc106",
+    "lang": "en",
+    "text": "um make this sound more polite and also cut it down by about half",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {
+      "op": "shorten"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tc107",
+    "lang": "en",
+    "text": "make this forum post sound less heated and calmer",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {
+      "op": "casual"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tc108",
+    "lang": "en",
+    "text": "so this is my draft telling the sails rep we're not renewing, could you make my wording gentler and more tactful",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "polite",
+      "question",
+      "asr_error"
+    ],
+    "slots": {
+      "op": "casual"
+    },
+    "note": "sails -> sales"
+  },
+  {
+    "id": "en-tc109",
+    "lang": "en",
+    "text": "uh what's this giant HOA email basically saying",
+    "intent": "summarize",
+    "complexity": "simple",
+    "tags": [
+      "filler",
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc110",
+    "lang": "en",
+    "text": "some up this company announcement",
+    "intent": "summarize",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "some -> sum"
+  },
+  {
+    "id": "en-tc111",
+    "lang": "en",
+    "text": "I was out sick for two days and came back to eighty messages, um what was this whole Slack thread even about",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc112",
+    "lang": "en",
+    "text": "the client brief drags on forever, pull out the main takeaways for me",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc113",
+    "lang": "en",
+    "text": "like what is this guy actually asking from us across all four paragraphs, keep it super short",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc114",
+    "lang": "en",
+    "text": "bowl these board meeting minutes down to three bullet points",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "bowl -> boil"
+  },
+  {
+    "id": "en-tc115",
+    "lang": "en",
+    "text": "give me the TLDR on this piece",
+    "intent": "summarize",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc116",
+    "lang": "en",
+    "text": "uh don't write a reply yet, just summarize what she's saying here",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "negation"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc117",
+    "lang": "en",
+    "text": "what's the gist of this customer complaint",
+    "intent": "summarize",
+    "complexity": "simple",
+    "tags": [
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc118",
+    "lang": "en",
+    "text": "don't answer them yet, um just give me a quick rundown of everything the committee landed on in this thread",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "negation"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc119",
+    "lang": "en",
+    "text": "some rise this report",
+    "intent": "summarize",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "some rise -> summarize"
+  },
+  {
+    "id": "en-tc120",
+    "lang": "en",
+    "text": "sum up this lecture transcript in one sentence",
+    "intent": "summarize",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc121",
+    "lang": "en",
+    "text": "uh smooth out this reply I'm about to send",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc122",
+    "lang": "en",
+    "text": "check my reply for typos",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc123",
+    "lang": "en",
+    "text": "fix any grandma mistakes in what I'm about to send",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "grandma -> grammar"
+  },
+  {
+    "id": "en-tc124",
+    "lang": "en",
+    "text": "fix the punctuation in here",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc125",
+    "lang": "en",
+    "text": "I dictated this walking from the train and it reads super clunky, um clean it up so it flows naturally without changing my point",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc126",
+    "lang": "en",
+    "text": "pole ish up my reply a little",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "pole ish -> polish"
+  },
+  {
+    "id": "en-tc127",
+    "lang": "en",
+    "text": "reply to this email, oh wait no that's already my draft on screen, uh just clean up what I wrote",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "self_correction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc128",
+    "lang": "en",
+    "text": "only fix the spelling mistakes in this peace and leave my phrasing alone",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "peace -> piece"
+  },
+  {
+    "id": "en-tc129",
+    "lang": "en",
+    "text": "um strip out the uhs and clean up this voice note transcript",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc130",
+    "lang": "en",
+    "text": "English isn't my first language and this is going to our London team, could you check the grammar in this reply I wrote and fix anything awkward",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "polite",
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc131",
+    "lang": "en",
+    "text": "fix the typos in this LinkedIn post",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc132",
+    "lang": "en",
+    "text": "proof reed this for me",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "proof reed -> proofread"
+  },
+  {
+    "id": "en-tc133",
+    "lang": "en",
+    "text": "uh put his message into English for me",
+    "intent": "translate",
+    "complexity": "simple",
+    "tags": [
+      "filler"
+    ],
+    "slots": {
+      "target": "en"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tc134",
+    "lang": "en",
+    "text": "trains late my reply into Spanish",
+    "intent": "translate",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "target": "other"
+    },
+    "note": "trains late -> translate"
+  },
+  {
+    "id": "en-tc135",
+    "lang": "en",
+    "text": "this is going to a partner in Osaka, um translate my draft into Japanese and keep it in polite keigo",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "code_mix"
+    ],
+    "slots": {
+      "target": "ja"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tc136",
+    "lang": "en",
+    "text": "the customs broker forwarded me this customs notice and I can't read a word of it, uh translate the whole thing into English please",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "polite"
+    ],
+    "slots": {
+      "target": "en"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tc137",
+    "lang": "en",
+    "text": "put what I wrote here into core ian",
+    "intent": "translate",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "target": "ko"
+    },
+    "note": "core ian -> Korean"
+  },
+  {
+    "id": "en-tc138",
+    "lang": "en",
+    "text": "convert these release notes into traditional Chinese for the Taipei launch",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [],
+    "slots": {
+      "target": "zh-Hant"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tc139",
+    "lang": "en",
+    "text": "um trans late this bio into French and trim it down a bit while you're at it",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "multi_request",
+      "asr_error"
+    ],
+    "slots": {
+      "target": "other"
+    },
+    "note": "trans late -> translate"
+  },
+  {
+    "id": "en-tc140",
+    "lang": "en",
+    "text": "don't write a reply back, just translate his message into English so I know what he wants",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "negation"
+    ],
+    "slots": {
+      "target": "en"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tc141",
+    "lang": "en",
+    "text": "put this menu blurb into German, oh wait no that table's from Milan, uh make it Italian instead",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "self_correction"
+    ],
+    "slots": {
+      "target": "other"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tc142",
+    "lang": "en",
+    "text": "translate this rough draft into English and then smooth out the phrasing so it reads like a native speaker wrote it",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "target": "en"
+    },
+    "note": ""
+  },
+  {
+    "id": "en-tc143",
+    "lang": "en",
+    "text": "write a reply to this, uh actually never mine",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "retraction",
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "never mine -> never mind"
+  },
+  {
+    "id": "en-tc144",
+    "lang": "en",
+    "text": "turn him down nicely, oh wait hang on he's walking over to my desk right now I'll just tell him face to face so scratch that",
+    "intent": "cancel",
+    "complexity": "long",
+    "tags": [
+      "retraction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc145",
+    "lang": "en",
+    "text": "um yeah don't bother replying to that",
+    "intent": "cancel",
+    "complexity": "simple",
+    "tags": [
+      "filler",
+      "negation"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc146",
+    "lang": "en",
+    "text": "don't reply to this and don't touch the text either, leave everything as is",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "negation"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc147",
+    "lang": "en",
+    "text": "write back to her, hmm, nah forget it",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "retraction",
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc148",
+    "lang": "en",
+    "text": "can sell it",
+    "intent": "cancel",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "can sell -> cancel"
+  },
+  {
+    "id": "en-tc149",
+    "lang": "en",
+    "text": "I was gonna have you draft an answer to this comment on my PR, um oh he literally just deleted it so never mind",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "retraction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc150",
+    "lang": "en",
+    "text": "send a thank you back to her, wait no I already thanked her in the hallway earlier so forget I asked",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "retraction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc151",
+    "lang": "en",
+    "text": "go ahead and hit send on this reply to him",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc152",
+    "lang": "en",
+    "text": "uh four word this email thread over to Liam in accounting",
+    "intent": "none",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "four word -> forward"
+  },
+  {
+    "id": "en-tc153",
+    "lang": "en",
+    "text": "copy this reply and paste it into the product channel on stack",
+    "intent": "none",
+    "complexity": "compound",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "stack -> Slack"
+  },
+  {
+    "id": "en-tc154",
+    "lang": "en",
+    "text": "yeah sounds awesome thanks man see you outside the coffee shop at noon",
+    "intent": "none",
+    "complexity": "compound",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc155",
+    "lang": "en",
+    "text": "hey sorry traffic on the bridge is brutal right now, um I should be pulling up around ten fifteen and I'll ring you as soon as I'm downstairs",
+    "intent": "none",
+    "complexity": "long",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc156",
+    "lang": "en",
+    "text": "pin this message to the top of the chat",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc157",
+    "lang": "en",
+    "text": "oh man haha that's actually hilarious, I can't believe he said that in front of the whole board",
+    "intent": "none",
+    "complexity": "compound",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc158",
+    "lang": "en",
+    "text": "um save this email in my drafts folder for later",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc159",
+    "lang": "en",
+    "text": "open up my unread messages",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "en-tc160",
+    "lang": "en",
+    "text": "um wait so like uh yeah hold on the dog's barking",
+    "intent": "none",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  }
+]

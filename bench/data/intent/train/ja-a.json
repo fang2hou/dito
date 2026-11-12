@@ -1,0 +1,2029 @@
+[
+  {
+    "id": "ja-ta001",
+    "lang": "ja",
+    "text": "箇条書きにして、それをヨーヤクして",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "multi_request"
+    ],
+    "slots": {},
+    "note": "ヨーヤク (katakana) -> 要約"
+  },
+  {
+    "id": "ja-ta002",
+    "lang": "ja",
+    "text": "誤字を直してフランス後に訳して",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "multi_request"
+    ],
+    "slots": {
+      "target": "other"
+    },
+    "note": "フランス後 -> フランス語"
+  },
+  {
+    "id": "ja-ta003",
+    "lang": "ja",
+    "text": "この文章を公正してください",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "polite"
+    ],
+    "slots": {},
+    "note": "公正 -> 校正"
+  },
+  {
+    "id": "ja-ta004",
+    "lang": "ja",
+    "text": "えーと、部長、先日の件ですが、見積もりの修正が終わりましたので、ご確認をお願いいたします",
+    "intent": "none",
+    "complexity": "long",
+    "tags": [
+      "filler",
+      "polite"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta005",
+    "lang": "ja",
+    "text": "そのあのですからそれでえっとあれがそれで明日のあれは多分きっとあのどうにかなるかな",
+    "intent": "none",
+    "complexity": "long",
+    "tags": [
+      "filler",
+      "polite"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta006",
+    "lang": "ja",
+    "text": "この文章のtypoを直して",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "code_mix"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta007",
+    "lang": "ja",
+    "text": "展削してください",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "polite"
+    ],
+    "slots": {},
+    "note": "展削 -> 添削"
+  },
+  {
+    "id": "ja-ta008",
+    "lang": "ja",
+    "text": "えーと、TLDRお願いします",
+    "intent": "summarize",
+    "complexity": "simple",
+    "tags": [
+      "code_mix",
+      "filler",
+      "polite"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta009",
+    "lang": "ja",
+    "text": "えーと、かひつして",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "filler"
+    ],
+    "slots": {
+      "op": "expand"
+    },
+    "note": "かひつ (hiragana) -> 加筆"
+  },
+  {
+    "id": "ja-ta010",
+    "lang": "ja",
+    "text": "もっと丁寧にして、全体を要約してください",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "multi_request",
+      "polite"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta011",
+    "lang": "ja",
+    "text": "校正して…やっぱり、もうちょっとくだけた感じにして",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {
+      "op": "casual"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-ta012",
+    "lang": "ja",
+    "text": "誤字を直して、専門用語を使わずお客さん向けの説明にして",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "op": "audience"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-ta013",
+    "lang": "ja",
+    "text": "貫体字に翻訳して、箇条書きにもして",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "multi_request"
+    ],
+    "slots": {
+      "target": "zh-Hant"
+    },
+    "note": "貫体字 -> 繁体字"
+  },
+  {
+    "id": "ja-ta014",
+    "lang": "ja",
+    "text": "長すぎて読めないので、ひとことで言うとどうなるのか、一文にまとめてください",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "polite"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta015",
+    "lang": "ja",
+    "text": "えーっと、上司に出す報告書なんだけど、てにをはとか言葉の重なりがないか、えー、見て整えてほしいです",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "filler",
+      "polite"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta016",
+    "lang": "ja",
+    "text": "お疲れ様です。先ほどの打ち合わせの件ですが、来週の水曜日の午後に改めて時間をいただけないでしょうか",
+    "intent": "none",
+    "complexity": "long",
+    "tags": [
+      "question",
+      "polite"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta017",
+    "lang": "ja",
+    "text": "えーと、要点をまとめて、あ、違う、箇条書きにして",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "self_correction",
+      "filler"
+    ],
+    "slots": {
+      "op": "format"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-ta018",
+    "lang": "ja",
+    "text": "さっきから同じ言い回しばっかり使ってるから、意味は変えずに、ところどころ別の言葉に置き換えてください",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "polite"
+    ],
+    "slots": {
+      "op": "paraphrase"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-ta019",
+    "lang": "ja",
+    "text": "これ、あとでお客さんに渡す資料の一部なので、内容は変えずに、表記ゆれと誤字だけきれいに直しておいてください",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "polite"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta020",
+    "lang": "ja",
+    "text": "箇条書きにしてから英語に訳して",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "target": "en"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-ta021",
+    "lang": "ja",
+    "text": "えーと、このレポートの内容を、えー、上司に口頭で説明するつもりなので、一分で話せるくらいの要約にしてほしい",
+    "intent": "summarize",
+    "complexity": "long",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta022",
+    "lang": "ja",
+    "text": "翻訳じゃなくて、用紙をまとめてください",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "negation",
+      "polite"
+    ],
+    "slots": {},
+    "note": "用紙 -> 要旨"
+  },
+  {
+    "id": "ja-ta023",
+    "lang": "ja",
+    "text": "メールが長すぎて読んでもらえなさそうだから、大事なところだけ残して、半分くらいの長さに削ってほしいです",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "polite"
+    ],
+    "slots": {
+      "op": "shorten"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-ta024",
+    "lang": "ja",
+    "text": "三行にまとめて、ちょっとカジュアルな言い方にして",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta025",
+    "lang": "ja",
+    "text": "この英語のメール、読むのが大変なので、まず日本語に訳して、そのあと要点も三つくらい挙げてください",
+    "intent": "translate",
+    "complexity": "long",
+    "tags": [
+      "multi_request",
+      "polite"
+    ],
+    "slots": {
+      "target": "ja"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-ta026",
+    "lang": "ja",
+    "text": "やっぱ梨で",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "retraction"
+    ],
+    "slots": {},
+    "note": "梨 -> なし"
+  },
+  {
+    "id": "ja-ta027",
+    "lang": "ja",
+    "text": "二区付けしてもらえますか",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "question",
+      "polite"
+    ],
+    "slots": {
+      "op": "expand"
+    },
+    "note": "二区付け -> 肉付け"
+  },
+  {
+    "id": "ja-ta028",
+    "lang": "ja",
+    "text": "お客さんからの長いメールなんですが、結局何を求めているのかが分かるように、要点を三つに絞ってもらえますか",
+    "intent": "summarize",
+    "complexity": "long",
+    "tags": [
+      "question",
+      "polite"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta029",
+    "lang": "ja",
+    "text": "このお知らせの文章を韓国後に訳して、ついでに全体の要約も一緒にお願いします",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "multi_request",
+      "polite"
+    ],
+    "slots": {
+      "target": "ko"
+    },
+    "note": "韓国後 -> 韓国語"
+  },
+  {
+    "id": "ja-ta030",
+    "lang": "ja",
+    "text": "えーと、来週の木曜日の予定がすぐ見えるように、カレンダーを空けて",
+    "intent": "none",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "filler"
+    ],
+    "slots": {},
+    "note": "空けて -> 開いて"
+  },
+  {
+    "id": "ja-ta031",
+    "lang": "ja",
+    "text": "要約はしなくていいから、全体をもっと柔らかくて、親しみやすい言い方にしてください",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "negation",
+      "polite"
+    ],
+    "slots": {
+      "op": "casual"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-ta032",
+    "lang": "ja",
+    "text": "えーと、誤字を直して、もうちょっと説明を足してほしいです",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "multi_request",
+      "filler",
+      "polite"
+    ],
+    "slots": {
+      "op": "expand"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-ta033",
+    "lang": "ja",
+    "text": "えっと、この報告書を台湾の支社向けに、繁体字の中国語に翻訳して、ちょっと短めにまとめてくれる？",
+    "intent": "translate",
+    "complexity": "long",
+    "tags": [
+      "multi_request",
+      "filler",
+      "question",
+      "polite"
+    ],
+    "slots": {
+      "target": "zh-Hant"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-ta034",
+    "lang": "ja",
+    "text": "要約はいいから、こうせいして",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "negation"
+    ],
+    "slots": {},
+    "note": "こうせい (hiragana) -> 校正"
+  },
+  {
+    "id": "ja-ta035",
+    "lang": "ja",
+    "text": "過剰書きにして",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "op": "format"
+    },
+    "note": "過剰書き -> 箇条書き"
+  },
+  {
+    "id": "ja-ta036",
+    "lang": "ja",
+    "text": "先週の議事録を要約して、そのあと箇条書きに直してから、最後にタイトルも付けてください",
+    "intent": "summarize",
+    "complexity": "long",
+    "tags": [
+      "multi_request",
+      "polite"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta037",
+    "lang": "ja",
+    "text": "取り消し",
+    "intent": "cancel",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta038",
+    "lang": "ja",
+    "text": "お願いしようと思ったんですが、考えてみたらやっぱり大丈夫です、すみません",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "retraction",
+      "polite"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta039",
+    "lang": "ja",
+    "text": "bullet pointにして",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "code_mix"
+    ],
+    "slots": {
+      "op": "format"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-ta040",
+    "lang": "ja",
+    "text": "箇条書きにして…今のなしで",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "self_correction",
+      "retraction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta041",
+    "lang": "ja",
+    "text": "後字を直してください",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "polite"
+    ],
+    "slots": {},
+    "note": "後字 -> 誤字"
+  },
+  {
+    "id": "ja-ta042",
+    "lang": "ja",
+    "text": "経語に直して",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "op": "formal"
+    },
+    "note": "経語 -> 敬語"
+  },
+  {
+    "id": "ja-ta043",
+    "lang": "ja",
+    "text": "要約して…いや、もう少し詳しく書き足して",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {
+      "op": "expand"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-ta044",
+    "lang": "ja",
+    "text": "要約して…あ、やっぱりいらない",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "self_correction",
+      "retraction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta045",
+    "lang": "ja",
+    "text": "やっぱり要約はいらないです",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "retraction",
+      "negation",
+      "polite"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta046",
+    "lang": "ja",
+    "text": "この会議の議事録、長くて全部読む時間がないので、決まったことと次にやることだけ短くまとめてください",
+    "intent": "summarize",
+    "complexity": "long",
+    "tags": [
+      "polite"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta047",
+    "lang": "ja",
+    "text": "要約して、あ、やっぱり校正だけで",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta048",
+    "lang": "ja",
+    "text": "あ、えっと、とりけして",
+    "intent": "cancel",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "filler"
+    ],
+    "slots": {},
+    "note": "とりけし (hiragana) -> 取り消し"
+  },
+  {
+    "id": "ja-ta049",
+    "lang": "ja",
+    "text": "Englishじゃなくて中国語に翻訳して",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "negation",
+      "code_mix"
+    ],
+    "slots": {
+      "target": "zh"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-ta050",
+    "lang": "ja",
+    "text": "わやくして",
+    "intent": "translate",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "target": "ja"
+    },
+    "note": "わやく (hiragana) -> 和訳"
+  },
+  {
+    "id": "ja-ta051",
+    "lang": "ja",
+    "text": "あの、あの、えっと、それは、あれ",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta052",
+    "lang": "ja",
+    "text": "上司あてなので、かしこまった分面にして",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "op": "formal"
+    },
+    "note": "分面 -> 文面"
+  },
+  {
+    "id": "ja-ta053",
+    "lang": "ja",
+    "text": "要約して、あ、和訳して",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {
+      "target": "ja"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-ta054",
+    "lang": "ja",
+    "text": "高性してくれる？",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "question",
+      "polite"
+    ],
+    "slots": {},
+    "note": "高性 -> 校正"
+  },
+  {
+    "id": "ja-ta055",
+    "lang": "ja",
+    "text": "取引先向けの文章なんだけど、ちょっと堅すぎるから、社内のチャットに貼れるくらい柔らかい感じにしてくれる？",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "question",
+      "polite"
+    ],
+    "slots": {
+      "op": "casual"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-ta056",
+    "lang": "ja",
+    "text": "ストップ、注視して",
+    "intent": "cancel",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "注視 -> 中止"
+  },
+  {
+    "id": "ja-ta057",
+    "lang": "ja",
+    "text": "翻訳はしないで、このスレッドの要点だけ三つに絞って",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "negation"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta058",
+    "lang": "ja",
+    "text": "この一文だけだと状況が伝わらないので、背景と理由を足して、全体で五、六行くらいの長さにしてください",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "polite"
+    ],
+    "slots": {
+      "op": "expand"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-ta059",
+    "lang": "ja",
+    "text": "えーと、翻訳じゃなくて、取引先に送るメールだから、ちゃんとした敬語に直してほしいです",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "negation",
+      "filler",
+      "polite"
+    ],
+    "slots": {
+      "op": "formal"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-ta060",
+    "lang": "ja",
+    "text": "えーとこれ、grammarがおかしいところ直してくれる？",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "code_mix",
+      "filler",
+      "question",
+      "polite"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta061",
+    "lang": "ja",
+    "text": "誤変換を直して、ビジネスメールらしく敬語にして",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "op": "formal"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-ta062",
+    "lang": "ja",
+    "text": "校正して…あ、ファイルを保全して",
+    "intent": "none",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "self_correction"
+    ],
+    "slots": {},
+    "note": "保全 -> 保存"
+  },
+  {
+    "id": "ja-ta063",
+    "lang": "ja",
+    "text": "翻訳はいらないから、誤字だけ直してね",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "negation"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta064",
+    "lang": "ja",
+    "text": "このメッセージをスペイン語に訳して、それから後字がないかも一緒にチェックしてください",
+    "intent": "translate",
+    "complexity": "long",
+    "tags": [
+      "asr_error",
+      "multi_request",
+      "polite"
+    ],
+    "slots": {
+      "target": "other"
+    },
+    "note": "後字 -> 誤字"
+  },
+  {
+    "id": "ja-ta065",
+    "lang": "ja",
+    "text": "翻訳して、いや、別の言い回しにして",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {
+      "op": "paraphrase"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-ta066",
+    "lang": "ja",
+    "text": "女子が抜けてるから直して",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "女子 -> 助詞"
+  },
+  {
+    "id": "ja-ta067",
+    "lang": "ja",
+    "text": "えっと、韓国語にほんやくして",
+    "intent": "translate",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "filler"
+    ],
+    "slots": {
+      "target": "ko"
+    },
+    "note": "ほんやく (hiragana) -> 翻訳"
+  },
+  {
+    "id": "ja-ta068",
+    "lang": "ja",
+    "text": "校庭お願いします",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "polite"
+    ],
+    "slots": {},
+    "note": "校庭 -> 校正"
+  },
+  {
+    "id": "ja-ta069",
+    "lang": "ja",
+    "text": "撮り消しで",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "retraction"
+    ],
+    "slots": {},
+    "note": "撮り消し -> 取り消し"
+  },
+  {
+    "id": "ja-ta070",
+    "lang": "ja",
+    "text": "要約して…あ、小学生にもわかるように書き直して",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {
+      "op": "audience"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-ta071",
+    "lang": "ja",
+    "text": "えーっと、やっぱりやめとく",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "retraction",
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta072",
+    "lang": "ja",
+    "text": "明日の十時からていれい会議です",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "polite"
+    ],
+    "slots": {},
+    "note": "ていれい (hiragana) -> 定例"
+  },
+  {
+    "id": "ja-ta073",
+    "lang": "ja",
+    "text": "expand…じゃなくて、ここ、shortenして",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "negation",
+      "code_mix"
+    ],
+    "slots": {
+      "op": "shorten"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-ta074",
+    "lang": "ja",
+    "text": "えーっと、これ誰が欠いたの",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "filler",
+      "question"
+    ],
+    "slots": {},
+    "note": "欠いた -> 書いた"
+  },
+  {
+    "id": "ja-ta075",
+    "lang": "ja",
+    "text": "ちょっとformalな感じにして",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "code_mix"
+    ],
+    "slots": {
+      "op": "formal"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-ta076",
+    "lang": "ja",
+    "text": "えっと、ようやくして",
+    "intent": "summarize",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "filler"
+    ],
+    "slots": {},
+    "note": "ようやく -> 要約"
+  },
+  {
+    "id": "ja-ta077",
+    "lang": "ja",
+    "text": "えー、三人症の視点に書き換えて",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "filler"
+    ],
+    "slots": {
+      "op": "audience"
+    },
+    "note": "三人症 -> 三人称"
+  },
+  {
+    "id": "ja-ta078",
+    "lang": "ja",
+    "text": "反体字にして",
+    "intent": "translate",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "target": "zh-Hant"
+    },
+    "note": "反体字 -> 繁体字"
+  },
+  {
+    "id": "ja-ta079",
+    "lang": "ja",
+    "text": "さっき翻訳してって言ったけど、いや、もういいや、原文のままにしておくことにする",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "self_correction",
+      "retraction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta080",
+    "lang": "ja",
+    "text": "てんさくお願いします",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "polite"
+    ],
+    "slots": {},
+    "note": "てんさく (hiragana) -> 添削"
+  },
+  {
+    "id": "ja-ta081",
+    "lang": "ja",
+    "text": "翻訳して…いや、これ田中さんに送って",
+    "intent": "none",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta082",
+    "lang": "ja",
+    "text": "この報告書を部長のところに共有フォルダ経由で、今日中に送っておいてほしいんだけどね",
+    "intent": "none",
+    "complexity": "long",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta083",
+    "lang": "ja",
+    "text": "今日はいい転機ですね",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "polite"
+    ],
+    "slots": {},
+    "note": "転機 -> 天気"
+  },
+  {
+    "id": "ja-ta084",
+    "lang": "ja",
+    "text": "要約して、あ、やっぱりこれ誰が書いたの？",
+    "intent": "ask",
+    "complexity": "compound",
+    "tags": [
+      "self_correction",
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta085",
+    "lang": "ja",
+    "text": "謙譲語と尊敬語を正しく使って、取引先に失礼のない、丁寧な文章にきちんと書き直してください",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "polite"
+    ],
+    "slots": {
+      "op": "formal"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-ta086",
+    "lang": "ja",
+    "text": "今の文章を、見出しと番号付きの手順に分けて、マニュアルみたいな形に直してもらえますか",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "question",
+      "polite"
+    ],
+    "slots": {
+      "op": "format"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-ta087",
+    "lang": "ja",
+    "text": "要約したうえで、言い回しも整えて",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta088",
+    "lang": "ja",
+    "text": "最初は校正だけって言ったけど、やっぱり内容を整理して、読みやすい箇条書きにして",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {
+      "op": "format"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-ta089",
+    "lang": "ja",
+    "text": "誤字を直して、三行に短縮して",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "op": "shorten"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-ta090",
+    "lang": "ja",
+    "text": "お疲れ様です。本日の議事録を共有いたします",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [
+      "polite"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta091",
+    "lang": "ja",
+    "text": "誤字を直して…いや、新人向けに噛み砕いて書き直して",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {
+      "op": "audience"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-ta092",
+    "lang": "ja",
+    "text": "この文章の中で、プロジェクトの締め切りって、いつになってるのか教えてもらえますか",
+    "intent": "ask",
+    "complexity": "long",
+    "tags": [
+      "question",
+      "polite"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta093",
+    "lang": "ja",
+    "text": "翻訳じゃなくて、同じ言語のまま、違う言葉で書き直して",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "negation"
+    ],
+    "slots": {
+      "op": "paraphrase"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-ta094",
+    "lang": "ja",
+    "text": "音声入力で喋ったままだから、えーとか、あのーとか、そういうのを全部取って、読める文章に整えてくれるかな",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "filler",
+      "polite"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta095",
+    "lang": "ja",
+    "text": "チャットの返事なんだけど、相手が中国の人だから、わかりやすい簡単な中国語に訳してほしいです",
+    "intent": "translate",
+    "complexity": "long",
+    "tags": [
+      "polite"
+    ],
+    "slots": {
+      "target": "zh"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-ta096",
+    "lang": "ja",
+    "text": "苦闘点を打ち直して",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "苦闘点 -> 句読点"
+  },
+  {
+    "id": "ja-ta097",
+    "lang": "ja",
+    "text": "えーっと、要約…じゃなくて英語にしてもらえますか",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "self_correction",
+      "filler",
+      "question",
+      "polite"
+    ],
+    "slots": {
+      "target": "en"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-ta098",
+    "lang": "ja",
+    "text": "えっと、ごじをしゅうせいしてください",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "filler",
+      "polite"
+    ],
+    "slots": {},
+    "note": "ごじ/しゅうせい (hiragana) -> 誤字/修正"
+  },
+  {
+    "id": "ja-ta099",
+    "lang": "ja",
+    "text": "これsummarizeして",
+    "intent": "summarize",
+    "complexity": "simple",
+    "tags": [
+      "code_mix"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta100",
+    "lang": "ja",
+    "text": "このメール、海外の取引先に送るので、失礼のないビジネス英語に翻訳してもらえますか",
+    "intent": "translate",
+    "complexity": "long",
+    "tags": [
+      "question",
+      "polite"
+    ],
+    "slots": {
+      "target": "en"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-ta101",
+    "lang": "ja",
+    "text": "ううん、んー、ふぁいる……",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta102",
+    "lang": "ja",
+    "text": "誤字を直してから、もっと丁寧な言い方にして",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "op": "formal"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-ta103",
+    "lang": "ja",
+    "text": "thank you、助かりました",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [
+      "code_mix"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta104",
+    "lang": "ja",
+    "text": "要約して…あ、やっぱり中国後に訳して",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "self_correction"
+    ],
+    "slots": {
+      "target": "zh"
+    },
+    "note": "中国後 -> 中国語"
+  },
+  {
+    "id": "ja-ta105",
+    "lang": "ja",
+    "text": "やっぱり辞めときます",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "retraction",
+      "polite"
+    ],
+    "slots": {},
+    "note": "辞め -> やめ"
+  },
+  {
+    "id": "ja-ta106",
+    "lang": "ja",
+    "text": "さっきは要約をお願いしようと思ったんだけど、よく考えたら自分で読むからやっぱりやめておきます",
+    "intent": "cancel",
+    "complexity": "long",
+    "tags": [
+      "retraction",
+      "polite"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta107",
+    "lang": "ja",
+    "text": "翻訳…じゃなくて、聖書してくれる？",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "self_correction",
+      "negation",
+      "question",
+      "polite"
+    ],
+    "slots": {},
+    "note": "聖書 -> 清書"
+  },
+  {
+    "id": "ja-ta108",
+    "lang": "ja",
+    "text": "これを田中さんにメールで贈って",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "贈って -> 送って"
+  },
+  {
+    "id": "ja-ta109",
+    "lang": "ja",
+    "text": "韓国のお客さんへの案内文なので、ハングルに翻訳して、丁寧な言い方にしてもらえますか",
+    "intent": "translate",
+    "complexity": "long",
+    "tags": [
+      "multi_request",
+      "question",
+      "polite"
+    ],
+    "slots": {
+      "target": "ko"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-ta110",
+    "lang": "ja",
+    "text": "まず誤字を直して、そのあと文章全体のようてんを、できるだけ短くまとめてください",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "multi_request",
+      "polite"
+    ],
+    "slots": {},
+    "note": "ようてん (hiragana) -> 要点"
+  },
+  {
+    "id": "ja-ta111",
+    "lang": "ja",
+    "text": "校正…やっぱなしで",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "self_correction",
+      "retraction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta112",
+    "lang": "ja",
+    "text": "百四十時以内に収まるようにして",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "op": "shorten"
+    },
+    "note": "時 -> 字"
+  },
+  {
+    "id": "ja-ta113",
+    "lang": "ja",
+    "text": "これってどういう意味？",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta114",
+    "lang": "ja",
+    "text": "あの、この文章、間違ってない？",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "filler",
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta115",
+    "lang": "ja",
+    "text": "これ、部署の外の人にも伝わるように、社内用語を使わないで、前提から説明する書き方に変えて",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [],
+    "slots": {
+      "op": "audience"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-ta116",
+    "lang": "ja",
+    "text": "ガーデンカワ要る行って明日の不時",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta117",
+    "lang": "ja",
+    "text": "ちょっとラフにして、あとtypoも直して",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "code_mix",
+      "multi_request"
+    ],
+    "slots": {
+      "op": "casual"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-ta118",
+    "lang": "ja",
+    "text": "あの、もっと完結にして",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "filler"
+    ],
+    "slots": {
+      "op": "shorten"
+    },
+    "note": "完結 -> 簡潔"
+  },
+  {
+    "id": "ja-ta119",
+    "lang": "ja",
+    "text": "これをチームのチャットの今日の連絡スレッドに、そのまま張り付けておいてもらえますか",
+    "intent": "none",
+    "complexity": "long",
+    "tags": [
+      "asr_error",
+      "question",
+      "polite"
+    ],
+    "slots": {},
+    "note": "張り付けて -> 貼り付けて"
+  },
+  {
+    "id": "ja-ta120",
+    "lang": "ja",
+    "text": "summaryを作って、ついでに誤字もチェックして",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "code_mix",
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta121",
+    "lang": "ja",
+    "text": "要約じゃなくて、本訳して、英語で",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "negation"
+    ],
+    "slots": {
+      "target": "en"
+    },
+    "note": "本訳 -> 翻訳"
+  },
+  {
+    "id": "ja-ta122",
+    "lang": "ja",
+    "text": "書き換えはしないで、文章をととのえて",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "negation"
+    ],
+    "slots": {},
+    "note": "ととのえて (hiragana) -> 整えて"
+  },
+  {
+    "id": "ja-ta123",
+    "lang": "ja",
+    "text": "翻訳はしなくていいし、要約もいらないから、とにかく誤字脱字と変なところだけ直してください",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "negation",
+      "polite"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta124",
+    "lang": "ja",
+    "text": "さっき短くしてって言ったけど、いや、やっぱり長さはそのままでいいから、誤字だけ直して",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta125",
+    "lang": "ja",
+    "text": "もうちょっとcasualな感じにして",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "code_mix"
+    ],
+    "slots": {
+      "op": "casual"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-ta126",
+    "lang": "ja",
+    "text": "英語にして、それから三行で用約して",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "multi_request"
+    ],
+    "slots": {
+      "target": "en"
+    },
+    "note": "用約 -> 要約"
+  },
+  {
+    "id": "ja-ta127",
+    "lang": "ja",
+    "text": "お客様向けの資料なので、丁寧な文面に直してから、Englishに訳してもらえますか",
+    "intent": "translate",
+    "complexity": "long",
+    "tags": [
+      "code_mix",
+      "multi_request",
+      "question",
+      "polite"
+    ],
+    "slots": {
+      "target": "en"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-ta128",
+    "lang": "ja",
+    "text": "校正とすいこうの違いは何ですか",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "question",
+      "polite"
+    ],
+    "slots": {},
+    "note": "すいこう (hiragana) -> 推敲"
+  },
+  {
+    "id": "ja-ta129",
+    "lang": "ja",
+    "text": "えー、titleを着けて",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "code_mix",
+      "filler"
+    ],
+    "slots": {
+      "op": "format"
+    },
+    "note": "着けて -> 付けて"
+  },
+  {
+    "id": "ja-ta130",
+    "lang": "ja",
+    "text": "ここに具体例を入れて、長めにしてください",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "polite"
+    ],
+    "slots": {
+      "op": "expand"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-ta131",
+    "lang": "ja",
+    "text": "スペルミスを治してください",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "polite"
+    ],
+    "slots": {},
+    "note": "治して -> 直して"
+  },
+  {
+    "id": "ja-ta132",
+    "lang": "ja",
+    "text": "高精した上でポイントだけ抜き出して",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "multi_request"
+    ],
+    "slots": {},
+    "note": "高精 -> 校正"
+  },
+  {
+    "id": "ja-ta133",
+    "lang": "ja",
+    "text": "メールの下書きなんですけど、変な言い回しとか誤字脱字があるかもしれないので、チェックして直してもらえますか",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "question",
+      "polite"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta135",
+    "lang": "ja",
+    "text": "グリーンアップしてくれる？",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "question",
+      "polite"
+    ],
+    "slots": {},
+    "note": "グリーンアップ -> クリーンアップ"
+  },
+  {
+    "id": "ja-ta136",
+    "lang": "ja",
+    "text": "要約して、警護にもして",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "multi_request"
+    ],
+    "slots": {},
+    "note": "警護 -> 敬語"
+  },
+  {
+    "id": "ja-ta137",
+    "lang": "ja",
+    "text": "やっぱcancelで",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "retraction",
+      "code_mix"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta138",
+    "lang": "ja",
+    "text": "翻訳じゃなくて、推敲してもらえますか",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "negation",
+      "question",
+      "polite"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta139",
+    "lang": "ja",
+    "text": "あの、このメールを送る前に、変なところとか言い間違いがないか見て、治してもらえますか",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "asr_error",
+      "filler",
+      "question",
+      "polite"
+    ],
+    "slots": {},
+    "note": "治して -> 直して"
+  },
+  {
+    "id": "ja-ta140",
+    "lang": "ja",
+    "text": "要約しないで、箇条書きにして",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "negation"
+    ],
+    "slots": {
+      "op": "format"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-ta141",
+    "lang": "ja",
+    "text": "ようやくってどういう意味ですか",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "question",
+      "polite"
+    ],
+    "slots": {},
+    "note": "ようやく -> 要約"
+  },
+  {
+    "id": "ja-ta142",
+    "lang": "ja",
+    "text": "最初は箇条書きにって思ったけど、やっぱり普通の文章のままで、てにをはだけ整えてください",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "self_correction",
+      "polite"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta143",
+    "lang": "ja",
+    "text": "翻訳して…いや、要訳して",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "self_correction"
+    ],
+    "slots": {},
+    "note": "要訳 -> 要約"
+  },
+  {
+    "id": "ja-ta144",
+    "lang": "ja",
+    "text": "会議のメモを打ったんですが、変換ミスだらけなので、読点の位置も含めて全体を直してください",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "polite"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta145",
+    "lang": "ja",
+    "text": "この断落を丸ごと削除して、次の段落も一緒に消してしまってほしいんだけど",
+    "intent": "none",
+    "complexity": "compound",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "断落 -> 段落"
+  },
+  {
+    "id": "ja-ta146",
+    "lang": "ja",
+    "text": "えっと、丁寧にして…ごめん、やっぱり今の文体はそのままで、誤字を直すだけでいいです",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "self_correction",
+      "filler",
+      "polite"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta147",
+    "lang": "ja",
+    "text": "要約…あ、いや、水耕お願いします",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "self_correction",
+      "polite"
+    ],
+    "slots": {},
+    "note": "水耕 -> 推敲"
+  },
+  {
+    "id": "ja-ta148",
+    "lang": "ja",
+    "text": "最初は敬語にしてって思ったけど、あ、違う、要点だけ三つくらいにまとめてください",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "self_correction",
+      "polite"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-ta149",
+    "lang": "ja",
+    "text": "翻訳はいらないから、単縮して",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "negation"
+    ],
+    "slots": {
+      "op": "shorten"
+    },
+    "note": "単縮 -> 短縮"
+  },
+  {
+    "id": "ja-ta150",
+    "lang": "ja",
+    "text": "要約して中国語に反訳して",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "multi_request"
+    ],
+    "slots": {
+      "target": "zh"
+    },
+    "note": "反訳 -> 翻訳"
+  }
+]

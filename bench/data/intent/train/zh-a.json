@@ -1,0 +1,1938 @@
+[
+  {
+    "id": "zh-ta001",
+    "lang": "zh",
+    "text": "总结一下，哦不对，把这个发给小王",
+    "intent": "none",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta002",
+    "lang": "zh",
+    "text": "我先说要缩短，算了，还是给我概括一下重点吧，我这会儿没时间看全文，快一点",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta003",
+    "lang": "zh",
+    "text": "别缩短也别翻译，就把句子改通顺就行",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "negation"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta004",
+    "lang": "zh",
+    "text": "帮我润色一下……算了不用了",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "retraction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta005",
+    "lang": "zh",
+    "text": "提取一下 key points",
+    "intent": "summarize",
+    "complexity": "simple",
+    "tags": [
+      "code_mix"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta006",
+    "lang": "zh",
+    "text": "不用简体，转成繁体中文，再缩短一点",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "negation",
+      "multi_request"
+    ],
+    "slots": {
+      "target": "zh-Hant"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-ta007",
+    "lang": "zh",
+    "text": "帮我 make 这段更 professional 一点，因为是要发给客户那边的负责人，不能太随便",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "code_mix"
+    ],
+    "slots": {
+      "op": "formal"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-ta008",
+    "lang": "zh",
+    "text": "嗯，总结一下",
+    "intent": "summarize",
+    "complexity": "simple",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta009",
+    "lang": "zh",
+    "text": "润色那个，算了算了，不弄了",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "retraction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta010",
+    "lang": "zh",
+    "text": "帮我润色一下，不对，这是什么意思",
+    "intent": "ask",
+    "complexity": "compound",
+    "tags": [
+      "self_correction",
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta011",
+    "lang": "zh",
+    "text": "给我来个 TLDR",
+    "intent": "summarize",
+    "complexity": "simple",
+    "tags": [
+      "code_mix"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta012",
+    "lang": "zh",
+    "text": "缩短一点……哦不，其实只要改改错别字就行",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta013",
+    "lang": "zh",
+    "text": "嗯，把这个 send 给小王",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [
+      "filler",
+      "code_mix"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta014",
+    "lang": "zh",
+    "text": "闰色一下",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "闰色 -> 润色"
+  },
+  {
+    "id": "zh-ta015",
+    "lang": "zh",
+    "text": "翻译成英文，不对，不用了，我自己来，这几句话我自己改改就行，不麻烦你了，谢谢",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "retraction",
+      "self_correction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta016",
+    "lang": "zh",
+    "text": "帮我把错别字和病句都改掉",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta017",
+    "lang": "zh",
+    "text": "帮我 polish 一下这段周抱，意思别变",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "code_mix",
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "周抱 -> 周报"
+  },
+  {
+    "id": "zh-ta018",
+    "lang": "zh",
+    "text": "翻役成日语",
+    "intent": "translate",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "target": "ja"
+    },
+    "note": "翻役 -> 翻译"
+  },
+  {
+    "id": "zh-ta019",
+    "lang": "zh",
+    "text": "这份会议记要是我开会的时候语音转出来的，错字特别多，你帮我整体改一改，让它读起来通顺",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "记要 -> 纪要"
+  },
+  {
+    "id": "zh-ta020",
+    "lang": "zh",
+    "text": "我刚刚开了一个特别长的会，这是会议记录，你帮我中结一下，列出最重要的几条结论和待办",
+    "intent": "summarize",
+    "complexity": "long",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "中结 -> 总结"
+  },
+  {
+    "id": "zh-ta021",
+    "lang": "zh",
+    "text": "润色一下，再整理成 email 格式，开头结尾加上问候，称呼用张老师，落款写我的名字",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "code_mix",
+      "multi_request"
+    ],
+    "slots": {
+      "op": "format"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-ta022",
+    "lang": "zh",
+    "text": "谢谢你，今天辛苦了",
+    "intent": "none",
+    "complexity": "compound",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta023",
+    "lang": "zh",
+    "text": "翻译成应文，哦不用，改得正式一点就行",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "self_correction",
+      "negation",
+      "asr_error"
+    ],
+    "slots": {
+      "op": "formal"
+    },
+    "note": "应文 -> 英文"
+  },
+  {
+    "id": "zh-ta024",
+    "lang": "zh",
+    "text": "不要改内容，只把格式改成分点列表",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "negation"
+    ],
+    "slots": {
+      "op": "format"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-ta025",
+    "lang": "zh",
+    "text": "帮我改改错别自",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "错别自 -> 错别字"
+  },
+  {
+    "id": "zh-ta026",
+    "lang": "zh",
+    "text": "帮我润色一下，不对，直接翻成日语吧，这个是要发给日本客户的，不用先改了，麻烦了",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {
+      "target": "ja"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-ta027",
+    "lang": "zh",
+    "text": "咕噜咕噜的那边那个什么的啊嘿",
+    "intent": "none",
+    "complexity": "compound",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta028",
+    "lang": "zh",
+    "text": "口语话一点",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "op": "casual"
+    },
+    "note": "口语话 -> 口语化"
+  },
+  {
+    "id": "zh-ta029",
+    "lang": "zh",
+    "text": "帮我 translate 成英文",
+    "intent": "translate",
+    "complexity": "simple",
+    "tags": [
+      "code_mix"
+    ],
+    "slots": {
+      "target": "en"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-ta030",
+    "lang": "zh",
+    "text": "不用翻译了，直接总洁一下",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "negation",
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "总洁 -> 总结"
+  },
+  {
+    "id": "zh-ta031",
+    "lang": "zh",
+    "text": "各位同事，下周一起开始实行新的靠勤制度",
+    "intent": "none",
+    "complexity": "compound",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "靠勤 -> 考勤"
+  },
+  {
+    "id": "zh-ta032",
+    "lang": "zh",
+    "text": "嗯，这是我发给客户的邮件草稿，你帮我检查一下语法和用词，改得通顺自然一点，但是不要变长",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta033",
+    "lang": "zh",
+    "text": "帮我润色一下，再改成轻松点的语气，嗯，是要发群里的",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {
+      "op": "casual"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-ta034",
+    "lang": "zh",
+    "text": "这段话有鱼病吗",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "question"
+    ],
+    "slots": {},
+    "note": "鱼病 -> 语病"
+  },
+  {
+    "id": "zh-ta035",
+    "lang": "zh",
+    "text": "那个，帮我润色一下，再精剪一下，字数太多了",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "filler",
+      "multi_request"
+    ],
+    "slots": {
+      "op": "shorten"
+    },
+    "note": "精剪 -> 精简"
+  },
+  {
+    "id": "zh-ta036",
+    "lang": "zh",
+    "text": "翻译成英文……哦不是，概括成两句话",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta037",
+    "lang": "zh",
+    "text": "帮我阔写一下，哦不对，就润色一下吧",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "self_correction"
+    ],
+    "slots": {},
+    "note": "阔写 -> 扩写"
+  },
+  {
+    "id": "zh-ta038",
+    "lang": "zh",
+    "text": "改得正式一点，嗯不对，语气软一点就行，对方是熟人，没必要那么客气，不用太拘谨",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "self_correction",
+      "filler"
+    ],
+    "slots": {
+      "op": "casual"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-ta039",
+    "lang": "zh",
+    "text": "总节一下，再改得口语化一点",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "multi_request"
+    ],
+    "slots": {},
+    "note": "总节 -> 总结"
+  },
+  {
+    "id": "zh-ta040",
+    "lang": "zh",
+    "text": "帮我翻逸成汉语，再改得简短一点",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "multi_request"
+    ],
+    "slots": {
+      "target": "zh"
+    },
+    "note": "翻逸 -> 翻译"
+  },
+  {
+    "id": "zh-ta041",
+    "lang": "zh",
+    "text": "那个，还是不改了吧，就保持原样",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta042",
+    "lang": "zh",
+    "text": "帮我运色一下，顺便把错别字也改了",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "运色 -> 润色"
+  },
+  {
+    "id": "zh-ta043",
+    "lang": "zh",
+    "text": "帮我瑞来特一下这句话",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "op": "paraphrase"
+    },
+    "note": "瑞来特 -> rewrite"
+  },
+  {
+    "id": "zh-ta044",
+    "lang": "zh",
+    "text": "可以改得正式一点吗？",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "question",
+      "polite"
+    ],
+    "slots": {
+      "op": "formal"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-ta045",
+    "lang": "zh",
+    "text": "帮我校队一下这份报告",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "校队 -> 校对"
+  },
+  {
+    "id": "zh-ta046",
+    "lang": "zh",
+    "text": "麻烦帮我效对一下，这是要发给客户的邮件，别出错字，也别把意思改掉，时间有点紧，麻烦了",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "asr_error",
+      "polite"
+    ],
+    "slots": {},
+    "note": "效对 -> 校对"
+  },
+  {
+    "id": "zh-ta047",
+    "lang": "zh",
+    "text": "可以帮我概阔成一句话吗？",
+    "intent": "summarize",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "question",
+      "polite"
+    ],
+    "slots": {},
+    "note": "概阔 -> 概括"
+  },
+  {
+    "id": "zh-ta048",
+    "lang": "zh",
+    "text": "缩短一点，嗯不对，翻译成韩语",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "self_correction",
+      "filler"
+    ],
+    "slots": {
+      "target": "ko"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-ta049",
+    "lang": "zh",
+    "text": "呃，别翻成英文了，先总结一下再翻译成中文",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "negation",
+      "multi_request"
+    ],
+    "slots": {
+      "target": "zh"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-ta050",
+    "lang": "zh",
+    "text": "扩写一下，哦不，把这个存到桌面上",
+    "intent": "none",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta051",
+    "lang": "zh",
+    "text": "可以翻译成英文吗？",
+    "intent": "translate",
+    "complexity": "simple",
+    "tags": [
+      "question",
+      "polite"
+    ],
+    "slots": {
+      "target": "en"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-ta052",
+    "lang": "zh",
+    "text": "帮我翻译成英文，不对，不用翻译，就把语句理顺，因为对方看得懂中文，没必要翻，直接改就行",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "self_correction",
+      "negation"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta053",
+    "lang": "zh",
+    "text": "帮我把这封邮件改得正式一点，唉算了，我还是自己重新写一遍吧，你不用弄了，谢谢，麻烦了",
+    "intent": "cancel",
+    "complexity": "long",
+    "tags": [
+      "retraction",
+      "self_correction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta054",
+    "lang": "zh",
+    "text": "翻译成台湾那边用的凡体中文，顺便润色一下",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "multi_request"
+    ],
+    "slots": {
+      "target": "zh-Hant"
+    },
+    "note": "凡体 -> 繁体"
+  },
+  {
+    "id": "zh-ta055",
+    "lang": "zh",
+    "text": "帮我翻译一下，不对，总结就行",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta056",
+    "lang": "zh",
+    "text": "王经理您好，附件是本季度的销售报表，请察收",
+    "intent": "none",
+    "complexity": "compound",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "察收 -> 查收"
+  },
+  {
+    "id": "zh-ta057",
+    "lang": "zh",
+    "text": "改的正是一点",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "op": "formal"
+    },
+    "note": "改的正是 -> 改得正式"
+  },
+  {
+    "id": "zh-ta058",
+    "lang": "zh",
+    "text": "翻译成西斑牙语，顺便把错别字也改一下",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "multi_request",
+      "asr_error"
+    ],
+    "slots": {
+      "target": "other"
+    },
+    "note": "西斑牙语 -> 西班牙语"
+  },
+  {
+    "id": "zh-ta059",
+    "lang": "zh",
+    "text": "这段话我已经用过很多次了，你帮我用完全不同的话重新说一遍，别重复原来的用词，意思要保持一样",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [],
+    "slots": {
+      "op": "paraphrase"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-ta060",
+    "lang": "zh",
+    "text": "帮我 polish 一下…… never mind，算了，我还是直接发出去吧，不用弄了",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "retraction",
+      "code_mix"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta061",
+    "lang": "zh",
+    "text": "像聊天一样说，不要这么书面，这是要发给同组的几个朋友看的",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [],
+    "slots": {
+      "op": "casual"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-ta062",
+    "lang": "zh",
+    "text": "先润色一下，再扩谢成三四句话",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "multi_request"
+    ],
+    "slots": {
+      "op": "expand"
+    },
+    "note": "扩谢 -> 扩写"
+  },
+  {
+    "id": "zh-ta063",
+    "lang": "zh",
+    "text": "撒拉嘿呦啦啦啦摸",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta064",
+    "lang": "zh",
+    "text": "这封邮件是要发给海外课户的，你帮我翻译成英文，语气要正式一点，别太口语，称呼也要客气",
+    "intent": "translate",
+    "complexity": "long",
+    "tags": [
+      "multi_request",
+      "asr_error"
+    ],
+    "slots": {
+      "target": "en"
+    },
+    "note": "课户 -> 客户"
+  },
+  {
+    "id": "zh-ta065",
+    "lang": "zh",
+    "text": "别翻了，也别润色了，什么都不用弄了，这段先放着，我晚点再说",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "negation",
+      "retraction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta066",
+    "lang": "zh",
+    "text": "请把这段话修改通顺一些，可以吗？",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "question",
+      "polite"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta067",
+    "lang": "zh",
+    "text": "先总结一下，再润色一下语句",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta068",
+    "lang": "zh",
+    "text": "保存一下",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta069",
+    "lang": "zh",
+    "text": "帮我翻成韩文，嗯，是要发给韩国同事的，翻之前先把语句顺一下，不然他们可能看不懂，麻烦了",
+    "intent": "translate",
+    "complexity": "long",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {
+      "target": "ko"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-ta070",
+    "lang": "zh",
+    "text": "这篇文章太长了，我实在看不过来，你帮我归那一下，告诉我大概讲了什么就行，不用太详细",
+    "intent": "summarize",
+    "complexity": "long",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "归那 -> 归纳"
+  },
+  {
+    "id": "zh-ta071",
+    "lang": "zh",
+    "text": "不用翻译，帮我润涩就行",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "negation",
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "润涩 -> 润色"
+  },
+  {
+    "id": "zh-ta072",
+    "lang": "zh",
+    "text": "帮我把这段复制一下，然后打开邮件，发给财务部的同事，主题写本月报销，附件就用桌面上那个表格",
+    "intent": "none",
+    "complexity": "long",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta073",
+    "lang": "zh",
+    "text": "总结一下，不对，把这封英文邮件翻译成中文，我想先读懂对方到底写了什么，先看个大概",
+    "intent": "translate",
+    "complexity": "long",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {
+      "target": "zh"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-ta074",
+    "lang": "zh",
+    "text": "先把错别字改掉，再把这些内容改成代编号的清单，一二三四那种",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "multi_request"
+    ],
+    "slots": {
+      "op": "format"
+    },
+    "note": "代编号 -> 带编号"
+  },
+  {
+    "id": "zh-ta075",
+    "lang": "zh",
+    "text": "先帮我把这段话总结一下，嗯，算了，我想了想还是不要了，你什么都不用做，不好意思啊",
+    "intent": "cancel",
+    "complexity": "long",
+    "tags": [
+      "retraction",
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta076",
+    "lang": "zh",
+    "text": "帮我，嗯，那个，把语句顺一下",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta077",
+    "lang": "zh",
+    "text": "今天天气真好",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta078",
+    "lang": "zh",
+    "text": "帮我订一个明天下午三点的会议室",
+    "intent": "none",
+    "complexity": "compound",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta079",
+    "lang": "zh",
+    "text": "总结一下……哎不是，我是想让你检查错别字，这份文档要交给主管，不能有一个错字，麻烦你了",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta080",
+    "lang": "zh",
+    "text": "阔写一下，多加点细节",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "op": "expand"
+    },
+    "note": "阔写 -> 扩写"
+  },
+  {
+    "id": "zh-ta081",
+    "lang": "zh",
+    "text": "翻易成寒语",
+    "intent": "translate",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "target": "ko"
+    },
+    "note": "翻易 -> 翻译; 寒语 -> 韩语"
+  },
+  {
+    "id": "zh-ta082",
+    "lang": "zh",
+    "text": "呃，不用了",
+    "intent": "cancel",
+    "complexity": "simple",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta083",
+    "lang": "zh",
+    "text": "帮我入色一下",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "入色 -> 润色"
+  },
+  {
+    "id": "zh-ta084",
+    "lang": "zh",
+    "text": "别翻译，帮我改些一下",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "negation"
+    ],
+    "slots": {
+      "op": "paraphrase"
+    },
+    "note": "改些 -> 改写"
+  },
+  {
+    "id": "zh-ta085",
+    "lang": "zh",
+    "text": "明天上午十点在三楼会议室开会，请大家准时参加，会议主要讨论下季度的计划，另外请提前准备好各自的材料",
+    "intent": "none",
+    "complexity": "long",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta086",
+    "lang": "zh",
+    "text": "总结一下，再改得正式一点",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta087",
+    "lang": "zh",
+    "text": "呃，那个，列出中点就行",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "中点 -> 重点"
+  },
+  {
+    "id": "zh-ta088",
+    "lang": "zh",
+    "text": "帮我概括一下……酸了，我再想想",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "retraction"
+    ],
+    "slots": {},
+    "note": "酸了 -> 算了"
+  },
+  {
+    "id": "zh-ta089",
+    "lang": "zh",
+    "text": "取消",
+    "intent": "cancel",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta090",
+    "lang": "zh",
+    "text": "那个，番译成英文",
+    "intent": "translate",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "filler"
+    ],
+    "slots": {
+      "target": "en"
+    },
+    "note": "番译 -> 翻译"
+  },
+  {
+    "id": "zh-ta091",
+    "lang": "zh",
+    "text": "帮我 proofread 一下",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "code_mix"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta092",
+    "lang": "zh",
+    "text": "这份周报先帮我润色一下，把错别字改掉，然后再整个翻译成日语，是发给日本总部的，下午就要交",
+    "intent": "translate",
+    "complexity": "long",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "target": "ja"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-ta093",
+    "lang": "zh",
+    "text": "能不能先润色一下，再换一种方式表达？意思不变",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "question",
+      "polite",
+      "multi_request"
+    ],
+    "slots": {
+      "op": "paraphrase"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-ta094",
+    "lang": "zh",
+    "text": "给我润饰一下",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta095",
+    "lang": "zh",
+    "text": "那个，你帮我把这段话弄得顺口一点，不要改意思，因为是要发给老师的，用词稍微注意一点",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta096",
+    "lang": "zh",
+    "text": "改得口语化一点，然后总结成两句话",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta097",
+    "lang": "zh",
+    "text": "呃，帮我认色一下这封邮件",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "filler"
+    ],
+    "slots": {},
+    "note": "认色 -> 润色"
+  },
+  {
+    "id": "zh-ta098",
+    "lang": "zh",
+    "text": "先改得正式一点，再翻成 Japanese",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "code_mix",
+      "multi_request"
+    ],
+    "slots": {
+      "target": "ja"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-ta099",
+    "lang": "zh",
+    "text": "帮我究错",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "究错 -> 纠错"
+  },
+  {
+    "id": "zh-ta100",
+    "lang": "zh",
+    "text": "概括一下，不对，转成表隔",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "self_correction"
+    ],
+    "slots": {
+      "op": "format"
+    },
+    "note": "表隔 -> 表格"
+  },
+  {
+    "id": "zh-ta101",
+    "lang": "zh",
+    "text": "嗯那个，帮我把这段话顺一顺",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta102",
+    "lang": "zh",
+    "text": "总结一下，哦不，改成小雪生也能看懂的说法",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "self_correction"
+    ],
+    "slots": {
+      "op": "audience"
+    },
+    "note": "小雪生 -> 小学生"
+  },
+  {
+    "id": "zh-ta103",
+    "lang": "zh",
+    "text": "这份方案是要给其他部门看的，帮我讲得通素一点，不懂技术的同事也能看明白，少用点行话",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "op": "audience"
+    },
+    "note": "通素 -> 通俗"
+  },
+  {
+    "id": "zh-ta104",
+    "lang": "zh",
+    "text": "帮我把这段话，嗯，旅顺了，标点也加一下",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "旅顺了 -> 捋顺了"
+  },
+  {
+    "id": "zh-ta105",
+    "lang": "zh",
+    "text": "润色一下，不对，改成从客户的角度来说",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {
+      "op": "audience"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-ta106",
+    "lang": "zh",
+    "text": "帮我缩短一点，哦不，曲销吧",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "retraction",
+      "self_correction"
+    ],
+    "slots": {},
+    "note": "曲销 -> 取消"
+  },
+  {
+    "id": "zh-ta107",
+    "lang": "zh",
+    "text": "那个，这句话是什么意思",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "filler",
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta108",
+    "lang": "zh",
+    "text": "不用润色了，帮我提练一下核心观点",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "negation",
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "提练 -> 提炼"
+  },
+  {
+    "id": "zh-ta109",
+    "lang": "zh",
+    "text": "今天的日报，上午完成了客户需求的整理，下午和测试同事一起过了一遍用例，明天继续跟进",
+    "intent": "none",
+    "complexity": "long",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta110",
+    "lang": "zh",
+    "text": "呃那个，先校对一下，然后换成面向客户的口吻，别用内部术语",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {
+      "op": "audience"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-ta111",
+    "lang": "zh",
+    "text": "帮我该括一下",
+    "intent": "summarize",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "该括 -> 概括"
+  },
+  {
+    "id": "zh-ta112",
+    "lang": "zh",
+    "text": "闰色是什么意思",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "question"
+    ],
+    "slots": {},
+    "note": "闰色 -> 润色"
+  },
+  {
+    "id": "zh-ta113",
+    "lang": "zh",
+    "text": "帮我转成烦体字，再润色一下",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "multi_request"
+    ],
+    "slots": {
+      "target": "zh-Hant"
+    },
+    "note": "烦体 -> 繁体"
+  },
+  {
+    "id": "zh-ta114",
+    "lang": "zh",
+    "text": "改成马克当格式",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "op": "format"
+    },
+    "note": "马克当 -> Markdown"
+  },
+  {
+    "id": "zh-ta115",
+    "lang": "zh",
+    "text": "这条消息是要回复上级的，帮我先润色一下，再改得更得体、更专业一点，不要太随便，也别显得太卑微",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "op": "formal"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-ta116",
+    "lang": "zh",
+    "text": "改写一下，不对不对，帮我总结这次会议记要的重点，然后把分配给大家的任务也列出来，越清楚越好",
+    "intent": "summarize",
+    "complexity": "long",
+    "tags": [
+      "asr_error",
+      "self_correction"
+    ],
+    "slots": {},
+    "note": "记要 -> 纪要"
+  },
+  {
+    "id": "zh-ta117",
+    "lang": "zh",
+    "text": "总结和概括有什么区别",
+    "intent": "ask",
+    "complexity": "compound",
+    "tags": [
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta118",
+    "lang": "zh",
+    "text": "帮我检察一下这段话有没有语法问题，我中英文混着写的，怕有些地方读起来不通顺，谢谢",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "检察 -> 检查"
+  },
+  {
+    "id": "zh-ta119",
+    "lang": "zh",
+    "text": "先帮我把错别字改一下，润色润色，然后再概括成一句话，我要贴在群里，让大家快速看到重点",
+    "intent": "summarize",
+    "complexity": "long",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta120",
+    "lang": "zh",
+    "text": "不用太正式，改成朋友之间说话的语气",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "negation"
+    ],
+    "slots": {
+      "op": "casual"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-ta121",
+    "lang": "zh",
+    "text": "这个是给不懂技术的老板看的，你帮我重新写一下，嗯，别太专业，也别用太多英文缩写，讲清楚就行",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "filler"
+    ],
+    "slots": {
+      "op": "audience"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-ta122",
+    "lang": "zh",
+    "text": "嗯，你好啊",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta124",
+    "lang": "zh",
+    "text": "翻义成英语，然后再概括成两句话，我要发给国外的同事，让他们快速了解情况，越短越好",
+    "intent": "translate",
+    "complexity": "long",
+    "tags": [
+      "asr_error",
+      "multi_request"
+    ],
+    "slots": {
+      "target": "en"
+    },
+    "note": "翻义 -> 翻译"
+  },
+  {
+    "id": "zh-ta125",
+    "lang": "zh",
+    "text": "这封有件太长了，我现在没时间细看，你帮我概括一下，告诉我对方到底想要什么，还有什么时候要",
+    "intent": "summarize",
+    "complexity": "long",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "有件 -> 邮件"
+  },
+  {
+    "id": "zh-ta126",
+    "lang": "zh",
+    "text": "别缩短，帮我扩写一下",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "negation"
+    ],
+    "slots": {
+      "op": "expand"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-ta127",
+    "lang": "zh",
+    "text": "这封油件是谁写的",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "question"
+    ],
+    "slots": {},
+    "note": "油件 -> 邮件"
+  },
+  {
+    "id": "zh-ta128",
+    "lang": "zh",
+    "text": "这篇会议记录太长了，你先帮我总结一下重点，然后把总结翻意成英文，发给海外团队，今天下班前要用",
+    "intent": "translate",
+    "complexity": "long",
+    "tags": [
+      "asr_error",
+      "multi_request"
+    ],
+    "slots": {
+      "target": "en"
+    },
+    "note": "翻意 -> 翻译"
+  },
+  {
+    "id": "zh-ta129",
+    "lang": "zh",
+    "text": "你觉得这段话写得怎么样",
+    "intent": "ask",
+    "complexity": "compound",
+    "tags": [
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta130",
+    "lang": "zh",
+    "text": "帮我 rewrite 一下",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "code_mix"
+    ],
+    "slots": {
+      "op": "paraphrase"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-ta131",
+    "lang": "zh",
+    "text": "呃的得了吧啦咕噜",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta132",
+    "lang": "zh",
+    "text": "改成 bullet points",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "code_mix"
+    ],
+    "slots": {
+      "op": "format"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-ta133",
+    "lang": "zh",
+    "text": "把这封邮件改得亲切一点，收件人是我合作很久的同事，不用太客套，像平时聊天那样就行",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [],
+    "slots": {
+      "op": "casual"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-ta134",
+    "lang": "zh",
+    "text": "算了",
+    "intent": "cancel",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta135",
+    "lang": "zh",
+    "text": "帮我总结一下，不对，是要扩写一下",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {
+      "op": "expand"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-ta136",
+    "lang": "zh",
+    "text": "不是要翻译，我是问这句话是什么意思",
+    "intent": "ask",
+    "complexity": "compound",
+    "tags": [
+      "negation",
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta137",
+    "lang": "zh",
+    "text": "这是我刚才用语音输入的，识别错了好多地方，把同音字什么的都帮我纠正过来，别的不用动",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta138",
+    "lang": "zh",
+    "text": "帮我 check 一下有没有错别字",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "code_mix"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta139",
+    "lang": "zh",
+    "text": "把这段话里的语病改一改，标点也顺便看看，还有那几个语气词也帮我去掉，读起来顺一点",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta140",
+    "lang": "zh",
+    "text": "嗯，那个，帮我把这几句话再展开一点，写成完整的一段，让领导一看就能明白前因后果，别太简单",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "filler"
+    ],
+    "slots": {
+      "op": "expand"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-ta141",
+    "lang": "zh",
+    "text": "帮我润色一下再缩断一点，发微信字数太长了，对方估计没耐心看那么多，字少一点",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "multi_request"
+    ],
+    "slots": {
+      "op": "shorten"
+    },
+    "note": "缩断 -> 缩短"
+  },
+  {
+    "id": "zh-ta142",
+    "lang": "zh",
+    "text": "不用翻成英文，翻译成发语就行",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "negation",
+      "asr_error"
+    ],
+    "slots": {
+      "target": "other"
+    },
+    "note": "发语 -> 法语"
+  },
+  {
+    "id": "zh-ta143",
+    "lang": "zh",
+    "text": "我本来想让你把这段话扩写一下，啊不对，别，其实什么都不用做了，抱歉，是我手滑了，下次再说",
+    "intent": "cancel",
+    "complexity": "long",
+    "tags": [
+      "retraction",
+      "self_correction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta144",
+    "lang": "zh",
+    "text": "缩短一点，顺便把错别字也改一下",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "op": "shorten"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-ta145",
+    "lang": "zh",
+    "text": "我刚才让你翻译，其实不用了，按错了，快捷键按错了，你什么都不用做，不好意思",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "retraction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta146",
+    "lang": "zh",
+    "text": "宿短一点",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "op": "shorten"
+    },
+    "note": "宿短 -> 缩短"
+  },
+  {
+    "id": "zh-ta147",
+    "lang": "zh",
+    "text": "能不能麻烦你把这条消息理顺一点？读起来有点别扭，我是要发给部门群的，不想让大家觉得我写得太乱",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "question",
+      "polite"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-ta148",
+    "lang": "zh",
+    "text": "帮我括写一下，字数多一点",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "op": "expand"
+    },
+    "note": "括写 -> 扩写"
+  },
+  {
+    "id": "zh-ta149",
+    "lang": "zh",
+    "text": "嗯，帮我把语气改成商务一点的，这是发给客户的，他们比较在意措辞，要显得专业有礼貌",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "filler"
+    ],
+    "slots": {
+      "op": "formal"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-ta150",
+    "lang": "zh",
+    "text": "帮我总结一下……不对，经简一下，保留原来的意思，不用改语气，只要把废话去掉就行，谢谢了",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "asr_error",
+      "self_correction"
+    ],
+    "slots": {
+      "op": "shorten"
+    },
+    "note": "经简 -> 精简"
+  }
+]
