@@ -3,6 +3,7 @@ use std::ffi::c_void;
 use core_foundation::array::{CFArray, CFArrayRef};
 use core_foundation::base::{CFType, CFTypeRef, TCFType};
 use core_foundation::boolean::CFBoolean;
+use core_foundation::number::CFNumber;
 use core_foundation::string::{CFString, CFStringRef};
 
 type AXUIElementRef = *const c_void;
@@ -103,6 +104,10 @@ impl AxElement {
         }
         // SAFETY: a successful Copy call returns an owned result.
         unsafe { CFType::wrap_under_create_rule(result) }.downcast::<CFString>().map(|text| text.to_string())
+    }
+
+    pub(super) fn count(&self, name: &str) -> Option<usize> {
+        self.attribute(name)?.downcast::<CFNumber>()?.to_i64()?.try_into().ok()
     }
 
     /// Whether the attribute is the boolean true (`AXFocused` and friends come back as CFBoolean).
