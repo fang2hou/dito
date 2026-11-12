@@ -21,9 +21,13 @@ impl Sink for MacSink {
     fn deliver(&self, text: &str, method: InsertMethod) -> Delivery {
         deliver_text(text, method)
     }
+
+    fn copy(&self, text: &str) -> Delivery {
+        terminal_clipboard(text)
+    }
 }
 
-fn terminal_clipboard(text: &str) -> Delivery {
+pub(super) fn terminal_clipboard(text: &str) -> Delivery {
     match copy_to_clipboard(text) {
         Ok(()) => Delivery::Copied,
         Err(e) => {
@@ -147,8 +151,25 @@ impl Attempts<'_> {
 
 fn deliver_text(text: &str, method: InsertMethod) -> Delivery {
     let Some(target) = deliverable_target() else { return terminal_clipboard(text) };
+    deliver_to(&target, text, method)
+}
+
+/// Types or pastes over text that is still selected in the app `pid`; the focused field of any other app gets nothing.
+pub(super) fn deliver_over_selection(pid: i32, text: &str, method: InsertMethod) -> Delivery {
+    let Some(target) = deliverable_target() else { return terminal_clipboard(text) };
+    if target.pid != pid {
+        tracing::warn!(
+            "insert: focus is in pid {} instead of the selection's app (pid {pid}); text left on clipboard",
+            target.pid
+        );
+        return terminal_clipboard(text);
+    }
+    deliver_to(&target, text, method)
+}
+
+fn deliver_to(target: &FocusTarget, text: &str, method: InsertMethod) -> Delivery {
     let mut attempts =
-        Attempts { text, target: &target, units: text.encode_utf16().collect(), baseline: target.cursor, guard: None };
+        Attempts { text, target, units: text.encode_utf16().collect(), baseline: target.cursor, guard: None };
     let mut flow = Flow::new(method);
     let mut step = Flow::first(method);
     loop {

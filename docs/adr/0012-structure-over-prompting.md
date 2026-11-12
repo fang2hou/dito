@@ -18,6 +18,8 @@ The polish prompt follows the same rule (2026-11-12, measured in `bench/POLISH_P
 - Three demonstration turns precede the transcript, one each in Chinese, Japanese and English: a dictated request to translate, a correction far from what it corrects, and a question. They are real user and assistant turns, not text inside the system prompt.
 - The user's rules are the only part that follows the language. They are layered under `#Style#` and can shape wording, never the task.
 
+The command tools (rewrite, translate, summarize, reply, answer) follow the same scaffold: the same sections, the selected text between `===` lines, three demonstration turns per tool, and the instruction as the last block of the final user turn. Only the purpose, the language-type rule, the extra constraints, the output rule and the demonstrations differ by tool (`bench/POLISH_PROMPT.md`).
+
 ## Alternatives Considered
 
 ### Longer instructions
@@ -47,7 +49,7 @@ Models with reliable built-in voice detection and instruction following replace 
 
 ## Code
 
-`crates/dito-runtimes/src/llama.rs` (`asr_prompt`, `is_hotword_echo`), `crates/dito-core/src/prompts.rs`, `crates/dito-core/src/audio.rs`.
+`crates/dito-runtimes/src/llama.rs` (`asr_prompt`, `is_hotword_echo`), `crates/dito-core/src/prompts.rs`, `crates/dito-core/src/command/`, `crates/dito-core/src/audio.rs`.
 
 ## Application writing styles
 

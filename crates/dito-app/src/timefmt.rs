@@ -14,6 +14,12 @@ pub fn hhmm(ts: i64, off: i32) -> String {
     format!("{:02}:{:02}", s / 3600, (s % 3600) / 60)
 }
 
+/// `HH:MM:SS.mmm` of unix milliseconds.
+pub fn clock_millis(ms: i64, off: i32) -> String {
+    let ms = (ms + off as i64 * 1000).rem_euclid(86_400_000);
+    format!("{:02}:{:02}:{:02}.{:03}", ms / 3_600_000, ms % 3_600_000 / 60_000, ms % 60_000 / 1000, ms % 1000)
+}
+
 pub fn ymd(day: i64) -> String {
     let d = time::OffsetDateTime::UNIX_EPOCH + time::Duration::days(day);
     format!("{:04}-{:02}-{:02}", d.year(), u8::from(d.month()), d.day())
@@ -33,6 +39,7 @@ mod tests {
         let ts = 20 * 3600; // 1970-01-01 20:00 UTC = 01-02 05:00 JST
         assert_eq!(local_day(ts, jst), 1);
         assert_eq!(hhmm(ts, jst), "05:00");
+        assert_eq!(clock_millis(ts * 1000 + 1_234, jst), "05:00:01.234");
         assert_eq!(ymd(1), "1970-01-02");
         assert_eq!(day_start(1, jst), 86_400 - jst as i64);
     }

@@ -12,7 +12,7 @@ use core_graphics::event::{
     CallbackResult, EventField,
 };
 
-use super::{Action, Machine, RawEvent, Shortcut};
+use super::{Action, Machine, RawEvent, SYNTHETIC_EVENT_MARK, Shortcut};
 
 #[derive(Debug, thiserror::Error)]
 pub enum HotkeyError {
@@ -47,6 +47,12 @@ impl HotkeyService {
         self.machine.lock().expect("hotkey machine lock").set_shortcut(s);
     }
 
+    /// A second shortcut, reported as [`Action::CommandDown`] and [`Action::CommandUp`]; `None` turns it off. The two
+    /// shortcuts never fire together, and when both are the same the main one wins.
+    pub fn set_command_shortcut(&self, s: Option<Shortcut>) {
+        self.machine.lock().expect("hotkey machine lock").set_command_shortcut(s);
+    }
+
     /// The next shortcut the user presses is reported as [`Action::Captured`]; Esc reports `CaptureCancelled`.
     pub fn begin_capture(&self) {
         self.machine.lock().expect("hotkey machine lock").begin_capture();
@@ -59,6 +65,12 @@ impl HotkeyService {
     /// Consume Esc while a dictation is on screen, so it does not also reach the frontmost app.
     pub fn set_swallow_escape(&self, on: bool) {
         self.machine.lock().expect("hotkey machine lock").swallow_escape = on;
+    }
+
+    /// While `on`, Esc is neither reported nor swallowed, so the input method of a HUD text field can cancel its
+    /// composition with it.
+    pub fn set_escape_to_ime(&self, on: bool) {
+        self.machine.lock().expect("hotkey machine lock").escape_to_ime = on;
     }
 }
 
@@ -108,6 +120,9 @@ fn tap_callback(
     reenable: Arc<AtomicBool>,
 ) -> impl Fn(CGEventTapProxy, CGEventType, &CGEvent) -> CallbackResult + 'static {
     move |_proxy, etype, event| {
+        if event.get_integer_value_field(EventField::EVENT_SOURCE_USER_DATA) == SYNTHETIC_EVENT_MARK {
+            return CallbackResult::Keep;
+        }
         let code = || event.get_integer_value_field(EventField::KEYBOARD_EVENT_KEYCODE) as u16;
         let flags = event.get_flags().bits();
         let raw = match etype {

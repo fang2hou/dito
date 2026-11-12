@@ -3,7 +3,9 @@ mod dev;
 mod dock;
 mod hotkeys;
 mod hud;
+mod logbook;
 mod mac_focus_warmer;
+mod mac_selection;
 mod menubar;
 mod onboarding;
 mod opts;
@@ -24,14 +26,7 @@ use crate::opts::Opts;
 use crate::state::AppState;
 
 fn main() -> Result<()> {
-    tracing_subscriber::fmt()
-        .with_writer(std::io::stdout)
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::from_default_env()
-                .add_directive("dito=info".parse()?)
-                .add_directive("dito_audio=debug".parse()?),
-        )
-        .init();
+    logbook::install()?;
     let opts = Opts::parse(std::env::args().skip(1))?;
     dito_core::i18n::set_system_language(opts.system_lang.unwrap_or_else(dito_platform::system::system_language));
     let rt = tokio::runtime::Builder::new_multi_thread().enable_all().thread_name("dito-rt").build()?;

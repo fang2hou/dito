@@ -6,20 +6,22 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use dito_core::config::{Appearance, DisplayLanguage, HudPosition, PreferredLanguage, RecordMode};
-use dito_core::controller::{Command, ErrorAction, HudState};
+use dito_core::controller::{Choice, Command, ErrorAction, HudState, ResultWrite};
 use dito_core::error::ErrorKind;
+use dito_core::intent::Intent;
 use gpui_kit::*;
 use image::RgbaImage;
 
 use super::input;
 
 use super::capture::{
-    BACKDROP_DARK, BACKDROP_LIGHT, BACKDROP_WHITE, close_window, open_hud_window, over_backdrop, render, save,
-    theme_tag, wait_for_frame,
+    BACKDROP_DARK, BACKDROP_LIGHT, BACKDROP_WHITE, close_window, hud_view, open_hud_window, over_backdrop, render,
+    save, theme_tag, wait_for_frame,
 };
 use crate::hud::{HUD_SCALE, HudView, PreviewHover, WIN_PAD};
 use crate::services;
 use crate::state::AppState;
+use crate::ui::Root;
 
 struct HudCase {
     name: &'static str,
@@ -27,11 +29,24 @@ struct HudCase {
     seconds_in: f32,
     hover: PreviewHover,
     came_from: Option<HudState>,
+    /// A run started by the command shortcut.
+    command: bool,
+    /// Typed into the instruction field or the text window once it is open.
+    typed: Option<&'static str>,
 }
 
 impl HudCase {
     fn new(name: &'static str, state: HudState, seconds_in: f32) -> Self {
-        Self { name, state, seconds_in, hover: PreviewHover::Away, came_from: None }
+        Self { name, state, seconds_in, hover: PreviewHover::Away, came_from: None, command: false, typed: None }
+    }
+
+    fn command(name: &'static str, state: HudState, seconds_in: f32) -> Self {
+        Self { command: true, ..Self::new(name, state, seconds_in) }
+    }
+
+    fn typed(mut self, text: &'static str) -> Self {
+        self.typed = Some(text);
+        self
     }
 
     fn hovering(mut self, hover: PreviewHover) -> Self {
@@ -42,6 +57,15 @@ impl HudCase {
     fn after_hold(mut self) -> Self {
         self.came_from = Some(HudState::Listening { mode: RecordMode::Hold });
         self
+    }
+}
+
+const RESULT: &str = "お疲れさまです。ご相談の件、来週水曜までに資料をお送りします。ご確認をお願いします。";
+
+fn choosing() -> HudState {
+    let choice = |intent, percent| Choice { intent, percent };
+    HudState::Choosing {
+        choices: vec![choice(Intent::Summarize, 62), choice(Intent::Translate, 27), choice(Intent::Rewrite, 11)],
     }
 }
 
@@ -80,19 +104,63 @@ fn hud_cases() -> Vec<HudCase> {
         HudCase::new("copy-flow", HudState::Copied, 0.47),
         HudCase::new("copy-overshoot", HudState::Copied, 0.56),
         HudCase::new("copy-settled", HudState::Copied, 0.90),
+        HudCase::command("cmd-listening", toggle(), 1.0),
+        HudCase::command("cmd-listening-hover", toggle(), 1.0).hovering(PreviewHover::Zone),
+        HudCase::command("cmd-hover-finish", toggle(), 1.0).hovering(PreviewHover::Action),
+        HudCase::command("cmd-transcribing", HudState::Transcribing, 1.48),
+        HudCase::command("cmd-thinking", HudState::Thinking, 1.0),
+        HudCase::command("cmd-working", HudState::Working, 1.2),
+        HudCase::command("cmd-replaced", HudState::Replaced, 0.0),
+        HudCase::command("cmd-not-recognized", HudState::NotRecognized, 0.0),
+        HudCase::command("cmd-choosing", choosing(), 1.0),
+        HudCase::command("cmd-typing-empty", HudState::TypingInstruction, 1.0),
+        HudCase::command("cmd-typing-one", HudState::TypingInstruction, 1.0).typed("敬語に直して"),
+        HudCase::command("cmd-typing-two", HudState::TypingInstruction, 1.0)
+            .typed("敬語に直して、最後に日程の確認を一文足して"),
+        HudCase::command("cmd-typing-three", HudState::TypingInstruction, 1.0)
+            .typed("敬語に直して、最後に日程の確認を一文足して。相手は取引先の部長です。\nできるだけ短く、三行で"),
+        HudCase::command("cmd-needs-text-empty", HudState::NeedsText, 1.0),
+        HudCase::command("cmd-needs-text", HudState::NeedsText, 1.0).typed(
+            "お疲れさまです。先日ご相談した件ですが、来週の水曜日までに資料をまとめてお送りしますので、ご確認いただけますと幸いです。",
+        ),
+        HudCase::command("cmd-answer", HudState::Answer { text: RESULT.into() }, 1.0),
+        HudCase::command("cmd-confirm", HudState::Confirm { text: RESULT.into(), write: ResultWrite::ReplaceSelection }, 1.0),
+        HudCase::command(
+            "cmd-confirm-reply",
+            HudState::Confirm { text: RESULT.into(), write: ResultWrite::CopyOnly },
+            1.0,
+        ),
+        HudCase::command(
+            "cmd-confirm-long",
+            HudState::Confirm { text: RESULT.repeat(8), write: ResultWrite::ReplaceSelection },
+            1.0,
+        ),
     ]
 }
 
 pub async fn hud_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
-    for case in hud_cases() {
+    // `DITO_HUD_CASES=cmd-` renders only the cases whose name starts with it.
+    let only = std::env::var("DITO_HUD_CASES").ok();
+    for case in hud_cases().into_iter().filter(|c| only.as_deref().is_none_or(|p| c.name.starts_with(p))) {
         for dark in [true, false] {
             let appearance = if dark { Appearance::Dark } else { Appearance::Light };
             services::save_config(st, |c| c.general.hud_appearance = appearance);
             let (st, state) = (st.clone(), case.state.clone());
             let (seconds, hover, came_from) = (case.seconds_in, case.hover, case.came_from.clone());
-            let opened = open_hud_window(cx, move |_| HudView::preview(st, state, seconds, hover, came_from));
+            let command = case.command;
+            let opened = open_hud_window(cx, move |_| {
+                let view = HudView::preview(st, state, seconds, hover, came_from);
+                if command { view.commanded() } else { view }
+            });
             let Some(window) = opened else { continue };
             cx.background_executor().timer(Duration::from_millis(350)).await;
+            if let Some(typed) = case.typed {
+                let view = hud_view(cx, window).expect("HUD view");
+                let _ = cx.update(|cx| {
+                    cx.update_window(window.into(), |_, w, cx| view.update(cx, |v, cx| v.preview_text(typed, w, cx)))
+                });
+                cx.background_executor().timer(Duration::from_millis(350)).await;
+            }
             if case.name == "listening-lang" {
                 let _ = cx.update(|cx| {
                     cx.update_window(window.into(), |_, w, cx| input::hover(w, cx, point(px(95.), px(102.))))
@@ -294,6 +362,135 @@ pub async fn hud_live_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     });
 }
 
+/// Drives a whole command through the live HUD window, with the mock selection and router: choice, confirm, replace.
+/// Opt-in: `DITO_SHOTS_ONLY=hudcommand`.
+pub async fn hud_command_live_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
+    let before = st.cfg.get();
+    services::save_config(st, |c| {
+        c.general.record_mode = RecordMode::Toggle;
+        c.general.hud_position = HudPosition::Centered;
+        c.general.hud_appearance = Appearance::Dark;
+        c.general.confirm_before_replace = false;
+    });
+    cx.update(|cx| crate::hud::run(st.clone(), cx));
+    let hud = st.dictation.hud();
+    let describe = |hud: &tokio::sync::watch::Receiver<HudState>| format!("{:?}", hud.borrow().clone());
+    st.dictation.send(Command::CommandKeyDown);
+    cx.background_executor().timer(Duration::from_millis(600)).await;
+    println!("hudcommand listening: {}", describe(&hud));
+    st.dictation.send(Command::CommandKeyUp);
+    st.dictation.send(Command::Finish);
+    cx.background_executor().timer(Duration::from_millis(1500)).await;
+    println!("hudcommand after finish: {}", describe(&hud));
+    let window = cx.update(|cx| crate::hud::live_window(cx)).expect("live HUD");
+    let live = |cx: &mut AsyncApp, name: &str| {
+        if let Some(img) = render(cx, window) {
+            save(dir, &format!("hudcommand-{name}.png"), over_backdrop(&img, BACKDROP_DARK));
+        }
+    };
+    live(cx, "1-choosing");
+    let click = |cx: &mut AsyncApp, x: f32, y: f32| {
+        let _ = cx.update(|cx| cx.update_window(window, |_, w, cx| input::click(w, cx, point(px(x), px(y)))));
+    };
+    // The likeliest choice: the first button of the row, in the window's own coordinates.
+    click(cx, 100., 290.);
+    cx.background_executor().timer(Duration::from_millis(1500)).await;
+    println!("hudcommand after choosing: {}", describe(&hud));
+    live(cx, "2-after-choice");
+    let active = cx.update(|cx| cx.update_window(window, |_, w, _| w.is_window_active())).ok();
+    println!("hudcommand panel key: {active:?}");
+    let regions = cx.update(|cx| {
+        let root = window.downcast::<Root>()?;
+        let view = root.update(cx, |root, _, _| root.view().clone().downcast::<HudView>().ok()).ok()??;
+        // Inside the window, on its action row, in the empty space beside it and on the capsule's row.
+        Some(
+            [(180., 250.), (140., 105.), (20., 250.), (180., 400.)].map(|(x, y)| view.read(cx).command_region_at(x, y)),
+        )
+    });
+    println!("hudcommand regions (window, action, aside, capsule row): {regions:?}");
+    st.dictation.send(Command::Dismiss);
+    cx.background_executor().timer(Duration::from_millis(400)).await;
+
+    // The keyboard button: type an instruction, send it with Enter.
+    st.dictation.send(Command::CommandKeyDown);
+    cx.background_executor().timer(Duration::from_millis(400)).await;
+    st.dictation.send(Command::TypeInstruction);
+    cx.background_executor().timer(Duration::from_millis(600)).await;
+    println!("hudcommand typing: {}", describe(&hud));
+    let window = cx.update(|cx| crate::hud::live_window(cx)).expect("live HUD");
+    let view = cx.update(|cx| {
+        let root = window.downcast::<Root>()?;
+        root.update(cx, |root, _, _| root.view().clone().downcast::<HudView>().ok()).ok()?
+    });
+    if let Some(view) = view {
+        let _ = cx.update(|cx| {
+            cx.update_window(window, |_, w, cx| view.update(cx, |v, cx| v.preview_text("整形して", w, cx)))
+        });
+        cx.background_executor().timer(Duration::from_millis(300)).await;
+        let key = cx.update(|cx| cx.update_window(window, |_, w, _| w.is_window_active())).ok();
+        println!("hudcommand typing panel key: {key:?}");
+        let _ = cx.update(|cx| cx.update_window(window, |_, w, cx| input::press_key(w, cx, "enter")));
+        cx.background_executor().timer(Duration::from_millis(1500)).await;
+        println!("hudcommand after enter: {}", describe(&hud));
+    }
+    st.dictation.send(Command::Dismiss);
+    cx.background_executor().timer(Duration::from_millis(300)).await;
+    services::save_config(st, |c| {
+        c.general.record_mode = before.general.record_mode;
+        c.general.hud_position = before.general.hud_position;
+        c.general.hud_appearance = before.general.hud_appearance;
+        c.general.confirm_before_replace = before.general.confirm_before_replace;
+    });
+}
+
+/// Drives the chord hold through the live HUD window: the dictation key down first, then Shift inside the wait, after
+/// the wait, or never. Opt-in: `DITO_SHOTS_ONLY=hudchord`. Frames are named by the milliseconds since the first key.
+pub async fn hud_chord_live_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
+    let before = st.cfg.get();
+    services::save_config(st, |c| {
+        c.general.record_mode = RecordMode::Toggle;
+        c.general.hud_position = HudPosition::Centered;
+        c.general.hud_appearance = Appearance::Dark;
+    });
+    cx.update(|cx| crate::hud::run(st.clone(), cx));
+    let hud = st.dictation.hud();
+    // (name, when Shift goes down in ms, or never)
+    let cases: [(&str, Option<u64>); 3] = [("inside", Some(60)), ("never", None), ("after", Some(260))];
+    for (name, shift_at) in cases {
+        let pressed = Instant::now();
+        st.dictation.send(Command::KeyDownMayHandOver);
+        let mut shifted = false;
+        let mut last = None;
+        while pressed.elapsed() < Duration::from_millis(700) {
+            let ms = pressed.elapsed().as_millis() as u64;
+            if !shifted && shift_at.is_some_and(|at| ms >= at) {
+                st.dictation.send(Command::KeyToCommand);
+                shifted = true;
+                println!("hudchord {name}: KeyToCommand sent at {ms} ms");
+            }
+            let state = hud.borrow().clone();
+            let kind = st.dictation.run_kind();
+            if last.as_ref() != Some(&(state.clone(), kind)) {
+                println!("hudchord {name}: {ms:4} ms hud {state:?}, run {kind:?}");
+                last = Some((state, kind));
+            }
+            let window = cx.update(|cx| crate::hud::live_window(cx));
+            if let Some(img) = window.and_then(|window| render(cx, window)) {
+                println!("hudchord {name}: {ms:4} ms frame");
+                save(dir, &format!("hudchord-{name}-{ms:04}.png"), over_backdrop(&img, BACKDROP_DARK));
+            }
+            cx.background_executor().timer(Duration::from_millis(8)).await;
+        }
+        st.dictation.send(Command::Cancel);
+        cx.background_executor().timer(Duration::from_millis(500)).await;
+    }
+    services::save_config(st, |c| {
+        c.general.record_mode = before.general.record_mode;
+        c.general.hud_position = before.general.hud_position;
+        c.general.hud_appearance = before.general.hud_appearance;
+    });
+}
+
 pub async fn hud_tooltip_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     let original = st.cfg.get();
     for dark in [false, true] {
@@ -387,7 +584,8 @@ pub async fn hud_interaction_shots(st: &Arc<AppState>, dir: &Path, cx: &mut Asyn
             ("returned", 146.5, 101.5, 180),
             ("exit", 10., 10., 500),
         ] {
-            window.update(cx, |view, _, cx| view.preview_pointer(x, y, cx)).expect("pointer poll");
+            let view = hud_view(cx, window).expect("HUD view");
+            cx.update(|cx| view.update(cx, |view, cx| view.preview_pointer(x, y, cx)));
             cx.background_executor().timer(Duration::from_millis(delay)).await;
             let image = render(cx, window).expect("Stop frame");
             save(dir, &format!("stop-{tag}-{name}.png"), over_backdrop(&image, backdrop));

@@ -89,6 +89,9 @@ async fn render_app_shots(st: &Arc<AppState>, dir: &Path, groups: &Groups, cx: &
     if groups.selects("status") {
         pages::status_shots(st, dir, cx).await;
     }
+    if groups.selects("statuslog") {
+        pages::status_log_shots(st, dir, cx).await;
+    }
     #[cfg(feature = "mock")]
     if groups.selects("inlineasr") {
         super::inline_asr::run(st, dir, cx).await;
@@ -147,6 +150,12 @@ async fn render_preview_shots(st: &Arc<AppState>, dir: &Path, groups: &Groups, c
     }
     if groups.selects("hudlive") {
         hud::hud_live_shots(st, dir, cx).await;
+    }
+    if groups.selects("hudcommand") {
+        hud::hud_command_live_shots(st, dir, cx).await;
+    }
+    if groups.selects("hudchord") {
+        hud::hud_chord_live_shots(st, dir, cx).await;
     }
     if groups.selects("demolive") {
         demo::demo_live_shots(dir, cx).await;

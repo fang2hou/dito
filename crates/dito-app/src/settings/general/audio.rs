@@ -16,8 +16,20 @@ impl GeneralPage {
             &p,
             c.t(Tr::GeneralSpeechRecognition),
             vec![
-                ui::row(&p, c.t(Tr::GeneralMicrophone), self.microphone_select(c, cx), false),
-                ui::row(&p, c.t(Tr::GeneralPreferredLanguage), self.preferred_language_select(c, cx), true),
+                ui::row_described(
+                    &p,
+                    c.t(Tr::GeneralMicrophone),
+                    c.t(Tr::GeneralMicrophoneHint),
+                    self.microphone_select(c, cx),
+                    false,
+                ),
+                ui::row_described(
+                    &p,
+                    c.t(Tr::GeneralPreferredLanguage),
+                    c.t(Tr::GeneralPreferredLanguageHint),
+                    self.preferred_language_select(c, cx),
+                    true,
+                ),
             ],
         )
     }
@@ -35,7 +47,7 @@ impl GeneralPage {
     fn microphone_items(&self, c: &Ctx, names: &[String]) -> Vec<SelectItem> {
         let cfg = self.st.cfg.get();
         let g = &cfg.general;
-        let mut items = vec![SelectItem { label: c.t(Tr::GeneralAutomaticRecommended), badge: None }];
+        let mut items = vec![SelectItem { label: c.t(Tr::GeneralAutomatic), badge: None }];
         items.extend(names.iter().map(|name| {
             let badge = self.devices.iter().find(|d| d.name == *name).map(|d| {
                 let on = d.auto(&g.microphone_auto);

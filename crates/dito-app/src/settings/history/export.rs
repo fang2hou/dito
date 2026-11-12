@@ -44,6 +44,9 @@ mod tests {
             error: None,
             audio_path: None,
             engines: EngineLabels::default(),
+            timings: Default::default(),
+            source: None,
+            command: None,
         }
     }
 

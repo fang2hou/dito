@@ -5,20 +5,29 @@ use std::sync::Arc;
 use dito_core::config::HudPosition;
 use dito_core::controller::HudState;
 use dito_platform::system::{
-    HudFollowState, HudNativeWindow, HudWindowMove, NapGuard, PointerContact, pointer_location,
+    HudFollowState, HudNativeWindow, HudWindowMove, NapGuard, PointerContact, give_front_back, pointer_location,
+    source_app_in_front,
 };
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 
 use crate::state::AppState;
+use crate::ui::{self, Root};
 
 use super::px;
-use super::view::HudView;
+use super::view::{HudView, KeyStep};
 
-pub const WIN_W: f32 = 273.0;
-pub const WIN_H: f32 = 180.0;
+/// The window is fixed in size. It is bottom anchored, so the capsule keeps its screen position; the room above it
+/// (350 pt from the window's top to the capsule) holds the command windows, their action buttons and a tooltip, and
+/// the width holds the widest window (320 pt) with its shadow.
+pub const WIN_W: f32 = 340.0;
+pub const WIN_H: f32 = 408.0;
 pub const WIN_PAD: f32 = 10.0;
+
+/// A command that writes waits at most 400 ms for the app that had the front to get it back.
+const FRONT_POLLS: u32 = 40;
+const FRONT_POLL: std::time::Duration = std::time::Duration::from_millis(10);
 
 struct HudWindow {
     window: AnyWindowHandle,
@@ -68,12 +77,17 @@ fn open_window(st: Arc<AppState>, cx: &mut App) {
     }
     let Some(opts) = window_options(&st, cx) else { return };
     let settings = st.clone();
+    let mut view_slot = None;
+    // Its text fields need a `Root`, like every window with inputs; transparent so only the HUD's own surfaces show.
     match cx.open_window(opts, |window, cx| {
         configure_native_window(window);
-        cx.new(|cx| HudView::new(st, cx))
+        let view = cx.new(|cx| HudView::new(st, cx));
+        view_slot = Some(view.clone());
+        cx.new(|cx| Root::new(view, window, cx).bg(ui::transparent()))
     }) {
         Ok(handle) => {
-            let placement = spawn_placement_loop(handle, settings, cx);
+            let view = view_slot.expect("the HUD view is built with its window");
+            let placement = spawn_placement_loop(handle, view, settings, cx);
             cx.set_global(HudWindow {
                 window: handle.into(),
                 _nap: NapGuard::new("dictation-hud"),
@@ -85,17 +99,39 @@ fn open_window(st: Arc<AppState>, cx: &mut App) {
 }
 
 /// Poll near the display cadence so a non-key panel can track hover and click-through.
-fn spawn_placement_loop(handle: WindowHandle<HudView>, settings: Arc<AppState>, cx: &mut App) -> Task<()> {
+fn spawn_placement_loop(
+    handle: WindowHandle<Root>,
+    view: Entity<HudView>,
+    settings: Arc<AppState>,
+    cx: &mut App,
+) -> Task<()> {
     cx.spawn(async move |cx| {
         let mut placement = Placement::default();
         loop {
-            let Ok((movement, interval)) =
-                handle.update(cx, |view, window, cx| placement.tick(&settings, view, window, cx))
+            let Ok((movement, key, interval)) = handle
+                .update(cx, |_, window, cx| view.update(cx, |view, cx| placement.tick(&settings, view, window, cx)))
             else {
                 break;
             };
+            // AppKit calls back into gpui synchronously for both, so they run after the app borrow is released.
             if let Some(movement) = movement {
                 movement.apply();
+            }
+            if let Some(step) = key {
+                if let Some(change) = step.change {
+                    change.apply();
+                }
+                // A command that writes into the source app goes out once the panel has given key status back and
+                // that app has the front again.
+                if let Some(command) = step.then {
+                    for _ in 0..FRONT_POLLS {
+                        if source_app_in_front() {
+                            break;
+                        }
+                        cx.background_executor().timer(FRONT_POLL).await;
+                    }
+                    settings.dictation.send(command);
+                }
             }
             cx.background_executor().timer(interval).await;
         }
@@ -106,6 +142,8 @@ fn spawn_placement_loop(handle: WindowHandle<HudView>, settings: Arc<AppState>, 
 struct Placement {
     applied: Option<(HudPosition, i32)>,
     follow: HudFollowState,
+    /// What the hotkey tap was last told about composing text in a field.
+    composing: bool,
 }
 
 impl Placement {
@@ -115,9 +153,15 @@ impl Placement {
         view: &mut HudView,
         window: &mut Window,
         cx: &mut Context<HudView>,
-    ) -> (Option<HudWindowMove>, std::time::Duration) {
+    ) -> (Option<HudWindowMove>, Option<KeyStep>, std::time::Duration) {
         let fallback = std::time::Duration::from_millis(8);
-        let Some(native) = native_window(window) else { return (None, fallback) };
+        let (accepts, then) = view.sync_key_status(window, cx);
+        let composing = view.composing(window, cx);
+        if composing != self.composing {
+            self.composing = composing;
+            settings.hotkeys.set_escape_to_ime(composing);
+        }
+        let Some(native) = native_window(window) else { return (None, None, fallback) };
         let cfg = settings.cfg.get();
         let clearance = cfg.general.hud_clearance();
         let current = (cfg.general.hud_position, clearance);
@@ -127,7 +171,9 @@ impl Placement {
         }
         let interval =
             window.refresh_interval(cx).unwrap_or(fallback).clamp(std::time::Duration::from_millis(4), fallback);
-        let Some(pointer) = native.pointer() else { return (None, interval) };
+        let key = (accepts.is_some() || then.is_some())
+            .then(|| KeyStep { change: accepts.map(|accepts| native.set_accepts_key(accepts)), then });
+        let Some(pointer) = native.pointer() else { return (None, key, interval) };
         let interactive = view.pointer_update(pointer.x, pointer.y, cx);
         // Keep the down/up pair on the same target while a button is held.
         if !pointer.button_down {
@@ -143,7 +189,7 @@ impl Placement {
                 native.follow_pointer(&mut self.follow, contact)
             }
         };
-        (movement, interval)
+        (movement, key, interval)
     }
 }
 
@@ -158,7 +204,7 @@ fn configure_native_window(window: &Window) {
     native.keep_panel_inactive();
 }
 
-fn native_window(window: &Window) -> Option<HudNativeWindow<'_>> {
+pub(super) fn native_window(window: &Window) -> Option<HudNativeWindow<'_>> {
     let handle = HasWindowHandle::window_handle(window).ok()?;
     let RawWindowHandle::AppKit(h) = handle.as_raw() else { return None };
     // SAFETY: the view belongs to `window`, which the borrow keeps alive.
@@ -174,6 +220,9 @@ fn close_window(cx: &mut App) {
     if let Some(h) = cx.try_global::<HudWindow>().map(|h| h.window) {
         let _ = h.update(cx, |_, window, _| window.remove_window());
         cx.remove_global::<HudWindow>();
+        // The placement loop ends with the window, so a text window that closes while it holds the front hands it
+        // back here.
+        give_front_back();
     }
 }
 
@@ -187,6 +236,9 @@ pub fn run(st: Arc<AppState>, cx: &mut App) {
             }
             let visible = now != HudState::Hidden;
             st.hotkeys.set_swallow_escape(visible);
+            if !visible {
+                st.hotkeys.set_escape_to_ime(false);
+            }
             let st2 = st.clone();
             cx.update(|cx| {
                 if visible {

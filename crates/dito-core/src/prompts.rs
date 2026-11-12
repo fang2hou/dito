@@ -586,7 +586,7 @@ fn push_reference_list<'a>(out: &mut String, list: &str, item: &str, entries: im
 }
 
 /// A fence inside the transcript is dropped, so the text cannot end its own block.
-fn fence(transcript: &str) -> String {
+pub(crate) fn fence(transcript: &str) -> String {
     let mut out = String::with_capacity(transcript.len() + 2 * (FENCE.len() + 1));
     out.push_str(FENCE);
     out.push('\n');
@@ -602,7 +602,7 @@ pub fn unfenced(turn: &str) -> &str {
 }
 
 /// Escape `&`, `<` and `>` so untrusted reference data can neither close its XML container nor spell a ChatML token.
-fn escape_reference(text: &str) -> String {
+pub(crate) fn escape_reference(text: &str) -> String {
     text.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
 }
 

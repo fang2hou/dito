@@ -160,8 +160,11 @@ impl Frame {
             fill,
             outcome_t,
             entry: super::motion::EntryPose::at(self.time, self.motion),
+            command: false,
         }
-        .element(&mut |button, scale| static_button(button, scale, &palette).shadow(Vec::new()).into_any_element())
+        .element(&mut |button, scale| {
+            static_button(button, scale, &palette, false).shadow(Vec::new()).into_any_element()
+        })
         .shadow(Vec::new())
     }
 }

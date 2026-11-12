@@ -22,10 +22,34 @@ impl GeneralPage {
             &p,
             c.t(Tr::GeneralSystem),
             vec![
-                ui::row(&p, c.t(Tr::GeneralLaunchAtLogin), self.launch_at_login_switch(&p), false),
-                ui::row(&p, c.t(Tr::GeneralShowDockIcon), self.show_dock_icon_switch(&p), false),
-                ui::row(&p, c.t(Tr::GeneralAppearance), self.appearance_seg(c), false),
-                ui::row(&p, c.t(Tr::GeneralDisplayLanguage), self.display_language_select(c, cx), true),
+                ui::row_described(
+                    &p,
+                    c.t(Tr::GeneralLaunchAtLogin),
+                    c.t(Tr::GeneralLaunchAtLoginHint),
+                    self.launch_at_login_switch(&p),
+                    false,
+                ),
+                ui::row_described(
+                    &p,
+                    c.t(Tr::GeneralShowDockIcon),
+                    c.t(Tr::GeneralShowDockIconHint),
+                    self.show_dock_icon_switch(&p),
+                    false,
+                ),
+                ui::row_described(
+                    &p,
+                    c.t(Tr::GeneralAppearance),
+                    c.t(Tr::GeneralAppearanceHint),
+                    self.appearance_seg(c),
+                    false,
+                ),
+                ui::row_described(
+                    &p,
+                    c.t(Tr::GeneralDisplayLanguage),
+                    c.t(Tr::GeneralDisplayLanguageHint),
+                    self.display_language_select(c, cx),
+                    true,
+                ),
             ],
         )
     }
@@ -37,11 +61,24 @@ impl GeneralPage {
             &p,
             c.t(Tr::GeneralHud),
             vec![
-                ui::row(&p, c.t(Tr::GeneralHudLanguageShortcuts), self.hud_language_select(c, cx), false),
-                ui::row(&p, c.t(Tr::GeneralHudAppearance), self.hud_appearance_control(c, cx), false),
-                ui::row(
+                ui::row_described(
+                    &p,
+                    c.t(Tr::GeneralHudLanguageShortcuts),
+                    c.t(Tr::GeneralHudLanguageShortcutsHint),
+                    self.hud_language_select(c, cx),
+                    false,
+                ),
+                ui::row_described(
+                    &p,
+                    c.t(Tr::GeneralHudAppearance),
+                    c.t(Tr::GeneralHudAppearanceHint),
+                    self.hud_appearance_control(c, cx),
+                    false,
+                ),
+                ui::row_described(
                     &p,
                     c.t(Tr::GeneralHudPosition),
+                    c.t(Tr::GeneralHudPositionHint),
                     self.hud_position_seg(c),
                     self.st.cfg.get().general.hud_position == HudPosition::Pointer,
                 ),
@@ -203,13 +240,14 @@ impl GeneralPage {
         let p = c.p;
         let hud_height = self.hud_height.clone();
         let height_title = c.t(Tr::GeneralHudHeight);
+        let height_hint = c.t(Tr::GeneralHudHeightHint);
         let target = if self.st.cfg.get().general.hud_position == HudPosition::Centered { 1. } else { 0. };
         let duration = if system::reduce_motion() { 1 } else { 180 };
         div().w_full().child(ui::tweened(ElementId::from("hud-height-row"), target, duration, move |v| {
             let row = div().relative().w_full().h(px(64. * v)).overflow_hidden();
             if v > 0.001 {
                 // Fade the finished control against its surface, not each overlapping primitive.
-                row.child(ui::row(&p, height_title.clone(), hud_height.clone(), true))
+                row.child(ui::row_described(&p, height_title.clone(), height_hint.clone(), hud_height.clone(), true))
                     .child(div().absolute().inset_0().bg(p.card.opacity(1. - v)))
             } else {
                 row

@@ -3,6 +3,7 @@
 use std::path::Path;
 use std::time::{Duration, Instant};
 
+use dito_core::trace_log;
 use futures_util::StreamExt;
 use sha2::{Digest, Sha256};
 use tokio::io::AsyncWriteExt;
@@ -85,11 +86,19 @@ pub async fn fetch(
     on_progress: &mut (dyn FnMut(Phase) + Send),
 ) -> Result<(), DlError> {
     let have = resumable_len(t).await?;
+    let name = t.dest.file_name().map(|name| name.to_string_lossy().into_owned());
+    trace_log!(file = ?name, size = t.size, resume_from = have, "model file transfer");
     if have < t.size {
         let (response, file, start) = begin_transfer(client, t, have, cancel).await?;
+        trace_log!(file = ?name, body_starts_at = start, "model file response accepted");
         stream_body(response, file, start, cancel, on_progress).await?;
     }
-    verify_and_install(t, cancel, on_progress).await
+    let verified = verify_and_install(t, cancel, on_progress).await;
+    match &verified {
+        Ok(()) => trace_log!(file = ?name, "model file verified and installed"),
+        Err(error) => trace_log!(file = ?name, %error, "model file was not installed"),
+    }
+    verified
 }
 
 /// Bytes already in `.part`; a file larger than expected cannot be resumed and is discarded.

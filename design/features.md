@@ -14,18 +14,28 @@ What the app is for and what it does, from the user's side. How it looks and mov
 ## Dictation
 
 - Press the shortcut (right ⌘ alone by default), speak, and the speech is transcribed, optionally polished, and typed at the cursor.
-- **Toggle mode** (default): press to start, press again to finish. **Hold mode**: speak while holding, release to finish.
-- Esc or × cancels while recording; ✓ finishes; Stop cancels transcription or polishing.
-- A lone-modifier shortcut followed quickly by another key counts as typing, not as a dictation.
+- **Toggle mode** (default): press to start, press again to finish; while recording, a press of either shortcut (dictation or command) finishes the run, whichever kind it is. **Hold mode**: speak while holding, release to finish.
+- Esc or × cancels while recording, for a dictation and for a command; ✓ finishes; Stop cancels transcription or polishing.
+- A lone-modifier shortcut followed quickly (within 0.4 s) by another key counts as typing, not as a dictation. It only drops the recording that press just started, never one that was already running.
 - Recordings stop at 5 minutes; a countdown appears in the last minute.
 - Insertion uses key input (default) or paste, with automatic fallback, and restores the clipboard afterwards.
 - Other audio is muted while the microphone is live (on by default).
 - Silent or very short clips are discarded quietly.
 - The polishing style follows the app in front: the built-in Slack, Teams and Herdr styles when those apps are installed, custom app styles, or Other.
 
+## Command
+
+- Select text in any app, press the command shortcut (Shift plus the dictation shortcut by default, so ⇧ right ⌘ at first; it follows the dictation shortcut until you set your own in General) and say what to do with it: polish, rewrite, translate, summarize, reply to it or ask something about it. A polish, rewrite or translation replaces the selection; a reply is the response to a message you received, shown for confirmation with Copy only, never written over the message or inserted. Text that cannot be edited (a preview, a web page, a read-only view) is never written over: the confirm window opens with Copy only, as for a reply, and only an editable selection whose write fails falls back to the gold Copied outcome. Apps that expose no text to Accessibility, such as Zed, are read by copying the selection (also in a read-only preview, where the Edit menu's Copy item stays disabled); the clipboard is put back as it was, and the result is pasted over the selection when the app's Cut item shows it can be edited.
+- The two keys of the default command shortcut can go down in either order. When the dictation modifier lands first and Shift follows within 0.4 s, the recording that just started becomes a command in place (the selection is read then and the capsule turns blue) instead of being cancelled and started again; Shift added later is ignored. Recording starts at the first key either way, but the capsule waits up to 150 ms for Shift: with Shift it pops in blue and never gold, without it pops in gold 150 ms later than a plain dictation, and a typing chord such as Cmd+C inside the wait shows no capsule at all. Shift after the wait fades the visible gold capsule to blue over 160 ms (the reverse handover fades back the same way). The gap between the two keys is logged as `chord_gap_ms` for tuning the wait. The selection is read again when the recording ends, so you can change it while you speak; if that second reading fails, the first one stands. In toggle mode press once, speak, and press again to finish; Esc cancels.
+- The instruction can be typed instead: hovering the capsule shows a keyboard button that opens a field. A polish button next to it polishes the selection at once.
+- The capsule turns blue for a command and shows only the state: transcribing, thinking, working, then a blue check.
+- A small window opens above the capsule only when needed: to choose between tools when the instruction is unclear, to enter text when nothing is selected, to confirm a result before it replaces the selection (always for a summary, for everything with the setting on), and to show the answer to a question. A reply always waits for confirmation. Something Dito cannot do, such as "send this to Sato", is not a command: nothing runs, and a gray capsule says the instruction was not recognized, then hides after 3 s. A question asked with nothing selected is answered on its own, without the text of the field around the cursor.
+- A command needs a local polish model, which also decides what the instruction asks for.
+- One step per instruction for now.
+
 ## HUD
 
-- A small capsule above the Dock, or following the pointer. It never takes focus and stays above app windows.
+- A small capsule above the Dock, or following the pointer. It never takes focus and stays above app windows. Only a command window with a text field takes the keyboard, and gives it back when it closes.
 - States: listening (with a live waveform), transcribing, polishing, inserted, copied, and errors (authentication, no speech, microphone, network, other).
 - Errors explain the reason and offer Retry or Open Settings; they close after 3 seconds, and hovering keeps them open.
 - Hovering shows the speech language selector, button tooltips and the Stop button.
@@ -35,7 +45,7 @@ What the app is for and what it does, from the user's side. How it looks and mov
 
 | Page | What it does |
 | --- | --- |
-| 一般 (General) | Shortcut, record mode, insert method, music mute, microphone (automatic or fixed), speech language, display language, appearance, HUD appearance and position, launch at login, restart onboarding |
+| 一般 (General) | Shortcut, record mode, insert method, command shortcut (with a button back to the default; never the same as the dictation shortcut), music mute, microphone (automatic or fixed), speech language, display language, appearance, HUD appearance and position, launch at login, restart onboarding |
 | モデル (Models) | Local models (download, pause, resume, verify, delete, switch with 使用する, move the folder), with request parameters per local polish model; cloud configurations for speech and for polishing, shown as a scrolling row of tiles that can be added from a template (FunASR, Qwen ASR, OpenRouter for speech; Azure OpenAI, Amazon Bedrock, OpenAI-compatible for polishing), duplicated, renamed, reordered by dragging and deleted; cloud speech edits the full request in the inline JSON editor with valid-draft autosave, native undo and redo, and a single documentation help dialog with four scrollable reference cards; cloud polishing has request parameters (temperature, top-p, max tokens, reasoning effort, extra JSON); connection tests |
 | 単語帳 (Wordbook) | Words passed to speech recognition as hotwords, optionally also to polishing; import, export and confirmed bulk deletion; a banner when an action fails |
 | プロンプト (Prompts) | Shared rules and app writing styles per language, installed-app icons, add or remove an app style, copy settings to another app, optional style examples and a safe preview. `design:settings/prompts`: taller editors, grouped undo and redo, draft autosave, scoped reset confirmation and plain-text before and after panes |

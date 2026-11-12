@@ -11,7 +11,7 @@ const FOCUS_POLL: Duration = Duration::from_millis(30);
 /// can take over a second). Normally the tree is warmed while the user speaks; this budget is
 /// the backstop for very short utterances.
 const AX_TREE_BUDGET: Duration = Duration::from_millis(1500);
-const EDITABLE_ROLES: &[&str] = &["AXTextField", "AXTextArea", "AXComboBox", "AXSearchField"];
+pub(super) const EDITABLE_ROLES: &[&str] = &["AXTextField", "AXTextArea", "AXComboBox", "AXSearchField"];
 const MANUAL_ACCESSIBILITY: &str = "AXManualAccessibility";
 const DESCENDANT_BUDGET: usize = 32;
 const DESCENDANT_TIME: Duration = Duration::from_millis(80);
@@ -52,12 +52,12 @@ pub(super) fn own_pid() -> i32 {
     std::process::id() as i32
 }
 
-fn is_trusted() -> bool {
+pub(super) fn is_trusted() -> bool {
     permissions::status(Permission::Accessibility) == Status::Granted
 }
 
 /// The frontmost app's process id, unless that app is dito itself.
-fn frontmost_foreign_pid() -> Option<i32> {
+pub(super) fn frontmost_foreign_pid() -> Option<i32> {
     let pid = NSWorkspace::sharedWorkspace().frontmostApplication()?.processIdentifier();
     (pid != own_pid()).then_some(pid)
 }
@@ -118,6 +118,54 @@ pub(super) fn read_focus() -> Option<FocusTarget> {
         });
     }
     app_focus.or(global)
+}
+
+/// The focused element of the app in front. When keyboard focus sits on one of dito's own windows the frontmost foreign
+/// app is asked instead, so the source of a selection is found even while a dito panel is key.
+fn read_focused_foreign_element() -> Option<AxElement> {
+    let system = AxElement::system_wide()?;
+    let global = system.element("AXFocusedUIElement").filter(|element| element.pid() != own_pid());
+    global.or_else(|| {
+        let app = system
+            .element("AXFocusedApplication")
+            .filter(|app| app.pid() != own_pid())
+            .or_else(|| AxElement::application(frontmost_foreign_pid()?))?;
+        app.element("AXFocusedUIElement")
+    })
+}
+
+/// Chromium-family apps answer nothing until their accessibility tree is switched on, so one empty read triggers that
+/// and waits one focus budget for the tree.
+pub(super) fn focused_foreign_element() -> Option<AxElement> {
+    if !is_trusted() {
+        return None;
+    }
+    if let Some(element) = read_focused_foreign_element() {
+        return Some(element.with_timeout(1.0));
+    }
+    enable_chromium_accessibility()?;
+    let deadline = Instant::now() + FOCUS_BUDGET;
+    while Instant::now() < deadline {
+        std::thread::sleep(FOCUS_POLL);
+        if let Some(element) = read_focused_foreign_element() {
+            return Some(element.with_timeout(1.0));
+        }
+    }
+    None
+}
+
+/// The process that owns the focused element, dito's own included. `None` when nothing can be read.
+pub(super) fn focused_pid() -> Option<i32> {
+    if !is_trusted() {
+        return None;
+    }
+    let system = AxElement::system_wide()?;
+    let focused = system.element("AXFocusedUIElement").or_else(|| {
+        let app =
+            system.element("AXFocusedApplication").or_else(|| AxElement::application(frontmost_foreign_pid()?))?;
+        app.element("AXFocusedUIElement")
+    });
+    focused.map(|element| element.pid())
 }
 
 /// Only inspect descendants the app explicitly marks focused. Another editable field in the

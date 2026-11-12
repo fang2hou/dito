@@ -1,3 +1,4 @@
+use std::cell::Cell;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -26,11 +27,13 @@ pub struct GeneralPage {
     /// Opening the list again replaces it, and dropping it ends the loop.
     _mic_poll: Option<Task<()>>,
     _permission_poll: Task<()>,
-    pub(super) capturing: bool,
+    pub(super) capture: CaptureState,
     pub(super) accessibility_ok: bool,
     pub(super) hud_preview: Option<Entity<StylePreview>>,
     pub(super) hud_height: Entity<HudHeightSlider>,
     pub(super) motion: ui::MotionScope,
+    /// Set during a render that drew a running fade, so the view asks for the next frame.
+    pub(super) fading: Cell<bool>,
 }
 
 impl GeneralPage {
@@ -38,7 +41,7 @@ impl GeneralPage {
         services::watch_config(&st, cx);
 
         ui::observe(st.hotkeys.capture.subscribe(), cx, |t, capture, cx| {
-            t.capturing = capture == CaptureState::Waiting;
+            t.capture = capture;
             cx.notify();
         });
 
@@ -72,6 +75,7 @@ impl GeneralPage {
         let hud_height = cx.new(|cx| HudHeightSlider::new(st.clone(), cx));
         Self {
             motion: ui::MotionScope::new(),
+            fading: Cell::new(false),
             hud_preview: None,
             hud_height,
             devices: Vec::new(),
@@ -79,7 +83,7 @@ impl GeneralPage {
             _permission_poll: permission_poll,
             st,
             open: None,
-            capturing: false,
+            capture: CaptureState::Idle,
             accessibility_ok: permissions::status(Permission::Accessibility) == Status::Granted,
         }
     }
@@ -124,10 +128,17 @@ impl GeneralPage {
 }
 
 impl Render for GeneralPage {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         // Own scope: after a page switch the controls mount statically instead of sliding to values remembered from an
         // earlier visit.
-        ui::with_motion_scope(self.motion.handle(), || self.view(cx))
+        self.fading.set(false);
+        ui::with_motion_scope(self.motion.handle(), || {
+            let page = self.view(cx).into_any_element();
+            if self.fading.get() {
+                window.request_animation_frame();
+            }
+            page
+        })
     }
 }
 
@@ -147,6 +158,7 @@ impl GeneralPage {
                 .gap(px(16.))
                 .children(self.banner(&c, cx))
                 .child(self.input_group(&c, cx))
+                .child(self.command_group(&c, cx))
                 .child(self.speech_recognition_group(&c, cx))
                 .child(self.hud_group(&c, cx))
                 .child(self.system_group(&c, cx))

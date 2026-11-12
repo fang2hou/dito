@@ -1,9 +1,12 @@
 use std::time::Duration;
 
-use core_graphics::event::{CGEvent, CGEventFlags, CGEventTapLocation};
+use core_graphics::event::{CGEvent, CGEventFlags, CGEventTapLocation, EventField};
 use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
 use dito_core::insert::{TYPE_CHUNK_GAP_MS, TYPE_CHUNK_UNITS, Utf16Chunks};
 
+use crate::hotkey::SYNTHETIC_EVENT_MARK;
+
+const KEYCODE_C: u16 = 8;
 const KEYCODE_V: u16 = 9;
 
 fn post_key(keycode: u16, down: bool, flags: Option<CGEventFlags>, text: Option<&[u16]>) -> bool {
@@ -18,6 +21,9 @@ fn post_key(keycode: u16, down: bool, flags: Option<CGEventFlags>, text: Option<
     if let Some(t) = text {
         ev.set_string_from_utf16_unchecked(t);
     }
+    // The shortcut tap must not take these for the user's typing: a Cmd+C right after a command shortcut went down
+    // would otherwise abort its chord.
+    ev.set_integer_value_field(EventField::EVENT_SOURCE_USER_DATA, SYNTHETIC_EVENT_MARK);
     ev.post(CGEventTapLocation::HID);
     true
 }
@@ -34,6 +40,14 @@ pub(super) fn post_type(units: &[u16]) -> bool {
 }
 
 pub(super) fn post_paste() -> bool {
+    post_command_key(KEYCODE_V)
+}
+
+pub(super) fn post_copy() -> bool {
+    post_command_key(KEYCODE_C)
+}
+
+fn post_command_key(keycode: u16) -> bool {
     let command = Some(CGEventFlags::CGEventFlagCommand);
-    post_key(KEYCODE_V, true, command, None) && post_key(KEYCODE_V, false, command, None)
+    post_key(keycode, true, command, None) && post_key(keycode, false, command, None)
 }

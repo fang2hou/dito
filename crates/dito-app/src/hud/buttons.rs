@@ -40,7 +40,8 @@ pub(crate) enum Btn {
 }
 
 impl Btn {
-    pub(super) fn look(self, p: &Palette) -> Circle {
+    /// `command`: the run was started by the command shortcut, which swaps gold for the ocean ramp.
+    pub(super) fn look(self, p: &Palette, command: bool) -> Circle {
         let (glass, glass_hover) =
             (theme::hud_color(p, "#EBE8E1", "#5A564B"), theme::hud_color(p, "#D4D1C9", "#6A6455"));
         let red = hex("#FF4949");
@@ -57,8 +58,8 @@ impl Btn {
             Self::Cancel => ("hud-cancel", glass, glass_hover, Ic::X, p.text, p.text, None),
             Self::Finish => (
                 "hud-finish",
-                theme::hud_color(p, "#F6DA97", "#E0C47D"),
-                theme::hud_color(p, "#E0C47D", "#AA8C40"),
+                if command { theme::hud_command_finish(p) } else { theme::hud_color(p, "#F6DA97", "#E0C47D") },
+                if command { theme::hud_command_finish_hover(p) } else { theme::hud_color(p, "#E0C47D", "#AA8C40") },
                 Ic::Check,
                 hex(PLAIN_BLACK),
                 hex(PLAIN_BLACK),
@@ -131,8 +132,8 @@ pub(super) fn hover_glyph(c: &Circle, scale: Scale, t: f32) -> AnyElement {
         .into_any_element()
 }
 
-pub(crate) fn static_button(b: Btn, scale: Scale, p: &Palette) -> Div {
-    let look = b.look(p);
+pub(crate) fn static_button(b: Btn, scale: Scale, p: &Palette, command: bool) -> Div {
+    let look = b.look(p, command);
     circle_shell(
         &look,
         scale,
@@ -143,7 +144,7 @@ pub(crate) fn static_button(b: Btn, scale: Scale, p: &Palette) -> Div {
 
 /// Uses the HUD's button colors so the legend matches its preview.
 pub(crate) fn legend_button(b: Btn, p: &Palette) -> Div {
-    static_button(b, Scale::DESIGN, p)
+    static_button(b, Scale::DESIGN, p, false)
 }
 
 pub(super) fn stop_width(lang: Lang) -> f32 {

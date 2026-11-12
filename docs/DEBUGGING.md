@@ -22,12 +22,37 @@ Run, inspect and diagnose Dito locally. Setup and commands are in [IMPLEMENTATIO
 | `--demo-run` | Run one dictation headlessly and print it; no Dock icon, menu bar or window, never frontmost |
 | `--screenshots <dir>` | Render screenshots (build with `--features screenshots`; narrow with `DITO_SHOTS_ONLY`); windows are never shown and never take focus |
 
-- Logs go to stdout through `tracing`; the dev runner tails the app's output into the terminal. Override with `RUST_LOG`.
+- Logs go to stdout through `tracing`; the dev runner tails the app's output into the terminal. Add directives with `RUST_LOG`; the dev runner hands it to the app (`open` starts it with a clean environment otherwise). The Status page shows the same lines of the app (the `dito`, `dito_audio` and `dito_trace` targets) since launch, see the next section.
 - Data lives in `~/Library/Application Support/com.fang2hou.Dito`: `config.toml`, `dito.db`, `audio/` and `models/`. Keys are in the Keychain under `com.fang2hou.dito`, one item per cloud polish configuration (`polish.<id>`) and per cloud speech configuration (`asr.<id>`). The login item is `~/Library/LaunchAgents/com.fang2hou.dito.plist`.
 - Debug builds (`mise run dev`, `cargo run`, tests) use a separate identity, `com.fang2hou.dito-dev` (data in `com.fang2hou.Dito-dev`, own Keychain items, login item, and Microphone and Accessibility grants), so they never read or change the installed app's config, history, keys or login item. API keys, models and permissions start empty there; point `models_dir` at the release folder to reuse downloaded models.
 - `--data-dir` doesn't move the models folder; set `models_dir` for that.
 - Use `--mock --log-sink` for any automated or agent run.
-- Examples for manual checks: `cargo run -p dito-audio --example record`, `cargo run -p dito-platform --example probe`, `cargo run -p dito-platform --example press_shortcut -- 2` (presses right Command, to drive a running Dito), `cargo run -p dito-platform --example request -- accessibility` or `-- mic` (asks for a permission and watches its status), `cargo run -p dito-runtimes --example local_e2e`.
+- Examples for manual checks: `cargo run -p dito-audio --example record`, `cargo run -p dito-platform --example probe`, `cargo run -p dito-platform --example press_shortcut -- 2` (presses right Command, to drive a running Dito), `cargo run -p dito-platform --example request -- accessibility` or `-- mic` (asks for a permission and watches its status), `cargo run -p dito-runtimes --example local_e2e`. The `intent_decide` and `intent_probe` examples of `dito-runtimes` are driven by `mise run bench intent` (see `bench/INTENT.md`).
+
+## Debug log of a run
+
+For the testing phase, every dictation and command can be followed step by step. The lines go to one target, `dito_trace`, at debug level. It is off by default and independent of every other target, so it is switched on by itself; the other defaults (`dito=info`, `dito_audio=debug`) stay as they are. There are two ways to switch it on:
+
+- In the app: the Status page ends with a Log group, a plain monospaced view of the app's log lines since launch, one line per event: time, level, run id (`-` when the line belongs to no run) and the message with its fields. It scrolls, follows new lines while it is at the bottom, and its text can be selected; the copy button puts every line on the clipboard. The Detailed log switch turns the `dito_trace` lines on and off at once, in the view and in the terminal, without a restart. It is off at launch and is not saved: it lives for the session, because the detailed log holds full texts. Lines recorded while it was on stay in the view after it is turned off.
+- From the terminal: `RUST_LOG=dito_trace=debug` starts the app with the switch on, and the switch can then turn it off:
+
+```bash
+RUST_LOG=dito_trace=debug mise run dev:mock
+```
+
+The view keeps the newest 1 000 lines and drops the oldest. It lives in memory only: nothing is written to disk or sent anywhere, and it ends with the app. A line is shown only when it passes the same filter as the terminal output, and only for the app's own targets (those starting with `dito`); the default levels are `dito=info` and `dito_audio=debug`. A run's lines carry its id only while the switch is on, because the id comes from the span that the `dito_trace` target opens.
+
+Every line of a run carries `run=<id>` (`d` for a dictation, `c` for a command, then six hex digits), so `grep 'run=c3a91f2'` on the output follows one run from the shortcut to the delivery. A run logs:
+
+- the shortcut press and release with the run kind, recording start and stop (duration, level and the silence verdict) and, for a command, the length and a short preview of the captured selection;
+- the speech recognition request and its transcript, with timings;
+- the router request (the instruction) and the full decision: every intent's probability, the confidence, whether the gate passed and the rewrite operation;
+- which tool was chosen and why (confident, chosen by the user, polish button) and the window that asks for text, a choice or a confirmation, with the user's answer;
+- the full system prompt and user message sent to the polisher for every tool and for a dictation polish, the model's output and how long each step took;
+- how the result was delivered, and the history row that was queued;
+- model load and unload, and model downloads (start, progress in steps of ten percent, finish or failure), which belong to a model and carry `model=<id>` instead of a run id.
+
+Full texts appear only in this log, and only at debug level. Keys and audio are never logged. The default `dito=info` output is unchanged. To follow a run in the view, switch the Detailed log on first and read the lines that share the run id.
 
 ## Symptom to cause
 

@@ -76,7 +76,10 @@ PLIST
     kill "$tail_pid" 2>/dev/null || true
   }
   trap cleanup TERM INT EXIT
-  open -W -n "$app" --stdout "$log" --args "$@"
+  # LaunchServices starts the app with a clean environment, so the log filter is handed over explicitly.
+  env_args=()
+  if [[ -n "${RUST_LOG:-}" ]]; then env_args=(--env "RUST_LOG=$RUST_LOG"); fi
+  open -W -n "$app" --stdout "$log" ${env_args[@]+"${env_args[@]}"} --args "$@"
   rc=$?
   cleanup
   trap - EXIT

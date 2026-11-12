@@ -59,9 +59,10 @@ pub use hover::{
     is_hovered_in, reset_hover, reset_hover_in,
 };
 pub use inputs::{
-    blur_on_outside, field, focus_on_click, form_field, new_input, notify_on_focus, ring_overlay, text_input, with_ring,
+    TextAreaStyle, blur_on_outside, field, focus_on_click, form_field, new_input, notify_on_focus, ring_overlay,
+    text_area, text_input, with_ring,
 };
-pub use layout::{StatusTone, card, drag_area, group, page_title, row, status_chip, status_tag, tag};
+pub use layout::{StatusTone, card, drag_area, group, page_title, row, row_described, status_chip, status_tag, tag};
 pub use menu_button::menu_button;
 pub use modal::modal_layer;
 pub use motion::Motion;
@@ -76,7 +77,7 @@ pub use scope::{MotionScope, ScopeHandle, motion_scope, with_motion_scope};
 pub use segmented::{SegContent, SegOption, SegStyle, seg, seg_with};
 pub use select::{SelectItem, select, select_form, select_form_disabled, select_items, select_multi, select_trigger};
 pub use select_badge::SelectBadge;
-pub use selectable::selectable_text;
+pub use selectable::{selectable_spans, selectable_text};
 pub use switch::switch;
 pub use test_state::{ErrorPlacement, TestState, test_summary};
 pub use tip_bubble::TIP_BUBBLE_H;

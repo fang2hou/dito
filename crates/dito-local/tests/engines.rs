@@ -10,6 +10,7 @@ use dito_core::config::{ConfigStore, LocalPolishParams};
 use dito_core::error::ErrorKind;
 use dito_core::factory::LocalBackend;
 use dito_core::health::EngineStatus;
+use dito_core::intent::{Intent, Reading, Request};
 use dito_core::provider::{AsrRequest, Example, PolishRequest};
 use dito_local::catalog::{FileSpec, ModelFormat, ModelKind, ModelSpec, Sampling};
 use dito_local::{
@@ -110,6 +111,37 @@ async fn loads_lazily_once_and_runs_inference_off_the_async_thread() {
 
     let p = eng.polisher("llm", &NO_PARAMS).await.unwrap();
     assert_eq!(p.polish(&PolishRequest { system: "s", examples: &[], text: "hi" }).await.unwrap(), "HI");
+}
+
+struct Reader;
+impl LlmRuntime for Reader {
+    fn generate(&self, _: &str, _: &[Example], _: &str, _: &Sampling, _: &AtomicBool) -> Result<String, RuntimeError> {
+        Err(RuntimeError::engine("a router never generates"))
+    }
+    fn read(&self, request: &Request, _: &AtomicBool) -> Result<Reading, RuntimeError> {
+        assert!(request.user.contains("translate it"), "the instruction reaches the model");
+        Ok(Reading { option_logits: vec![0., 0., 8., 0., 0., 0., 0., 0.], features: Vec::new() })
+    }
+}
+
+struct ReaderLoader;
+impl RuntimeLoader for ReaderLoader {
+    fn load_asr(&self, _: &ModelSpec, _: &Path) -> Result<Arc<dyn AsrRuntime>, RuntimeError> {
+        Err(RuntimeError::engine("no speech here"))
+    }
+    fn load_llm(&self, _: &ModelSpec, _: &Path) -> Result<Arc<dyn LlmRuntime>, RuntimeError> {
+        Ok(Arc::new(Reader))
+    }
+}
+
+#[tokio::test]
+async fn the_router_decides_on_the_loaded_chat_model_and_fails_without_one() {
+    let (mgr, _d) = installed_manager();
+    let eng = LocalEngines::new(mgr, Arc::new(ReaderLoader));
+    let decision = eng.router("llm").await.unwrap().decide("translate it").await.unwrap();
+    assert_eq!(decision.intent, Intent::Translate);
+    assert!(decision.is_confident());
+    assert_eq!(eng.router("asr").await.err().unwrap().kind, ErrorKind::Unavailable);
 }
 
 struct Probe(Arc<std::sync::Mutex<Option<Sampling>>>);

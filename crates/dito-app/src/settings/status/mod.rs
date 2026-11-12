@@ -1,3 +1,4 @@
+mod log;
 mod page;
 mod steps;
 mod usage;

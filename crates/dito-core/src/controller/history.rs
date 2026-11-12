@@ -22,10 +22,20 @@ impl History {
         let audio_dir = self.audio_dir.clone();
         tokio::task::spawn_blocking(move || {
             entry.audio_path = audio_dir.and_then(|dir| write_audio(&dir, &audio_name, &clip));
-            if let Err(e) = store.add_history(&entry) {
-                tracing::warn!(operation = "add history", error = %e, "history was not saved");
-            }
+            insert(&store, &entry);
         });
+    }
+
+    /// For an entry that has no recording, such as a command.
+    pub(super) fn save_entry(&self, entry: NewHistory) {
+        let store = self.store.clone();
+        tokio::task::spawn_blocking(move || insert(&store, &entry));
+    }
+}
+
+fn insert(store: &Store, entry: &NewHistory) {
+    if let Err(e) = store.add_history(entry) {
+        tracing::warn!(operation = "add history", error = %e, "history was not saved");
     }
 }
 

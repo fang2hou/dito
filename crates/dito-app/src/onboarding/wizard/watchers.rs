@@ -6,7 +6,7 @@ use dito_core::store::HistoryFilter;
 use dito_platform::{Status, permissions};
 use gpui_kit::*;
 
-use crate::hotkeys::CaptureState;
+use crate::hotkeys::ShortcutTarget;
 use crate::state::AppState;
 use crate::ui;
 
@@ -15,7 +15,7 @@ use super::{Onboarding, PERMS, Step};
 impl Onboarding {
     pub(super) fn watch_capture(st: &AppState, cx: &mut Context<Self>) {
         ui::observe(st.hotkeys.capture.subscribe(), cx, |t, capture, cx| {
-            t.capturing = capture == CaptureState::Waiting;
+            t.capturing = capture.is_waiting_for(ShortcutTarget::Dictation);
             cx.notify();
         });
     }

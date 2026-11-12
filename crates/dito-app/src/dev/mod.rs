@@ -1,6 +1,10 @@
 pub mod demo_run;
 pub mod log_sink;
 #[cfg(feature = "mock")]
+pub mod mock_router;
+#[cfg(feature = "mock")]
+pub mod mock_selection;
+#[cfg(feature = "mock")]
 pub mod seed;
 #[cfg(feature = "screenshots")]
 pub mod shots;

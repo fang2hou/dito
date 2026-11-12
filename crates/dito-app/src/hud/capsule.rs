@@ -79,6 +79,8 @@ pub(crate) struct Capsule {
     /// None renders the settled icon for static previews.
     pub outcome_t: Option<f32>,
     pub entry: EntryPose,
+    /// A command run draws in the ocean ramp; dictation keeps gold.
+    pub command: bool,
 }
 
 impl Capsule {
@@ -93,11 +95,11 @@ impl Capsule {
         if let Some(frac) = self.fill.filter(|&frac| frac > 0.) {
             let near_ceiling = match self.state {
                 HudState::Transcribing => (0.47..=0.485).contains(&frac),
-                HudState::Polishing => (0.97..=0.985).contains(&frac),
+                HudState::Polishing | HudState::Thinking | HudState::Working => (0.97..=0.985).contains(&frac),
                 _ => false,
             };
             let halo = if near_ceiling && !self.motion.is_reduced() { 1. + 0.20 * (self.t * 4.).sin() } else { 1. };
-            cap = cap.child(progress::progress_layer(frac, self.w, scale, &self.palette, halo));
+            cap = cap.child(progress::progress_layer(frac, self.w, scale, &self.palette, halo, self.command));
         }
         if let HudState::Listening { mode } = self.state {
             let frame = match self.wave {
@@ -108,6 +110,7 @@ impl Capsule {
                 frame,
                 scale,
                 self.palette.dark,
+                self.command.then(|| theme::hud_command_dots(&self.palette)),
                 self.motion.is_reduced(),
                 rest_width,
                 mode == RecordMode::Toggle,
@@ -127,7 +130,7 @@ impl Capsule {
     fn shell(&self, height: f32) -> Div {
         let (scale, p) = (self.scale, &self.palette);
         let px = |v: f32| scale.px(v);
-        let (bg, border_w, border_c) = surface_colors(&self.state, p);
+        let (bg, border_w, border_c) = surface_colors(&self.state, p, self.command);
         div()
             .w(px(self.w))
             .h(px(height))
@@ -147,27 +150,38 @@ impl Capsule {
 
     fn with_content(self, cap: Div, height: f32, buttons: &mut dyn FnMut(Btn, Scale) -> AnyElement) -> Div {
         let button_scale = Scale(self.scale.0 * self.entry.button);
-        let Capsule { state, lang, scale, palette: p, motion, w, t: since, outcome_t, .. } = self;
+        let Capsule { state, lang, scale, palette: p, motion, w, t: since, outcome_t, command, .. } = self;
+        let processing = |label: &str, cap: Div| {
+            cap.justify_center().child(shimmer::shimmer_label(label, since, scale, &p, motion, command))
+        };
+        let waiting = |label: &str, cap: Div| cap.justify_center().child(shimmer::static_label(label, scale, &p));
         match state {
-            HudState::Hidden => cap,
+            HudState::Hidden | HudState::Answer { .. } | HudState::Confirm { .. } => cap,
             HudState::Listening { mode: RecordMode::Toggle } => {
                 cap.child(buttons(Btn::Cancel, button_scale)).child(buttons(Btn::Finish, button_scale))
             }
             HudState::Listening { mode: RecordMode::Hold } => cap,
-            HudState::Transcribing => cap.justify_center().child(shimmer::shimmer_label(
-                lang.tr(Tr::HudTranscribing),
-                since,
-                scale,
-                &p,
-                motion,
-            )),
-            HudState::Polishing => {
-                cap.justify_center().child(shimmer::shimmer_label(lang.tr(Tr::HudPolishing), since, scale, &p, motion))
-            }
+            HudState::Transcribing => processing(lang.tr(Tr::HudTranscribing), cap),
+            HudState::Polishing => processing(lang.tr(Tr::HudPolishing), cap),
+            HudState::Thinking => processing(lang.tr(Tr::HudThinking), cap),
+            HudState::Working => processing(lang.tr(Tr::HudWorking), cap),
+            HudState::Choosing { .. } => waiting(lang.tr(Tr::HudChoosing), cap),
+            HudState::TypingInstruction => waiting(lang.tr(Tr::HudTyping), cap),
+            HudState::NeedsText => waiting(lang.tr(Tr::HudWaitingForText), cap),
             HudState::Inserted => {
                 cap.justify_center().child(outcome_icon::draw(Outcome::Inserted, outcome_t, motion, scale))
             }
+            HudState::Replaced => {
+                cap.justify_center().child(outcome_icon::draw(Outcome::Inserted, outcome_t, motion, scale))
+            }
             HudState::Copied => cap.child(copied_row(lang, scale, motion, w, height, outcome_t)),
+            HudState::NotRecognized => cap.justify_center().child(spaced(
+                lang.tr(Tr::HudNotRecognized),
+                12.,
+                FontWeight::NORMAL,
+                p.muted,
+                scale,
+            )),
             HudState::Error { action, .. } => {
                 let right = match action {
                     ErrorAction::Retry => buttons(Btn::Retry, button_scale),
@@ -188,18 +202,21 @@ impl Capsule {
 }
 
 /// The error capsule is the inverse danger style (Red 80% in light, a dark Red tint in dark, with a Red border and
-/// Red ink), never solid Red.
-fn surface_colors(state: &HudState, p: &Palette) -> (Hsla, f32, Hsla) {
+/// Red ink), never solid Red. The not-recognized notice is neutral: the `sub` surface and the usual border.
+fn surface_colors(state: &HudState, p: &Palette, command: bool) -> (Hsla, f32, Hsla) {
     let bg = match state {
         HudState::Inserted => hex("#28A788"),
+        HudState::Replaced => theme::hud_command_replaced(),
         HudState::Copied => hex("#AA8C40"),
         HudState::Error { .. } => theme::hud_error_bg(p),
+        HudState::NotRecognized => p.sub,
+        _ if command => theme::hud_command_capsule(p),
         HudState::Listening { .. } => theme::hud_color(p, "#F7F5F0", "#444139"),
         _ => theme::hud_color(p, "#FFF9EB", "#444139"),
     };
     let (border_w, border_c) = match state {
         HudState::Error { .. } => (HAIRLINE, hex("#FF4949")),
-        HudState::Inserted | HudState::Copied => (0., p.hud_border),
+        HudState::Inserted | HudState::Replaced | HudState::Copied => (0., p.hud_border),
         _ => (HAIRLINE, p.hud_border),
     };
     (bg, border_w, border_c)

@@ -18,11 +18,21 @@ pub(super) struct ProcessingMotion {
     target: f32,
     pub catch_up: f32,
     estimate: Option<f32>,
+    /// How far past `target` the fill creeps while waiting.
+    span: f32,
 }
+
+const STAGE_SPAN: f32 = 0.485;
 
 impl ProcessingMotion {
     pub fn transcribing(estimate: f32, reduced: bool) -> Self {
-        Self { from: Fill::default(), target: 0., catch_up: 0., estimate: (!reduced).then_some(estimate) }
+        Self {
+            from: Fill::default(),
+            target: 0.,
+            catch_up: 0.,
+            estimate: (!reduced).then_some(estimate),
+            span: STAGE_SPAN,
+        }
     }
 
     pub fn polishing(from: Fill, estimate: f32, already_running: f32, reduced: bool) -> Self {
@@ -32,6 +42,18 @@ impl ProcessingMotion {
         motion
     }
 
+    /// A second step that carries on from the fill of the one before, with no catch-up and no step back.
+    pub fn continuing(from: Fill, estimate: f32, reduced: bool) -> Self {
+        let target = from.value.max(0.5);
+        Self {
+            from: Fill::at_rest(target),
+            target,
+            catch_up: 0.,
+            estimate: (!reduced).then_some(estimate.max(0.25)),
+            span: (0.985 - target).max(0.),
+        }
+    }
+
     pub fn finished(from: Fill, reduced: bool) -> Self {
         Self::retarget(from, 1., reduced)
     }
@@ -39,12 +61,12 @@ impl ProcessingMotion {
     fn retarget(mut from: Fill, target: f32, reduced: bool) -> Self {
         let gap = (target - from.value).max(0.);
         if gap == 0. {
-            return Self { from: Fill::at_rest(target), target, catch_up: 0., estimate: None };
+            return Self { from: Fill::at_rest(target), target, catch_up: 0., estimate: None, span: STAGE_SPAN };
         }
         let catch_up = if reduced { 0.12 } else { 0.10 + 0.10 * (gap / 0.5).min(1.) };
         // A monotone Hermite segment carries the incoming speed, within the bound that prevents overshoot.
         from.speed = from.speed.clamp(0., 3. * gap / catch_up);
-        Self { from, target, catch_up, estimate: None }
+        Self { from, target, catch_up, estimate: None, span: STAGE_SPAN }
     }
 
     pub fn at(self, elapsed: f32) -> Fill {
@@ -64,7 +86,7 @@ impl ProcessingMotion {
         let effective_time = (t - ramp * (1. - startup)).max(0.);
         let rate = 2.3 / estimate.max(0.25);
         let remaining = (-rate * effective_time).exp();
-        let span = 0.485;
+        let span = self.span;
         Fill { value: self.target + span * (1. - remaining), speed: span * remaining * rate * (1. - startup) }
     }
 }

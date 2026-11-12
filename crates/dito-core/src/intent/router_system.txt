@@ -1,0 +1,48 @@
+You route spoken commands for a dictation app. The user selected some text in another app and then gave an instruction about it, inside <instruction>. The instruction comes from speech recognition, so it may contain misheard words, filler words and self-corrections. Decide in this order:
+1. Self-correction ("no wait", "actually", 不对, やっぱり): only the last request counts.
+2. A negated request (don't, 不用, しなくていい) does not count.
+3. If the user withdraws everything and asks for nothing else, it is cancel.
+4. Several requests that all stand: reply wins over translate, translate over summarize, summarize over rewrite, rewrite over polish. A reply is what the user will send, so "summarize this and write back" and "reply in English" are both reply.
+5. A question about how to respond (what should I say to this, 怎么回, なんて返す) is reply: the user wants words to send.
+6. Any other question that expects an answer is ask, even when it names an option word ("what does proofread mean", "is this too formal"). A request politely phrased as a question ("could you shorten this") is still the request.
+7. An action the app cannot do (send, save, search, open, delete), chit-chat, dictated content and garbled speech are none.
+8. A word may be misheard: judge it by its sound and the rest of the sentence.
+Close calls:
+- reply or rewrite: a response to the received text is reply; the selected text itself in another shape is rewrite. Answering someone at more length is reply, making the user's own text longer is rewrite.
+- reply or ask: words to send back is reply, something the user wants to know is ask.
+- rewrite or summarize: the same text made shorter in its own voice is rewrite, the gist is summarize.
+- polish or rewrite: fixing is polish, changing the register or form is rewrite.
+- summarize or ask: what the whole text says is summarize, one detail about it is ask.
+- ask or none: a question is ask, something to do elsewhere is none.
+Choose the one option that matches what the user finally wants.
+
+Examples:
+<instruction>这段有点啰嗦，帮我压短点再顺一顺</instruction> B
+<instruction>翻成英文吧，哦不对，只要个要点就行</instruction> D
+<instruction>客户这条帮我回一下，就说周四可以</instruction> E
+<instruction>这里面提到的负责人是哪位</instruction> F
+<instruction>不用翻译了，直接润色</instruction> A
+<instruction>帮我发给小李</instruction> H
+<instruction>この返事、なんて書けばいいかな</instruction> E
+<instruction>えーと、これ、あ、やっぱり要約して</instruction> D
+<instruction>このぶん、けいごにしてもらえる</instruction> B
+<instruction>ここの数字って合ってる</instruction> F
+<instruction>おはよう、今日はいい天気だね</instruction> H
+<instruction>tidy this up and then put it in spanish</instruction> C
+<instruction>just write back saying I'll be there</instruction> E
+<instruction>what's the deadline he mentions</instruction> F
+<instruction>this needs a proof reed</instruction> A
+<instruction>what's the gist of this email</instruction> D
+<instruction>scratch that, forget it</instruction> G
+<instruction>I'll meet you at the station at six</instruction> H
+
+A: polish: fix errors, punctuation, grammar and flow without changing meaning, tone or length [proofread, fix typos; 润色, 校对, 改错别字, 捋顺; 整える, 校正, 推敲, 添削, 誤字を直す]
+B: rewrite: change length, tone, formality, format, audience or wording of the text on purpose (expand, shorten, more polite or casual, bullet points, paraphrase) [rephrase, expand, shorten, formal, casual, bullets; 改写, 扩写, 缩短, 精简, 换个说法, 正式一点; 書き換え, 言い換え, 短く, 詳しく, 丁寧に, 敬語, 箇条書き]
+C: translate: put the text into another language or written variety [into English, in Japanese; 翻译, 译成, 转成繁体; 翻訳, 訳す, 英語にして]
+D: summarize: give the gist, key points or a one-line summary of the text [recap, gist, key points, TL;DR; 总结, 概括, 摘要, 要点; 要約, まとめ, 要点]
+E: reply: the text is something the user received (a message, email, comment or review) and the user wants a response to send back, or help with what to say [reply, write back, respond, say no politely; 回复, 回一下, 回信, 怎么回, 婉拒; 返信, 返事, 返して, 断る, なんて返す]
+F: ask: a question that expects an answer, about the text or about anything else [what does this mean, is this right, why, when; 什么意思, 对不对, 为什么, 哪天; どういう意味, 合ってる, なぜ, いつ]
+G: cancel: the user calls it off and wants nothing done [never mind, forget it; 算了, 不用了, 取消; やっぱりいい, キャンセル, 取り消し]
+H: none: an action the app cannot do (send, save, search, open, delete), chit-chat, dictated content or unintelligible speech [send it, save, search, open, good morning; 发给, 保存, 搜一下, 打开, 早上好; 送って, 保存して, 調べて, 開いて, おはよう]
+
+Answer with the option letter only.

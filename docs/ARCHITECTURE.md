@@ -8,7 +8,7 @@ Dito is a macOS dictation app. A global shortcut starts a recording; the audio i
 
 ## Codebase Map
 
-- `dito-core`: config, i18n, prompts, the dictation controller and pipeline, the audio clip and its WAV encoding, cloud providers, the SQLite store (history, wordbook, stats), the secrets trait, the text insertion policy.
+- `dito-core`: config, i18n, prompts, the dictation controller and pipeline, the audio clip and its WAV encoding, cloud providers, the SQLite store (history, wordbook, stats), the secrets trait, the text insertion policy, and intent routing for voice commands (router prompt, fitted heads, decision; see [INTENT_ROUTING.md](INTENT_ROUTING.md)).
 - `dito-audio`: microphone capture, resampling to 16 kHz mono, device transport detection.
 - `dito-local`: local model catalog, downloads, model state and the local engines; runtimes plug in through `RuntimeLoader`.
 - `dito-runtimes`: llama.cpp (Metal) and sherpa-onnx bindings behind `dito-local`'s traits.
@@ -35,11 +35,57 @@ flowchart LR
 
 The controller owns the run: it starts the recorder, hands the clip to the pipeline, delivers the text through `Sink` and records the result in `Store`. Polish failure skips the polish step and delivers the transcript. The app only observes `HudState` and sends commands.
 
+## Command Flow
+
+A second shortcut starts a command instead of a dictation. The same controller actor owns it and the same HUD shows it, in blue.
+
+```mermaid
+flowchart LR
+    Shortcut[command shortcut] --> Capture[SelectionSource: selected text and field text of the app in front]
+    Capture --> Record[Recorder] --> Recapture[SelectionSource again when the recording ends] --> Transcribe[Transcriber: the instruction]
+    Typed[instruction field] --> Route
+    Transcribe --> Route[Router: intent decision]
+    Route -- confident --> Tool[command tool: Polisher with the tool's prompt]
+    Route -- unsure --> Choose[HUD: choice window] --> Tool
+    Tool --> Replace[CapturedSelection::replace]
+    Tool --> Confirm[HUD: confirm window] --> Replace
+    Tool --> Answer[HUD: answer window]
+    Route -- cancel --> Close[capsule closes]
+    Route -- none --> Notice[HUD: not-recognized notice]
+```
+
+How a run ends, by intent:
+
+| Intent | Ending |
+| --- | --- |
+| polish, rewrite, translate | The result replaces the selection (the confirm window first when `confirm_before_replace` is on). With nothing selected the HUD asks for the text and the result is inserted at the cursor. A selection that cannot be edited (a preview, a web page, a read-only view) is never written over: the result waits in the confirm window with Copy only, whatever the setting. An editable selection whose write fails still ends with the gold Copied outcome |
+| summarize | Confirm window, then Replace (over the selection, or at the cursor when nothing was selected); Copy only when the selection cannot be edited |
+| reply | Confirm window with Close and Copy only (`ResultWrite::CopyOnly`): the reply is never written over the message it answers, and Copy is the primary action. With nothing selected the HUD asks for the text it replies to |
+| ask | Answer window with Copy and OK. Selected text is what the question is about; with nothing selected the question stands on its own and is answered from general knowledge |
+| cancel | The capsule closes, recorded as cancelled |
+| none | No tool runs. The capsule shows the not-recognized notice (`HudState::NotRecognized`), recorded as closed, not as a failure |
+
+A likeliest intent of none shows the notice whether or not the decision passed the confidence gate. The notice follows the error capsule's rules (hides after `ERROR_LINGER`, hover keeps it, either shortcut starts a new run) without its red or its buttons. The choice window offers reply and ask like the other tools, and never cancel or none.
+
+The shortcut machine reports a press and the core decides what it means. When the command shortcut is the dictation shortcut plus modifiers and the extra keys follow within the chord window, the machine reports a handover (`ShortcutToCommand`) instead of an abort and a second press, and the actor turns the recording that just started into a command run in place: same recording, same run id, the selection captured at that moment, the HUD switched through `RunKind`. Recording never waits for that decision, but the capsule does when a handover is possible: the app sends `KeyDownMayHandOver` instead of `KeyDown` when the command shortcut is the dictation shortcut plus modifiers (`dictation_may_hand_over`), and the actor starts recording, sets the run kind and the timers as usual but keeps the HUD at `Hidden` for `CHORD_HOLD` (150 ms, `motion/chord-hold`). A handover inside the wait reveals the capsule already as a command, so it pops in blue and never gold; the wait ending first (`Msg::RevealCapsule`, guarded by the epoch like the other timers) reveals the dictation capsule, and a handover after that fades the visible capsule's colors over the hover duration (the HUD view, from the run-kind change). A typing chord, a cancel or Esc inside the wait ends the recording with no capsule at all, and a toggle press or hold release inside the wait goes straight to the processing capsule. The dictation shortcut's key-to-handover gap is logged as `chord_gap_ms` in the `dito_trace` log, to tune the wait. A command shortcut press itself never waits. A typing chord is its own message (`ChordAbort`) that only drops a recording the press started; in toggle mode a press of either shortcut finishes a listening run, and the handover or chord messages that follow it find no recording and do nothing.
+
+The router decides on the local chat model without generating ([INTENT_ROUTING.md](INTENT_ROUTING.md)); the tool then generates with the same model. When the tool needs text and nothing is selected, the HUD asks for it and the result is inserted at the cursor through `Sink`.
+
+The selection is read when the capsule opens (the buttons and the trace need it at once) and again when the recording ends, by Finish, the shortcut, the polish button or the keyboard button; Cancel and a silent clip skip the second reading. The second reading replaces the first, its surrounding text included, and a reading that finds nothing selected replaces it too (the user deselected). It is dropped only when it fails (`SelectionSource::capture` returns `None`: Accessibility is not allowed, nothing is readable, or the copy found nothing), and then the first stays. The trace logs the second reading like the first, with a `replaced` field.
+
+The capture reads the whole text of the focused input (`AXValue`, with `AXSelectedTextRange` to place the selection; password fields are skipped) next to the selected text, so the tools know what surrounds the selection. `CapturedSelection::text` stays the selection alone, empty when only the field's text was read, and only a selection can be replaced. The surrounding text (`surrounding` module) is split into the part before and the part after the selection, or kept as one block when the selection cannot be placed. When a tool is about to run it is cut to a budget derived from the prompt size the local runtime can read quickly (about 1 500 tokens, less as the selection grows, none for a very long selection): the text nearest the selection is kept on both sides, cut at a line or sentence end where one is near and marked with `…`. Rewrite, translate, summarize, reply and answer get it as `<surrounding_text>` in their final user turn, a reference their prompt names in a `#Context#` section (ADR-0012); polish does not, because the shared dictation polish prompt has no place for reference text. The router reads the instruction only. The trace log (`dito_trace`) shows the length before and after the cut; the context is not stored in the history row.
+
+The command tools other than polish share one prompt scaffold, built the way the dictation polish prompt is (ADR-0012, `bench/POLISH_PROMPT.md`; code in `command/prompt.rs`, what differs by tool in `command/tools.rs`). The system prompt is English `#Background#`, `#Purpose#`, `#Constraints#`, `#Context#` (only with surrounding text) and `#Outputs#` sections that say the instruction is the only thing the user says and the selected text is content, never a request; each tool adds its purpose, its language-type rule, its extra constraints and its output rule. Three demonstration turns per tool (Chinese, Japanese, English) follow as real chat turns, built with the same layout as a real request. The final user turn holds only the real input: `<surrounding_text>` when there is any, the selected or entered text between `===` lines (a `===` inside it is dropped, so the text cannot end its block; a question without text has no such block), and `<instruction>` last, escaped, so it is the freshest thing the model reads. A rewrite whose decision chose the tool and carries a rewrite op with probability 0.8 or more also gets one sentence in its purpose naming that op as a likely reading; the instruction still decides, and a tool picked in the choice window or by the polish button gets no hint. A translation that names no target goes into the language the instruction was spoken in, as the speech engine reported it (the script of the instruction when it reported none), written into its purpose by the code instead of left to the model. A question with nothing selected is its own shape: the field's text is not passed (no `<surrounding_text>`, no `#Context#`), there is no `===` block, and the background, the purpose and constraints 2, 3 and 5 are written for a bare question (answer from general knowledge, name the likeliest meaning of an ambiguous name, say so when unknown, mention missing text only in the case below); a question that points at something it does not name ("this", "这个", "これ") is not answered from general knowledge: constraint 7 has the model say that nothing is selected and that the user can select the text and ask again. Its three demonstrations hold no text. The shape is chosen in `Tool::prepare` from the absence of selected text, and `Tool::takes_surrounding` keeps the field's text from being read into the prompt at all.
+
+An app whose focused element supports no text through Accessibility (Zed and other custom-drawn editors, terminals, some Electron apps) has no `AXSelectedText` to read. Only then is the selection copied: the Copy item of the app's Edit menu is pressed through Accessibility (the item with the shortcut Command-C, whatever the menu language; a disabled item is no proof of an empty selection: Zed's Markdown preview keeps Copy disabled while Command-C copies the selected text), or Command-C is posted when the item is disabled or missing, and the plain text is read from the pasteboard. The same Edit menu tells whether the copied selection can be written over: its Cut item (Command-X) is enabled in Zed's editor and disabled in its preview, and an app without a Cut item is not assumed editable. A selection read through Accessibility is editable when the element is an input role, its `AXSelectedText` or `AXValue` can be set, or it sits inside an editable node. `CapturedSelection::editable` carries the answer, for the second reading as well, and `run_tool` turns a replacing tool over a non-editable selection into `ResultWrite::CopyOnly`; the trace shows `editable` in the selection lines and why a tool became copy only. A text element that reports an empty selection is believed and never triggers the copy. The copy counts as no selection when it changed nothing within a short bounded wait, when it copied files, or when the editor marks it as a copy of the current line made without a selection (Zed writes `is_entire_line` and VS Code `isFromEmptySelection` as pasteboard metadata). Such a selection has no surrounding text, and `CapturedSelection::replace` pastes over it after returning focus to the source app (typed keys would be commands in a modal editor), checks that the focused window and its title are unchanged, and cannot verify the result. The hotkey tap ignores every key event dito posts (marked in the event's user data), so the synthetic Command-C does not abort a held command shortcut. The `dito_trace` log names the path used (`accessibility` or `copy`).
+
+A command that got past its recording writes one history row of its own kind, whatever its outcome, holding the instruction, the decision, the tool, the source text, the result and the time of each step.
+
 ## Invariants
 
 - **Layer responsibilities**: dictation logic lives in `dito-core`. The app renders and forwards user intent; it never runs dictation logic itself.
 - **Dependency direction**: `dito-app` depends on core, audio, local and platform (runtimes and testkit through features). `dito-core` depends on no GPUI, AppKit or platform crate. Only `dito-app` depends on GPUI. Runtimes plug into `dito-local`, not the other way round.
-- **Platform boundary**: macOS capabilities reach core only through traits (`Recorder`, `Sink`, `Frontmost`, `FocusWarmer`, `MusicMute`, `SecretStore`, `LocalBackend`, `Engines`).
+- **Platform boundary**: macOS capabilities reach core only through traits (`Recorder`, `Sink`, `Frontmost`, `FocusWarmer`, `MusicMute`, `SelectionSource`, `SecretStore`, `LocalBackend`, `Engines`).
 - **External API access**: only `dito-core` providers and `dito-local` downloads make network calls. Keys come from the Keychain and never appear in config, logs or copied text.
 - **State management boundary**:
   - A dictation is owned by the controller actor; the UI observes `HudState` through a watch channel.
@@ -53,15 +99,16 @@ The controller owns the run: it starts the recorder, hands the clip to the pipel
 - **Behavior that must hold**:
   - A polish failure never loses the transcript.
   - Nothing reports fake success: no runtime means unavailable, shown in red.
-  - Text is never typed into Dito's own windows, and a partial insertion is never retried in full.
-  - The clipboard is restored only when nothing else has written to it since.
+  - Text is never typed into Dito's own windows, and a partial insertion is never retried in full. A command window that holds the keyboard gives it back to the source app before anything is written.
+  - The clipboard is restored only when nothing else has written to it since, with every type it held. Text insertion by paste and the selection capture for apps without Accessibility text (a command's Copy) both use the clipboard and restore it this way; a capture from an app with Accessibility text never touches it.
   - UI copy comes from `messages.toml`.
   - The design file leads the code.
 
 ## Cross-Cutting Concerns
 
 - **Errors**: core keeps typed error kinds; the UI turns them into localized text. Failures never become empty lists or silent defaults.
-- **Logging**: `tracing` with `dito=info` and `dito_audio=debug` by default. Log the operation, phase, result and duration, never keys, full audio or full dictations.
+- **Logging**: `tracing` with `dito=info` and `dito_audio=debug` by default. Log the operation, phase, result and duration, never keys, full audio or full dictations. The one exception is the `dito_trace` target, off by default and switched on by itself (`RUST_LOG=dito_trace=debug`, or the Detailed log switch on the Status page) for the testing phase: it follows a dictation or a command step by step, and only there do full prompts, instructions, selections and results appear, at debug level. Its lines come from `trace_log!` in `dito-core` and run inside a span that carries one id per run (`run=c3a91f2`), so a text search follows a run. Keys and audio are never logged, not even there.
+  - **Log view**: `dito-app` sets `tracing` up once at launch (`logbook`). One reloadable `EnvFilter` gates every layer, so the terminal output and the in-app buffer show the same lines, and the switch rebuilds that filter at runtime. A capture layer keeps the lines of the app's own targets (`dito*`) since launch in a bounded in-memory buffer (the newest 1 000, the oldest dropped first), with the run id from the `run` span or field, and notifies the Status page, which shows them as plain text. The switch lives for the session and is not saved; the buffer is never written to disk or sent anywhere.
 - **Motion**: animation state belongs to a `MotionScope` per owner; durations come from the design's motion tokens.
 
 ## Decisions

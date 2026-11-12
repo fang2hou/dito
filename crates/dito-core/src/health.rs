@@ -79,6 +79,9 @@ mod tests {
         ) -> crate::error::ProviderResult<std::sync::Arc<dyn crate::provider::Polisher>> {
             unimplemented!()
         }
+        async fn router(&self, _: &str) -> crate::error::ProviderResult<std::sync::Arc<dyn crate::provider::Router>> {
+            unimplemented!()
+        }
         fn status(&self, _: &str) -> EngineStatus {
             self.0.clone()
         }

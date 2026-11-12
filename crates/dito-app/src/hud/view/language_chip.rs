@@ -3,11 +3,12 @@
 use std::rc::Rc;
 
 use dito_core::config::PreferredLanguage;
+use dito_core::controller::Command;
 use dito_core::i18n::{Lang, Tr};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
-use crate::assets::HudIc;
+use crate::assets::{HudIc, Ic};
 use crate::hud::elevation::{self, Elevation};
 use crate::hud::{Scale, px, tx};
 use crate::services;
@@ -29,6 +30,60 @@ pub(super) fn chip_width(languages: impl Iterator<Item = PreferredLanguage>) -> 
     if cells == 0. { 0. } else { cells - GAP + 2. * (INSET + PILL_HAIRLINE) }
 }
 
+/// The two buttons of a command capsule stand to the right of the selector.
+const BUTTON: f32 = 26.;
+const BUTTON_GAP: f32 = 6.;
+
+/// The selector with the polish and keyboard buttons to its right; the buttons alone when no language is offered.
+pub(super) fn command_row_width(chip: f32) -> f32 {
+    let buttons = 2. * BUTTON + BUTTON_GAP;
+    if chip == 0. { buttons } else { chip + BUTTON_GAP + buttons }
+}
+
+/// A 26 pt circle in the selector's surface; hovered it turns to the command accent like an outlined action.
+fn row_button(
+    id: &'static str,
+    glyph: Ic,
+    tip: &str,
+    k: f32,
+    palette: &Palette,
+    view: WeakEntity<HudView>,
+    command: impl Fn() -> Command + 'static,
+) -> impl IntoElement {
+    let key = ElementId::from(id);
+    ui::tip_label(key.clone(), SharedString::from(tip.to_string()));
+    let target = f32::from(ui::is_hovered(&key));
+    let p = *palette;
+    let face = ui::tweened(ElementId::from((key.clone(), "face")), target, ui::HOVER_MS, move |t| {
+        let ink = ui::mix_rgb(theme::hud_color(&p, "#444139", "#F7F5F0"), p.command_primary, t);
+        div()
+            .absolute()
+            .inset_0()
+            .rounded_full()
+            .bg(ui::mix_rgb(p.hud_bg, p.command_soft, t))
+            .border(px(PILL_HAIRLINE))
+            .border_color(ui::mix_rgb(p.hud_border, p.command_primary, t))
+            .flex()
+            .items_center()
+            .justify_center()
+            .child(ui::icon(glyph, tx(14.) * k, ink))
+    });
+    div()
+        .id(id)
+        .relative()
+        .size(px(BUTTON * k))
+        .flex_none()
+        .rounded_full()
+        .cursor_pointer()
+        .shadow(elevation::surface_shadow(palette, Scale::HUD, Elevation::Surface))
+        .on_hover(ui::hover_tracker(key.clone()))
+        .on_click(move |_, _, app| {
+            view.update(app, |v, _| v.send(command())).ok();
+        })
+        .child(face)
+        .child(ui::tip_above(palette, &key))
+}
+
 impl HudView {
     /// Returns a builder that draws the chip at scale `k`, so the hover pop can grow it like a tooltip.
     pub(super) fn language_chip(
@@ -47,7 +102,7 @@ impl HudView {
             .fold(0, |mask, (i, language)| mask | (u8::from(cfg.general.hud_languages.contains(language)) << i));
         let mut p = *palette;
         p.seg = p.hud_bg;
-        p.seg_on = theme::hud_lang_plate(&p);
+        p.seg_on = if self.command_run() { theme::hud_command_lang_on(&p) } else { theme::hud_lang_plate(&p) };
         p.text = hex("#444139");
         p.muted = theme::hud_lang_muted(&p);
         let weak = cx.entity().downgrade();
@@ -98,6 +153,39 @@ impl HudView {
                 .border_color(palette.hud_border)
                 .shadow(elevation::surface_shadow(&palette, Scale::HUD, Elevation::Surface))
                 .child(seg)
+        }
+    }
+
+    /// The command capsule's row: the selector, then the polish and keyboard buttons, drawn at scale `k` together.
+    pub(super) fn command_row(
+        &self,
+        palette: &Palette,
+        lang: Lang,
+        cx: &mut Context<Self>,
+    ) -> impl Fn(f32) -> Div + 'static {
+        let weak = cx.entity().downgrade();
+        let chip = self.language_chip(palette, lang, cx);
+        let has_chip = chip_width(self.st.cfg.get().general.hud_languages()) > 0.;
+        let palette = *palette;
+        let polish = lang.tr(Tr::HudPolishSelection).to_string();
+        let keyboard = lang.tr(Tr::HudTypeInstruction).to_string();
+        move |k| {
+            let mut row = div().flex().items_center().gap(px(BUTTON_GAP * k));
+            if has_chip {
+                row = row.child(chip(k));
+            }
+            row.child(row_button("hud-polish", Ic::Sparkles, &polish, k, &palette, weak.clone(), || {
+                Command::PolishSelection
+            }))
+            .child(row_button(
+                "hud-keyboard",
+                Ic::Keyboard,
+                &keyboard,
+                k,
+                &palette,
+                weak.clone(),
+                || Command::TypeInstruction,
+            ))
         }
     }
 

@@ -24,10 +24,20 @@ The `config.toml` shapes so far, one migration each (`MIGRATIONS` in `migrate.rs
 | 3 | The three provider forms become named cloud polish configurations (`polish.cloud_polish`) with request parameters, the Bedrock temperature and token limit that were hard-coded become its parameters, `asr.provider` is dropped, and the cloud speech list `cloud_asr.profiles` is renamed `cloud_asr.items`, as in `polish.cloud_polish`, with its entries unchanged |
 | 4 | Rename the spelling-reference toggle to `wordbook_for_polish` |
 | 5 | Saved prompts are dropped and the defaults take their place, because the task rules moved from the prompt sets into the fixed scaffold (ADR-0012). Decided before any release; the backup keeps the old text |
+| 6 | Command mode: `general.command_shortcut` (empty, meaning unset: derived as Shift plus the dictation shortcut, so it follows when that changes) and `general.confirm_before_replace` (off) are written into an existing `general` table |
 
 Version 3 keeps the Keychain accounts `polish.azure` and `polish.compat` working by giving the migrated configurations the ids `azure`, `bedrock` and `compat`; every later configuration has a random id suffix, so the key of a removed one is never picked up by a new one.
 
-SQLite version 3 renames the wordbook table in place and preserves its rows.
+The SQLite store counts its migrations in `PRAGMA user_version` (`MIGRATIONS` in `store/schema.rs`):
+
+| Version | What changed from the one before |
+| --- | --- |
+| 1 | The schema from before versioning, adopted unchanged |
+| 2 | `history` gains the engine labels `asr_engine` and `polish_engine` |
+| 3 | The wordbook table is renamed in place and keeps its rows |
+| 4 | `history` gains `asr_ms` and `polish_ms` (step times), `source` (the text a command worked on) and `command` (the details of a command run as JSON); all nullable, so earlier rows are unchanged |
+
+Version 4 stores the details of a command in one JSON column, `CommandDetails`. Its shape is a persisted shape like any column: a change to it is a new migration of the stored JSON, and `CommandDetails` gets no serde defaults to paper over old rows. A row whose details a build cannot read (written by a newer build) still lists, without them.
 
 ## Alternatives Considered
 
@@ -69,4 +79,4 @@ A second persisted format needs a shared migration runner, or users need to move
 
 ## Code
 
-`crates/dito-core/src/config/migrate.rs`, `crates/dito-core/src/config/store.rs`.
+`crates/dito-core/src/config/migrate.rs`, `crates/dito-core/src/config/store.rs`, `crates/dito-core/src/store/schema.rs`.

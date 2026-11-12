@@ -5,6 +5,7 @@ use std::time::Duration;
 
 use dito_core::config::RecordMode;
 use dito_core::controller::{ErrorAction, HudState};
+use gpui_kit::Window;
 use gpui_kit::prelude::*;
 
 use crate::hud::capsule::{self, CAPSULE_W};
@@ -62,6 +63,22 @@ impl HudView {
             error_reason: Spring { position: f32::from(hover_btn.is_some()), velocity: 0. },
             ..Self::idle(st, state)
         }
+    }
+
+    /// Whether a click at this point of the window would reach a command window or one of its actions.
+    pub fn command_region_at(&self, x: f32, y: f32) -> bool {
+        self.over_command_region(x, y)
+    }
+
+    /// Draws the preview as a run started by the command shortcut.
+    pub fn commanded(mut self) -> Self {
+        self.preview_kind = Some(dito_core::controller::RunKind::Command);
+        self
+    }
+
+    /// Types `text` into the instruction field or the text window, whichever the state shows.
+    pub fn preview_text(&mut self, text: &str, window: &mut Window, cx: &mut Context<Self>) {
+        self.type_into_field(text, window, cx);
     }
 
     pub fn motion_preview(st: Arc<AppState>, cx: &mut Context<Self>) -> Self {

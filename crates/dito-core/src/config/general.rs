@@ -101,6 +101,11 @@ impl DisplayLanguage {
 #[serde(default)]
 pub struct General {
     pub shortcut: String,
+    /// Starts command mode; the same id format as `shortcut`. Empty means unset: the platform layer then derives it
+    /// from `shortcut` (Shift plus the dictation shortcut), so it follows when `shortcut` changes.
+    pub command_shortcut: String,
+    /// On: a command's result waits in a window for a click instead of replacing the selection at once.
+    pub confirm_before_replace: bool,
     pub record_mode: RecordMode,
     pub insert_method: InsertMethod,
     pub music_mute: MusicMuteMode,
@@ -146,6 +151,8 @@ impl Default for General {
     fn default() -> Self {
         Self {
             shortcut: DEFAULT_SHORTCUT.into(),
+            command_shortcut: String::new(),
+            confirm_before_replace: false,
             record_mode: RecordMode::Toggle,
             insert_method: InsertMethod::KeyInput,
             music_mute: MusicMuteMode::Auto,
@@ -175,6 +182,15 @@ mod tests {
         assert!(legacy.hud_languages().eq(PreferredLanguage::ALL));
         let hidden: General = toml::from_str("hud_languages = []").unwrap();
         assert_eq!(hidden.hud_languages().count(), 0);
+    }
+
+    #[test]
+    fn the_command_shortcut_is_unset_until_chosen() {
+        assert_eq!(General::default().command_shortcut, "");
+        let fresh: General = toml::from_str("shortcut = 'Fn'").unwrap();
+        assert_eq!(fresh.command_shortcut, "");
+        let saved: General = toml::from_str(&toml::to_string(&General::default()).unwrap()).unwrap();
+        assert_eq!(saved, General::default(), "an unset shortcut survives a save");
     }
 
     #[test]

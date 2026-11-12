@@ -12,9 +12,9 @@ use crate::error::{ErrorKind, ProviderError, ProviderResult};
 use crate::health::EngineStatus;
 use crate::provider::bedrock::{BedrockEngine, BedrockParams};
 use crate::provider::configured_asr::ConfiguredAsr;
-use crate::provider::mock::{MockPolisher, MockTranscriber};
+use crate::provider::mock::{MockPolisher, MockRouter, MockTranscriber};
 use crate::provider::openai::{Flavor, OpenAiEngine};
-use crate::provider::{Polisher, Transcriber};
+use crate::provider::{Polisher, Router, Transcriber};
 use crate::secrets::SecretStore;
 
 #[async_trait]
@@ -23,6 +23,8 @@ pub trait LocalBackend: Send + Sync {
     async fn transcriber(&self, model_id: &str) -> ProviderResult<Arc<dyn Transcriber>>;
     /// A field the user leaves unset takes the value the model's catalog entry recommends.
     async fn polisher(&self, model_id: &str, params: &LocalPolishParams) -> ProviderResult<Arc<dyn Polisher>>;
+    /// Decides intents with the chat model `model_id`, the same one that polishes.
+    async fn router(&self, model_id: &str) -> ProviderResult<Arc<dyn Router>>;
     fn status(&self, model_id: &str) -> EngineStatus;
 }
 
@@ -32,6 +34,8 @@ pub trait Engines: Send + Sync {
     async fn transcriber(&self, cfg: &Config) -> ProviderResult<Arc<dyn Transcriber>>;
     /// `None` when polishing is switched off.
     async fn polisher(&self, cfg: &Config) -> ProviderResult<Option<Arc<dyn Polisher>>>;
+    /// Command mode routes with a local chat model whatever the polish source is: the instruction never leaves the Mac.
+    async fn router(&self, cfg: &Config) -> ProviderResult<Arc<dyn Router>>;
 }
 
 type Slot<T> = Option<(EngineConfig, Arc<T>)>;
@@ -51,12 +55,26 @@ pub struct EngineFactory {
     local: Option<Arc<dyn LocalBackend>>,
     bedrock_endpoint: Option<String>,
     speech_config: Option<serde_json::Value>,
+    router: Option<Arc<dyn Router>>,
     cache: Mutex<EngineCache>,
 }
 
 impl EngineFactory {
     pub fn new(secrets: Arc<dyn SecretStore>) -> Self {
-        Self { secrets, local: None, bedrock_endpoint: None, speech_config: None, cache: Mutex::default() }
+        Self {
+            secrets,
+            local: None,
+            bedrock_endpoint: None,
+            speech_config: None,
+            router: None,
+            cache: Mutex::default(),
+        }
+    }
+
+    /// Test hook: routing uses this router instead of the local chat model. `--mock` runs have no model to route with.
+    pub fn with_router(mut self, router: Arc<dyn Router>) -> Self {
+        self.router = Some(router);
+        self
     }
 
     /// Test hook: cloud speech uses this request JSON, without a key, instead of the saved configuration. `--mock`
@@ -214,24 +232,37 @@ impl Engines for EngineFactory {
         }
         Ok(Some(engine))
     }
+
+    async fn router(&self, cfg: &Config) -> ProviderResult<Arc<dyn Router>> {
+        if let Some(router) = &self.router {
+            return Ok(router.clone());
+        }
+        self.require_local()?.router(&cfg.polish.engine.local_model).await
+    }
 }
 
 pub struct FixedEngines {
     pub asr: Arc<dyn Transcriber>,
     pub polish: Arc<dyn Polisher>,
+    pub router: Arc<dyn Router>,
 }
 
 impl FixedEngines {
+    /// Routes every instruction to polish, confidently.
+    pub fn new(asr: Arc<dyn Transcriber>, polish: Arc<dyn Polisher>) -> Self {
+        Self { asr, polish, router: Arc::new(MockRouter::default()) }
+    }
+
     pub fn demo() -> Self {
-        Self {
-            asr: Arc::new(
+        Self::new(
+            Arc::new(
                 MockTranscriber::new(
                     "えーと 明日の3時に会議、いや4時に会議があるので、資料を、あの、事前に共有しておいてください",
                 )
                 .with_delay(std::time::Duration::from_millis(900)),
             ),
-            polish: Arc::new(MockPolisher::default().with_delay(std::time::Duration::from_millis(700))),
-        }
+            Arc::new(MockPolisher::default().with_delay(std::time::Duration::from_millis(700))),
+        )
     }
 }
 
@@ -243,6 +274,10 @@ impl Engines for FixedEngines {
 
     async fn polisher(&self, cfg: &Config) -> ProviderResult<Option<Arc<dyn Polisher>>> {
         Ok(cfg.polish.enabled.then(|| self.polish.clone()))
+    }
+
+    async fn router(&self, _: &Config) -> ProviderResult<Arc<dyn Router>> {
+        Ok(self.router.clone())
     }
 }
 
@@ -322,6 +357,9 @@ mod tests {
         async fn polisher(&self, model_id: &str, params: &LocalPolishParams) -> ProviderResult<Arc<dyn Polisher>> {
             self.0.lock().unwrap().push((model_id.into(), *params));
             Ok(Arc::new(MockPolisher::default()))
+        }
+        async fn router(&self, _: &str) -> ProviderResult<Arc<dyn Router>> {
+            Err(ProviderError::new(ErrorKind::Unavailable, "routing is not under test"))
         }
         fn status(&self, _: &str) -> EngineStatus {
             EngineStatus::Running

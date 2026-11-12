@@ -8,4 +8,9 @@ impl Sink for LogSink {
         tracing::info!("would insert: {text}");
         Delivery::Inserted
     }
+
+    fn copy(&self, text: &str) -> Delivery {
+        tracing::info!("would copy: {text}");
+        Delivery::Copied
+    }
 }

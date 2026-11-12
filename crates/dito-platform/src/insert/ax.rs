@@ -23,8 +23,10 @@ unsafe extern "C" {
     safe fn AXUIElementCreateSystemWide() -> AXUIElementRef;
     safe fn AXUIElementCreateApplication(pid: i32) -> AXUIElementRef;
     fn AXUIElementCopyAttributeValue(element: AXUIElementRef, attribute: CFStringRef, value: *mut CFTypeRef) -> i32;
+    fn AXUIElementPerformAction(element: AXUIElementRef, action: CFStringRef) -> i32;
     fn AXUIElementCopyAttributeNames(element: AXUIElementRef, names: *mut CFArrayRef) -> i32;
     fn AXUIElementSetAttributeValue(element: AXUIElementRef, attribute: CFStringRef, value: CFTypeRef) -> i32;
+    fn AXUIElementIsAttributeSettable(element: AXUIElementRef, attribute: CFStringRef, settable: *mut bool) -> i32;
     safe fn AXUIElementGetTypeID() -> usize;
     fn AXUIElementSetMessagingTimeout(element: AXUIElementRef, timeout: f32) -> i32;
     fn AXUIElementGetPid(element: AXUIElementRef, pid: *mut i32) -> i32;
@@ -57,8 +59,13 @@ impl AxElement {
     }
 
     fn bounded(self) -> Self {
+        self.with_timeout(0.15)
+    }
+
+    /// Elements read from another element do not inherit its messaging timeout (the system default is seconds long).
+    pub(super) fn with_timeout(self, seconds: f32) -> Self {
         // SAFETY: self owns a live AX element; the timeout is in seconds.
-        unsafe { AXUIElementSetMessagingTimeout(self.raw(), 0.15) };
+        unsafe { AXUIElementSetMessagingTimeout(self.raw(), seconds) };
         self
     }
 
@@ -108,6 +115,22 @@ impl AxElement {
 
     pub(super) fn count(&self, name: &str) -> Option<usize> {
         self.attribute(name)?.downcast::<CFNumber>()?.to_i64()?.try_into().ok()
+    }
+
+    /// `AXEnabled`, taken as true when the element does not say.
+    pub(super) fn is_enabled(&self) -> bool {
+        self.attribute("AXEnabled").is_none_or(|v| v.downcast::<CFBoolean>() == Some(CFBoolean::true_value()))
+    }
+
+    pub(super) fn integer(&self, name: &str) -> Option<i64> {
+        self.attribute(name)?.downcast::<CFNumber>()?.to_i64()
+    }
+
+    /// Runs the element's `AXPress` action (a menu item's command). `true` when the app accepted it.
+    pub(super) fn press(&self) -> bool {
+        let action = CFString::new("AXPress");
+        // SAFETY: `self` holds a live element and `action` is a valid CFString.
+        unsafe { AXUIElementPerformAction(self.raw(), action.as_concrete_TypeRef()) == AX_SUCCESS }
     }
 
     /// Whether the attribute is the boolean true (`AXFocused` and friends come back as CFBoolean).
@@ -161,6 +184,24 @@ impl AxElement {
         status == AX_SUCCESS
     }
 
+    pub(super) fn is_settable(&self, name: &str) -> bool {
+        let attribute = CFString::new(name);
+        let mut settable = false;
+        // SAFETY: `self` holds a live element, `attribute` is a valid CFString and `settable` a valid out-pointer.
+        let status =
+            unsafe { AXUIElementIsAttributeSettable(self.raw(), attribute.as_concrete_TypeRef(), &mut settable) };
+        status == AX_SUCCESS && settable
+    }
+
+    pub(super) fn set_string(&self, name: &str, value: &str) -> bool {
+        let attribute = CFString::new(name);
+        let value = CFString::new(value);
+        // SAFETY: `self` holds a live element and both the attribute name and the CFString value are valid.
+        let status =
+            unsafe { AXUIElementSetAttributeValue(self.raw(), attribute.as_concrete_TypeRef(), value.as_CFTypeRef()) };
+        status == AX_SUCCESS
+    }
+
     pub(super) fn pid(&self) -> i32 {
         let mut pid = 0;
         // SAFETY: `self` holds a live element and `pid` is a valid out-pointer.
@@ -174,10 +215,20 @@ pub(super) struct AxSelection(CFType);
 impl AxSelection {
     /// UTF-16 offset where the selection starts, which is the caret when nothing is selected.
     pub(super) fn location(&self) -> Option<usize> {
+        usize::try_from(self.read()?.location).ok()
+    }
+
+    /// UTF-16 location and length of the selection; the length is zero for a caret.
+    pub(super) fn range(&self) -> Option<(usize, usize)> {
+        let range = self.read()?;
+        Some((usize::try_from(range.location).ok()?, usize::try_from(range.length).ok()?))
+    }
+
+    fn read(&self) -> Option<CFRange> {
         let mut range = CFRange { location: 0, length: 0 };
         // SAFETY: the value is the AXValue returned for AXSelectedTextRange and `range` is a valid CFRange
         // out-buffer; the call writes through it only when the value's type matches.
         let ok = unsafe { AXValueGetValue(self.0.as_CFTypeRef(), AX_VALUE_TYPE_CF_RANGE, (&raw mut range).cast()) };
-        ok.then(|| usize::try_from(range.location).ok()).flatten()
+        ok.then_some(range)
     }
 }

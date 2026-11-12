@@ -35,6 +35,12 @@ pub(super) const MIGRATIONS: &[&str] = &[
      ALTER TABLE history ADD COLUMN polish_engine TEXT;",
     // 3: use the product name without rewriting the saved words.
     "ALTER TABLE dictionary RENAME TO wordbook;",
+    // 4: step timings of every entry, and command rows: the text a command worked on and its details as JSON. All
+    // nullable, so earlier entries stay as they were.
+    "ALTER TABLE history ADD COLUMN asr_ms INTEGER;
+     ALTER TABLE history ADD COLUMN polish_ms INTEGER;
+     ALTER TABLE history ADD COLUMN source TEXT;
+     ALTER TABLE history ADD COLUMN command TEXT;",
 ];
 
 pub(super) const SCHEMA_VERSION: u32 = MIGRATIONS.len() as u32;
