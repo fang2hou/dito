@@ -9,14 +9,14 @@ use crate::prompts::{Style, default_set};
 
 /// Version of the persisted shape that this build reads and writes. Raise it together with appending one function to
 /// `MIGRATIONS`, and never edit or renumber a shipped migration: files in the field have already passed through it.
-pub const SCHEMA_VERSION: u32 = 4;
+pub const SCHEMA_VERSION: u32 = 5;
 
 const VERSION_KEY: &str = "schema_version";
 
 /// `MIGRATIONS[n]` upgrades a table from version `n` to version `n + 1`. The array length is tied to `SCHEMA_VERSION`,
 /// so the compiler rejects a version bump that comes without its migration.
 const MIGRATIONS: [fn(&mut Table); SCHEMA_VERSION as usize] =
-    [herdr_defaults, asr_profile_ids, cloud_configurations, wordbook_setting];
+    [herdr_defaults, asr_profile_ids, cloud_configurations, wordbook_setting, prompt_scaffold];
 
 /// Either way the file must stay as it is.
 #[derive(Debug, PartialEq)]
@@ -248,6 +248,13 @@ fn wordbook_setting(table: &mut Table) {
     }
 }
 
+/// 4 to 5: the task rules moved out of the prompt sets into a fixed scaffold, so a saved set, which still spells
+/// them out, would state them twice. Saved prompts are dropped and the typed load starts from the defaults. This was
+/// decided before any release; the backup keeps what the user wrote.
+fn prompt_scaffold(table: &mut Table) {
+    table.remove("prompts");
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -268,6 +275,17 @@ mod tests {
     }
 
     #[test]
+    fn version_four_drops_saved_prompts_and_nothing_else() {
+        let mut legacy = parse(
+            "schema_version = 4\nonboarded = true\n[prompts.ja]\nbase = \"my rule\"\n[prompts.applications]\n\"example.editor\" = \"Editor\"",
+        );
+        assert_eq!(upgrade(&mut legacy), Ok(4));
+        let config: Config = legacy.try_into().unwrap();
+        assert!(config.onboarded);
+        assert_eq!(config.prompts, crate::prompts::Prompts::default());
+    }
+
+    #[test]
     fn version_zero_gains_default_herdr_prompts_only_where_missing() {
         let mut legacy = parse(
             r#"
@@ -281,8 +299,7 @@ instruction = "my herdr rule"
 samples = ["short"]
 "#,
         );
-        assert_eq!(upgrade(&mut legacy), Ok(0));
-        assert_eq!(legacy[VERSION_KEY].as_integer(), Some(i64::from(SCHEMA_VERSION)));
+        herdr_defaults(&mut legacy);
         assert_eq!(legacy["onboarded"].as_bool(), Some(true), "unrelated settings are untouched");
         let prompts = &legacy["prompts"];
         let herdr = |lang: &str| -> StylePrompt { prompts[lang]["herdr"].clone().try_into().unwrap() };

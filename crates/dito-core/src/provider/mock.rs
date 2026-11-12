@@ -69,8 +69,9 @@ impl Default for MockPolisher {
 
 const FILLERS: &[&str] = &["えーと", "えっと", "あの", "その", "まあ", "um", "uh", "嗯", "那个"];
 
+/// Takes the user turn of a polish request, fenced or not.
 pub fn rule_polish(text: &str) -> String {
-    let mut out = text.to_string();
+    let mut out = crate::prompts::unfenced(text).to_string();
     for f in FILLERS {
         out = out.replace(f, "");
     }

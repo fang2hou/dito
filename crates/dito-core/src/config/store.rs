@@ -135,7 +135,7 @@ mod tests {
         Appearance, CloudAsrConfigurations, DEFAULT_POLISH_LOCAL, DEFAULT_SHORTCUT, MusicMuteMode, ReasoningEffort,
     };
     use crate::i18n::Lang;
-    use crate::prompts::{Style, default_set};
+    use crate::prompts::default_set;
 
     fn config_file(contents: &str) -> (tempfile::TempDir, PathBuf) {
         let dir = tempfile::tempdir().unwrap();
@@ -245,23 +245,13 @@ mod tests {
     }
 
     #[test]
-    fn legacy_prompts_get_the_default_herdr_style_unless_the_user_wrote_one() {
-        let (_dir, path) = config_file(
-            r#"
-[prompts.ja]
-base = "my existing rule"
-
-[prompts.en.herdr]
-instruction = "my herdr rule"
-"#,
-        );
+    fn prompts_saved_before_the_scaffold_are_replaced_by_the_defaults_and_kept_in_the_backup() {
+        let (dir, path) = config_file("[prompts.ja]\nbase = \"my existing rule\"\n");
 
         let prompts = ConfigStore::open(path).unwrap().get().prompts.clone();
-        let herdr = Style::builtin("herdr").unwrap();
-        assert_eq!(prompts.ja.base, "my existing rule");
-        assert_eq!(prompts.ja.style(&herdr), default_set(Lang::Ja).style(&herdr));
-        assert_eq!(prompts.en.style(&herdr).instruction, "my herdr rule");
-        assert_eq!(prompts.zh.style(&herdr), default_set(Lang::Zh).style(&herdr));
+        assert_eq!(prompts.ja, default_set(Lang::Ja));
+        let backup = std::fs::read_to_string(dir.path().join("config.toml.v0.bak")).unwrap();
+        assert!(backup.contains("my existing rule"));
     }
 
     #[test]

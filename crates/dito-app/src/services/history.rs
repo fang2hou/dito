@@ -102,7 +102,7 @@ pub async fn polish_again(st: Arc<AppState>, entry: HistoryEntry) -> Result<(), 
                 style: entry.style.clone(),
                 text: &entry.raw,
                 wordbook: pipeline::polish_wordbook(&cfg, &words),
-                lang: None,
+                lang: pipeline::transcript_lang(Some(&entry.lang), &entry.raw),
             };
             let text = pipeline::polish_text(polisher.as_ref(), polish_job).await.map_err(|e| e.to_string())?;
             let (id, text) = (entry.id, text);

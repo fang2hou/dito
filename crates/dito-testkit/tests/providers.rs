@@ -66,7 +66,7 @@ async fn cloud_asr_and_azure_polish_hit_their_routes_with_models_and_key() {
     assert_eq!(t.language.as_deref(), Some("ja"));
 
     let polish = f.polisher(&cfg).await.unwrap().unwrap();
-    let out = polish.polish(&PolishRequest { system: "sys", text: "えーと 会議です" }).await.unwrap();
+    let out = polish.polish(&PolishRequest { system: "sys", examples: &[], text: "えーと 会議です" }).await.unwrap();
     assert_eq!(out, "会議です。");
 
     let reqs = srv.requests();
@@ -104,7 +104,7 @@ async fn http_statuses_map_to_error_kinds() {
     for (status, kind) in [(429, ErrorKind::RateLimit), (404, ErrorKind::ModelNotFound), (500, ErrorKind::Other)] {
         srv.behavior(|b| b.fail_status = Some(status));
         let engine = f.polisher(&cfg).await.unwrap().unwrap();
-        let err = engine.polish(&PolishRequest { system: "s", text: "t" }).await.unwrap_err();
+        let err = engine.polish(&PolishRequest { system: "s", examples: &[], text: "t" }).await.unwrap_err();
         assert_eq!(err.kind, kind, "status {status}");
     }
 }
@@ -120,10 +120,13 @@ async fn a_server_that_hangs_up_is_a_network_error_not_a_hang() {
     });
     let f = factory(None);
     let engine = f.polisher(&mock_cfg(&url)).await.unwrap().unwrap();
-    let err = tokio::time::timeout(Duration::from_secs(15), engine.polish(&PolishRequest { system: "s", text: "t" }))
-        .await
-        .expect("must fail fast")
-        .unwrap_err();
+    let err = tokio::time::timeout(
+        Duration::from_secs(15),
+        engine.polish(&PolishRequest { system: "s", examples: &[], text: "t" }),
+    )
+    .await
+    .expect("must fail fast")
+    .unwrap_err();
     assert_eq!(err.kind, ErrorKind::Network);
     hang_up.abort();
 }
@@ -150,7 +153,7 @@ async fn compat_accepts_a_pasted_chat_completions_url_and_uses_bearer_auth() {
     let cfg = compat_cfg(&format!("{}/v1/chat/completions", srv.url));
     let f = factory(Some("tok"));
     let p = f.polisher(&cfg).await.unwrap().unwrap();
-    assert_eq!(p.polish(&PolishRequest { system: "s", text: "um hello" }).await.unwrap(), "hello.");
+    assert_eq!(p.polish(&PolishRequest { system: "s", examples: &[], text: "um hello" }).await.unwrap(), "hello.");
     let r = &srv.requests()[0];
     assert!(r.headers.iter().any(|(k, v)| k == "authorization" && v == "Bearer tok"));
 }
@@ -163,7 +166,7 @@ async fn reasoning_effort_is_dropped_and_retried_for_models_that_reject_it() {
     active(&mut cfg).params.reasoning_effort = ReasoningEffort::High;
     active(&mut cfg).params.temperature = Some(0.3);
     let p = factory(None).polisher(&cfg).await.unwrap().unwrap();
-    assert_eq!(p.polish(&PolishRequest { system: "s", text: "ok" }).await.unwrap(), "ok.");
+    assert_eq!(p.polish(&PolishRequest { system: "s", examples: &[], text: "ok" }).await.unwrap(), "ok.");
     let reqs = srv.requests();
     assert_eq!(reqs.len(), 2);
     assert_eq!(reqs[0].reasoning_effort.as_deref(), Some("high"));
@@ -180,7 +183,7 @@ fn body_keys(body: &serde_json::Value) -> Vec<&str> {
 async fn polish_body(cfg: &Config, srv: &MockServer) -> serde_json::Value {
     let before = srv.requests().len();
     let p = factory(None).polisher(cfg).await.unwrap().unwrap();
-    p.polish(&PolishRequest { system: "s", text: "ok" }).await.unwrap();
+    p.polish(&PolishRequest { system: "s", examples: &[], text: "ok" }).await.unwrap();
     srv.requests()[before].body.clone().expect("the chat route records its body")
 }
 
@@ -254,7 +257,7 @@ async fn every_configuration_authenticates_with_the_key_under_its_own_account() 
     secrets.set(&polish_account(&original), "key-of-the-original").unwrap();
     assert_eq!(secrets.get(&polish_account(&copy)), None, "a copy starts without a key");
     secrets.set(&polish_account(&copy), "key-of-the-copy").unwrap();
-    let request = PolishRequest { system: "s", text: "ok" };
+    let request = PolishRequest { system: "s", examples: &[], text: "ok" };
 
     f.polisher(&cfg).await.unwrap().unwrap().polish(&request).await.unwrap();
     cfg.polish.engine.polish_configurations_mut(cfg.general.lang()).select(&original);
@@ -270,7 +273,7 @@ async fn a_changed_key_is_picked_up_once_the_engines_are_invalidated() {
     let f = EngineFactory::new(secrets.clone());
     let cfg = mock_cfg(&srv.url);
     let account = polish_account("azure");
-    let request = PolishRequest { system: "s", text: "ok" };
+    let request = PolishRequest { system: "s", examples: &[], text: "ok" };
 
     secrets.set(&account, "old").unwrap();
     let first = f.polisher(&cfg).await.unwrap().unwrap().polish(&request).await.unwrap_err();
@@ -286,7 +289,7 @@ async fn a_polish_reply_cut_off_at_the_token_limit_is_a_bad_response() {
     srv.behavior(|b| b.truncate_chat = true);
     let cfg = mock_cfg(&srv.url);
     let p = factory(None).polisher(&cfg).await.unwrap().unwrap();
-    let err = p.polish(&PolishRequest { system: "s", text: "ok" }).await.unwrap_err();
+    let err = p.polish(&PolishRequest { system: "s", examples: &[], text: "ok" }).await.unwrap_err();
     assert_eq!(err.kind, ErrorKind::BadResponse);
 }
 

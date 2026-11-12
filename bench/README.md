@@ -56,7 +56,7 @@ Add a runtime's Python package to the matching extra in `pyproject.toml` (`sherp
 
 - `data/clips.json`: clips and their reference text. Clips with `hotwords` also run as a second case with those hotwords for models that support them.
 - `data/polish_cases.json`: dirty dictation text for the polish models. Optional `wordbook` terms are passed as the reference vocabulary.
-- The prompts in `src/dito_bench/polish/prompts.py` mirror `crates/dito-core/src/prompts.rs`. Keep them identical; a change makes stored polish results stale.
+- The prompt in `src/dito_bench/polish/prompts.py` mirrors `crates/dito-core/src/prompts.rs`: the scaffold, the demonstration turns and the default rules of each language. Keep them identical; a change makes stored polish results stale.
 - Clip texts, prompts and polish inputs are Japanese, Chinese and English on purpose. They are test data, not documentation.
 
 ## Development
@@ -79,6 +79,10 @@ audio/            synthesized clips (git-ignored)
 models/           downloaded weights (git-ignored)
 recordings/       microphone recordings (git-ignored)
 ```
+
+## Polish prompt exploration
+
+`notebooks/prompt_escape.py` measures how a prompt construction holds up when the dictated text looks like a request: an instruction to translate, a question, a correction, a sentence with words of another language. It runs the cases in `data/prompt_escape_cases.json` on the 2B, 4B and 9B polish models, rendered and sampled as the app does. See [POLISH_PROMPT.md](POLISH_PROMPT.md) for the findings and the construction Dito ships.
 
 ## Haas-ja exploration
 

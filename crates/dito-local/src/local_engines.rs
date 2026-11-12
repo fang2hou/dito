@@ -247,10 +247,11 @@ impl Polisher for LocalLlm {
     async fn polish(&self, req: &PolishRequest<'_>) -> ProviderResult<String> {
         let _working = Working::new(&self.usage);
         let (rt, system, user) = (self.rt.clone(), req.system.to_string(), req.text.to_string());
+        let examples = req.examples;
         let sampling = self.sampling;
         let stop = Arc::new(AtomicBool::new(false));
         let _cancel = StopOnDrop(stop.clone());
-        let text = tokio::task::spawn_blocking(move || rt.generate(&system, &user, &sampling, &stop))
+        let text = tokio::task::spawn_blocking(move || rt.generate(&system, examples, &user, &sampling, &stop))
             .await
             .map_err(|e| ProviderError::new(ErrorKind::Other, e.to_string()))?
             .map_err(runtime_failure)?;

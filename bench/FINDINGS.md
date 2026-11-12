@@ -98,3 +98,7 @@ Conclusions:
 - **Integration traps**: the Qwen3.5 chat template **enables thinking by default** (mlx-lm needs an explicit `enable_thinking=False`), while the chat template embedded in the unsloth GGUF defaults to non-thinking, so the two runtimes behave differently out of the box.
 - **Qwen3.7 has no open release** (API only). Qwen3.8 open-sources a 27B dense model and the Max 2.4T MoE; the small tier is still Qwen3.5.
 - **Dedicated small polish models**: there is no open model on Hugging Face that handles filler removal, self-correction and style rewriting across the three languages. Only narrow tools exist (punctuation restoration BERT, ITN, filler detection), which at best serve as cheap preprocessing before the LLM and cannot replace a small LLM.
+
+### Prompt construction (2026-11-12)
+
+The prompt, not the model size, decided whether dictated text was translated, answered or carried out. One English scaffold for every language, the transcript between `===` lines and three demonstration turns brought the escape cases from 18, 24 and 13 of 39 runs (2B, 4B, 9B) to 51, 52 and 52 of 54. The price is weaker restoring of wordbook terms on 4B and 9B. Method, results and what did not work are in [POLISH_PROMPT.md](POLISH_PROMPT.md).

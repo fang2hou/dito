@@ -9,7 +9,7 @@ mod test_outcome;
 mod timeout;
 mod transcriber;
 
-pub use polisher::{PolishRequest, Polisher};
+pub use polisher::{Example, PolishRequest, Polisher};
 pub use test_outcome::{TestOutcome, test_polisher, test_transcriber, test_transcriber_with_language};
 pub(crate) use timeout::default_timeout;
 pub use transcriber::{AsrRequest, Transcriber, Transcript};

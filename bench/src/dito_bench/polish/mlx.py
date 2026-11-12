@@ -4,6 +4,7 @@ import time
 
 from ..weights import Weights
 from .base import MAX_TOKENS, Polished
+from .prompts import Prompt
 
 
 class MlxPolisher:
@@ -24,15 +25,13 @@ class MlxPolisher:
                 messages, add_generation_prompt=True, tokenize=False
             )
 
-    def polish(self, text: str, system_prompt: str) -> Polished:
+    def polish(self, prompt: Prompt) -> Polished:
         import mlx_lm
 
-        prompt = self._render_prompt(
-            [{"role": "system", "content": system_prompt}, {"role": "user", "content": text}]
-        )
+        rendered = self._render_prompt(prompt.messages())
         start = time.perf_counter()
         out = mlx_lm.generate(
-            self._model, self._tokenizer, prompt=prompt, max_tokens=MAX_TOKENS, verbose=False
+            self._model, self._tokenizer, prompt=rendered, max_tokens=MAX_TOKENS, verbose=False
         )
         elapsed = time.perf_counter() - start
         tokens = len(self._tokenizer.encode(out))

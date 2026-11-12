@@ -40,6 +40,7 @@ pub async fn test_transcriber_with_language(t: &dyn Transcriber, language: Optio
 
 pub async fn test_polisher(p: &dyn Polisher) -> TestOutcome {
     let started = Instant::now();
-    let r = p.polish(&PolishRequest { system: "Reply with the user's text unchanged.", text: "ok" }).await;
+    let r =
+        p.polish(&PolishRequest { system: "Reply with the user's text unchanged.", examples: &[], text: "ok" }).await;
     TestOutcome::from_result(started, r.map(|_| ()))
 }

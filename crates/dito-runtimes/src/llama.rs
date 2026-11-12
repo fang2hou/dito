@@ -3,7 +3,7 @@ use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, OnceLock};
 
-use dito_local::{AsrOutput, AsrRuntime, LlmRuntime, RuntimeError, Sampling};
+use dito_local::{AsrOutput, AsrRuntime, Example, LlmRuntime, RuntimeError, Sampling};
 use llama_cpp_2::context::LlamaContext;
 use llama_cpp_2::context::params::LlamaContextParams;
 use llama_cpp_2::llama_backend::LlamaBackend;
@@ -75,11 +75,18 @@ impl Chat {
         Ok(Self { model, template, gate: Mutex::new(()), disable_thinking })
     }
 
-    fn render_prompt(&self, system: &str, user: &str) -> Result<String, RuntimeError> {
-        let messages = [
-            LlamaChatMessage::new("system".into(), system.into()).map_err(RuntimeError::engine)?,
-            LlamaChatMessage::new("user".into(), user.into()).map_err(RuntimeError::engine)?,
-        ];
+    /// Earlier assistant turns get no think block: the hybrid-thinking checkpoints expect it only where they answer.
+    fn render_prompt(&self, system: &str, examples: &[Example], user: &str) -> Result<String, RuntimeError> {
+        let message = |role: &str, content: &str| {
+            LlamaChatMessage::new(role.into(), content.into()).map_err(RuntimeError::engine)
+        };
+        let mut messages = Vec::with_capacity(examples.len() * 2 + 2);
+        messages.push(message("system", system)?);
+        for example in examples {
+            messages.push(message("user", example.said)?);
+            messages.push(message("assistant", example.written)?);
+        }
+        messages.push(message("user", user)?);
         let mut prompt = self.model.apply_chat_template(&self.template, &messages, true).map_err(|error| {
             RuntimeError::engine(format!("the model's chat template could not be applied: {error}"))
         })?;
@@ -101,6 +108,7 @@ impl LlmRuntime for Chat {
     fn generate(
         &self,
         system: &str,
+        examples: &[Example],
         user: &str,
         sampling: &Sampling,
         stop: &AtomicBool,
@@ -111,7 +119,7 @@ impl LlmRuntime for Chat {
             return Err(RuntimeError::Cancelled);
         }
         let backend = backend()?;
-        let prompt = self.render_prompt(system, user)?;
+        let prompt = self.render_prompt(system, examples, user)?;
         let tokens = self.tokenize_prompt(&prompt);
         let budget = output_budget(tokens.len(), sampling.max_tokens);
         let n_ctx = (tokens.len() as u32 + budget).max(1024);
@@ -312,15 +320,15 @@ mod tests {
         let text = "えーと、明日の午後三時に、あの、会議をします。";
 
         let capped = Sampling { max_tokens: Some(2), ..sampling };
-        assert!(matches!(chat.generate(system, text, &capped, &stop), Err(RuntimeError::Truncated)));
+        assert!(matches!(chat.generate(system, &[], text, &capped, &stop), Err(RuntimeError::Truncated)));
 
         let greedy = Sampling { temperature: 0.0, ..sampling };
-        let reply = chat.generate(system, text, &greedy, &stop).unwrap();
+        let reply = chat.generate(system, &[], text, &greedy, &stop).unwrap();
         assert!(!reply.is_empty());
-        assert_eq!(chat.generate(system, text, &greedy, &stop).unwrap(), reply, "greedy decoding repeats itself");
+        assert_eq!(chat.generate(system, &[], text, &greedy, &stop).unwrap(), reply, "greedy decoding repeats itself");
         let one_candidate = Sampling { temperature: 1.5, top_k: Some(1), top_p: Some(0.5), ..sampling };
         assert_eq!(
-            chat.generate(system, text, &one_candidate, &stop).unwrap(),
+            chat.generate(system, &[], text, &one_candidate, &stop).unwrap(),
             reply,
             "top-k and top-p are in the chain"
         );
@@ -329,7 +337,8 @@ mod tests {
     #[test]
     #[ignore = "requires DITO_POLISH_MODEL_DIR and a local Qwen3.5-4B GGUF"]
     fn polish_reference_vocabulary_regression() {
-        use dito_core::prompts::{PromptInput, Prompts, Style, build_system_prompt};
+        use dito_core::i18n::Lang;
+        use dito_core::prompts::{PromptInput, Prompts, Style, build_prompt};
         use dito_local::LlmRuntime;
         use std::sync::atomic::AtomicBool;
         let spec = dito_local::catalog::default_catalog().into_iter().find(|s| s.id == "qwen3.5-4b-instruct").unwrap();
@@ -341,12 +350,14 @@ mod tests {
         let terms = vec!["NebulaBanana".into(), "银河量子仓库".into()];
         let prompts = Prompts::default();
         let stop = AtomicBool::new(false);
-        for text in
-            ["嗯，明天下午三点开会。", "えーと、明日の午後三時に会議をします。", "Um, let's meet tomorrow at three."]
-        {
-            let system =
-                build_system_prompt(&PromptInput { prompts: &prompts, style: Style::General, text, wordbook: &terms });
-            let out = model.generate(&system, text, &sampling, &stop).unwrap();
+        for (lang, text) in [
+            (Lang::Zh, "嗯，明天下午三点开会。"),
+            (Lang::Ja, "えーと、明日の午後三時に会議をします。"),
+            (Lang::En, "Um, let's meet tomorrow at three."),
+        ] {
+            let prompt =
+                build_prompt(&PromptInput { prompts: &prompts, style: Style::General, lang, text, wordbook: &terms });
+            let out = model.generate(&prompt.system, prompt.examples, &prompt.user, &sampling, &stop).unwrap();
             eprintln!("POLISH_REGRESSION {text}: {out}");
             assert!(!out.is_empty());
             for term in &terms {
@@ -369,10 +380,13 @@ mod tests {
         // Edge whitespace must survive: llama.cpp trims message content for some other families, never for ChatML.
         let system = "Rewrite the dictation.\n\nKeep the language.\n";
         let user = " えーと、明日の会議は三時です。\n";
-        let prompt = chat.render_prompt(system, user).unwrap();
+        let example = dito_local::Example { said: "えーと、はい。", written: "はい。" };
+        let prompt = chat.render_prompt(system, &[example], user).unwrap();
         let legacy = format!(
-            "<|im_start|>system\n{system}<|im_end|>\n<|im_start|>user\n{user}<|im_end|>\n\
-             <|im_start|>assistant\n<think>\n\n</think>\n\n"
+            "<|im_start|>system\n{system}<|im_end|>\n<|im_start|>user\n{}<|im_end|>\n\
+             <|im_start|>assistant\n{}<|im_end|>\n<|im_start|>user\n{user}<|im_end|>\n\
+             <|im_start|>assistant\n<think>\n\n</think>\n\n",
+            example.said, example.written
         );
         assert_eq!(prompt, legacy);
         // Special tokens are parsed and no BOS is added, as for the hand-written prompt.

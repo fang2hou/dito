@@ -5,6 +5,7 @@ from typing import cast
 
 from ..weights import Weights
 from .base import MAX_TOKENS, Polished
+from .prompts import Prompt
 
 CONTEXT_TOKENS = 2048
 
@@ -22,15 +23,12 @@ class LlamaPolisher:
             model_path=str(ggufs[0]), n_ctx=CONTEXT_TOKENS, n_gpu_layers=-1, verbose=False
         )
 
-    def polish(self, text: str, system_prompt: str) -> Polished:
+    def polish(self, prompt: Prompt) -> Polished:
         from llama_cpp.llama_types import CreateChatCompletionResponse
 
         start = time.perf_counter()
         out = self._llm.create_chat_completion(
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": text},
-            ],
+            messages=prompt.messages(),  # ty: ignore[invalid-argument-type]
             temperature=0,
             max_tokens=MAX_TOKENS,
             stream=False,

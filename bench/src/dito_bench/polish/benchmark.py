@@ -10,7 +10,7 @@ from ..paths import DATA_DIR
 from ..store import ResultStore, fingerprint
 from ..sync import Case, sync_store
 from .base import MAX_TOKENS, Polished, Polisher
-from .prompts import system_prompt
+from .prompts import Prompt, build
 from .registry import get_polish_spec
 
 TASK = "polish"
@@ -40,19 +40,20 @@ def load_cases() -> list[PolishCase]:
     ]
 
 
-def _prompt(case: PolishCase) -> str:
-    return system_prompt(case.lang, STYLE, list(case.wordbook))
+def _prompt(case: PolishCase) -> Prompt:
+    return build(case.lang, case.text, STYLE, list(case.wordbook))
 
 
 def build_cases(cases: Sequence[PolishCase]) -> list[Case[PolishCase]]:
     # The fingerprint covers the exact prompt, so a prompt edit makes stored results stale.
     return [
-        Case(c.id, fingerprint(_prompt(c), c.text, f"max_tokens={MAX_TOKENS}"), c) for c in cases
+        Case(c.id, fingerprint(repr(_prompt(c).messages()), f"max_tokens={MAX_TOKENS}"), c)
+        for c in cases
     ]
 
 
 def _execute(model: Polisher, case: PolishCase) -> dict[str, Any]:
-    result: Polished = model.polish(case.text, _prompt(case))
+    result: Polished = model.polish(_prompt(case))
     return {
         "text": result.text,
         "elapsed_s": round(result.elapsed_s, 3),
@@ -61,7 +62,7 @@ def _execute(model: Polisher, case: PolishCase) -> dict[str, Any]:
 
 
 def _warmup(model: Polisher) -> None:
-    model.polish("テストです", system_prompt("ja"))
+    model.polish(build("ja", "テストです"))
 
 
 def run(
