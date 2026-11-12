@@ -35,6 +35,7 @@ Moves that look reasonable but go against this decision:
 
 - Simplifying delivery to one call, or retrying the full text after a partial insert.
 - Treating an unverifiable result as a failure.
+- Trusting a caret that never moves: terminals such as Ghostty keep the selection at 0 while the screen text changes, so check the field's content before switching method.
 - Restoring the clipboard on a timer, as text only, or over someone else's write.
 - Sending keys from the shared event source (a held right ⌘ turns them into shortcuts) or sending chunks faster than every 10 ms.
 - Dropping the path for apps without accessibility text (Zed and other GPU-rendered editors).
