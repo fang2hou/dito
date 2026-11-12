@@ -81,6 +81,9 @@ impl Default for OceanFrame {
     }
 }
 
+/// Just under one 60 Hz frame, so a 60 Hz display still redraws on every refresh.
+const MIN_REDRAW_S: f32 = 0.016;
+
 pub(crate) struct Waveform {
     calibration_left: f32,
     startup_min: f32,
@@ -90,6 +93,7 @@ pub(crate) struct Waveform {
     last_signal: f32,
     frame: OceanFrame,
     last_drawn: OceanFrame,
+    since_drawn: f32,
 }
 
 impl Default for Waveform {
@@ -103,6 +107,7 @@ impl Default for Waveform {
             last_signal: 0.,
             frame: OceanFrame::default(),
             last_drawn: OceanFrame::default(),
+            since_drawn: 0.,
         }
     }
 }
@@ -113,6 +118,7 @@ impl Waveform {
         if dt == 0. {
             return;
         }
+        self.since_drawn += dt;
         let rms = if rms.is_finite() { rms.clamp(0., 1.) } else { 0. };
         if self.calibration_left > 0. {
             // Zero also means the recorder has yet to deliver its first buffer.
@@ -160,6 +166,10 @@ impl Waveform {
     }
 
     pub(super) fn needs_redraw(&mut self, reduced: bool) -> bool {
+        // Speech moves the phase past the threshold on every display refresh, so high refresh rates need a ceiling.
+        if self.since_drawn < MIN_REDRAW_S {
+            return false;
+        }
         let frame = self.frame;
         let last = self.last_drawn;
         // Quiet drift needs about 30 frames per second. With reduced motion, redraw only for changes in ink.
@@ -168,6 +178,7 @@ impl Waveform {
             || (frame.level > 0.2 && (frame.cadence - last.cadence).abs() >= 0.08)
         {
             self.last_drawn = frame;
+            self.since_drawn = 0.;
             return true;
         }
         false
@@ -216,13 +227,15 @@ fn drift(t: f32, seed: u32) -> f32 {
     mix(random(cell as i32), random(cell as i32 + 1), f * f * (3. - 2. * f))
 }
 
-fn dot(path: &mut PathBuilder, center: Point<Pixels>, radius: Pixels) {
+/// Appends the dot as a triangle fan. A convex hexagon needs no tessellator, which was the largest per-frame cost.
+fn dot(path: &mut Option<Path<Pixels>>, center: Point<Pixels>, radius: Pixels) {
     const RING: [(f32, f32); 6] = [(1., 0.), (0.5, 0.866), (-0.5, 0.866), (-1., 0.), (-0.5, -0.866), (0.5, -0.866)];
-    path.move_to(point(center.x + radius, center.y));
-    for (dx, dy) in RING.into_iter().skip(1) {
-        path.line_to(point(center.x + radius * dx, center.y + radius * dy));
+    let corner = |i: usize| point(center.x + radius * RING[i].0, center.y + radius * RING[i].1);
+    let solid = point(0., 1.);
+    let path = path.get_or_insert_with(|| Path::new(corner(0)));
+    for i in 1..RING.len() - 1 {
+        path.push_triangle((corner(0), corner(i), corner(i + 1)), (solid, solid, solid));
     }
-    path.close();
 }
 
 pub(super) fn ocean(
@@ -252,7 +265,7 @@ pub(super) fn ocean(
             // Bucket the dots so hundreds of points are painted in only a handful of paths.
             const BANDS: usize = 6;
             const SHADES: usize = 5;
-            let mut paths: [[Option<PathBuilder>; SHADES]; BANDS] = Default::default();
+            let mut paths: [[Option<Path<Pixels>>; SHADES]; BANDS] = Default::default();
             for row in 0..16 {
                 let depth = row as f32 / 15.;
                 let distant = 0.08 + 0.92 * depth.powf(1.85);
@@ -324,7 +337,7 @@ pub(super) fn ocean(
                     let mut paint_dot = |radius: f32, opacity: f32| {
                         let band = (opacity * (BANDS - 1) as f32).round() as usize;
                         if band > 0 && radius <= from_edge {
-                            dot(paths[band][shade].get_or_insert_with(PathBuilder::fill), center, scale.px(radius));
+                            dot(&mut paths[band][shade], center, scale.px(radius));
                         }
                     };
                     let button_radius = BTN * entry.button * 0.5;
@@ -352,9 +365,7 @@ pub(super) fn ocean(
             };
             for (band, row) in paths.into_iter().enumerate().skip(1) {
                 for (shade, path) in row.into_iter().enumerate() {
-                    if let Some(path) = path
-                        && let Ok(path) = path.build()
-                    {
+                    if let Some(path) = path {
                         let t = shade as f32 / (SHADES - 1) as f32 * 2.;
                         let base = if t < 1. { 0 } else { 1 };
                         let [r, g, b] = std::array::from_fn(|i| {
@@ -426,6 +437,18 @@ mod tests {
             }
             assert_eq!(ocean.frame().level, 0.);
         }
+    }
+
+    #[test]
+    fn speech_redraws_at_most_sixty_times_a_second() {
+        let mut ocean = Waveform::default();
+        let frames = (0..240)
+            .filter(|i| {
+                ocean.advance(speech_sample(*i as f32 / 120., 0.025), 1. / 120.);
+                ocean.needs_redraw(false)
+            })
+            .count();
+        assert!((90..=120).contains(&frames), "{frames} frames in two seconds at 120 Hz");
     }
 
     #[test]
