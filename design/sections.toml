@@ -94,6 +94,10 @@ layer = "Listening Ocean"
 board = "21.09"
 layer = "HUD Buttons"
 
+[hud.command]
+board = "21.12"
+layer = "Command Mode"
+
 [onboarding.usage-demo]
 board = "22.09"
 layer = "Usage Demo"
