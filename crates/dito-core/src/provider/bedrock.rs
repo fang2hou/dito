@@ -133,13 +133,16 @@ impl BedrockEngine {
         Ok(Self { client: Client::new(&conf), model_id: p.model_id.trim().to_string(), params: p.params })
     }
 
-    async fn converse(&self, system: Option<&str>, content: ContentBlock) -> ProviderResult<String> {
-        let msg = Message::builder()
-            .role(ConversationRole::User)
-            .content(content)
-            .build()
-            .map_err(|e| ProviderError::new(ErrorKind::Other, e.to_string()))?;
-        let mut call = self.client.converse().model_id(&self.model_id).messages(msg);
+    async fn converse(&self, system: Option<&str>, turns: &[(ConversationRole, &str)]) -> ProviderResult<String> {
+        let mut call = self.client.converse().model_id(&self.model_id);
+        for (role, text) in turns {
+            let message = Message::builder()
+                .role(role.clone())
+                .content(ContentBlock::Text((*text).to_string()))
+                .build()
+                .map_err(|e| ProviderError::new(ErrorKind::Other, e.to_string()))?;
+            call = call.messages(message);
+        }
         if let Some(config) = inference_config(&self.model_id, &self.params) {
             call = call.inference_config(config);
         }
@@ -171,7 +174,13 @@ impl BedrockEngine {
 #[async_trait]
 impl Polisher for BedrockEngine {
     async fn polish(&self, req: &PolishRequest<'_>) -> ProviderResult<String> {
-        self.converse(Some(req.system), ContentBlock::Text(req.text.to_string())).await
+        let mut turns = Vec::with_capacity(req.examples.len() * 2 + 1);
+        for example in req.examples {
+            turns.push((ConversationRole::User, example.said));
+            turns.push((ConversationRole::Assistant, example.written));
+        }
+        turns.push((ConversationRole::User, req.text));
+        self.converse(Some(req.system), &turns).await
     }
 }
 

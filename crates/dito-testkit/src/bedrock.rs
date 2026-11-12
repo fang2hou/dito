@@ -14,7 +14,8 @@ pub(crate) async fn converse(
     Path(model): Path<String>,
     Json(body): Json<Value>,
 ) -> Response {
-    let content = body["messages"][0]["content"].as_array();
+    let content =
+        body["messages"].as_array().and_then(|turns| turns.last()).and_then(|turn| turn["content"].as_array());
     let user = content.and_then(|c| c.iter().find_map(|x| x["text"].as_str())).map(str::to_string);
     s.record(Recorded {
         path: "converse".into(),

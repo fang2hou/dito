@@ -75,13 +75,13 @@ impl OpenAiEngine {
     }
 
     fn body(&self, req: &PolishRequest<'_>) -> Value {
-        let mut body = json!({
-            "model": self.model(),
-            "messages": [
-                { "role": "system", "content": req.system },
-                { "role": "user", "content": req.text },
-            ],
-        });
+        let mut messages = vec![json!({ "role": "system", "content": req.system })];
+        for example in req.examples {
+            messages.push(json!({ "role": "user", "content": example.said }));
+            messages.push(json!({ "role": "assistant", "content": example.written }));
+        }
+        messages.push(json!({ "role": "user", "content": req.text }));
+        let mut body = json!({ "model": self.model(), "messages": messages });
         let params = &self.params;
         if let Some(temperature) = params.temperature.and_then(json_number) {
             body["temperature"] = temperature;
@@ -199,7 +199,7 @@ mod tests {
         let engine =
             OpenAiEngine::new(Flavor::Compat { base_url: "http://h/v1".into(), model: "m".into() }, "", params)
                 .unwrap();
-        let body = engine.body(&PolishRequest { system: "s", text: "t" });
+        let body = engine.body(&PolishRequest { system: "s", examples: &[], text: "t" });
         assert_eq!((&body["temperature"], &body["seed"], &body["model"]), (&json!(0.9), &json!(42), &json!("other")));
     }
 }

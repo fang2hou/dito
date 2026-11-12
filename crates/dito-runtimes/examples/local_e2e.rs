@@ -13,7 +13,8 @@ use dito_core::config::{ConfigStore, LocalPolishParams};
 use dito_core::error::ErrorKind;
 use dito_core::factory::LocalBackend;
 use dito_core::health::EngineStatus;
-use dito_core::prompts::{PromptInput, Prompts, Style, build_system_prompt};
+use dito_core::i18n::Lang;
+use dito_core::prompts::{PromptInput, Prompts, Style, build_prompt};
 use dito_core::provider::{AsrRequest, PolishRequest};
 use dito_local::{LocalEngines, ModelManager, ModelState};
 use dito_runtimes::Runtimes;
@@ -96,9 +97,10 @@ async fn main() {
 
     let transcript = "えーと 明日の3時に会議、いや4時に会議があるので、資料を、あの、事前に共有しておいてください";
     let prompts = Prompts::default();
-    let system = build_system_prompt(&PromptInput {
+    let prompt = build_prompt(&PromptInput {
         prompts: &prompts,
         style: Style::General,
+        lang: Lang::Ja,
         text: transcript,
         wordbook: &["Acme".into()],
     });
@@ -106,7 +108,10 @@ async fn main() {
     let llm = engines.polisher(&polish_id, &LocalPolishParams::default()).await.expect("load polish model");
     println!("{polish_id} loaded in {:?}", started.elapsed());
     let started = Instant::now();
-    let polished = llm.polish(&PolishRequest { system: &system, text: transcript }).await.expect("polish");
+    let polished = llm
+        .polish(&PolishRequest { system: &prompt.system, examples: prompt.examples, text: &prompt.user })
+        .await
+        .expect("polish");
     println!("polished in {:?}: {polished:?}", started.elapsed());
     assert!(!polished.contains("えーと") && !polished.contains("あの"), "fillers removed: {polished}");
 

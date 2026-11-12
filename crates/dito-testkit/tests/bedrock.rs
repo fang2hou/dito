@@ -51,7 +51,7 @@ async fn engine(url: &str, model: &str) -> BedrockEngine {
 async fn sent(model: &str, params: CloudPolishParams) -> Value {
     let srv = MockServer::start().await.unwrap();
     let e = engine_with(&srv.url, model, params).await;
-    e.polish(&PolishRequest { system: "s", text: "ok" }).await.unwrap();
+    e.polish(&PolishRequest { system: "s", examples: &[], text: "ok" }).await.unwrap();
     srv.requests()[0].body.clone().expect("the Converse route records its body")
 }
 
@@ -68,7 +68,7 @@ async fn polish_uses_converse_with_the_system_prompt() {
     let srv = MockServer::start().await.unwrap();
     let e = engine(&srv.url, CLAUDE).await;
 
-    let out = e.polish(&PolishRequest { system: "be brief", text: "えーと 会議です" }).await.unwrap();
+    let out = e.polish(&PolishRequest { system: "be brief", examples: &[], text: "えーと 会議です" }).await.unwrap();
     assert_eq!(out, "会議です。");
 
     let reqs = srv.requests();
@@ -142,7 +142,7 @@ async fn service_errors_are_classified() {
     let e = engine(&srv.url, "m").await;
     for (status, kind) in [(403, ErrorKind::Auth), (429, ErrorKind::RateLimit), (404, ErrorKind::ModelNotFound)] {
         srv.behavior(|b| b.fail_status = Some(status));
-        let err = e.polish(&PolishRequest { system: "s", text: "t" }).await.unwrap_err();
+        let err = e.polish(&PolishRequest { system: "s", examples: &[], text: "t" }).await.unwrap_err();
         assert_eq!(err.kind, kind, "status {status}: {}", err.message);
     }
 }

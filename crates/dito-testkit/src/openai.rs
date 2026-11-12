@@ -33,7 +33,7 @@ pub(crate) async fn chat(State(s): SharedState, headers: HeaderMap, Json(body): 
     let msg = |role: &str| {
         body["messages"]
             .as_array()
-            .and_then(|m| m.iter().find(|x| x["role"] == role))
+            .and_then(|m| m.iter().rfind(|x| x["role"] == role))
             .and_then(|x| x["content"].as_str())
             .map(str::to_string)
     };

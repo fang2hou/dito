@@ -7,6 +7,9 @@ use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 
+/// A demonstration turn of a polish request, as the engines receive it.
+pub use dito_core::provider::Example;
+
 use crate::catalog::{ModelSpec, Sampling};
 use crate::runtime_error::RuntimeError;
 
@@ -32,10 +35,12 @@ pub trait AsrRuntime: Send + Sync {
 pub trait LlmRuntime: Send + Sync {
     /// A runtime must not run past `sampling.max_tokens`, which caps the budget it computes from the input. `stop`
     /// works as in [`AsrRuntime::transcribe`]. When the token budget runs out before the model ends its turn, return
-    /// [`RuntimeError::Truncated`], never the cut-off text.
+    /// [`RuntimeError::Truncated`], never the cut-off text. `examples` are earlier turns of the conversation, sent
+    /// between the system prompt and `user`.
     fn generate(
         &self,
         system: &str,
+        examples: &[Example],
         user: &str,
         sampling: &Sampling,
         stop: &AtomicBool,

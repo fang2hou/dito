@@ -9,7 +9,7 @@ use crate::config::Config;
 use crate::error::{ErrorKind, ProviderError, ProviderResult};
 use crate::factory::Engines;
 use crate::i18n::Lang;
-use crate::prompts::{PromptInput, Prompts, Style, build_system_prompt, build_system_prompt_for_language, detect_lang};
+use crate::prompts::{PromptInput, Prompts, Style, build_prompt, detect_lang};
 use crate::provider::{AsrRequest, PolishRequest, Polisher};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -100,7 +100,7 @@ async fn transcribe(
     if transcript.text.trim().is_empty() {
         return Err(PipelineError::Failed(ProviderError::new(ErrorKind::NoSpeech, "nothing was transcribed")));
     }
-    let lang = transcript.language.as_deref().and_then(lang_from_code).unwrap_or_else(|| detect_lang(&transcript.text));
+    let lang = transcript_lang(transcript.language.as_deref(), &transcript.text);
     Ok(Output { raw: transcript.text, polished: None, polish_error: None, lang, asr_ms, polish_ms: 0 })
 }
 
@@ -129,7 +129,7 @@ async fn polish(
         style: job.style.clone(),
         text: &out.raw,
         wordbook: polish_wordbook(cfg, job.wordbook),
-        lang: None,
+        lang: out.lang,
     };
     match or_cancel(cancel, polish_text(polisher.as_ref(), polish_job)).await? {
         Ok(text) => out.polished = Some(text),
@@ -145,8 +145,8 @@ pub struct PolishJob<'a> {
     pub style: Style,
     pub text: &'a str,
     pub wordbook: &'a [String],
-    /// Prompt language; `None` detects it from `text`, as dictation does.
-    pub lang: Option<Lang>,
+    /// Whose prompt set supplies the user's rules: the language of `text`.
+    pub lang: Lang,
 }
 
 /// ASR hotwords are not subject to `wordbook_for_polish`.
@@ -158,12 +158,14 @@ pub fn polish_wordbook<'a>(cfg: &Config, words: &'a [String]) -> &'a [String] {
 /// Prompts page preview all use it.
 pub async fn polish_text(polisher: &dyn Polisher, job: PolishJob<'_>) -> ProviderResult<String> {
     let PolishJob { prompts, style, text, wordbook, lang } = job;
-    let input = PromptInput { prompts, style, text, wordbook };
-    let system = match lang {
-        Some(lang) => build_system_prompt_for_language(&input, lang),
-        None => build_system_prompt(&input),
-    };
-    polisher.polish(&PolishRequest { system: &system, text }).await
+    let prompt = build_prompt(&PromptInput { prompts, style, lang, text, wordbook });
+    polisher.polish(&PolishRequest { system: &prompt.system, examples: prompt.examples, text: &prompt.user }).await
+}
+
+/// The language an engine reported for a transcript, or the one its script suggests when the engine gave none or one
+/// Dito has no prompt set for.
+pub fn transcript_lang(reported: Option<&str>, text: &str) -> Lang {
+    reported.and_then(lang_from_code).unwrap_or_else(|| detect_lang(text))
 }
 
 fn lang_from_code(code: &str) -> Option<Lang> {
@@ -320,12 +322,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn polish_text_uses_the_given_prompt_language_instead_of_detecting_it() {
-        struct Capture(std::sync::Mutex<(String, String)>);
+    async fn polish_text_sends_the_rules_of_the_given_language_and_the_transcript_as_the_last_turn() {
+        struct Capture(std::sync::Mutex<(String, usize, String)>);
         #[async_trait::async_trait]
         impl Polisher for Capture {
             async fn polish(&self, r: &PolishRequest<'_>) -> ProviderResult<String> {
-                *self.0.lock().unwrap() = (r.system.to_string(), r.text.to_string());
+                *self.0.lock().unwrap() = (r.system.to_string(), r.examples.len(), r.text.to_string());
                 Ok("ok".into())
             }
         }
@@ -334,14 +336,21 @@ mod tests {
         let text = "hello there";
         let job = |lang| PolishJob { prompts: &prompts, style: Style::General, text, wordbook: &[], lang };
 
-        polish_text(&capture, job(None)).await.unwrap();
-        let (system, sent) = capture.0.lock().unwrap().clone();
-        assert!(system.starts_with(prompts.en.base.trim()), "no language given: the English text picks English");
-        assert_eq!(sent, text);
+        polish_text(&capture, job(Lang::En)).await.unwrap();
+        let (english, examples, sent) = capture.0.lock().unwrap().clone();
+        assert!(english.contains(prompts.en.base.trim()) && !english.contains(prompts.ja.base.trim()));
+        assert!(examples > 0, "the demonstrations travel with the request");
+        assert_eq!(crate::prompts::unfenced(&sent), text);
 
-        polish_text(&capture, job(Some(Lang::Ja))).await.unwrap();
-        let (system, sent) = capture.0.lock().unwrap().clone();
-        assert!(system.starts_with(prompts.ja.base.trim()), "a given language wins over the text");
-        assert_eq!(sent, text);
+        polish_text(&capture, job(Lang::Ja)).await.unwrap();
+        let japanese = capture.0.lock().unwrap().0.clone();
+        assert!(japanese.contains(prompts.ja.base.trim()), "the language is the caller's, never read from the text");
+    }
+
+    #[test]
+    fn a_transcript_takes_the_language_its_engine_reported() {
+        assert_eq!(transcript_lang(Some("zh-CN"), "うん、接下来"), Lang::Zh);
+        assert_eq!(transcript_lang(None, "明日の会議"), Lang::Ja);
+        assert_eq!(transcript_lang(Some("ko"), "hello"), Lang::En, "no prompt set for it: the script decides");
     }
 }

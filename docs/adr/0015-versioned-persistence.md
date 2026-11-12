@@ -23,6 +23,7 @@ The `config.toml` shapes so far, one migration each (`MIGRATIONS` in `migrate.rs
 | 2 | Cloud speech configurations are identified by id instead of position (the list was then named `cloud_asr.profiles`) |
 | 3 | The three provider forms become named cloud polish configurations (`polish.cloud_polish`) with request parameters, the Bedrock temperature and token limit that were hard-coded become its parameters, `asr.provider` is dropped, and the cloud speech list `cloud_asr.profiles` is renamed `cloud_asr.items`, as in `polish.cloud_polish`, with its entries unchanged |
 | 4 | Rename the spelling-reference toggle to `wordbook_for_polish` |
+| 5 | Saved prompts are dropped and the defaults take their place, because the task rules moved from the prompt sets into the fixed scaffold (ADR-0012). Decided before any release; the backup keeps the old text |
 
 Version 3 keeps the Keychain accounts `polish.azure` and `polish.compat` working by giving the migrated configurations the ids `azure`, `bedrock` and `compat`; every later configuration has a random id suffix, so the key of a removed one is never picked up by a new one.
 

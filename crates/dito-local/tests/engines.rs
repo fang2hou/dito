@@ -10,7 +10,7 @@ use dito_core::config::{ConfigStore, LocalPolishParams};
 use dito_core::error::ErrorKind;
 use dito_core::factory::LocalBackend;
 use dito_core::health::EngineStatus;
-use dito_core::provider::{AsrRequest, PolishRequest};
+use dito_core::provider::{AsrRequest, Example, PolishRequest};
 use dito_local::catalog::{FileSpec, ModelFormat, ModelKind, ModelSpec, Sampling};
 use dito_local::{
     AsrOutput, AsrRuntime, LlmRuntime, LocalEngines, ModelManager, NoRuntime, RuntimeError, RuntimeLoader,
@@ -40,7 +40,14 @@ impl AsrRuntime for FakeAsr {
 }
 struct FakeLlm;
 impl LlmRuntime for FakeLlm {
-    fn generate(&self, _: &str, user: &str, _: &Sampling, _: &AtomicBool) -> Result<String, RuntimeError> {
+    fn generate(
+        &self,
+        _: &str,
+        _: &[Example],
+        user: &str,
+        _: &Sampling,
+        _: &AtomicBool,
+    ) -> Result<String, RuntimeError> {
         Ok(user.to_uppercase())
     }
 }
@@ -102,12 +109,19 @@ async fn loads_lazily_once_and_runs_inference_off_the_async_thread() {
     assert_eq!(eng.status("asr"), EngineStatus::Running);
 
     let p = eng.polisher("llm", &NO_PARAMS).await.unwrap();
-    assert_eq!(p.polish(&PolishRequest { system: "s", text: "hi" }).await.unwrap(), "HI");
+    assert_eq!(p.polish(&PolishRequest { system: "s", examples: &[], text: "hi" }).await.unwrap(), "HI");
 }
 
 struct Probe(Arc<std::sync::Mutex<Option<Sampling>>>);
 impl LlmRuntime for Probe {
-    fn generate(&self, _: &str, user: &str, sampling: &Sampling, _: &AtomicBool) -> Result<String, RuntimeError> {
+    fn generate(
+        &self,
+        _: &str,
+        _: &[Example],
+        user: &str,
+        sampling: &Sampling,
+        _: &AtomicBool,
+    ) -> Result<String, RuntimeError> {
         *self.0.lock().unwrap() = Some(*sampling);
         Ok(user.into())
     }
@@ -127,7 +141,7 @@ async fn a_polisher_samples_with_the_recommendation_under_the_parameters_of_its_
     let (manager, _dir) = installed_manager();
     let seen = Arc::new(std::sync::Mutex::new(None));
     let engine = LocalEngines::new(manager, Arc::new(ProbeLoader(seen.clone())));
-    let request = PolishRequest { system: "s", text: "hi" };
+    let request = PolishRequest { system: "s", examples: &[], text: "hi" };
 
     engine.polisher("llm", &NO_PARAMS).await.unwrap().polish(&request).await.unwrap();
     assert_eq!(*seen.lock().unwrap(), Some(RECOMMENDED), "nothing set: the catalog's recommendation");
@@ -287,7 +301,14 @@ impl AsrRuntime for Spinning {
     }
 }
 impl LlmRuntime for Spinning {
-    fn generate(&self, _: &str, _: &str, _: &Sampling, stop: &AtomicBool) -> Result<String, RuntimeError> {
+    fn generate(
+        &self,
+        _: &str,
+        _: &[Example],
+        _: &str,
+        _: &Sampling,
+        stop: &AtomicBool,
+    ) -> Result<String, RuntimeError> {
         Err(self.spin(stop))
     }
 }
@@ -306,7 +327,8 @@ async fn dropping_a_polish_call_raises_the_stop_flag_for_the_runtime() {
     let (events, observed) = std::sync::mpsc::channel();
     let (engine, _dir) = engine_with(Spinning(events));
     let polisher = engine.polisher("llm", &NO_PARAMS).await.unwrap();
-    let call = tokio::spawn(async move { polisher.polish(&PolishRequest { system: "s", text: "hi" }).await });
+    let call =
+        tokio::spawn(async move { polisher.polish(&PolishRequest { system: "s", examples: &[], text: "hi" }).await });
     abort_and_expect_stop(call, &observed).await;
 }
 
@@ -329,7 +351,7 @@ impl AsrRuntime for CutOff {
     }
 }
 impl LlmRuntime for CutOff {
-    fn generate(&self, _: &str, _: &str, _: &Sampling, _: &AtomicBool) -> Result<String, RuntimeError> {
+    fn generate(&self, _: &str, _: &[Example], _: &str, _: &Sampling, _: &AtomicBool) -> Result<String, RuntimeError> {
         Err(RuntimeError::Truncated)
     }
 }
@@ -338,7 +360,7 @@ impl LlmRuntime for CutOff {
 async fn output_cut_off_at_the_token_limit_is_a_bad_response_not_a_result() {
     let (engine, _dir) = engine_with(CutOff);
     let polisher = engine.polisher("llm", &NO_PARAMS).await.unwrap();
-    let polished = polisher.polish(&PolishRequest { system: "s", text: "hi" }).await;
+    let polished = polisher.polish(&PolishRequest { system: "s", examples: &[], text: "hi" }).await;
     assert_eq!(polished.err().unwrap().kind, ErrorKind::BadResponse);
 
     let clip = AudioClip::new(vec![0.1; 1600]);

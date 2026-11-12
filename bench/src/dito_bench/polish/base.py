@@ -3,6 +3,8 @@
 from dataclasses import dataclass
 from typing import Protocol
 
+from .prompts import Prompt
+
 MAX_TOKENS = 300
 
 
@@ -20,4 +22,4 @@ class Polished:
 class Polisher(Protocol):
     """A loaded model. Generation is greedy (temperature 0) and capped at MAX_TOKENS."""
 
-    def polish(self, text: str, system_prompt: str) -> Polished: ...
+    def polish(self, prompt: Prompt) -> Polished: ...

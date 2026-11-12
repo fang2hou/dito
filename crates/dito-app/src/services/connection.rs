@@ -64,7 +64,7 @@ pub async fn try_polish(
         .spawn(async move {
             let cfg = st2.cfg.get();
             let polisher = st2.factory.polisher_for(&cfg.polish.engine).await.map_err(|e| e.to_string())?;
-            let polish_job = PolishJob { prompts: &prompts, style, text: &text, wordbook: &[], lang: Some(lang) };
+            let polish_job = PolishJob { prompts: &prompts, style, text: &text, wordbook: &[], lang };
             let started = std::time::Instant::now();
             let out = pipeline::polish_text(polisher.as_ref(), polish_job).await.map_err(|e| e.to_string())?;
             Ok((out, started.elapsed().as_millis() as u64))
