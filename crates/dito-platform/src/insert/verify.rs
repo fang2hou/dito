@@ -1,21 +1,68 @@
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use dito_core::insert::{Outcome, outcome};
 
+use super::ax::AxElement;
 use super::focus::{FocusTarget, read_focus};
 
 const VERIFY_TRIES: usize = 8;
 const VERIFY_POLL: Duration = Duration::from_millis(40);
+/// How long a field may take to show new text. Terminals serve their accessibility text from a
+/// cache (Ghostty keeps it for 500 ms after a read), so an earlier look still shows the old text.
+const CONTENT_SETTLE: Duration = Duration::from_millis(600);
+const CONTENT_TAIL_UNITS: usize = 2048;
+
+/// What a field held at one moment: its length and the end of its text. Enough to tell that
+/// something changed without copying a whole document or terminal scrollback.
+pub(super) struct ContentMark {
+    length: usize,
+    tail: Option<String>,
+    read_at: Instant,
+}
+
+impl ContentMark {
+    pub(super) fn read(element: &AxElement) -> Option<Self> {
+        let length = element.count("AXNumberOfCharacters")?;
+        let tail_length = length.min(CONTENT_TAIL_UNITS);
+        let tail = element.text_for_range(length - tail_length, tail_length);
+        Some(Self { length, tail, read_at: Instant::now() })
+    }
+
+    fn differs_from(&self, earlier: &Self) -> bool {
+        self.length != earlier.length || self.tail != earlier.tail
+    }
+}
+
+/// Polls until the field differs from `mark`, giving up once the mark is old enough that a fresh
+/// read must have shown the insert.
+fn content_changed_since(element: &AxElement, mark: &ContentMark) -> bool {
+    let deadline = mark.read_at + CONTENT_SETTLE;
+    loop {
+        let settled = Instant::now() >= deadline;
+        if ContentMark::read(element).is_some_and(|now| now.differs_from(mark)) {
+            return true;
+        }
+        if settled {
+            return false;
+        }
+        std::thread::sleep(VERIFY_POLL);
+    }
+}
 
 /// Returns the verdict and the last selection location seen (the next baseline).
 ///
 /// Editors rewrite text as it arrives (smart quotes, `...` to `…`, markdown spacing), so the cursor can move by fewer
 /// units than posted even though everything landed. When the cursor verdict is a refute, the field's content gets a
 /// second look before declaring failure.
+///
+/// Terminals (Ghostty and friends) report a selection that stays at 0 whatever is typed. A cursor
+/// that did not move is therefore no proof that nothing landed: when the field changed since
+/// `content` was read, the cursor cannot be trusted and the result is unverifiable, not a failure.
 pub(super) fn verify(
     target: &FocusTarget,
     expected: usize,
     before: Option<usize>,
+    content: Option<&ContentMark>,
     text: &str,
 ) -> (Outcome, Option<usize>) {
     // Without a baseline the delta can never be observed, so the verdict is Unknown whatever
@@ -53,15 +100,12 @@ pub(super) fn verify(
             return (Outcome::Confirmed, last);
         }
     }
-    // Terminals (Ghostty and friends) expose an AXTextArea whose selection stays fixed while the
-    // screen text changes. Nothing moved, so look for the text in the whole value before a retry
-    // types or pastes it a second time.
-    if matches!(verdict, Outcome::Refuted { inserted: 0 })
-        && let Some(value) = target.element.string("AXValue")
-        && contained_in_content(&value, text)
+    if last == Some(base)
+        && let Some(mark) = content
+        && content_changed_since(&target.element, mark)
     {
-        tracing::info!("insert: cursor never moved but the text is in the field; counting it as confirmed");
-        return (Outcome::Confirmed, last);
+        tracing::info!("insert: the field changed but its cursor never moves; the cursor cannot verify this target");
+        return (Outcome::Unknown, last);
     }
     (verdict, last)
 }
@@ -91,24 +135,9 @@ fn landed_by_content(value: Option<&str>, text: &str) -> bool {
     needle.chars().count() >= 4 && fold_content(value).ends_with(&needle)
 }
 
-/// The field's value contains (a rewritten form of) `text` anywhere. Weaker than
-/// [`landed_by_content`], for fields whose caret cannot be read; same minimum evidence.
-fn contained_in_content(value: &str, text: &str) -> bool {
-    let needle = fold_content(text);
-    needle.chars().count() >= 4 && fold_content(value).contains(&needle)
-}
-
 #[cfg(test)]
 mod tests {
-    use super::{contained_in_content, landed_by_content, prefix_at_utf16};
-
-    #[test]
-    fn terminal_screen_text_counts_even_with_a_stuck_caret() {
-        let screen = "$ echo hi\nhello wor\nld again\n$ ";
-        assert!(contained_in_content(screen, "hello world again"));
-        assert!(!contained_in_content(screen, "goodbye"));
-        assert!(!contained_in_content(screen, "hi"));
-    }
+    use super::{landed_by_content, prefix_at_utf16};
 
     #[test]
     fn verification_uses_the_caret_in_the_middle_of_the_field() {

@@ -7,7 +7,7 @@ use dito_core::insert::{Flow, Next, Outcome, Step};
 use super::focus::{FocusTarget, own_pid, wait_for_stable_focus};
 use super::keyboard::post_type;
 use super::pasteboard::{PasteGuard, begin_paste, copy_to_clipboard};
-use super::verify::verify;
+use super::verify::{ContentMark, verify};
 
 /// The user's clipboard goes back no sooner than this after a paste, and only once the insert
 /// has been confirmed (apps read the pasteboard asynchronously, when they get to the Cmd+V).
@@ -106,24 +106,31 @@ impl Attempts<'_> {
         let from = from.min(self.units.len());
         let suffix = &self.units[from..];
         tracing::debug!("insert: typing {} units from offset {from}", suffix.len());
+        let content = self.content_mark();
         if !post_type(suffix) {
             tracing::warn!("insert: could not post key events; nothing typed");
             return (Outcome::Refuted { inserted: 0 }, self.baseline);
         }
-        verify(self.target, suffix.len(), self.baseline, &String::from_utf16_lossy(suffix))
+        verify(self.target, suffix.len(), self.baseline, content.as_ref(), &String::from_utf16_lossy(suffix))
     }
 
     fn paste(&mut self) -> (Outcome, Option<usize>) {
+        let content = self.content_mark();
         match begin_paste(self.text) {
             Ok(guard) => {
                 self.guard = Some(guard);
-                verify(self.target, self.units.len(), self.baseline, self.text)
+                verify(self.target, self.units.len(), self.baseline, content.as_ref(), self.text)
             }
             Err(e) => {
                 tracing::warn!("insert: paste setup failed: {e}");
                 (Outcome::Refuted { inserted: 0 }, self.baseline)
             }
         }
+    }
+
+    /// Read before every attempt, and only where a cursor can be compared against it.
+    fn content_mark(&self) -> Option<ContentMark> {
+        self.baseline.and_then(|_| ContentMark::read(&self.target.element))
     }
 
     fn expected_units(&self, step: Step) -> usize {
@@ -149,7 +156,7 @@ fn deliver_text(text: &str, method: InsertMethod) -> Delivery {
         match flow.advance(step, result) {
             Next::Done => {
                 if matches!(result, Outcome::Unknown) {
-                    tracing::info!("insert: accepted without verification (selection unreadable)");
+                    tracing::info!("insert: accepted without verification");
                 }
                 let floor = if matches!(result, Outcome::Confirmed) { RESTORE_FLOOR } else { RESTORE_FLOOR_UNVERIFIED };
                 attempts.restore(Restore::InBackground(floor));
