@@ -10,7 +10,6 @@ Cases are synthetic; see `data/prompt_escape_cases.json`.
 """
 
 import argparse
-import gzip
 import json
 import re
 import time
@@ -29,8 +28,7 @@ MODELS = {
     "9b": "qwen3.5-9b-instruct/Qwen3.5-9B-Q4_K_M.gguf",
 }
 DEFAULT_MODELS_DIR = Path.home() / "Library/Application Support/com.fang2hou.Dito/models"
-# Gzipped: the records with every model output are several megabytes as plain JSON.
-OUT = RESULTS_DIR / "exploration" / env.chip_slug() / "prompt-escape.json.gz"
+OUT = RESULTS_DIR / "exploration" / env.chip_slug() / "prompt-escape.json"
 MAX_TOKENS = 384
 APP_SEED = 1234
 # The `uni-*` variants use one scaffold for every language and never look at the transcript's script.
@@ -541,8 +539,7 @@ def cell_key(model: str, cell: dict) -> str:
 def load_records() -> dict[str, dict]:
     if not OUT.exists():
         return {}
-    with gzip.open(OUT, "rt", encoding="utf-8") as file:
-        return {r["key"]: r for r in json.load(file)["records"]}
+    return {r["key"]: r for r in json.loads(OUT.read_text(encoding="utf-8"))["records"]}
 
 
 def save_records(records: dict[str, dict]) -> None:
@@ -551,9 +548,10 @@ def save_records(records: dict[str, dict]) -> None:
         "environment": env.describe(("llama-cpp-python",)),
         "records": list(records.values()),
     }
-    # A fixed mtime keeps the bytes the same when the records are.
-    with OUT.open("wb") as raw, gzip.GzipFile(fileobj=raw, mode="wb", mtime=0) as file:
-        file.write(json.dumps(payload, ensure_ascii=False, indent=1).encode())
+    # One record per line: the file stays a few megabytes and a rerun shows up as changed lines.
+    lines = ",\n".join(json.dumps(record, ensure_ascii=False) for record in payload["records"])
+    head = json.dumps(payload["environment"], ensure_ascii=False)
+    OUT.write_text(f'{{"environment": {head},\n"records": [\n{lines}\n]}}\n', encoding="utf-8")
 
 
 def run(models: list[str], models_dir: Path) -> None:
@@ -562,7 +560,9 @@ def run(models: list[str], models_dir: Path) -> None:
     data = json.loads((DATA_DIR / "prompt_escape_cases.json").read_text(encoding="utf-8"))
     cases = {case["id"]: case for case in data["cases"]}
     cells = plan(data["cases"])
-    records = load_records()
+    # A record of a cell that is no longer planned is a leftover of an earlier round.
+    planned = {cell_key(model, cell) for model in MODELS for cell in cells}
+    records = {key: record for key, record in load_records().items() if key in planned}
     for model in models:
         todo = [
             cell

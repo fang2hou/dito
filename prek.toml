@@ -10,7 +10,8 @@ hooks = [
   { id = "check-toml" },
   { id = "check-json" },
   { id = "check-yaml" },
-  { id = "check-added-large-files" },
+  { id = "check-added-large-files", exclude = "^bench/results/" },
+  { id = "check-added-large-files", alias = "check-added-large-results", name = "check for added large files (bench results, 8 MB)", files = "^bench/results/", args = ["--maxkb=8192"] },
 ]
 
 [[repos]]

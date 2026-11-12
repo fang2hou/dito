@@ -47,7 +47,7 @@ Checks run on your machine at commit time through [prek](https://prek.j178.dev) 
 
 | Hook | Runs when | Command |
 | --- | --- | --- |
-| Secret scan, merge-conflict, TOML, JSON, YAML and large-file checks | every commit | gitleaks and prek built-ins |
+| Secret scan, merge-conflict, TOML, JSON, YAML and large-file checks (500 KB, or 8 MB for benchmark records under `bench/results/`) | every commit | gitleaks and prek built-ins |
 | Rust format and tests | Rust, Cargo or mise files change | `mise run check` (`scripts/check.sh fast`) |
 | Rust clippy | Rust, Cargo or mise files change | `mise run lint:rust` |
 | Bench lint, types and tests | `bench/` or mise files change | `mise run bench:check` |

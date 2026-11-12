@@ -2,7 +2,7 @@
 
 This document explains how the polish model prompt is built, what failed in the earlier design, and what the benchmark measurements show. The shipped prompt builder lives in `crates/dito-core/src/prompts.rs` and is mirrored in `src/dito_bench/polish/prompts.py`. The decision is recorded in ADR-0012.
 
-All measurements ran on an Apple M5 Pro in November 2026 with Qwen3.5 2B, 4B, and 9B (Q4_K_M) through llama.cpp. Every record and model output is in [results/exploration/apple-m5-pro/prompt-escape.json.gz](results/exploration/apple-m5-pro/prompt-escape.json.gz).
+All measurements ran on an Apple M5 Pro in November 2026 with Qwen3.5 2B, 4B, and 9B (Q4_K_M) through llama.cpp. Every record and model output is in [results/exploration/apple-m5-pro/prompt-escape.json](results/exploration/apple-m5-pro/prompt-escape.json).
 
 ## Summary
 

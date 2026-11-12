@@ -29,7 +29,7 @@ results/<task>/<chip>/<model>.json      task: asr or polish; chip: for example a
 - `run` executes only missing or stale cases. If the weights on disk changed (a new Hugging Face revision, or different file sizes for local models), all records of that model are dropped. `--refresh` reruns everything.
 - Error rates are computed at report time from the stored text and the clip definitions, so fixing a reference text needs no rerun.
 - Results are kept per chip because speed is hardware specific. `--chip "Apple M4 Pro"` reads another machine's results.
-- Only synthetic inputs are stored, and the result files are meant to be committed. Microphone recordings stay in the git-ignored `recordings/`.
+- Only synthetic inputs are stored, and the result files are meant to be committed. The commit hooks accept a result file up to 8 MB; store results, not intermediate files. Microphone recordings stay in the git-ignored `recordings/`.
 
 ## Commands
 
