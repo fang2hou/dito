@@ -43,6 +43,7 @@ pub use banner::{BannerAction, banner, dismissible_banner};
 pub use button::{
     BtnKind, BtnSize, CONTROL_H, CircleAppearance, CircleSize, bare_icon_button, button, button_with, circle_control,
     close_button, disabled_button, disabled_icon_button, disabled_icon_button_with, icon_button, icon_button_with,
+    status_disc,
 };
 pub use callbacks::{Cb, cbk, cbk_copy, cbk_idx, click_cb};
 pub use config_tiles::{ConfigTile, TilePlus, TileRowState, cbk_id, cbk_move, tile_row};
@@ -84,8 +85,8 @@ pub use tip_bubble::TIP_BUBBLE_H;
 pub use tooltip::{dismiss_tips, tip_above, tip_label, tip_pop, tip_pop_with, tooltip_root};
 pub use tween::{fade_value, spring, tweened, tweened_at};
 pub use typography::{
-    cjk_family, family_for, init_text_system, is_cjk, muted12, set_ui_language, text, text_lines, text_tracked,
-    text_width, tracked, tracking_for,
+    cjk_family, family_for, init_text_system, is_cjk, label, muted12, set_ui_language, text, text_lines, text_width,
+    tracked,
 };
 pub use watch::{notify_on_change, observe};
 

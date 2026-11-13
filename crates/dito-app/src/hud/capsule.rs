@@ -27,9 +27,8 @@ pub(crate) const CAPSULE_H: f32 = 33.0;
 pub(super) const CAPSULE_PAD: f32 = 5.0;
 pub(super) const HAIRLINE: f32 = 1.0;
 
-/// 8% tracking for Japanese and Chinese only (see `ui::tracking_for`).
-fn spaced(s: &str, size: f32, weight: FontWeight, color: Hsla, scale: Scale) -> Div {
-    ui::text_tracked(s, scale.tx(size), weight, color, 0.08)
+fn scaled_label(s: &str, size: f32, weight: FontWeight, color: Hsla, scale: Scale) -> Div {
+    ui::label(s, scale.tx(size), weight, color)
 }
 
 pub(crate) fn rest_width(state: &HudState) -> f32 {
@@ -175,7 +174,7 @@ impl Capsule {
                 cap.justify_center().child(outcome_icon::draw(Outcome::Inserted, outcome_t, motion, scale))
             }
             HudState::Copied => cap.child(copied_row(lang, scale, motion, w, height, outcome_t)),
-            HudState::NotRecognized => cap.justify_center().child(spaced(
+            HudState::NotRecognized => cap.justify_center().child(scaled_label(
                 lang.tr(Tr::HudNotRecognized),
                 12.,
                 FontWeight::NORMAL,
@@ -188,7 +187,7 @@ impl Capsule {
                     ErrorAction::OpenSettings => buttons(Btn::Settings, button_scale),
                 };
                 cap.child(buttons(Btn::Dismiss, button_scale))
-                    .child(spaced(
+                    .child(scaled_label(
                         lang.tr(Tr::HudError),
                         12.,
                         FontWeight::NORMAL,
