@@ -10,7 +10,7 @@ use super::Scale;
 use super::timing::{self, OUTCOME_ICON_S};
 
 const CHECK_ICON: f32 = 18.;
-pub(super) const COPY_ICON: f32 = 14.;
+pub(super) const COPY_ICON: f32 = 18.;
 
 fn check_trace(progress: f32) -> Vec<(f32, f32)> {
     let [a, b, c] = [(4_f32, 13_f32), (9., 18.), (20., 7.)].map(|(x, y)| (x * CHECK_ICON / 24., y * CHECK_ICON / 24.));

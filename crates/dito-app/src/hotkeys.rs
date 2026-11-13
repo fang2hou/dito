@@ -9,10 +9,8 @@ use dito_platform::hotkey::{Action, command_shortcut, dictation_may_hand_over, d
 use dito_platform::{HotkeyService, Shortcut};
 use tokio::sync::watch;
 
-/// How long a refused capture stays on screen.
 const REFUSED_SHOWN: Duration = Duration::from_secs(3);
 
-/// The shortcut a capture is for.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ShortcutTarget {
     Dictation,

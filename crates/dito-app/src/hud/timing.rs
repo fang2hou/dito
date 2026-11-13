@@ -94,7 +94,8 @@ pub(super) fn copied_sheets(t: Option<f32>, motion: Motion) -> (f32, f32, f32) {
     let ease = |u: f32| u.clamp(0., 1.);
     let front = ease(t / 0.12);
     let back = ease((t - 0.12) / 0.10);
-    (front, back, 10.5 + (COPY_ICON - 10.5) * back)
+    let front_advance = COPY_ICON * 0.75;
+    (front, back, front_advance + (COPY_ICON - front_advance) * back)
 }
 
 /// Alpha, baseline displacement and active advance each use the character's own clock.

@@ -17,7 +17,7 @@ impl PromptsPage {
             &p,
             &langs.map(|language| language.name(c.lang).into()),
             langs.iter().position(|l| *l == self.lang).unwrap_or(0),
-            cbk_idx(cx, move |this: &mut Self, i, w, cx| this.switch(langs[i], this.style.clone(), w, cx)),
+            cbk_idx(cx, move |this: &mut Self, i, w, cx| this.switch(langs[i], this.target.clone(), w, cx)),
         );
         super::super::page(
             p,
@@ -30,7 +30,7 @@ impl PromptsPage {
                 .flex_col()
                 .gap(px(20.))
                 .child(self.base_card(&c, window, cx))
-                .child(self.style_card(&c, window, cx))
+                .child(self.app_rules_card(&c, window, cx))
                 .child(self.try_card(&c, window, cx)),
         )
     }
@@ -78,7 +78,7 @@ impl PromptsPage {
         let persisted = saved.prompts.set(self.lang);
         let dirty = match editor {
             Editor::Common => current.base != persisted.base,
-            Editor::Application => current.style(&self.style) != persisted.style(&self.style),
+            Editor::Application => current.app_rules(&self.target) != persisted.app_rules(&self.target),
         };
         let label = if dirty && self.save_error.is_some() {
             Tr::PromptsSaveFailed
@@ -172,7 +172,7 @@ impl PromptsPage {
             )
     }
 
-    fn style_card(&self, c: &Ctx, window: &Window, cx: &mut Context<Self>) -> Stateful<Div> {
+    fn app_rules_card(&self, c: &Ctx, window: &Window, cx: &mut Context<Self>) -> Stateful<Div> {
         let p = c.p;
         let mut card = ui::card(&p)
             .id("prompt-application-card")
@@ -212,7 +212,7 @@ impl PromptsPage {
                             .items_center()
                             .gap(px(8.))
                             .child(
-                                text(c.t(Tr::PromptsApplicationSettings), 16., FontWeight::BOLD, p.text)
+                                text(c.t(Tr::PromptsAppRules), 16., FontWeight::BOLD, p.text)
                                     .line_height(px(24.))
                                     .truncate(),
                             )

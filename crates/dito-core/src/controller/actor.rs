@@ -16,7 +16,7 @@ use crate::audio::AudioClip;
 use crate::config::{EngineLabels, MusicMuteMode, RecordMode};
 use crate::error::{ErrorKind, ProviderError};
 use crate::pipeline::{self, Output, PipelineError, PipelineJob, PipelinePhase};
-use crate::prompts::Style;
+use crate::prompts::AppTarget;
 use crate::store::{HistoryKind, NewHistory, StepMillis, Store};
 use crate::trace::{self, RunId};
 use crate::trace_log;
@@ -35,7 +35,7 @@ pub const CHORD_HOLD: Duration = Duration::from_millis(150);
 
 struct Meta {
     app: AppInfo,
-    style: Style,
+    target: AppTarget,
     ts: i64,
 }
 
@@ -79,15 +79,14 @@ enum State {
 }
 
 impl State {
-    /// For the debug log.
-    fn name(&self) -> &'static str {
+    fn trace_name(&self) -> &'static str {
         match self {
             Self::Idle => "idle",
             Self::Listening { command: None, .. } => "listening",
             Self::Listening { command: Some(_), .. } => "listening for a command",
             Self::Processing { .. } => "processing",
             Self::Delivering { .. } => "delivering",
-            Self::Command(state) => state.name(),
+            Self::Command(state) => state.trace_name(),
             Self::Showing { .. } => "showing",
         }
     }
@@ -245,7 +244,7 @@ impl Actor {
             c => (c, false),
         };
         if !starts_run && !matches!(c, Command::ErrorHover(_)) {
-            trace_log!(command = ?c, state = self.state.name(), "command received");
+            trace_log!(command = ?c, state = self.state.trace_name(), "command received");
         }
         match (&self.state, c) {
             (State::Idle | State::Showing { .. }, Command::KeyDown) => {
@@ -355,7 +354,7 @@ impl Actor {
         let app = self.deps.env.frontmost.frontmost();
         // The app's name is recorded with every entry; the history resolves the label against the current prompts
         // list at display time, so removing an app reads Other and adding it back restores its name.
-        let meta = Meta { style: self.deps.config.get().prompts.for_application(&app.bundle_id), app, ts: now() };
+        let meta = Meta { target: self.deps.config.get().prompts.for_application(&app.bundle_id), app, ts: now() };
         let command = match start {
             Start::Dictation => None,
             Start::Command { selection } => Some(CommandRun::new(selection, &meta)),
@@ -472,13 +471,13 @@ impl Actor {
         trace_log!(
             audio_ms = clip.duration_ms(),
             app = %meta.app.name,
-            style = ?meta.style,
+            style = ?meta.target,
             asr = ?labels.asr,
             polish = ?labels.polish,
             "dictation processing started"
         );
         let (tx, engines, store) = (self.tx.clone(), self.deps.engines.clone(), self.deps.store.clone());
-        let (job_clip, style, token) = (clip.clone(), meta.style.clone(), cancel.clone());
+        let (job_clip, style, token) = (clip.clone(), meta.target.clone(), cancel.clone());
         let span = self.span.clone();
         tokio::spawn(
             async move {
@@ -492,7 +491,7 @@ impl Actor {
                 let r = pipeline::run(
                     engines.as_ref(),
                     &cfg,
-                    &PipelineJob { clip: &job_clip, style, wordbook: &words },
+                    &PipelineJob { clip: &job_clip, target: style, wordbook: &words },
                     &on_phase,
                     &token,
                 )
@@ -626,7 +625,7 @@ impl Actor {
         let entry = NewHistory {
             ts: meta.ts,
             kind,
-            style: meta.style.clone(),
+            style: meta.target.clone(),
             app: meta.app.name.clone(),
             lang: out.map(|o| o.lang.code().to_string()).unwrap_or_default(),
             duration_ms: clip.duration_ms(),

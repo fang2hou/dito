@@ -6,7 +6,7 @@ use std::sync::{Mutex, MutexGuard};
 use rusqlite::{Connection, OptionalExtension, params};
 
 use crate::config::EngineLabels;
-use crate::prompts::Style;
+use crate::prompts::AppTarget;
 
 mod activity;
 mod model;
@@ -151,14 +151,14 @@ impl Store {
         }
         if let Some(style) = &f.style {
             match style {
-                // Other: every recording outside the built-in styles that is neither a configured app's style nor one
-                // of the configured app names. The name check keeps entries recorded before the app was configured
-                // (or under another bundle id) with their app.
-                Style::General => {
-                    let active: Vec<_> = Style::builtins()
+                // Other: every recording outside the active built-ins whose target and recorded app name match none
+                // of the configured apps. Matching by app name keeps entries recorded before the app was configured
+                // (or under a different bundle id) grouped with that app.
+                AppTarget::General => {
+                    let active: Vec<_> = AppTarget::builtins()
                         .filter(|style| {
                             !f.disabled_builtin_styles.contains(style)
-                                || f.configured_apps.iter().any(|(_, id)| Style::for_bundle_id(id) == *style)
+                                || f.configured_apps.iter().any(|(_, id)| AppTarget::for_bundle_id(id) == *style)
                         })
                         .collect();
                     let mut clause = String::from("1 = 1");
@@ -175,7 +175,7 @@ impl Store {
                         args.extend(
                             f.configured_apps
                                 .iter()
-                                .map(|(_, id)| encode(Style::Application(id.clone())))
+                                .map(|(_, id)| encode(AppTarget::Application(id.clone())))
                                 .map(Into::into),
                         );
                         let first = args.len() + 1;
@@ -190,15 +190,15 @@ impl Store {
                     }
                     sql.push_str(&format!(" AND ({clause})"));
                 }
-                Style::Builtin(_) => {
+                AppTarget::Builtin(_) => {
                     sql.push_str(&format!(" AND style = ?{}", args.len() + 1));
                     args.push(encode(style.clone()).into());
                 }
-                Style::Application(id) => {
+                AppTarget::Application(id) => {
                     let name = f.configured_apps.iter().find(|(_, app_id)| app_id == id).map(|(n, _)| n.clone());
                     let first = args.len() + 1;
-                    let builtin = Style::for_bundle_id(id);
-                    if !matches!(builtin, Style::Application(_) | Style::General) {
+                    let builtin = AppTarget::for_bundle_id(id);
+                    if !matches!(builtin, AppTarget::Application(_) | AppTarget::General) {
                         args.push(encode(style.clone()).into());
                         args.push(encode(builtin).into());
                         sql.push_str(&format!(" AND (style = ?{first} OR style = ?{})", first + 1));
@@ -207,7 +207,7 @@ impl Store {
                             Some(name) => {
                                 args.push(encode(style.clone()).into());
                                 args.push(name.into());
-                                let ids: Vec<_> = Style::builtins().map(encode).collect();
+                                let ids: Vec<_> = AppTarget::builtins().map(encode).collect();
                                 let marks: Vec<_> = (0..ids.len()).map(|i| format!("?{}", first + 2 + i)).collect();
                                 args.extend(ids.into_iter().map(Into::into));
                                 sql.push_str(&format!(
@@ -355,15 +355,15 @@ mod tests {
     use super::*;
     use crate::intent::{Decision, Intent, RewriteOp};
 
-    fn builtin(id: &str) -> Style {
-        Style::builtin(id).expect("a built-in style")
+    fn builtin(id: &str) -> AppTarget {
+        AppTarget::builtin(id).expect("a built-in style")
     }
 
     fn entry(ts: i64, app: &str, lang: &str, raw: &str, polished: Option<&str>) -> NewHistory {
         NewHistory {
             ts,
             kind: HistoryKind::Dictation,
-            style: Style::General,
+            style: AppTarget::General,
             app: app.into(),
             lang: lang.into(),
             duration_ms: 6_000,
@@ -386,7 +386,7 @@ mod tests {
     fn custom_application_style_and_engine_labels_round_trip_in_history() {
         let store = Store::open_in_memory().unwrap();
         let mut row = entry(1, "Editor", "en", "hello", None);
-        row.style = Style::Application("example.editor".into());
+        row.style = AppTarget::Application("example.editor".into());
         row.engines = labels("asr.funasr:paraformer-v2", Some("azure:gpt-example"));
         let id = store.add_history(&row).unwrap();
         let rows = store.list_history(&HistoryFilter::default()).unwrap();
@@ -438,14 +438,14 @@ mod tests {
         recorded.style = builtin("herdr");
         store.add_history(&recorded).unwrap();
         let mut filter = HistoryFilter {
-            style: Some(Style::General),
+            style: Some(AppTarget::General),
             disabled_builtin_styles: vec![builtin("herdr")],
             ..Default::default()
         };
         assert_eq!(store.list_history(&filter).unwrap().len(), 1);
         filter.configured_apps.push(("Agent work".into(), "dev.herdr.app".into()));
         assert!(store.list_history(&filter).unwrap().is_empty());
-        filter.style = Some(Style::Application("dev.herdr.app".into()));
+        filter.style = Some(AppTarget::Application("dev.herdr.app".into()));
         assert_eq!(store.list_history(&filter).unwrap()[0].raw, "preserved");
     }
 
@@ -454,27 +454,30 @@ mod tests {
         let s = Store::open_in_memory().unwrap();
         s.add_history(&entry(10, "Notes", "ja", "general", None)).unwrap();
         let mut legacy = entry(15, "App Store", "ja", "legacy", None);
-        legacy.style = Style::General;
+        legacy.style = AppTarget::General;
         s.add_history(&legacy).unwrap();
         let mut slack = entry(20, "Slack", "ja", "slack", None);
         slack.style = builtin("slack");
         s.add_history(&slack).unwrap();
         let mut kept = entry(30, "App Store", "ja", "kept", None);
-        kept.style = Style::Application("com.apple.AppStore".into());
+        kept.style = AppTarget::Application("com.apple.AppStore".into());
         s.add_history(&kept).unwrap();
         let mut gone = entry(40, "Old", "ja", "gone", None);
-        gone.style = Style::Application("example.gone".into());
+        gone.style = AppTarget::Application("example.gone".into());
         s.add_history(&gone).unwrap();
         let configured = vec![("App Store".to_string(), "com.apple.AppStore".to_string())];
 
-        let other =
-            HistoryFilter { style: Some(Style::General), configured_apps: configured.clone(), ..Default::default() };
+        let other = HistoryFilter {
+            style: Some(AppTarget::General),
+            configured_apps: configured.clone(),
+            ..Default::default()
+        };
         let rows = s.list_history(&other).unwrap();
         let raws: Vec<&str> = rows.iter().map(|e| e.raw.as_str()).collect();
         assert_eq!(raws, ["gone", "general"], "a removed app joins Other; the configured app's entries stay out");
 
         let app = HistoryFilter {
-            style: Some(Style::Application("com.apple.AppStore".into())),
+            style: Some(AppTarget::Application("com.apple.AppStore".into())),
             configured_apps: configured.clone(),
             ..Default::default()
         };
@@ -486,7 +489,7 @@ mod tests {
         );
 
         let re_added = HistoryFilter {
-            style: Some(Style::Application("com.example.newstore".into())),
+            style: Some(AppTarget::Application("com.example.newstore".into())),
             configured_apps: vec![("App Store".into(), "com.example.newstore".into())],
             ..Default::default()
         };
@@ -497,7 +500,7 @@ mod tests {
             "an app re-added under another bundle id still claims its past entries by name"
         );
 
-        let none_configured = HistoryFilter { style: Some(Style::General), ..Default::default() };
+        let none_configured = HistoryFilter { style: Some(AppTarget::General), ..Default::default() };
         let rows = s.list_history(&none_configured).unwrap();
         let raws: Vec<&str> = rows.iter().map(|e| e.raw.as_str()).collect();
         assert_eq!(
@@ -612,7 +615,7 @@ mod tests {
         let id = s.add_history(&entry(5, "A", "ja", "x", None)).unwrap();
         s.conn().execute("UPDATE history SET kind='from-the-future', style='mystery' WHERE id=?1", [id]).unwrap();
         let e = s.get_history(id).unwrap().unwrap();
-        assert_eq!((e.kind, e.style), (HistoryKind::Dictation, Style::General));
+        assert_eq!((e.kind, e.style), (HistoryKind::Dictation, AppTarget::General));
     }
 
     #[test]

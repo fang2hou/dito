@@ -8,7 +8,7 @@ pub enum ErrorAction {
     OpenSettings,
 }
 
-/// What started the run the HUD shows, which decides its palette.
+/// Palette selector for the HUD: gold for dictation, ocean blue for command mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum RunKind {
     #[default]
@@ -16,24 +16,18 @@ pub enum RunKind {
     Command,
 }
 
-/// One button of the choice window.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Choice {
     /// Never `Intent::Cancel`.
     pub intent: Intent,
-    /// 0 to 100, rounded.
     pub percent: u8,
 }
 
-/// Where a confirmed command result may be written.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ResultWrite {
-    /// Over the selection it was made from.
     ReplaceSelection,
-    /// At the cursor: nothing was selected.
     InsertAtCursor,
-    /// Nowhere: the window offers Copy only (a reply never goes over the message it answers, and text that cannot be
-    /// edited is never written over).
+    /// Reply results and uneditable selections are never written over the source text.
     CopyOnly,
 }
 
@@ -52,29 +46,21 @@ pub enum HudState {
         detail: String,
         action: ErrorAction,
     },
-    /// Command mode: the instruction was not a command Dito can run. A notice without buttons; nothing ran.
+    /// Command instruction routed to `Intent::None`; shows a transient notice without buttons.
     NotRecognized,
-    /// Command mode: the intent is being decided.
     Thinking,
-    /// Command mode: the tool is running.
     Working,
-    /// The decision was not confident: up to three intents, most likely first.
     Choosing {
         choices: Vec<Choice>,
     },
-    /// The instruction field is open.
     TypingInstruction,
-    /// The tool needs text and nothing was selected.
     NeedsText,
-    /// The instruction was a question; the window shows the answer and nothing is replaced.
     Answer {
         text: String,
     },
-    /// The result waits for a click; `write` is what the window may do with it besides copying it.
     Confirm {
         text: String,
         write: ResultWrite,
     },
-    /// A command's result is in place of the selection.
     Replaced,
 }

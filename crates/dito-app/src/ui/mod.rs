@@ -49,7 +49,7 @@ pub use config_tiles::{ConfigTile, TilePlus, TileRowState, cbk_id, cbk_move, til
 pub use copy_button::{copy_button, copy_button_with};
 pub use dialog::{ConfirmStyle, DialogAnswer, confirm_dialog};
 pub use form_footer::{FooterTrash, TestButton, form_footer};
-pub use format::{error_line, error_summary, fmt_bytes, fmt_eta, history_style_label};
+pub use format::{error_line, error_summary, fmt_bytes, fmt_eta, history_target_label};
 pub use glass::{prepare as prepare_card_backdrop, wordmark as page_wordmark};
 pub use history_tip::history_tip;
 #[cfg(feature = "screenshots")]

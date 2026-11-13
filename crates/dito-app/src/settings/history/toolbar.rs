@@ -1,5 +1,5 @@
 use dito_core::i18n::Tr;
-use dito_core::prompts::Style;
+use dito_core::prompts::AppTarget;
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
@@ -28,24 +28,24 @@ impl HistoryPage {
             }),
         );
         let cfg = self.st.cfg.get();
-        let mut styles: Vec<Style> =
-            Style::all().into_iter().filter(|style| cfg.prompts.style_enabled(style)).collect();
+        let mut targets: Vec<AppTarget> =
+            AppTarget::all().into_iter().filter(|target| cfg.prompts.target_enabled(target)).collect();
         let mut apps: Vec<(&str, &str)> =
             cfg.prompts.applications.iter().map(|(id, name)| (name.as_str(), id.as_str())).collect();
         apps.sort_by_cached_key(|(name, _)| name.to_lowercase());
         apps.dedup_by(|a, b| a.0 == b.0);
-        styles.extend(apps.iter().map(|(_, id)| Style::Application((*id).to_owned())));
-        let style_opts: Vec<SharedString> = std::iter::once(c.t(Tr::HistoryAllStyles))
-            .chain(styles.iter().map(|s| ui::history_style_label(c.lang, &cfg.prompts, s, "")))
+        targets.extend(apps.iter().map(|(_, id)| AppTarget::Application((*id).to_owned())));
+        let target_opts: Vec<SharedString> = std::iter::once(c.t(Tr::HistoryAllApps))
+            .chain(targets.iter().map(|t| ui::history_target_label(c.lang, &cfg.prompts, t, "")))
             .collect();
-        let style_sel =
-            self.selected_style().and_then(|s| styles.iter().position(|x| *x == s)).map(|i| i + 1).unwrap_or(0);
-        let picked = styles.clone();
-        let style_select = ui::select(
-            "style-filter",
+        let target_sel =
+            self.selected_target().and_then(|t| targets.iter().position(|x| *x == t)).map(|i| i + 1).unwrap_or(0);
+        let picked = targets.clone();
+        let target_select = ui::select(
+            "app-filter",
             p,
-            &style_opts,
-            style_sel,
+            &target_opts,
+            target_sel,
             self.select_open,
             Some(240.),
             cbk(cx, |this: &mut Self, _, cx| {
@@ -53,7 +53,7 @@ impl HistoryPage {
                 cx.notify();
             }),
             cbk_idx(cx, move |this: &mut Self, i, _, cx| {
-                this.style = if i == 0 { None } else { Some(picked[i - 1].clone()) };
+                this.target = if i == 0 { None } else { Some(picked[i - 1].clone()) };
                 this.changed(cx);
                 cx.notify();
             }),
@@ -65,6 +65,6 @@ impl HistoryPage {
             .gap(px(12.))
             .child(div().flex_1().child(ui::text_input(p, &self.search, Some(Ic::Search))))
             .child(period_seg)
-            .child(style_select)
+            .child(target_select)
     }
 }

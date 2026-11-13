@@ -39,22 +39,22 @@ fn configured_name<'a>(prompts: &'a dito_core::prompts::Prompts, app: &str) -> O
 }
 
 /// An app no longer in the list reads as Other; adding it back restores the name without touching history.
-pub fn history_style_label(
+pub fn history_target_label(
     lang: dito_core::i18n::Lang,
     prompts: &dito_core::prompts::Prompts,
-    style: &dito_core::prompts::Style,
+    target: &dito_core::prompts::AppTarget,
     app: &str,
 ) -> SharedString {
-    use dito_core::prompts::Style;
-    match style {
-        Style::Builtin(_) if prompts.style_enabled(style) => SharedString::from(style.label().to_owned()),
-        Style::Builtin(_) => other_label(lang),
-        Style::Application(id) => match prompts.applications.get(id) {
+    use dito_core::prompts::AppTarget;
+    match target {
+        AppTarget::Builtin(_) if prompts.target_enabled(target) => SharedString::from(target.label().to_owned()),
+        AppTarget::Builtin(_) => other_label(lang),
+        AppTarget::Application(id) => match prompts.applications.get(id) {
             Some(configured) if app.is_empty() => configured.clone().into(),
             Some(_) => app.to_owned().into(),
             None => configured_name(prompts, app).map(|name| name.clone().into()).unwrap_or_else(|| other_label(lang)),
         },
-        Style::General => {
+        AppTarget::General => {
             configured_name(prompts, app).map(|name| name.clone().into()).unwrap_or_else(|| other_label(lang))
         }
     }

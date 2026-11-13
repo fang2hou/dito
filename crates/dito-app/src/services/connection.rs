@@ -55,7 +55,7 @@ pub async fn test_asr_draft(
 pub async fn try_polish(
     st: Arc<AppState>,
     prompts: dito_core::prompts::Prompts,
-    style: dito_core::prompts::Style,
+    target: dito_core::prompts::AppTarget,
     lang: dito_core::i18n::Lang,
     text: String,
 ) -> Result<(String, u64), String> {
@@ -64,7 +64,7 @@ pub async fn try_polish(
         .spawn(async move {
             let cfg = st2.cfg.get();
             let polisher = st2.factory.polisher_for(&cfg.polish.engine).await.map_err(|e| e.to_string())?;
-            let polish_job = PolishJob { prompts: &prompts, style, text: &text, wordbook: &[], lang };
+            let polish_job = PolishJob { prompts: &prompts, target, text: &text, wordbook: &[], lang };
             let started = std::time::Instant::now();
             let out = pipeline::polish_text(polisher.as_ref(), polish_job).await.map_err(|e| e.to_string())?;
             Ok((out, started.elapsed().as_millis() as u64))

@@ -41,8 +41,45 @@ fn rust_files() -> Vec<PathBuf> {
     v
 }
 
+fn workspace_rust_files() -> Vec<PathBuf> {
+    let crates_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).parent().unwrap().to_path_buf();
+    fn walk(dir: &std::path::Path, out: &mut Vec<PathBuf>) {
+        for e in std::fs::read_dir(dir).unwrap() {
+            let p = e.unwrap().path();
+            if p.is_dir() {
+                walk(&p, out);
+            } else if p.extension().is_some_and(|x| x == "rs") {
+                out.push(p);
+            }
+        }
+    }
+    let mut v = Vec::new();
+    walk(&crates_dir, &mut v);
+    v
+}
+
 fn has_cjk(s: &str) -> bool {
     s.chars().any(|c| ('\u{3000}'..='\u{30ff}').contains(&c) || ('\u{4e00}'..='\u{9fff}').contains(&c))
+}
+
+#[test]
+fn no_cjk_in_rust_comments() {
+    let crates_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).parent().unwrap().to_path_buf();
+    let mut violations = Vec::new();
+    for f in workspace_rust_files() {
+        let rel = f.strip_prefix(&crates_dir).unwrap().to_str().unwrap().to_string();
+        for (line_no, line) in std::fs::read_to_string(&f).unwrap().lines().enumerate() {
+            let trimmed = line.trim_start();
+            if trimmed.starts_with("//") && has_cjk(trimmed) {
+                violations.push(format!("crates/{rel}:{}: comment contains CJK: {trimmed}", line_no + 1));
+            }
+        }
+    }
+    assert!(
+        violations.is_empty(),
+        "comments must use standard English without CJK literals (reference Tr variants or design:<id> instead):\n{}",
+        violations.join("\n")
+    );
 }
 
 #[test]
@@ -50,7 +87,6 @@ fn no_hard_coded_cjk_outside_messages_toml() {
     let src = src_dir();
     let mut stray = Vec::new();
     for f in rust_files() {
-        // Comment lines (like the prose examples in models.rs) are not UI copy.
         let text = std::fs::read_to_string(&f)
             .unwrap()
             .lines()

@@ -1,6 +1,6 @@
 //! Meaningful, editor-scoped history, independent of draft persistence.
 
-use dito_core::prompts::StylePrompt;
+use dito_core::prompts::AppRules;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(super) enum Editor {
@@ -11,7 +11,7 @@ pub(super) enum Editor {
 #[derive(Clone, Debug, PartialEq)]
 pub(super) enum Snapshot {
     Common(String),
-    Application(StylePrompt),
+    Application(AppRules),
 }
 
 impl Snapshot {
@@ -118,10 +118,9 @@ mod tests {
 
     #[test]
     fn app_rules_and_examples_restore_together_and_reset_is_one_undoable_change() {
-        let initial =
-            Snapshot::Application(StylePrompt { instruction: "rule".into(), samples: vec!["example".into()] });
+        let initial = Snapshot::Application(AppRules { instruction: "rule".into(), samples: vec!["example".into()] });
         let mut h = History::new(initial.clone());
-        h.change(Snapshot::Application(StylePrompt {
+        h.change(Snapshot::Application(AppRules {
             instruction: "a longer new instruction".into(),
             samples: vec!["new example".into()],
         }));

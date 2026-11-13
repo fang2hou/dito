@@ -9,7 +9,7 @@ use crate::config::Config;
 use crate::error::{ErrorKind, ProviderError, ProviderResult};
 use crate::factory::Engines;
 use crate::i18n::Lang;
-use crate::prompts::{PromptInput, Prompts, Style, build_prompt, detect_lang};
+use crate::prompts::{AppTarget, PromptInput, Prompts, build_prompt, detect_lang};
 use crate::provider::{AsrRequest, PolishRequest, Polisher};
 use crate::trace_log;
 
@@ -44,7 +44,7 @@ pub enum PipelineError {
 
 pub struct PipelineJob<'a> {
     pub clip: &'a AudioClip,
-    pub style: Style,
+    pub target: AppTarget,
     pub wordbook: &'a [String],
 }
 
@@ -156,7 +156,7 @@ async fn polish(
     on_phase(PipelinePhase::Polishing { input_chars: out.raw.chars().count(), started });
     let polish_job = PolishJob {
         prompts: &cfg.prompts,
-        style: job.style.clone(),
+        target: job.target.clone(),
         text: &out.raw,
         wordbook: polish_wordbook(cfg, job.wordbook),
         lang: out.lang,
@@ -172,7 +172,7 @@ async fn polish(
 pub struct PolishJob<'a> {
     /// Passed in rather than read from the config because the Prompts page previews unsaved drafts.
     pub prompts: &'a Prompts,
-    pub style: Style,
+    pub target: AppTarget,
     pub text: &'a str,
     pub wordbook: &'a [String],
     /// Whose prompt set supplies the user's rules: the language of `text`.
@@ -187,8 +187,8 @@ pub fn polish_wordbook<'a>(cfg: &Config, words: &'a [String]) -> &'a [String] {
 /// The one place that builds the system prompt and calls the model; dictation, polishing a history entry again and the
 /// Prompts page preview all use it.
 pub async fn polish_text(polisher: &dyn Polisher, job: PolishJob<'_>) -> ProviderResult<String> {
-    let PolishJob { prompts, style, text, wordbook, lang } = job;
-    let prompt = build_prompt(&PromptInput { prompts, style, lang, text, wordbook });
+    let PolishJob { prompts, target: style, text, wordbook, lang } = job;
+    let prompt = build_prompt(&PromptInput { prompts, target: style, lang, text, wordbook });
     call_polisher(
         polisher,
         "polish",
@@ -254,8 +254,14 @@ mod tests {
     }
 
     async fn go(e: &FixedEngines, cfg: &Config, clip: &AudioClip) -> Result<Output, PipelineError> {
-        run(e, cfg, &PipelineJob { clip, style: Style::General, wordbook: &[] }, &|_| {}, &CancellationToken::new())
-            .await
+        run(
+            e,
+            cfg,
+            &PipelineJob { clip, target: AppTarget::General, wordbook: &[] },
+            &|_| {},
+            &CancellationToken::new(),
+        )
+        .await
     }
 
     #[tokio::test]
@@ -265,7 +271,7 @@ mod tests {
         let out = run(
             &e,
             &Config::default(),
-            &PipelineJob { clip: &tone(), style: Style::General, wordbook: &[] },
+            &PipelineJob { clip: &tone(), target: AppTarget::General, wordbook: &[] },
             &|p| phases.lock().unwrap().push(p),
             &CancellationToken::new(),
         )
@@ -348,7 +354,7 @@ mod tests {
         let r = run(
             &e,
             &Config::default(),
-            &PipelineJob { clip: &tone(), style: Style::General, wordbook: &[] },
+            &PipelineJob { clip: &tone(), target: AppTarget::General, wordbook: &[] },
             &on_phase,
             &cancel,
         )
@@ -371,7 +377,7 @@ mod tests {
         let e = FixedEngines::new(Arc::new(MockTranscriber::new("Acme")), spy.clone());
         let dict = vec!["Acme".to_string()];
         let clip = tone();
-        let job = PipelineJob { clip: &clip, style: Style::General, wordbook: &dict };
+        let job = PipelineJob { clip: &clip, target: AppTarget::General, wordbook: &dict };
         let mut cfg = Config::default();
         run(&e, &cfg, &job, &|_| {}, &CancellationToken::new()).await.unwrap();
         assert!(!spy.0.lock().unwrap().contains("<reference_vocabulary>"));
@@ -393,7 +399,7 @@ mod tests {
         let capture = Capture(Default::default());
         let prompts = Prompts::default();
         let text = "hello there";
-        let job = |lang| PolishJob { prompts: &prompts, style: Style::General, text, wordbook: &[], lang };
+        let job = |lang| PolishJob { prompts: &prompts, target: AppTarget::General, text, wordbook: &[], lang };
 
         polish_text(&capture, job(Lang::En)).await.unwrap();
         let (english, examples, sent) = capture.0.lock().unwrap().clone();

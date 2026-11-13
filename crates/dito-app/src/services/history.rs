@@ -60,7 +60,7 @@ pub async fn transcribe_again(st: Arc<AppState>, entry: HistoryEntry) -> Result<
             let out = pipeline::run(
                 engines,
                 &cfg,
-                &PipelineJob { clip: &clip, style: entry.style.clone(), wordbook: &words },
+                &PipelineJob { clip: &clip, target: entry.style.clone(), wordbook: &words },
                 &|_| {},
                 &CancellationToken::new(),
             )
@@ -100,7 +100,7 @@ pub async fn polish_again(st: Arc<AppState>, entry: HistoryEntry) -> Result<(), 
                 .map_err(|e| e.to_string())?;
             let polish_job = PolishJob {
                 prompts: &cfg.prompts,
-                style: entry.style.clone(),
+                target: entry.style.clone(),
                 text: &entry.raw,
                 wordbook: pipeline::polish_wordbook(&cfg, &words),
                 lang: pipeline::transcript_lang(Some(&entry.lang), &entry.raw),

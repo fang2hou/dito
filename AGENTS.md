@@ -88,6 +88,7 @@ Do not infer UI language from conversation language.
 
 ## Project Conventions
 
+- Comments: prefer clear identifiers and small functions over comments; comment only non-obvious invariants or constraints ("why", never "what"), name `Tr` variants or `design:<id>` sections instead of quoting localized UI strings, and keep configuration files comment-free. `i18n_coverage` enforces zero CJK in Rust comments.
 - Writing: use commas for lists, a colon between a label and its value (`190 ms: about 108 pt`), parentheses for a short qualifier (`General (dark)`), or a full sentence. Wrong: `7 | In use · gold border + label`. Right: `7. In use, with a gold border and label`. Fixed Japanese compounds such as `大文字・小文字` are fine; Markdown table pipes are syntax.
 - Tests: write one when logic is easy to break and hard to notice in the app (parsing, config migration, state machines, i18n coverage, protocols). No defensive tests for layout, every error branch or hypothetical misuse; delete a test that blocks a legitimate change and protects nothing a user would notice.
 - Scripts may check exact geometry (alignment, sizes, bounds, overflow). Color and motion feel are judged by the user in the running app.

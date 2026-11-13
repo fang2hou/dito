@@ -3,7 +3,7 @@ use dito_core::prompts::Prompts;
 use dito_core::store::HistoryEntry;
 
 use crate::timefmt::{hhmm, local_day, ymd};
-use crate::ui::history_style_label;
+use crate::ui::history_target_label;
 
 /// Without the prompts a removal would leave raw bundle ids in the export.
 pub(super) fn history_csv(rows: &[HistoryEntry], prompts: &Prompts, lang: Lang, utc_offset_secs: i32) -> String {
@@ -15,7 +15,7 @@ pub(super) fn history_csv(rows: &[HistoryEntry], prompts: &Prompts, lang: Lang, 
             ymd(local_day(e.ts, utc_offset_secs)),
             hhmm(e.ts, utc_offset_secs),
             quoted(&e.app),
-            quoted(&history_style_label(lang, prompts, &e.style, &e.app)),
+            quoted(&history_target_label(lang, prompts, &e.style, &e.app)),
             quoted(e.final_text()),
             quoted(&e.raw)
         ));
@@ -27,10 +27,10 @@ pub(super) fn history_csv(rows: &[HistoryEntry], prompts: &Prompts, lang: Lang, 
 mod tests {
     use super::*;
     use dito_core::config::EngineLabels;
-    use dito_core::prompts::Style;
+    use dito_core::prompts::AppTarget;
     use dito_core::store::{HistoryEntry, HistoryKind};
 
-    fn row(style: Style, app: &str) -> HistoryEntry {
+    fn row(style: AppTarget, app: &str) -> HistoryEntry {
         HistoryEntry {
             id: 1,
             ts: 0,
@@ -53,13 +53,13 @@ mod tests {
     #[test]
     fn style_column_follows_the_configured_apps() {
         let mut prompts = Prompts::default();
-        prompts.add_application("com.apple.AppStore", "App Store", &Style::General);
+        prompts.add_application("com.apple.AppStore", "App Store", &AppTarget::General);
         let rows = [
-            row(Style::General, "Dia"),
-            row(Style::Application("com.apple.AppStore".into()), "App Store"),
-            row(Style::Application("example.gone".into()), "Old App"),
-            row(Style::builtin("slack").expect("built-in style"), "Slack"),
-            row(Style::General, "App Store"),
+            row(AppTarget::General, "Dia"),
+            row(AppTarget::Application("com.apple.AppStore".into()), "App Store"),
+            row(AppTarget::Application("example.gone".into()), "Old App"),
+            row(AppTarget::builtin("slack").expect("built-in style"), "Slack"),
+            row(AppTarget::General, "App Store"),
         ];
         let csv = history_csv(&rows, &prompts, Lang::En, 0);
         let styles: Vec<&str> = csv.lines().skip(1).map(|line| line.split(',').nth(3).unwrap()).collect();

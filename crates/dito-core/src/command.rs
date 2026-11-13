@@ -1,11 +1,9 @@
-//! The tools of command mode: what runs on the selected text once an intent is decided.
+//! Command-mode tools executed on the selected text once an intent is decided.
 //!
-//! Polish reuses the dictation prompt, so the app in front still shapes the style. The other tools share one
-//! scaffold built the way the dictation prompt is (ADR-0012, `bench/POLISH_PROMPT.md`): `#Section#` blocks in
-//! English, three demonstration turns, and a final user turn that holds the surrounding text of the input field
-//! (reference only, polish does not get it), the selected text between `===` lines and the instruction last. A
-//! question with nothing selected is its own shape: the instruction alone, answered from general knowledge. What
-//! differs by tool is in `tools.rs`, the builder in `prompt.rs`.
+//! Polish reuses the dictation prompt, so the frontmost app's rules still apply. The other tools share one scaffold
+//! built like the dictation prompt (ADR-0012, `bench/POLISH_PROMPT.md`): `#Section#` blocks in English, three
+//! demonstration turns, and a final user turn holding the field's surrounding text as reference, the selected text
+//! between `===` lines, and the instruction last. A question with nothing selected sends the instruction alone.
 
 mod prompt;
 mod tools;
@@ -14,74 +12,63 @@ use crate::error::ProviderResult;
 use crate::i18n::Lang;
 use crate::intent::{Intent, RewriteOp};
 use crate::pipeline::{PolishJob, call_polisher, polish_text};
-use crate::prompts::{PolishPrompt, Prompts, Style, detect_lang};
+use crate::prompts::{AppTarget, PolishPrompt, Prompts, detect_lang};
 use crate::provider::{PolishRequest, Polisher};
 use crate::surrounding::Surrounding;
 
 pub use prompt::turn_data;
 
-/// The least probability at which the router's rewrite op goes into the rewrite prompt as a hint.
 const REWRITE_HINT_MIN: f32 = 0.8;
 
-/// Whether the tool of `intent` works on text, as opposed to answering. Without selected text, such a tool asks for
-/// some first.
+/// Tools that transform text rather than answering a standalone question; without a selection they ask for text first.
 pub fn needs_text(intent: Intent) -> bool {
     matches!(intent, Intent::Polish | Intent::Rewrite | Intent::Translate | Intent::Summarize | Intent::Reply)
 }
 
-/// One tool with its inputs.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Tool {
-    /// No instruction: the polish button and a spoken polish both clean the text up the way dictation does.
+    /// Both the polish button and a spoken polish clean up the selection using the dictation prompt.
     Polish {
         text: String,
     },
     Rewrite {
         instruction: String,
         text: String,
-        /// What the router most likely heard, kept only when it was sure; the prompt holds it as a hint.
         op: Option<RewriteOp>,
     },
     Translate {
         instruction: String,
         text: String,
-        /// The language type the instruction was spoken in: the target when the instruction names none.
+        /// Fallback target language when the instruction names none.
         lang: Lang,
     },
     Summarize {
         instruction: String,
         text: String,
     },
-    /// The selected text was received: the result is the response the user will send, never a replacement of it.
+    /// Drafts a response to the selected message rather than replacing it in place.
     Reply {
         instruction: String,
         text: String,
     },
-    /// The instruction was a question. Selected text, if any, is context.
     Answer {
         instruction: String,
         context: Option<String>,
     },
 }
 
-/// What the speech engine and the router made of the instruction.
 #[derive(Debug, Clone, Copy)]
 pub struct Heard {
-    /// The language type of the instruction.
     pub lang: Lang,
-    /// The rewrite op of the router's decision, if the decision itself chose the tool; only a rewrite takes it, and
-    /// only at [`REWRITE_HINT_MIN`] or more.
+    /// Passed into `Tool::Rewrite` only when the router chose rewrite with probability >= [`REWRITE_HINT_MIN`].
     pub rewrite_op: Option<(RewriteOp, f32)>,
 }
 
-/// What a tool needs besides its own inputs.
 pub struct ToolContext<'a> {
     pub prompts: &'a Prompts,
-    /// The style of the app in front when the command started.
-    pub style: Style,
+    pub target: AppTarget,
     pub wordbook: &'a [String],
-    /// The text of the input field around the selection, already fitted to its budget. Reference only. Polish and a
-    /// question with no selected text ignore it (see [`Tool::takes_surrounding`]).
+    /// Reference-only field context; ignored by polish and standalone questions (see [`Tool::takes_surrounding`]).
     pub surrounding: Option<&'a Surrounding>,
 }
 
@@ -106,7 +93,7 @@ impl Tool {
         match self.prepare(ctx.surrounding) {
             Prepared::Polish { text } => {
                 let lang = detect_lang(text);
-                let job = PolishJob { prompts: ctx.prompts, style: ctx.style, text, wordbook: ctx.wordbook, lang };
+                let job = PolishJob { prompts: ctx.prompts, target: ctx.target, text, wordbook: ctx.wordbook, lang };
                 polish_text(polisher, job).await
             }
             Prepared::Tool(prompt) => {

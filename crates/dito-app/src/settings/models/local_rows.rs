@@ -235,7 +235,7 @@ impl ModelsPage {
         let p = &c.p;
         let id = spec.id.clone();
         body = body.child(status_line(
-            format!("{}（{} / {}）", c.t(Tr::ModelsPause), ui::fmt_bytes(done), ui::fmt_bytes(total)),
+            format!("{}（{} / {}）", c.t(Tr::ModelsPaused), ui::fmt_bytes(done), ui::fmt_bytes(total)),
             p.model_meta,
         ));
         let (id_a, id_b) = (id.clone(), id.clone());
