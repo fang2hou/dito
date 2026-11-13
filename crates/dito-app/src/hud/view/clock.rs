@@ -30,7 +30,7 @@ impl HudView {
             // Routing takes tens of milliseconds, so it is mostly one frame; it carries on from the transcription.
             HudState::Thinking => Some(ProcessingMotion::polishing(from, 0.5, 0., reduced)),
             HudState::Working => {
-                let engine = &self.st.cfg.get().polish.engine;
+                let engine = &self.st.cfg.get().text_model;
                 let estimate = self.st.dictation.step_times().polishing_secs(engine).unwrap_or(2.);
                 Some(ProcessingMotion::continuing(from, estimate, reduced))
             }

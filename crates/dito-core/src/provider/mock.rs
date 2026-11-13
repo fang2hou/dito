@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 
-use super::{AsrRequest, PolishRequest, Polisher, Router, Transcriber, Transcript};
+use super::{AsrRequest, Router, TextModel, TextRequest, Transcriber, Transcript};
 use crate::error::{ErrorKind, ProviderError, ProviderResult};
 use crate::intent::{Decision, Intent};
 
@@ -56,13 +56,13 @@ impl Transcriber for MockTranscriber {
     }
 }
 
-pub struct MockPolisher {
+pub struct MockTextModel {
     script: Mutex<VecDeque<Reply>>,
     delay: Duration,
     calls: AtomicUsize,
 }
 
-impl Default for MockPolisher {
+impl Default for MockTextModel {
     fn default() -> Self {
         Self { script: Mutex::default(), delay: Duration::ZERO, calls: AtomicUsize::new(0) }
     }
@@ -87,7 +87,7 @@ pub fn rule_polish(text: &str) -> String {
     }
 }
 
-/// What a mock engine answers to any polish model request: the name-shaped words of a word finder passage, one per
+/// What a mock engine answers to any text model request: the name-shaped words of a word finder passage, one per
 /// line, or the rule-polished text of everything else.
 pub fn rule_reply(system: &str, user: &str) -> String {
     if !crate::word_finder::is_request(system) {
@@ -101,7 +101,7 @@ pub fn rule_reply(system: &str, user: &str) -> String {
     if terms.is_empty() { "NONE".into() } else { terms.join("\n") }
 }
 
-impl MockPolisher {
+impl MockTextModel {
     pub fn with_delay(mut self, d: Duration) -> Self {
         self.delay = d;
         self
@@ -118,8 +118,8 @@ impl MockPolisher {
 }
 
 #[async_trait]
-impl Polisher for MockPolisher {
-    async fn polish(&self, req: &PolishRequest<'_>) -> ProviderResult<String> {
+impl TextModel for MockTextModel {
+    async fn polish(&self, req: &TextRequest<'_>) -> ProviderResult<String> {
         self.calls.fetch_add(1, Ordering::SeqCst);
         if !self.delay.is_zero() {
             tokio::time::sleep(self.delay).await;

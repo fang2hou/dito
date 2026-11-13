@@ -3,8 +3,8 @@
 use async_trait::async_trait;
 use serde_json::{Number, Value, json};
 
-use super::{PolishRequest, Polisher, default_timeout};
-use crate::config::CloudPolishParams;
+use super::{TextModel, TextRequest, default_timeout};
+use crate::config::CloudTextParams;
 use crate::error::{ErrorKind, ProviderError, ProviderResult};
 
 #[derive(Debug, Clone)]
@@ -19,7 +19,7 @@ pub enum Flavor {
 pub struct OpenAiEngine {
     flavor: Flavor,
     api_key: String,
-    params: CloudPolishParams,
+    params: CloudTextParams,
     client: reqwest::Client,
 }
 
@@ -35,7 +35,7 @@ fn json_number(value: f32) -> Option<Value> {
 }
 
 impl OpenAiEngine {
-    pub fn new(flavor: Flavor, api_key: impl Into<String>, params: CloudPolishParams) -> ProviderResult<Self> {
+    pub fn new(flavor: Flavor, api_key: impl Into<String>, params: CloudTextParams) -> ProviderResult<Self> {
         let (name, value) = match &flavor {
             Flavor::Azure { endpoint, deployment } => ("endpoint / deployment", (endpoint.trim(), deployment.trim())),
             Flavor::Compat { base_url, model } => ("base URL / model", (base_url.trim(), model.trim())),
@@ -74,7 +74,7 @@ impl OpenAiEngine {
         }
     }
 
-    fn body(&self, req: &PolishRequest<'_>) -> Value {
+    fn body(&self, req: &TextRequest<'_>) -> Value {
         let mut messages = vec![json!({ "role": "system", "content": req.system })];
         for example in req.examples {
             messages.push(json!({ "role": "user", "content": example.said }));
@@ -128,8 +128,8 @@ impl OpenAiEngine {
 }
 
 #[async_trait]
-impl Polisher for OpenAiEngine {
-    async fn polish(&self, req: &PolishRequest<'_>) -> ProviderResult<String> {
+impl TextModel for OpenAiEngine {
+    async fn polish(&self, req: &TextRequest<'_>) -> ProviderResult<String> {
         let mut body = self.body(req);
         let v = match self.chat(&body).await {
             // Non-reasoning models reject the field; retry once without it.
@@ -157,7 +157,7 @@ mod tests {
     use super::*;
 
     fn compat(base: &str) -> OpenAiEngine {
-        OpenAiEngine::new(Flavor::Compat { base_url: base.into(), model: "m".into() }, "", CloudPolishParams::default())
+        OpenAiEngine::new(Flavor::Compat { base_url: base.into(), model: "m".into() }, "", CloudTextParams::default())
             .unwrap()
     }
 
@@ -173,7 +173,7 @@ mod tests {
         let e = OpenAiEngine::new(
             Flavor::Azure { endpoint: "https://x.openai.azure.com/".into(), deployment: "gpt-6.1-terra".into() },
             "k",
-            CloudPolishParams::default(),
+            CloudTextParams::default(),
         )
         .unwrap();
         assert_eq!(e.url("chat/completions"), "https://x.openai.azure.com/openai/v1/chat/completions");
@@ -191,15 +191,15 @@ mod tests {
 
     #[test]
     fn extra_wins_over_every_other_field_of_the_body() {
-        let params = CloudPolishParams {
+        let params = CloudTextParams {
             temperature: Some(0.2),
             extra: serde_json::from_str(r#"{"temperature": 0.9, "seed": 42, "model": "other"}"#).unwrap(),
-            ..CloudPolishParams::default()
+            ..CloudTextParams::default()
         };
         let engine =
             OpenAiEngine::new(Flavor::Compat { base_url: "http://h/v1".into(), model: "m".into() }, "", params)
                 .unwrap();
-        let body = engine.body(&PolishRequest { system: "s", examples: &[], text: "t" });
+        let body = engine.body(&TextRequest { system: "s", examples: &[], text: "t" });
         assert_eq!((&body["temperature"], &body["seed"], &body["model"]), (&json!(0.9), &json!(42), &json!("other")));
     }
 }

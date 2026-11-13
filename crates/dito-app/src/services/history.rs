@@ -91,7 +91,7 @@ pub async fn polish_again(st: Arc<AppState>, entry: HistoryEntry) -> Result<(), 
     st.rt
         .spawn(async move {
             let cfg = st2.cfg.get();
-            let polisher = st2.factory.polisher_for(&cfg.polish.engine).await.map_err(|e| e.to_string())?;
+            let text_model = st2.factory.text_model_for(&cfg.text_model).await.map_err(|e| e.to_string())?;
             let store = st2.store.clone();
             let words = st2
                 .rt
@@ -106,10 +106,10 @@ pub async fn polish_again(st: Arc<AppState>, entry: HistoryEntry) -> Result<(), 
                 lang: pipeline::transcript_lang(Some(&entry.lang), &entry.raw),
             };
             let started = std::time::Instant::now();
-            let text = pipeline::polish_text(polisher.as_ref(), polish_job).await.map_err(|e| e.to_string())?;
+            let text = pipeline::polish_text(text_model.as_ref(), polish_job).await.map_err(|e| e.to_string())?;
             let polish_ms = started.elapsed().as_millis() as u64;
             let (id, text) = (entry.id, text);
-            let polish_engine = cfg.polish.engine.label();
+            let polish_engine = cfg.text_model.label();
             let store = st2.store.clone();
             st2.rt
                 .spawn_blocking(move || store.set_polished(id, &text, &polish_engine, polish_ms))

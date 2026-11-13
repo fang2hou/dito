@@ -1,4 +1,4 @@
-use dito_core::config::{DEFAULT_ASR_LOCAL, DEFAULT_POLISH_LOCAL};
+use dito_core::config::{DEFAULT_ASR_LOCAL, DEFAULT_TEXT_LOCAL};
 use dito_core::i18n::Tr;
 
 pub(in crate::onboarding) struct Tier {
@@ -26,6 +26,6 @@ pub(in crate::onboarding) const TIERS: [Tier; 3] = [
         name: Tr::OnboardingTierHigh,
         desc: Tr::OnboardingTierHighDesc,
         asr: DEFAULT_ASR_LOCAL,
-        polish: DEFAULT_POLISH_LOCAL,
+        polish: DEFAULT_TEXT_LOCAL,
     },
 ];

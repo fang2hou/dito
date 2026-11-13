@@ -59,9 +59,9 @@ impl ConfigStore {
 
     /// The list is saved first, so a failed save keeps the configuration and its key together. The last configuration
     /// and its key stay: `false`.
-    pub fn remove_cloud_polish_configuration(&self, id: &str, secrets: &dyn SecretStore) -> Result<bool> {
+    pub fn remove_cloud_text_configuration(&self, id: &str, secrets: &dyn SecretStore) -> Result<bool> {
         let mut removed = None;
-        self.update(|c| removed = c.polish.engine.polish_configurations_mut(c.general.lang()).remove(id))?;
+        self.update(|c| removed = c.text_model.text_configurations_mut(c.general.lang()).remove(id))?;
         Ok(forget_key(removed.map(|configuration| configuration.account()), secrets))
     }
 
@@ -132,7 +132,7 @@ fn back_up(path: &Path, version: u32) -> std::io::Result<()> {
 mod tests {
     use super::*;
     use crate::config::{
-        Appearance, CloudAsrConfigurations, DEFAULT_POLISH_LOCAL, DEFAULT_SHORTCUT, MusicMuteMode, ReasoningEffort,
+        Appearance, CloudAsrConfigurations, DEFAULT_SHORTCUT, DEFAULT_TEXT_LOCAL, MusicMuteMode, ReasoningEffort,
     };
     use crate::i18n::Lang;
     use crate::prompts::default_set;
@@ -169,7 +169,7 @@ mod tests {
         assert_eq!(cfg.general.shortcut, DEFAULT_SHORTCUT);
         assert_eq!(cfg.general.music_mute, MusicMuteMode::Auto, "legacy config without the field mutes by default");
         assert_eq!(cfg.general.hud_appearance, Appearance::Dark);
-        assert_eq!(cfg.polish.engine.local_model, DEFAULT_POLISH_LOCAL);
+        assert_eq!(cfg.text_model.local_model, DEFAULT_TEXT_LOCAL);
     }
 
     #[test]
@@ -332,7 +332,7 @@ reasoning_effort = "minimal"
         let (dir, path) = config_file(original);
 
         let cfg = ConfigStore::open(&path).unwrap().get();
-        let configurations = cfg.polish.engine.polish_configurations(cfg.general.lang());
+        let configurations = cfg.text_model.text_configurations(cfg.general.lang());
         assert_eq!(configurations.selected, "compat", "the selected form stays selected");
         let compat = configurations.active().unwrap();
         assert_eq!(
@@ -341,7 +341,7 @@ reasoning_effort = "minimal"
         );
         assert_eq!(compat.params.reasoning_effort.as_str(), "minimal");
         assert_eq!(compat.account(), "polish.compat", "the key saved under the old account keeps working");
-        assert_eq!(cfg.polish.engine.label(), "compat:vendor/model");
+        assert_eq!(cfg.text_model.label(), "compat:vendor/model");
         let bedrock = configurations.get("bedrock").unwrap();
         assert_eq!((bedrock.params.temperature, bedrock.params.max_tokens), (Some(0.2), Some(2048)));
         assert_eq!(bedrock.params.reasoning_effort.as_str(), "low");
@@ -351,7 +351,7 @@ reasoning_effort = "minimal"
         assert_eq!(std::fs::read(dir.path().join("config.toml.v2.bak")).unwrap(), original.as_bytes());
         let upgraded = std::fs::read_to_string(&path).unwrap();
         assert!(upgraded.starts_with(&format!("schema_version = {}\n", crate::config::SCHEMA_VERSION)), "{upgraded}");
-        assert!(upgraded.contains("[polish.cloud_polish]"), "{upgraded}");
+        assert!(upgraded.contains("[text_model.cloud_text]"), "{upgraded}");
         assert!(!upgraded.contains("[polish.provider") && !upgraded.contains("[asr.provider"), "{upgraded}");
 
         assert_eq!(ConfigStore::open(&path).unwrap().get(), cfg);
@@ -361,33 +361,33 @@ reasoning_effort = "minimal"
 
     #[test]
     fn configurations_and_local_parameters_survive_toml_and_the_speech_section_stays_free_of_them() {
-        use crate::config::{CloudPolishConfigurations, CloudPolishTemplate, LocalPolishParams};
+        use crate::config::{CloudTextConfigurations, CloudTextTemplate, LocalTextParams};
         let mut config = Config::default();
-        let mut configurations = CloudPolishConfigurations::new(Lang::En);
-        let added = configurations.add_from_template(CloudPolishTemplate::Azure, "Mine");
+        let mut configurations = CloudTextConfigurations::new(Lang::En);
+        let added = configurations.add_from_template(CloudTextTemplate::Azure, "Mine");
         let mine = configurations.get_mut(&added).unwrap();
         *mine.target.model_mut() = "gpt-x".into();
         mine.params.temperature = Some(0.7);
         mine.params.max_tokens = Some(300);
         mine.params.extra = serde_json::from_str(r#"{"seed": 7, "stop": null}"#).unwrap();
-        config.polish.engine.cloud_polish = Some(configurations);
+        config.text_model.cloud_text = Some(configurations);
         let params =
-            LocalPolishParams { temperature: Some(0.3), top_p: Some(0.8), top_k: Some(40), max_tokens: Some(512) };
-        config.polish.engine.set_local_params("qwen3.5-9b-instruct", params);
-        config.polish.engine.set_local_params("qwen3.5-2b-instruct", LocalPolishParams::default());
+            LocalTextParams { temperature: Some(0.3), top_p: Some(0.8), top_k: Some(40), max_tokens: Some(512) };
+        config.text_model.set_local_params("qwen3.5-9b-instruct", params);
+        config.text_model.set_local_params("qwen3.5-2b-instruct", LocalTextParams::default());
 
         let encoded = toml::to_string(&config).unwrap();
         assert_eq!(toml::from_str::<Config>(&encoded).unwrap(), config);
         let table: toml::Table = encoded.parse().unwrap();
-        assert!(table["asr"].get("cloud_polish").is_none() && table["asr"].get("local_params").is_none());
-        assert!(table["polish"].get("cloud_asr").is_none());
+        assert!(table["asr"].get("cloud_text").is_none() && table["asr"].get("local_params").is_none());
+        assert!(table["text_model"].get("cloud_asr").is_none());
         assert_eq!(
-            table["polish"]["local_params"].as_table().unwrap().len(),
+            table["text_model"]["local_params"].as_table().unwrap().len(),
             1,
             "parameters that set nothing are not kept"
         );
-        assert_eq!(config.polish.engine.local_params_for("qwen3.5-9b-instruct"), params);
-        assert_eq!(config.polish.engine.local_params_for("other"), LocalPolishParams::default());
+        assert_eq!(config.text_model.local_params_for("qwen3.5-9b-instruct"), params);
+        assert_eq!(config.text_model.local_params_for("other"), LocalTextParams::default());
     }
 
     #[test]
@@ -401,19 +401,19 @@ reasoning_effort = "minimal"
             secrets.set(account, "key").unwrap();
         }
 
-        assert!(store.remove_cloud_polish_configuration("azure", &secrets).unwrap());
+        assert!(store.remove_cloud_text_configuration("azure", &secrets).unwrap());
         let config = store.get();
-        let list = config.polish.engine.polish_configurations(config.general.lang());
+        let list = config.text_model.text_configurations(config.general.lang());
         assert_eq!(list.items.iter().map(|c| c.id.as_str()).collect::<Vec<_>>(), ["bedrock", "compat"]);
         assert_eq!(list.selected, "bedrock");
         assert_eq!(secrets.get("polish.azure"), None);
         assert_eq!(secrets.get("polish.compat").as_deref(), Some("key"));
         let reopened = ConfigStore::open(&path).unwrap().get();
-        assert_eq!(reopened.polish.engine.polish_configurations(reopened.general.lang()).items.len(), 2, "on disk");
+        assert_eq!(reopened.text_model.text_configurations(reopened.general.lang()).items.len(), 2, "on disk");
 
-        assert!(store.remove_cloud_polish_configuration("bedrock", &secrets).unwrap());
-        assert!(!store.remove_cloud_polish_configuration("compat", &secrets).unwrap());
-        assert!(!store.remove_cloud_polish_configuration("missing", &secrets).unwrap());
+        assert!(store.remove_cloud_text_configuration("bedrock", &secrets).unwrap());
+        assert!(!store.remove_cloud_text_configuration("compat", &secrets).unwrap());
+        assert!(!store.remove_cloud_text_configuration("missing", &secrets).unwrap());
         assert_eq!(secrets.get("polish.compat").as_deref(), Some("key"));
 
         assert!(store.remove_cloud_asr_configuration("funasr", &secrets).unwrap());

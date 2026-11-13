@@ -180,7 +180,7 @@ impl Onboarding {
                 services::save_config(&self.st, |c| {
                     c.asr.source = src;
                     if self.local {
-                        c.polish.engine.source = Source::Local;
+                        c.text_model.source = Source::Local;
                     }
                 });
             }
@@ -224,7 +224,7 @@ impl Onboarding {
     pub(super) fn can_next(&self, _cx: &App) -> bool {
         let cfg = self.st.cfg.get();
         let models_installed =
-            [&cfg.asr.local_model, &cfg.polish.engine.local_model].iter().all(|id| self.st.models.is_installed(id));
+            [&cfg.asr.local_model, &cfg.text_model.local_model].iter().all(|id| self.st.models.is_installed(id));
         can_continue(self.step, self.local, models_installed, matches!(self.test, TestState::Ok(_)), self.tried_ok)
     }
 }

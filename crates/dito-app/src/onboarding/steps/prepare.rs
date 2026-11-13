@@ -16,11 +16,11 @@ pub(super) fn local(w: &Onboarding, c: &Ctx, cx: &mut Context<Onboarding>) -> St
     let p = &c.p;
     let cfg = w.st.cfg.get();
     let snap: Snapshot = w.st.models.subscribe().borrow().clone();
-    let ids = [cfg.asr.local_model.clone(), cfg.polish.engine.local_model.clone()];
+    let ids = [cfg.asr.local_model.clone(), cfg.text_model.local_model.clone()];
     let phase = w.prepare_phase();
     let col = div().w_full().flex().flex_col().gap(px(16.)).child(tier_cards(w, c, cx, phase));
     let mut rows = ui::card(p).p(px(22.)).gap(px(16.));
-    for (role, id) in [c.t(Tr::ModelsDictation), c.t(Tr::ModelsPolishShort)].into_iter().zip(ids) {
+    for (role, id) in [c.t(Tr::ModelsDictation), c.t(Tr::ModelsTextModelShort)].into_iter().zip(ids) {
         rows = rows.child(model_progress(w, c, &role, &id, &snap));
     }
     if phase != PreparePhase::Ready {
@@ -32,7 +32,7 @@ pub(super) fn local(w: &Onboarding, c: &Ctx, cx: &mut Context<Onboarding>) -> St
 fn tier_cards(w: &Onboarding, c: &Ctx, cx: &mut Context<Onboarding>, phase: PreparePhase) -> Div {
     let p = &c.p;
     let cfg = w.st.cfg.get();
-    let current = TIERS.iter().position(|t| t.asr == cfg.asr.local_model && t.polish == cfg.polish.engine.local_model);
+    let current = TIERS.iter().position(|t| t.asr == cfg.asr.local_model && t.polish == cfg.text_model.local_model);
     let locked = phase == PreparePhase::Downloading;
     let mut tiers = div().w_full().flex().gap(px(12.));
     if locked {
@@ -121,7 +121,7 @@ fn prepare_footer(w: &Onboarding, c: &Ctx, cx: &mut Context<Onboarding>, phase: 
             (
                 dito_core::i18n::fmt::downloads_model(
                     c.lang,
-                    &ui::fmt_bytes(w.models_bytes(&[&cfg.asr.local_model, &cfg.polish.engine.local_model])),
+                    &ui::fmt_bytes(w.models_bytes(&[&cfg.asr.local_model, &cfg.text_model.local_model])),
                 ),
                 ui::button_with(
                     "wizard-prepare",

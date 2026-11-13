@@ -1,5 +1,5 @@
 //! The find words dialog (`design:settings/wordbook/find-words`, `design:settings/wordbook/find-words-other-ai`).
-//! Pasted text or one chosen file goes to the polish model; for a file Dito cannot read, the user copies a prompt
+//! Pasted text or one chosen file goes to the text model; for a file Dito cannot read, the user copies a prompt
 //! for another AI and pastes its reply. Either way the words found are offered for the wordbook.
 
 use std::collections::BTreeSet;
@@ -183,14 +183,14 @@ impl WordbookPage {
         cx.notify();
     }
 
-    /// The cloud model's name while the polish model is a cloud one.
+    /// The cloud model's name while the text model is a cloud one.
     fn find_cloud_model(&self, c: &Ctx) -> Option<String> {
         let cfg = self.st.cfg.get();
-        let engine = &cfg.polish.engine;
+        let engine = &cfg.text_model;
         if engine.source != Source::Provider {
             return None;
         }
-        let configurations = engine.polish_configurations(c.lang);
+        let configurations = engine.text_configurations(c.lang);
         let active = configurations.active();
         let model = active.map_or("", |active| active.target.model());
         Some(if model.is_empty() { active.map_or("—", |active| active.name.as_str()) } else { model }.to_owned())
@@ -215,7 +215,7 @@ impl WordbookPage {
     }
 
     fn run_find(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let cloud = self.st.cfg.get().polish.engine.source == Source::Provider;
+        let cloud = self.st.cfg.get().text_model.source == Source::Provider;
         if !matches!(self.find.stage, Stage::Input) || !self.find_ready(cloud, cx) {
             return;
         }

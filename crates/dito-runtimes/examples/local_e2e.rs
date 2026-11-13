@@ -9,13 +9,13 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use dito_core::audio::AudioClip;
-use dito_core::config::{ConfigStore, LocalPolishParams};
+use dito_core::config::{ConfigStore, LocalTextParams};
 use dito_core::error::ErrorKind;
 use dito_core::factory::LocalBackend;
 use dito_core::health::EngineStatus;
 use dito_core::i18n::Lang;
 use dito_core::prompts::{AppTarget, PromptInput, Prompts, build_prompt};
-use dito_core::provider::{AsrRequest, PolishRequest};
+use dito_core::provider::{AsrRequest, TextRequest};
 use dito_local::{LocalEngines, ModelManager, ModelState};
 use dito_runtimes::Runtimes;
 
@@ -105,11 +105,11 @@ async fn main() {
         wordbook: &["Acme".into()],
     });
     let started = Instant::now();
-    let llm = engines.polisher(&polish_id, &LocalPolishParams::default()).await.expect("load polish model");
+    let llm = engines.text_model(&polish_id, &LocalTextParams::default()).await.expect("load text model");
     println!("{polish_id} loaded in {:?}", started.elapsed());
     let started = Instant::now();
     let polished = llm
-        .polish(&PolishRequest { system: &prompt.system, examples: prompt.examples, text: &prompt.user })
+        .polish(&TextRequest { system: &prompt.system, examples: prompt.examples, text: &prompt.user })
         .await
         .expect("polish");
     println!("polished in {:?}: {polished:?}", started.elapsed());

@@ -48,7 +48,7 @@ Every line of a run carries `run=<id>` (`d` for a dictation, `c` for a command, 
 - the speech recognition request and its transcript, with timings;
 - the router request (the instruction) and the full decision: every intent's probability, the confidence, whether the gate passed and the rewrite operation;
 - which tool was chosen and why (confident, chosen by the user, polish button) and the window that asks for text, a choice or a confirmation, with the user's answer;
-- the full system prompt and user message sent to the polisher for every tool and for a dictation polish, the model's output and how long each step took;
+- the full system prompt and user message sent to the text model for every tool and for a dictation polish, the model's output and how long each step took;
 - how the result was delivered, and the history row that was queued;
 - model load and unload, and model downloads (start, progress in steps of ten percent, finish or failure), which belong to a model and carry `model=<id>` instead of a run id.
 
