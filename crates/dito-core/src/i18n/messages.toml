@@ -488,9 +488,17 @@ demo.speak = { ja = "話す", en = "Speak", zh = "说话" }
 demo.press_again = { ja = "もう一度押す", en = "Press again", zh = "再按一次" }
 demo.release = { ja = "離す", en = "Release", zh = "松开" }
 
-models.japanese_focus = { ja = "日本語向け", en = "Japanese-focused", zh = "面向日语" }
-models.english_focus = { ja = "英語向け", en = "English-focused", zh = "面向英语" }
-models.chinese_focus = { ja = "中国語向け", en = "Chinese-focused", zh = "面向中文" }
+models.label_multilingual_tip = { ja = "日本語、英語、中国語など複数の言語に対応", en = "Handles several languages, including Japanese, English and Chinese", zh = "支持日语、英语、中文等多种语言" }
+models.label_japanese_tip = { ja = "日本語専用のモデルです", en = "Built for Japanese only", zh = "专为日语打造的模型" }
+models.label_english_tip = { ja = "英語専用のモデルです", en = "Built for English only", zh = "专为英语打造的模型" }
+models.label_chinese_tip = { ja = "中国語専用のモデルです", en = "Built for Chinese only", zh = "专为中文打造的模型" }
+fmt.model_parameters_tip = { ja = "{short} は約{count}のパラメータ。多いほど高精度ですが、動作は重くなります", en = "{short} is about {count} parameters. More is usually more accurate and heavier to run", zh = "{short} 即约 {count}参数，越多通常越准，运行也越重" }
+fmt.model_parameters_count = { ja = "{n}億個", en = "{n} million", zh = "{n}亿个" }
+fmt.model_parameters_count_billions = { ja = "{n}億個", en = "{n} billion", zh = "{n}亿个" }
+fmt.model_quantization_tip = { ja = "元の{from}ビットを{to}ビットに圧縮。精度はほぼ変わりません", en = "Compressed from {from}-bit to {to}-bit. Accuracy is almost unchanged", zh = "从原来的 {from} 位压缩到 {to} 位，精度几乎不变" }
+fmt.model_quantization_lossy_tip = { ja = "元の{from}ビットを{to}ビットに圧縮。精度はわずかに下がります", en = "Compressed from {from}-bit to {to}-bit. Accuracy drops slightly", zh = "从原来的 {from} 位压缩到 {to} 位，精度略有下降" }
+fmt.model_bit_range = { ja = "{min}〜{max}", en = "{min} to {max}", zh = "{min} 到 {max}" }
+fmt.model_size_tip = { ja = "ダウンロードに {size} の空き容量が必要です", en = "Needs {size} of free space to download", zh = "下载需要 {size} 的可用空间" }
 
 prompts.other = { ja = "その他", en = "Other", zh = "其他" }
 prompts.app_rules = { ja = "アプリ別のルール", en = "App rules", zh = "应用规则" }

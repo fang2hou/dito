@@ -22,12 +22,31 @@ pub struct ModelSpec {
     pub id: String,
     pub name: String,
     pub kind: ModelKind,
+    /// Millions of parameters of the original model, which orders the Models page from small to large.
+    pub parameters_m: u32,
+    pub quantization: Quantization,
     pub files: Vec<FileSpec>,
     pub memory_mb: u32,
     /// Names the exact file roles, so directory enumeration order never matters.
     pub format: ModelFormat,
     /// A display hint, never a restriction on input language.
     pub language_focus: Option<dito_core::i18n::Lang>,
+}
+
+/// How the shipped weights were compressed from the original model's precision.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Quantization {
+    /// The name the file's publisher uses.
+    pub label: &'static str,
+    pub source_bits: u8,
+    /// The smallest and largest bit width in the file; equal unless the conversion mixes them.
+    pub bits: (u8, u8),
+}
+
+impl Quantization {
+    pub const Q8_0: Self = Self { label: "Q8_0", source_bits: 16, bits: (8, 8) };
+    pub const Q5_K_M: Self = Self { label: "Q5_K_M", source_bits: 16, bits: (5, 5) };
+    pub const Q4_K_M: Self = Self { label: "Q4_K_M", source_bits: 16, bits: (4, 4) };
 }
 
 /// The user's parameters replace the catalog's recommended values field by field.
@@ -71,6 +90,12 @@ pub enum ModelFormat {
         model: &'static str,
         projector: &'static str,
     },
+    /// One self-describing file of any speech family transcribe.cpp runs. `hotwords` records whether
+    /// that family takes a vocabulary, checked against the real weights when the entry is added.
+    TranscribeCpp {
+        model: &'static str,
+        hotwords: bool,
+    },
     /// The prompt comes from the chat template embedded in the file, so a file without one fails to load.
     /// `disable_thinking` is the Qwen hybrid-thinking prefill (an empty think block after the generation prompt);
     /// `false` for other families. `sampling` fills every parameter the user leaves empty.
@@ -86,18 +111,19 @@ impl ModelFormat {
         match self {
             Self::SenseVoice { .. } | Self::NemoTdt { .. } => Runtime::SherpaOnnx,
             Self::QwenAsr { .. } | Self::Chat { .. } => Runtime::LlamaCpp,
+            Self::TranscribeCpp { .. } => Runtime::TranscribeCpp,
         }
     }
 
     pub fn supports_hotwords(self) -> bool {
-        matches!(self, Self::QwenAsr { .. })
+        matches!(self, Self::QwenAsr { .. } | Self::TranscribeCpp { hotwords: true, .. })
     }
 
     /// Speech models decode greedily and have none.
     pub fn sampling(self) -> Option<Sampling> {
         match self {
             Self::Chat { sampling, .. } => Some(sampling),
-            Self::SenseVoice { .. } | Self::NemoTdt { .. } | Self::QwenAsr { .. } => None,
+            _ => None,
         }
     }
 
@@ -106,7 +132,7 @@ impl ModelFormat {
             Self::SenseVoice { model, tokens } => vec![model, tokens],
             Self::NemoTdt { encoder, decoder, joiner, tokens, .. } => vec![encoder, decoder, joiner, tokens],
             Self::QwenAsr { model, projector } => vec![model, projector],
-            Self::Chat { model, .. } => vec![model],
+            Self::Chat { model, .. } | Self::TranscribeCpp { model, .. } => vec![model],
         }
     }
 }
@@ -115,6 +141,7 @@ impl ModelFormat {
 pub enum Runtime {
     SherpaOnnx,
     LlamaCpp,
+    TranscribeCpp,
 }
 
 impl ModelSpec {
@@ -129,13 +156,14 @@ fn file(name: &str, url: &str, size: u64, sha256: Option<&str>) -> FileSpec {
 
 pub fn default_catalog() -> Vec<ModelSpec> {
     let hf = "https://huggingface.co";
-    // Display order within a kind is the order here: the Models page lists them as written.
-    vec![
+    let mut catalog = vec![
         // Measured on M4 Pro (bench, 2026-11): 0.4-0.6 s per clip, the most accurate tier and
         // the default; same hotword/context path as the 0.6B. Official repo ships Q8_0 only (no Q4).
         ModelSpec {
             id: "qwen3-asr-1.7b".into(),
             name: "Qwen3-ASR-1.7B".into(),
+            parameters_m: 2349,
+            quantization: Quantization::Q8_0,
             kind: ModelKind::Asr,
             files: vec![
                 file(
@@ -164,6 +192,8 @@ pub fn default_catalog() -> Vec<ModelSpec> {
         ModelSpec {
             id: "qwen3-asr-0.6b".into(),
             name: "Qwen3-ASR-0.6B".into(),
+            parameters_m: 938,
+            quantization: Quantization::Q8_0,
             kind: ModelKind::Asr,
             files: vec![
                 file(
@@ -190,6 +220,8 @@ pub fn default_catalog() -> Vec<ModelSpec> {
         ModelSpec {
             id: "sensevoice-small".into(),
             name: "SenseVoice Small".into(),
+            parameters_m: 234,
+            quantization: Quantization { label: "INT8", source_bits: 32, bits: (8, 8) },
             kind: ModelKind::Asr,
             files: vec![
                 file(
@@ -217,6 +249,8 @@ pub fn default_catalog() -> Vec<ModelSpec> {
         ModelSpec {
             id: "haas-ja".into(),
             name: "Haas-ja v1.0".into(),
+            parameters_m: 616,
+            quantization: Quantization { label: "INT4/8", source_bits: 32, bits: (4, 8) },
             kind: ModelKind::Asr,
             files: vec![
                 file(
@@ -270,9 +304,102 @@ pub fn default_catalog() -> Vec<ModelSpec> {
             },
             language_focus: Some(dito_core::i18n::Lang::Ja),
         },
+        // The vendor's own GGUF of a Qwen3-ASR fine-tune, so it shares the 1.7B prompt and hotword path.
+        // NetEase Youdao model license, not Apache-2.0.
+        ModelSpec {
+            id: "confucius4-r2t2".into(),
+            name: "Confucius4-R2T2".into(),
+            parameters_m: 2038,
+            quantization: Quantization::Q8_0,
+            kind: ModelKind::Asr,
+            files: vec![
+                file(
+                    "Confucius4-R2T2-Q8_0.gguf",
+                    &format!(
+                        "{hf}/netease-youdao/Confucius4-R2T2-GGUF/resolve/86ff0251cb9f456b63aeef5f80137f104e22869a/Confucius4-R2T2-Q8_0.gguf"
+                    ),
+                    1_834_422_208,
+                    Some("151097e43957a19984ea7de66e8144ce69b95039eb31c93da4f58db367e455c3"),
+                ),
+                file(
+                    "mmproj-Confucius4-R2T2-Q8_0.gguf",
+                    &format!(
+                        "{hf}/netease-youdao/Confucius4-R2T2-GGUF/resolve/86ff0251cb9f456b63aeef5f80137f104e22869a/mmproj-Confucius4-R2T2-Q8_0.gguf"
+                    ),
+                    348_336_544,
+                    Some("8dc2c67e6a0484114928142d098db7ad94ae9f34c78948ef9d37a9678418cb65"),
+                ),
+            ],
+            memory_mb: 3100,
+            format: ModelFormat::QwenAsr {
+                model: "Confucius4-R2T2-Q8_0.gguf",
+                projector: "mmproj-Confucius4-R2T2-Q8_0.gguf",
+            },
+            language_focus: None,
+        },
+        // The transcribe.cpp project's GGUF of openai/whisper-large-v3 (Apache-2.0).
+        ModelSpec {
+            id: "whisper-large-v3".into(),
+            name: "whisper-large-v3".into(),
+            parameters_m: 1543,
+            quantization: Quantization::Q5_K_M,
+            kind: ModelKind::Asr,
+            files: vec![file(
+                "whisper-large-v3-Q5_K_M.gguf",
+                &format!(
+                    "{hf}/handy-computer/whisper-large-v3-gguf/resolve/274ad1d1cf680b7ee53cc70f78461394cd3a344b/whisper-large-v3-Q5_K_M.gguf"
+                ),
+                1_161_143_008,
+                Some("6053d0fd69a0fd48b8fea5ea7a52b9e0cde389343566fa30e453a1b2b258dc38"),
+            )],
+            memory_mb: 2000,
+            format: ModelFormat::TranscribeCpp { model: "whisper-large-v3-Q5_K_M.gguf", hotwords: true },
+            language_focus: None,
+        },
+        // GGUF of FunAudioLLM/Fun-ASR-MLT-Nano-2512: a SenseVoice encoder in front of Qwen3-0.6B.
+        ModelSpec {
+            id: "fun-asr-mlt-nano-2512".into(),
+            name: "Fun-ASR-MLT-Nano-2512".into(),
+            parameters_m: 800,
+            quantization: Quantization::Q8_0,
+            kind: ModelKind::Asr,
+            files: vec![file(
+                "Fun-ASR-MLT-Nano-2512-Q8_0.gguf",
+                &format!(
+                    "{hf}/xix3r/voxix-Fun-ASR-MLT-Nano-2512-gguf/resolve/38f895a0884f6e2ceb037277d22bc003a5a67f87/Fun-ASR-MLT-Nano-2512-Q8_0.gguf"
+                ),
+                891_271_232,
+                Some("d12476d8d9f2baa0ebf738fa955fa05ed33a654f1567289033a810c45d9d9002"),
+            )],
+            memory_mb: 1500,
+            format: ModelFormat::TranscribeCpp { model: "Fun-ASR-MLT-Nano-2512-Q8_0.gguf", hotwords: true },
+            language_focus: None,
+        },
+        // The transcribe.cpp project's GGUF of openai/whisper-large-v3-turbo (MIT): the large-v3 encoder
+        // with a four-layer decoder.
+        ModelSpec {
+            id: "whisper-large-v3-turbo".into(),
+            name: "whisper-large-v3-turbo".into(),
+            parameters_m: 809,
+            quantization: Quantization::Q5_K_M,
+            kind: ModelKind::Asr,
+            files: vec![file(
+                "whisper-large-v3-turbo-Q5_K_M.gguf",
+                &format!(
+                    "{hf}/handy-computer/whisper-large-v3-turbo-gguf/resolve/18ada752005f5fddef499256f9a458d0b37a203a/whisper-large-v3-turbo-Q5_K_M.gguf"
+                ),
+                619_628_096,
+                Some("06fc9923c09fb3ae878ea12c34d1be3ed18fad039ab14b4b045c7b6c40af56b2"),
+            )],
+            memory_mb: 1200,
+            format: ModelFormat::TranscribeCpp { model: "whisper-large-v3-turbo-Q5_K_M.gguf", hotwords: true },
+            language_focus: None,
+        },
         ModelSpec {
             id: "qwen3.5-2b-instruct".into(),
             name: "Qwen3.5-2B-Instruct".into(),
+            parameters_m: 2000,
+            quantization: Quantization::Q4_K_M,
             kind: ModelKind::Polish,
             files: vec![file(
                 "Qwen3.5-2B-Q4_K_M.gguf",
@@ -291,6 +418,8 @@ pub fn default_catalog() -> Vec<ModelSpec> {
         ModelSpec {
             id: "qwen3.5-4b-instruct".into(),
             name: "Qwen3.5-4B-Instruct".into(),
+            parameters_m: 4000,
+            quantization: Quantization::Q4_K_M,
             kind: ModelKind::Polish,
             files: vec![file(
                 "Qwen3.5-4B-Q4_K_M.gguf",
@@ -312,6 +441,8 @@ pub fn default_catalog() -> Vec<ModelSpec> {
         ModelSpec {
             id: "qwen3.5-9b-instruct".into(),
             name: "Qwen3.5-9B-Instruct".into(),
+            parameters_m: 9000,
+            quantization: Quantization::Q4_K_M,
             kind: ModelKind::Polish,
             files: vec![file(
                 "Qwen3.5-9B-Q4_K_M.gguf",
@@ -327,7 +458,10 @@ pub fn default_catalog() -> Vec<ModelSpec> {
             },
             language_focus: None,
         },
-    ]
+    ];
+    // The Models page lists each kind in this order.
+    catalog.sort_by_key(|model| model.parameters_m);
+    catalog
 }
 
 #[cfg(test)]
