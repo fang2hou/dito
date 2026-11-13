@@ -3,11 +3,11 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use super::{CloudAsrConfigurations, CloudPolishConfiguration, CloudPolishConfigurations};
+use super::{CloudAsrConfigurations, CloudTextConfiguration, CloudTextConfigurations};
 use crate::i18n::Lang;
 
 pub const DEFAULT_ASR_LOCAL: &str = "qwen3-asr-1.7b";
-pub const DEFAULT_POLISH_LOCAL: &str = "qwen3.5-9b-instruct";
+pub const DEFAULT_TEXT_LOCAL: &str = "qwen3.5-9b-instruct";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
@@ -62,7 +62,7 @@ impl From<ReasoningEffort> for String {
 /// A field that is not set uses the value the catalog recommends for the model.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default)]
 #[serde(default)]
-pub struct LocalPolishParams {
+pub struct LocalTextParams {
     pub temperature: Option<f32>,
     pub top_p: Option<f32>,
     pub top_k: Option<u32>,
@@ -74,49 +74,49 @@ pub struct LocalPolishParams {
 pub struct EngineConfig {
     pub cloud_asr: Option<CloudAsrConfigurations>,
     /// Polish only. `None` until a list is first saved; the templates stand in.
-    pub cloud_polish: Option<CloudPolishConfigurations>,
+    pub cloud_text: Option<CloudTextConfigurations>,
     pub source: Source,
     pub local_model: String,
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
-    pub local_params: BTreeMap<String, LocalPolishParams>,
+    pub local_params: BTreeMap<String, LocalTextParams>,
 }
 
 impl EngineConfig {
-    fn with_local(model: &str) -> Self {
+    pub(super) fn with_local(model: &str) -> Self {
         Self {
             source: Source::Local,
             local_model: model.into(),
             cloud_asr: None,
-            cloud_polish: None,
+            cloud_text: None,
             local_params: BTreeMap::new(),
         }
     }
 
     /// `lang` is the UI language, not necessarily the system's; it names the templates' three while none are saved.
-    pub fn polish_configurations(&self, lang: Lang) -> Cow<'_, CloudPolishConfigurations> {
-        self.cloud_polish.as_ref().map_or_else(|| Cow::Owned(CloudPolishConfigurations::new(lang)), Cow::Borrowed)
+    pub fn text_configurations(&self, lang: Lang) -> Cow<'_, CloudTextConfigurations> {
+        self.cloud_text.as_ref().map_or_else(|| Cow::Owned(CloudTextConfigurations::new(lang)), Cow::Borrowed)
     }
 
     /// The first edit saves the templates' three, named in `lang`.
-    pub fn polish_configurations_mut(&mut self, lang: Lang) -> &mut CloudPolishConfigurations {
-        self.cloud_polish.get_or_insert_with(|| CloudPolishConfigurations::new(lang))
+    pub fn text_configurations_mut(&mut self, lang: Lang) -> &mut CloudTextConfigurations {
+        self.cloud_text.get_or_insert_with(|| CloudTextConfigurations::new(lang))
     }
 
     /// For the code that sends requests: it reads no name, so it needs no language.
-    pub fn active_polish(&self) -> Option<Cow<'_, CloudPolishConfiguration>> {
-        match &self.cloud_polish {
+    pub fn active_text(&self) -> Option<Cow<'_, CloudTextConfiguration>> {
+        match &self.cloud_text {
             Some(saved) => saved.active().map(Cow::Borrowed),
-            None => Some(Cow::Owned(CloudPolishConfigurations::stand_in_active())),
+            None => Some(Cow::Owned(CloudTextConfigurations::stand_in_active())),
         }
     }
 
-    pub fn local_params_for(&self, model: &str) -> LocalPolishParams {
+    pub fn local_params_for(&self, model: &str) -> LocalTextParams {
         self.local_params.get(model).copied().unwrap_or_default()
     }
 
     /// Save the parameters of the local model `model`. Parameters that set nothing are not kept.
-    pub fn set_local_params(&mut self, model: &str, params: LocalPolishParams) {
-        if params == LocalPolishParams::default() {
+    pub fn set_local_params(&mut self, model: &str, params: LocalTextParams) {
+        if params == LocalTextParams::default() {
             self.local_params.remove(model);
         } else {
             self.local_params.insert(model.to_owned(), params);
@@ -134,7 +134,7 @@ impl EngineConfig {
                     format!("{}:{}", active.account(), active.config["connection"]["model"].as_str().unwrap_or(""))
                 })
                 .unwrap_or_default(),
-            (Source::Provider, None) => self.active_polish().map(|active| active.label()).unwrap_or_default(),
+            (Source::Provider, None) => self.active_text().map(|active| active.label()).unwrap_or_default(),
         }
     }
 }
@@ -160,13 +160,11 @@ pub struct EngineLabels {
 #[serde(default)]
 pub struct PolishConfig {
     pub enabled: bool,
-    #[serde(flatten)]
-    pub engine: EngineConfig,
 }
 
 impl Default for PolishConfig {
     fn default() -> Self {
-        Self { enabled: true, engine: EngineConfig::with_local(DEFAULT_POLISH_LOCAL) }
+        Self { enabled: true }
     }
 }
 
@@ -180,9 +178,9 @@ mod tests {
     #[test]
     fn stand_in_configurations_are_named_in_the_language_they_are_asked_for() {
         let engine = EngineConfig::default();
-        assert!(engine.cloud_polish.is_none(), "nothing is saved, so these are the stand-ins");
+        assert!(engine.cloud_text.is_none(), "nothing is saved, so these are the stand-ins");
         for (lang, compat) in COMPAT_NAMES {
-            assert_eq!(engine.polish_configurations(lang).get("compat").unwrap().name, compat);
+            assert_eq!(engine.text_configurations(lang).get("compat").unwrap().name, compat);
         }
     }
 
@@ -190,23 +188,23 @@ mod tests {
     fn the_first_edit_saves_the_templates_in_the_language_the_ui_is_shown_in() {
         for (lang, compat) in COMPAT_NAMES {
             let mut engine = EngineConfig::default();
-            engine.polish_configurations_mut(lang).select("azure");
+            engine.text_configurations_mut(lang).select("azure");
             // What was saved stays as saved when the list is read in another language.
             let other = if lang == Lang::Ja { Lang::En } else { Lang::Ja };
-            assert_eq!(engine.polish_configurations(other).get("compat").unwrap().name, compat);
+            assert_eq!(engine.text_configurations(other).get("compat").unwrap().name, compat);
         }
     }
 
     #[test]
     fn requests_run_the_selected_configuration_or_the_first_template_while_none_is_saved() {
         let mut engine = EngineConfig { source: Source::Provider, ..EngineConfig::default() };
-        assert_eq!(engine.active_polish().unwrap().id, "azure");
+        assert_eq!(engine.active_text().unwrap().id, "azure");
         assert_eq!(engine.label(), "azure:", "history labels do not depend on any name");
 
-        engine.polish_configurations_mut(Lang::En).select("compat");
-        assert_eq!(engine.active_polish().unwrap().id, "compat");
-        engine.polish_configurations_mut(Lang::En).selected = "gone".into();
-        assert!(engine.active_polish().is_none(), "a selection that points nowhere is not replaced by a template");
+        engine.text_configurations_mut(Lang::En).select("compat");
+        assert_eq!(engine.active_text().unwrap().id, "compat");
+        engine.text_configurations_mut(Lang::En).selected = "gone".into();
+        assert!(engine.active_text().is_none(), "a selection that points nowhere is not replaced by a template");
     }
 
     #[test]

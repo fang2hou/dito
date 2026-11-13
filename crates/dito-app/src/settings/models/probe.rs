@@ -6,8 +6,8 @@ use gpui_kit::*;
 use crate::settings::asr_editor::EditorPreview;
 use crate::ui::{self, InputEvent, InputState, TestState};
 
-use super::page::{CloudPolishPanel, ModelsPage};
-use super::polish_field_rules::{CloudPolishField, LocalPolishField};
+use super::page::{CloudTextPanel, ModelsPage};
+use super::text_field_rules::{CloudTextField, LocalTextField};
 
 impl ModelsPage {
     pub(in crate::settings) fn preview(
@@ -19,11 +19,11 @@ impl ModelsPage {
     ) {
         self.tab = role;
         // Each shot starts from the settings alone: nothing typed, scrolled or opened before is left in the page.
-        self.cloud_polish = CloudPolishPanel::new(window, cx);
+        self.cloud_text = CloudTextPanel::new(window, cx);
         self.save_failed = false;
         // Synthetic visual states never touch downloads or files on disk.
         if std::env::var_os("DITO_MODEL_STATES").is_some() {
-            let kind = if role == Role::Asr { dito_local::ModelKind::Asr } else { dito_local::ModelKind::Polish };
+            let kind = if role == Role::Asr { dito_local::ModelKind::Asr } else { dito_local::ModelKind::Text };
             let specs: Vec<_> = self.st.models.catalog().iter().filter(|m| m.kind == kind).collect();
             let mut states = [
                 dito_local::ModelState::Downloading {
@@ -95,26 +95,26 @@ impl ModelsPage {
     ) {
         match case {
             "type" => {
-                let field = CloudPolishField::ALL.into_iter().find(|f| cloud_name(*f) == arg).expect("a field");
-                replace_text(&self.cloud_polish.form[field], text, window, cx);
+                let field = CloudTextField::ALL.into_iter().find(|f| cloud_name(*f) == arg).expect("a field");
+                replace_text(&self.cloud_text.form[field], text, window, cx);
             }
             "type-local" => {
-                let field = LocalPolishField::ALL.into_iter().find(|f| local_name(*f) == arg).expect("a field");
-                replace_text(&self.local_polish[field], text, window, cx);
+                let field = LocalTextField::ALL.into_iter().find(|f| local_name(*f) == arg).expect("a field");
+                replace_text(&self.local_text[field], text, window, cx);
             }
             // A window that is never shown moves no focus, so focus leaving the name is delivered as the input's own
             // event, which is what the page listens to.
-            "blur-name" => self.cloud_polish.form[CloudPolishField::Name].update(cx, |_, cx| cx.emit(InputEvent::Blur)),
+            "blur-name" => self.cloud_text.form[CloudTextField::Name].update(cx, |_, cx| cx.emit(InputEvent::Blur)),
             "source" => self.set_source(self.tab, if arg == "local" { 0 } else { 1 }, cx),
             "use-model" => self.use_model(self.tab, arg),
             // The form shows a configuration that was just deleted until the page is drawn again, and a key typed
             // into that gap has nowhere to go.
             "delete-then-key" => {
-                let Some(id) = self.cloud_polish.form.shown().map(str::to_owned) else { return };
-                self.delete_cloud_polish(&id, window, cx);
-                self.cloud_polish.form[CloudPolishField::Key]
+                let Some(id) = self.cloud_text.form.shown().map(str::to_owned) else { return };
+                self.delete_cloud_text(&id, window, cx);
+                self.cloud_text.form[CloudTextField::Key]
                     .update(cx, |input, cx| input.set_value(text.to_owned(), window, cx));
-                self.cloud_polish_edited(CloudPolishField::Key, cx);
+                self.cloud_text_edited(CloudTextField::Key, cx);
             }
             "local-states" => {
                 let specs: Vec<_> = self
@@ -122,7 +122,7 @@ impl ModelsPage {
                     .models
                     .catalog()
                     .iter()
-                    .filter(|m| m.kind == dito_local::ModelKind::Polish)
+                    .filter(|m| m.kind == dito_local::ModelKind::Text)
                     .map(|m| m.id.clone())
                     .collect();
                 self.preview_snapshot = Some(std::sync::Arc::new(
@@ -140,7 +140,7 @@ impl ModelsPage {
                         .collect(),
                 ));
                 if let Some(first) = specs.first().cloned() {
-                    crate::services::save_config(&self.st, |cfg| cfg.polish.engine.local_model = first);
+                    crate::services::save_config(&self.st, |cfg| cfg.text_model.local_model = first);
                 }
                 cx.notify();
             }
@@ -149,38 +149,34 @@ impl ModelsPage {
     }
 
     pub(in crate::settings) fn probe_state(&self, window: &Window, cx: &App) -> ModelsProbe {
-        let cloud = &self.cloud_polish.form;
-        let local = &self.local_polish;
-        let name = cloud[CloudPolishField::Name].read(cx);
+        let cloud = &self.cloud_text.form;
+        let local = &self.local_text;
+        let name = cloud[CloudTextField::Name].read(cx);
         ModelsProbe {
             save_failed: self.save_failed,
-            menu_open: self.cloud_polish.tiles.menu_open(),
+            menu_open: self.cloud_text.tiles.menu_open(),
             name_focused: name.focus_handle(cx).is_focused(window),
             name_selection: name.selected_range(),
-            tiles: self.cloud_polish.tiles.probe(),
-            test: match &self.cloud_polish.test {
+            tiles: self.cloud_text.tiles.probe(),
+            test: match &self.cloud_text.test {
                 TestState::Idle => "idle",
                 TestState::Running => "running",
                 TestState::Ok(_) => "ok",
                 TestState::Failed(_) => "failed",
             },
-            deleting: self.cloud_polish.tiles.deleting().map(|deleting| deleting.name.clone()),
+            deleting: self.cloud_text.tiles.deleting().map(|deleting| deleting.name.clone()),
             shown: cloud.shown().map(str::to_owned),
-            texts: CloudPolishField::ALL.map(|field| (cloud_name(field), cloud.text(field, cx))).into(),
-            invalid: CloudPolishField::ALL.into_iter().filter(|f| cloud.invalid(*f, cx)).map(cloud_name).collect(),
+            texts: CloudTextField::ALL.map(|field| (cloud_name(field), cloud.text(field, cx))).into(),
+            invalid: CloudTextField::ALL.into_iter().filter(|f| cloud.invalid(*f, cx)).map(cloud_name).collect(),
             local_shown: local.shown().map(str::to_owned),
-            local_texts: LocalPolishField::ALL.map(|field| (local_name(field), local.text(field, cx))).into(),
-            local_invalid: LocalPolishField::ALL
-                .into_iter()
-                .filter(|f| local.invalid(*f, cx))
-                .map(local_name)
-                .collect(),
+            local_texts: LocalTextField::ALL.map(|field| (local_name(field), local.text(field, cx))).into(),
+            local_invalid: LocalTextField::ALL.into_iter().filter(|f| local.invalid(*f, cx)).map(local_name).collect(),
             local_models: self
                 .st
                 .models
                 .catalog()
                 .iter()
-                .filter(|m| m.kind == dito_local::ModelKind::Polish)
+                .filter(|m| m.kind == dito_local::ModelKind::Text)
                 .map(|m| m.id.clone())
                 .collect(),
         }
@@ -220,25 +216,25 @@ fn replace_text(input: &Entity<InputState>, text: &str, window: &mut Window, cx:
     input.update(cx, |state, cx| state.replace_all(text.to_owned(), window, cx));
 }
 
-fn cloud_name(field: CloudPolishField) -> &'static str {
+fn cloud_name(field: CloudTextField) -> &'static str {
     match field {
-        CloudPolishField::Name => "name",
-        CloudPolishField::Address => "address",
-        CloudPolishField::Model => "model",
-        CloudPolishField::Key => "key",
-        CloudPolishField::Temperature => "temperature",
-        CloudPolishField::TopP => "top_p",
-        CloudPolishField::MaxTokens => "max_tokens",
-        CloudPolishField::Effort => "effort",
-        CloudPolishField::Extra => "extra",
+        CloudTextField::Name => "name",
+        CloudTextField::Address => "address",
+        CloudTextField::Model => "model",
+        CloudTextField::Key => "key",
+        CloudTextField::Temperature => "temperature",
+        CloudTextField::TopP => "top_p",
+        CloudTextField::MaxTokens => "max_tokens",
+        CloudTextField::Effort => "effort",
+        CloudTextField::Extra => "extra",
     }
 }
 
-fn local_name(field: LocalPolishField) -> &'static str {
+fn local_name(field: LocalTextField) -> &'static str {
     match field {
-        LocalPolishField::Temperature => "temperature",
-        LocalPolishField::TopP => "top_p",
-        LocalPolishField::TopK => "top_k",
-        LocalPolishField::MaxTokens => "max_tokens",
+        LocalTextField::Temperature => "temperature",
+        LocalTextField::TopP => "top_p",
+        LocalTextField::TopK => "top_k",
+        LocalTextField::MaxTokens => "max_tokens",
     }
 }

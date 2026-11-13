@@ -1,4 +1,4 @@
-//! Loading and running local models behind the core `Transcriber` / `Polisher` traits.
+//! Loading and running local models behind the core `Transcriber` / `TextModel` traits.
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -6,12 +6,12 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use async_trait::async_trait;
-use dito_core::config::LocalPolishParams;
+use dito_core::config::LocalTextParams;
 use dito_core::error::{ErrorKind, ProviderError, ProviderResult};
 use dito_core::factory::LocalBackend;
 use dito_core::health::EngineStatus;
 use dito_core::intent::Decision;
-use dito_core::provider::{AsrRequest, PolishRequest, Polisher, Router, Transcriber, Transcript};
+use dito_core::provider::{AsrRequest, Router, TextModel, TextRequest, Transcriber, Transcript};
 use dito_core::trace_log;
 
 use crate::catalog::{ModelKind, Sampling};
@@ -156,7 +156,7 @@ impl LocalEngines {
         trace_log!(model = id, kind = ?spec.kind, "model load started");
         let loaded = tokio::task::spawn_blocking(move || match spec.kind {
             ModelKind::Asr => loader.load_asr(&spec, &dir).map(Slot::Asr),
-            ModelKind::Polish => loader.load_llm(&spec, &dir).map(Slot::Llm),
+            ModelKind::Text => loader.load_llm(&spec, &dir).map(Slot::Llm),
         })
         .await
         .map_err(|e| ProviderError::new(ErrorKind::Other, e.to_string()))?;
@@ -263,8 +263,8 @@ impl Transcriber for LocalAsr {
 }
 
 #[async_trait]
-impl Polisher for LocalLlm {
-    async fn polish(&self, req: &PolishRequest<'_>) -> ProviderResult<String> {
+impl TextModel for LocalLlm {
+    async fn polish(&self, req: &TextRequest<'_>) -> ProviderResult<String> {
         let _working = Working::new(&self.usage);
         let (rt, system, user) = (self.rt.clone(), req.system.to_string(), req.text.to_string());
         let examples = req.examples;
@@ -310,7 +310,7 @@ impl LocalBackend for LocalEngines {
         }
     }
 
-    async fn polisher(&self, model_id: &str, params: &LocalPolishParams) -> ProviderResult<Arc<dyn Polisher>> {
+    async fn text_model(&self, model_id: &str, params: &LocalTextParams) -> ProviderResult<Arc<dyn TextModel>> {
         let recommended = self.manager.spec(model_id).and_then(|spec| spec.format.sampling());
         match (self.ensure_loaded(model_id).await?, recommended) {
             (Slot::Llm(rt), Some(recommended)) => Ok(Arc::new(LocalLlm {

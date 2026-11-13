@@ -10,7 +10,7 @@ use crate::error::{ErrorKind, ProviderError, ProviderResult};
 use crate::factory::Engines;
 use crate::i18n::Lang;
 use crate::prompts::{AppTarget, PromptInput, Prompts, build_prompt, detect_lang};
-use crate::provider::{AsrRequest, PolishRequest, Polisher};
+use crate::provider::{AsrRequest, TextModel, TextRequest};
 use crate::trace_log;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -139,8 +139,8 @@ async fn polish(
     cancel: &CancellationToken,
     out: &mut Output,
 ) -> Result<(), PipelineError> {
-    let polisher = match engines.polisher(cfg).await {
-        Ok(Some(polisher)) => polisher,
+    let text_model = match engines.text_model(cfg).await {
+        Ok(Some(text_model)) => text_model,
         Ok(None) => {
             trace_log!("polish skipped, it is switched off");
             return Ok(());
@@ -161,7 +161,7 @@ async fn polish(
         wordbook: polish_wordbook(cfg, job.wordbook),
         lang: out.lang,
     };
-    match or_cancel(cancel, polish_text(polisher.as_ref(), polish_job)).await? {
+    match or_cancel(cancel, polish_text(text_model.as_ref(), polish_job)).await? {
         Ok(text) => out.polished = Some(text),
         Err(e) => out.polish_error = Some(e),
     }
@@ -186,23 +186,23 @@ pub fn polish_wordbook<'a>(cfg: &Config, words: &'a [String]) -> &'a [String] {
 
 /// The one place that builds the system prompt and calls the model; dictation, polishing a history entry again and the
 /// Prompts page preview all use it.
-pub async fn polish_text(polisher: &dyn Polisher, job: PolishJob<'_>) -> ProviderResult<String> {
+pub async fn polish_text(text_model: &dyn TextModel, job: PolishJob<'_>) -> ProviderResult<String> {
     let PolishJob { prompts, target: style, text, wordbook, lang } = job;
     let prompt = build_prompt(&PromptInput { prompts, target: style, lang, text, wordbook });
-    call_polisher(
-        polisher,
+    call_text_model(
+        text_model,
         "polish",
-        &PolishRequest { system: &prompt.system, examples: prompt.examples, text: &prompt.user },
+        &TextRequest { system: &prompt.system, examples: prompt.examples, text: &prompt.user },
     )
     .await
 }
 
 /// Every model call that rewrites text goes through here, so the debug log holds the full system prompt and user message
 /// that were sent for `what` (a dictation polish or the name of a command tool), the model's output and how long it took.
-pub(crate) async fn call_polisher(
-    polisher: &dyn Polisher,
+pub(crate) async fn call_text_model(
+    text_model: &dyn TextModel,
     what: &str,
-    request: &PolishRequest<'_>,
+    request: &TextRequest<'_>,
 ) -> ProviderResult<String> {
     trace_log!(
         tool = what,
@@ -212,7 +212,7 @@ pub(crate) async fn call_polisher(
         "polish request"
     );
     let started = Instant::now();
-    let result = polisher.polish(request).await;
+    let result = text_model.polish(request).await;
     let elapsed_ms = started.elapsed().as_millis() as u64;
     match &result {
         Ok(output) => trace_log!(tool = what, elapsed_ms, output = ?output, "polish output"),
@@ -243,13 +243,13 @@ mod tests {
 
     use super::*;
     use crate::factory::FixedEngines;
-    use crate::provider::mock::{MockPolisher, MockTranscriber};
+    use crate::provider::mock::{MockTextModel, MockTranscriber};
 
     fn tone() -> AudioClip {
         AudioClip::new(vec![0.3; 16_000])
     }
 
-    fn engines(asr: MockTranscriber, polish: MockPolisher) -> FixedEngines {
+    fn engines(asr: MockTranscriber, polish: MockTextModel) -> FixedEngines {
         FixedEngines::new(Arc::new(asr), Arc::new(polish))
     }
 
@@ -266,7 +266,7 @@ mod tests {
 
     #[tokio::test]
     async fn transcribes_then_polishes_in_order() {
-        let e = engines(MockTranscriber::new("えーと 会議です"), MockPolisher::default());
+        let e = engines(MockTranscriber::new("えーと 会議です"), MockTextModel::default());
         let phases = std::sync::Mutex::new(Vec::new());
         let out = run(
             &e,
@@ -288,7 +288,7 @@ mod tests {
 
     #[tokio::test]
     async fn disabled_polish_delivers_the_raw_text_without_calling_the_model() {
-        let polish = Arc::new(MockPolisher::default());
+        let polish = Arc::new(MockTextModel::default());
         let e = FixedEngines::new(Arc::new(MockTranscriber::new("hello")), polish.clone());
         let mut cfg = Config::default();
         cfg.polish.enabled = false;
@@ -299,7 +299,7 @@ mod tests {
 
     #[tokio::test]
     async fn polish_failure_falls_back_to_the_transcript() {
-        let e = engines(MockTranscriber::new("hello"), MockPolisher::default().script([Err(ErrorKind::RateLimit)]));
+        let e = engines(MockTranscriber::new("hello"), MockTextModel::default().script([Err(ErrorKind::RateLimit)]));
         let out = go(&e, &Config::default(), &tone()).await.unwrap();
         assert_eq!(out.text(), "hello");
         assert_eq!(out.polish_error.as_ref().unwrap().kind, ErrorKind::RateLimit);
@@ -307,7 +307,7 @@ mod tests {
 
     #[tokio::test]
     async fn asr_failures_surface_with_their_class() {
-        let e = engines(MockTranscriber::new("x").script([Err(ErrorKind::Auth)]), MockPolisher::default());
+        let e = engines(MockTranscriber::new("x").script([Err(ErrorKind::Auth)]), MockTextModel::default());
         match go(&e, &Config::default(), &tone()).await {
             Err(PipelineError::Failed(err)) => assert_eq!(err.kind, ErrorKind::Auth),
             other => panic!("unexpected {other:?}"),
@@ -316,7 +316,7 @@ mod tests {
 
     #[tokio::test]
     async fn an_empty_transcript_is_no_speech_and_is_not_polished() {
-        let polish = Arc::new(MockPolisher::default());
+        let polish = Arc::new(MockTextModel::default());
         let e = FixedEngines::new(Arc::new(MockTranscriber::new("  ")), polish.clone());
         match go(&e, &Config::default(), &tone()).await {
             Err(PipelineError::Failed(err)) => assert_eq!(err.kind, ErrorKind::NoSpeech),
@@ -328,7 +328,7 @@ mod tests {
     #[tokio::test]
     async fn silent_audio_never_reaches_the_engine() {
         let asr = Arc::new(MockTranscriber::new("x"));
-        let e = FixedEngines::new(asr.clone(), Arc::new(MockPolisher::default()));
+        let e = FixedEngines::new(asr.clone(), Arc::new(MockTextModel::default()));
         match go(&e, &Config::default(), &AudioClip::silence(1.0)).await {
             Err(PipelineError::Failed(err)) => assert_eq!(err.kind, ErrorKind::NoSpeech),
             other => panic!("unexpected {other:?}"),
@@ -340,7 +340,7 @@ mod tests {
     async fn cancelling_during_polish_aborts_and_reports_cancelled() {
         let e = engines(
             MockTranscriber::new("hello"),
-            MockPolisher::default().with_delay(std::time::Duration::from_secs(30)),
+            MockTextModel::default().with_delay(std::time::Duration::from_secs(30)),
         );
         let cancel = CancellationToken::new();
         let seen = Arc::new(AtomicUsize::new(0));
@@ -367,8 +367,8 @@ mod tests {
     async fn wordbook_reaches_polish_only_when_enabled() {
         struct Spy(std::sync::Mutex<String>);
         #[async_trait::async_trait]
-        impl crate::provider::Polisher for Spy {
-            async fn polish(&self, r: &PolishRequest<'_>) -> crate::error::ProviderResult<String> {
+        impl crate::provider::TextModel for Spy {
+            async fn polish(&self, r: &TextRequest<'_>) -> crate::error::ProviderResult<String> {
                 *self.0.lock().unwrap() = r.system.to_string();
                 Ok("ok".into())
             }
@@ -390,8 +390,8 @@ mod tests {
     async fn polish_text_sends_the_rules_of_the_given_language_and_the_transcript_as_the_last_turn() {
         struct Capture(std::sync::Mutex<(String, usize, String)>);
         #[async_trait::async_trait]
-        impl Polisher for Capture {
-            async fn polish(&self, r: &PolishRequest<'_>) -> ProviderResult<String> {
+        impl TextModel for Capture {
+            async fn polish(&self, r: &TextRequest<'_>) -> ProviderResult<String> {
                 *self.0.lock().unwrap() = (r.system.to_string(), r.examples.len(), r.text.to_string());
                 Ok("ok".into())
             }

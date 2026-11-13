@@ -13,7 +13,7 @@ use crate::state::AppState;
 pub enum WordSearchError {
     /// The chosen file is missing, of another type than its name says, or not text.
     File,
-    /// The polish model is not available or its request failed.
+    /// The text model is not available or its request failed.
     Model,
 }
 
@@ -59,8 +59,8 @@ pub fn find_words(st: Arc<AppState>, text: String, file: Option<PathBuf>) -> Wor
         let cfg = st.cfg.get();
         let mut hud = st.dictation.hud();
         let found = async {
-            let polisher = st.factory.polisher_for(&cfg.polish.engine).await?;
-            word_finder::find_words(polisher.as_ref(), &text, &known, &mut hud, &progress_tx).await
+            let text_model = st.factory.text_model_for(&cfg.text_model).await?;
+            word_finder::find_words(text_model.as_ref(), &text, &known, &mut hud, &progress_tx).await
         }
         .await;
         found.map_err(|e| {

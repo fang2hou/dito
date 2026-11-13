@@ -210,11 +210,12 @@ errors.generic = { ja = "うまくいきませんでした", en = "Something wen
 
 models.state = { ja = "モデルの状態", en = "Model status", zh = "模型状态" }
 models.polish = { ja = "文章整形", en = "Polish", zh = "文本润色" }
-models.polish_short = { ja = "整形", en = "Polish", zh = "润色" }
+models.text_model = { ja = "テキストモデル", en = "Text model", zh = "文本模型" }
+models.text_model_short = { ja = "テキスト", en = "Text", zh = "文本" }
 models.polish_off = { ja = "整形は無効", en = "Polish is off", zh = "润色未启用" }
 models.dictation = { ja = "音声認識", en = "Speech recognition", zh = "语音识别" }
 models.dictation_desc = { ja = "音声をテキストに変換します。", en = "Converts speech to text.", zh = "将语音转换为文字。" }
-models.polish_desc = { ja = "フィラーの除去や句読点を整え、プロンプトを適用します。", en = "Removes fillers, fixes punctuation, and applies your prompt.", zh = "去除口头禅、整理标点，并应用你的提示词。" }
+models.text_model_desc = { ja = "整形、コマンド、単語の解析に使うモデルです。", en = "The model for polishing, commands and finding words.", zh = "用于润色、命令和单词解析的模型。" }
 models.local = { ja = "ローカル", en = "Local", zh = "本地" }
 models.provider = { ja = "クラウド", en = "Cloud", zh = "云端" }
 models.azure_openai = { ja = "Azure OpenAI", en = "Azure OpenAI", zh = "Azure OpenAI" }
@@ -280,7 +281,7 @@ wordbook.export = { ja = "エクスポート", en = "Export", zh = "导出" }
 wordbook.same_spelling = { ja = "整形でも同じ表記を使う", en = "Use the same spelling when polishing", zh = "润色时也使用相同写法" }
 wordbook.no_words_yet = { ja = "まだ単語がありません", en = "No words yet", zh = "还没有单词" }
 wordbook.words_passed_to_asr = { ja = "登録した単語は音声認識に渡されます。", en = "Added words are passed to speech recognition.", zh = "添加的单词会传给语音识别。" }
-wordbook.words_sent_to_polish = { ja = "整形モデルにも単語を渡し、表記をそろえます。", en = "Also sends your words to the polish model to keep spelling consistent.", zh = "同时把单词传给润色模型，统一写法。" }
+wordbook.words_sent_to_polish = { ja = "整形のときにも単語を渡し、表記をそろえます。", en = "Also sends your words when polishing to keep spelling consistent.", zh = "润色时也传入单词，统一写法。" }
 wordbook.add_failed = { ja = "単語を追加できませんでした。", en = "Could not add the word.", zh = "无法添加单词。" }
 wordbook.delete_failed = { ja = "単語を削除できませんでした。", en = "Could not delete the selected words.", zh = "无法删除所选单词。" }
 wordbook.exit_selection = { ja = "選択を終了", en = "Exit selection", zh = "退出选择" }
@@ -380,7 +381,7 @@ status.insert_blocked = { ja = "アクセシビリティの許可が必要です
 status.usage_title = { ja = "この Mac での使用量", en = "Usage on this Mac", zh = "在这台 Mac 上的占用" }
 status.usage_app = { ja = "アプリ本体", en = "The app itself", zh = "应用本身" }
 status.usage_asr_model = { ja = "音声認識モデル（ローカル）", en = "Speech recognition model (local)", zh = "语音识别模型（本地）" }
-status.usage_polish_model = { ja = "文章整形モデル（ローカル）", en = "Polish model (local)", zh = "润色模型（本地）" }
+status.usage_text_model = { ja = "テキストモデル（ローカル）", en = "Text model (local)", zh = "文本模型（本地）" }
 status.usage_total = { ja = "合計", en = "Total", zh = "合计" }
 status.log_title = { ja = "ログ", en = "Log", zh = "日志" }
 status.log_detail = { ja = "詳しく記録する", en = "Detailed log", zh = "详细记录" }
@@ -607,7 +608,7 @@ ja = "「{app}」の{language}のルールと例を初期設定に戻します�
 en = "Restore the default {language} rules and examples for {app}."
 zh = "恢复「{app}」的{language}默认规则和示例。"
 
-[fmt.local_polish_hint]
+[fmt.local_text_hint]
 ja = "「{model}」の設定です。空欄は推奨値を使います。"
 en = "Settings for {model}. Empty fields use the recommended values."
 zh = "「{model}」的设置。留空则使用推荐值。"

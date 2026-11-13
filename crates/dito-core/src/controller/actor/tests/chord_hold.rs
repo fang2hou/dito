@@ -97,7 +97,7 @@ async fn a_second_press_inside_the_wait_still_ends_a_toggle_recording() {
 async fn releasing_inside_the_wait_still_ends_a_hold_recording() {
     let r = rig(
         MockTranscriber::new("x"),
-        MockPolisher::default(),
+        MockTextModel::default(),
         RigOptions { mode: RecordMode::Hold, ..Default::default() },
     );
     r.h.send(Command::KeyDownMayHandOver);

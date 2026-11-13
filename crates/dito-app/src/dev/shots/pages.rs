@@ -209,8 +209,8 @@ pub async fn status_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
                     c.general.display_language = DisplayLanguage::Ja;
                     c.asr.source = Source::Local;
                     c.polish.enabled = case != "disabled";
-                    c.polish.engine.source = if case == "local" { Source::Local } else { Source::Provider };
-                    let configurations = c.polish.engine.polish_configurations_mut(c.general.lang());
+                    c.text_model.source = if case == "local" { Source::Local } else { Source::Provider };
+                    let configurations = c.text_model.text_configurations_mut(c.general.lang());
                     configurations.select("compat");
                     let compat = configurations.active_mut().expect("the templates include a compat configuration");
                     *compat.target.address_mut() =
@@ -339,7 +339,7 @@ pub async fn extra_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     health_dot_hover_shots(dir, cx, &shell).await;
     services::save_config(st, |c| {
         c.asr.source = original.asr.source;
-        c.polish.engine.source = original.polish.engine.source;
+        c.text_model.source = original.text_model.source;
     });
 }
 
@@ -348,7 +348,7 @@ async fn non_default_page_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncAp
     services::save_config(st, |c| {
         c.general.appearance = appearance;
         c.asr.source = Source::Local;
-        c.polish.engine.source = Source::Local;
+        c.text_model.source = Source::Local;
     });
     open_page(st, Page::Models, cx);
     page_shot(cx, dir, &format!("models-local-{tag}.png")).await;
@@ -386,7 +386,7 @@ async fn general_hover_shots(dir: &Path, cx: &mut AsyncApp, shell: &ScopeHandle,
 }
 
 async fn models_hover_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
-    services::save_config(st, |c| c.polish.engine.source = Source::Provider);
+    services::save_config(st, |c| c.text_model.source = Source::Provider);
     let models = cx
         .update(|cx| {
             settings::open(st.clone(), Page::Models, cx);
@@ -396,7 +396,7 @@ async fn models_hover_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     cx.update(|cx| {
         let (window, view) = settings::handle(cx).expect("settings window");
         let _ = window.update(cx, |_, window, cx| {
-            view.update(cx, |s, cx| s.preview_models(Role::Polish, None, window, cx));
+            view.update(cx, |s, cx| s.preview_models(Role::Text, None, window, cx));
         });
     });
     ui::force_hover(
@@ -442,13 +442,13 @@ const fn model_case(
 
 const MODEL_CASES: [ModelCase; 12] = [
     model_case("local-asr", Role::Asr, true, 0, None),
-    model_case("local-polish", Role::Polish, true, 0, None),
+    model_case("local-polish", Role::Text, true, 0, None),
     model_case("funasr", Role::Asr, false, 0, None),
     model_case("qwen-asr", Role::Asr, false, 1, None),
     model_case("openrouter", Role::Asr, false, 2, None),
-    model_case("azure", Role::Polish, false, 0, None),
-    model_case("bedrock", Role::Polish, false, 1, None),
-    model_case("compatible", Role::Polish, false, 2, None),
+    model_case("azure", Role::Text, false, 0, None),
+    model_case("bedrock", Role::Text, false, 1, None),
+    model_case("compatible", Role::Text, false, 2, None),
     model_case("editor", Role::Asr, false, 1, Some(EditorPreview::Valid)),
     model_case("editor-end", Role::Asr, false, 1, Some(EditorPreview::End)),
     model_case("editor-error", Role::Asr, false, 1, Some(EditorPreview::Invalid)),
@@ -499,11 +499,8 @@ fn apply_model_case(st: &AppState, appearance: Appearance, case: &ModelCase) {
         c.general.display_language = DisplayLanguage::Ja;
         c.general.appearance = appearance;
         c.asr.source = if case.local { Source::Local } else { Source::Provider };
-        c.polish.engine.source = c.asr.source;
-        c.polish
-            .engine
-            .polish_configurations_mut(c.general.lang())
-            .select(["azure", "bedrock", "compat"][case.template]);
+        c.text_model.source = c.asr.source;
+        c.text_model.text_configurations_mut(c.general.lang()).select(["azure", "bedrock", "compat"][case.template]);
         let mut configurations = CloudAsrConfigurations::default();
         configurations.select(["funasr", "qwen_asr", "openrouter"][case.template]);
         for configuration in &mut configurations.items {
@@ -635,7 +632,7 @@ pub async fn health_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
                     c.general.display_language = language;
                     c.asr.source = case.source;
                     c.polish.enabled = case.polish_enabled;
-                    c.polish.engine.source = case.source;
+                    c.text_model.source = case.source;
                 });
                 let name = health_case_name(language_tag, appearance, case);
                 health_card_shot(st, dir, cx, &shell, case, &name).await;
@@ -648,7 +645,7 @@ pub async fn health_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
         c.general.display_language = original.general.display_language;
         c.asr.source = original.asr.source;
         c.polish.enabled = original.polish.enabled;
-        c.polish.engine.source = original.polish.engine.source;
+        c.text_model.source = original.text_model.source;
     });
 }
 

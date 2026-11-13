@@ -48,7 +48,7 @@ pub(super) fn request(block: &str) -> String {
     fence(block)
 }
 
-/// Whether a polish model request came from the word finder, for the mock engines that answer by rule.
+/// Whether a text model request came from the word finder, for the mock engines that answer by rule.
 pub fn is_request(system: &str) -> bool {
     system == SYSTEM
 }

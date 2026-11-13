@@ -123,8 +123,8 @@ impl StatusPage {
         if cfg.asr.source == Source::Provider {
             self.run_check(Role::Asr, cx);
         }
-        if cfg.polish.enabled && cfg.polish.engine.source == Source::Provider {
-            self.run_check(Role::Polish, cx);
+        if cfg.polish.enabled && cfg.text_model.source == Source::Provider {
+            self.run_check(Role::Text, cx);
         }
     }
 

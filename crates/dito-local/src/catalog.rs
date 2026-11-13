@@ -1,11 +1,11 @@
 //! The models Dito can run on-device. Sizes and SHA-256 come from the Hugging Face file listings.
 
-use dito_core::config::LocalPolishParams;
+use dito_core::config::LocalTextParams;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ModelKind {
     Asr,
-    Polish,
+    Text,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -62,7 +62,7 @@ pub struct Sampling {
 impl Sampling {
     pub const POLISH: Self = Self { temperature: 0.2, top_p: None, top_k: None, max_tokens: None };
 
-    pub fn with_params(self, params: &LocalPolishParams) -> Self {
+    pub fn with_params(self, params: &LocalTextParams) -> Self {
         Self {
             temperature: params.temperature.unwrap_or(self.temperature),
             top_p: params.top_p.or(self.top_p),
@@ -400,7 +400,7 @@ pub fn default_catalog() -> Vec<ModelSpec> {
             name: "Qwen3.5-2B-Instruct".into(),
             parameters_m: 2000,
             quantization: Quantization::Q4_K_M,
-            kind: ModelKind::Polish,
+            kind: ModelKind::Text,
             files: vec![file(
                 "Qwen3.5-2B-Q4_K_M.gguf",
                 &format!("{hf}/unsloth/Qwen3.5-2B-GGUF/resolve/main/Qwen3.5-2B-Q4_K_M.gguf"),
@@ -420,7 +420,7 @@ pub fn default_catalog() -> Vec<ModelSpec> {
             name: "Qwen3.5-4B-Instruct".into(),
             parameters_m: 4000,
             quantization: Quantization::Q4_K_M,
-            kind: ModelKind::Polish,
+            kind: ModelKind::Text,
             files: vec![file(
                 "Qwen3.5-4B-Q4_K_M.gguf",
                 &format!("{hf}/unsloth/Qwen3.5-4B-GGUF/resolve/main/Qwen3.5-4B-Q4_K_M.gguf"),
@@ -443,7 +443,7 @@ pub fn default_catalog() -> Vec<ModelSpec> {
             name: "Qwen3.5-9B-Instruct".into(),
             parameters_m: 9000,
             quantization: Quantization::Q4_K_M,
-            kind: ModelKind::Polish,
+            kind: ModelKind::Text,
             files: vec![file(
                 "Qwen3.5-9B-Q4_K_M.gguf",
                 &format!("{hf}/unsloth/Qwen3.5-9B-GGUF/resolve/main/Qwen3.5-9B-Q4_K_M.gguf"),
@@ -476,7 +476,7 @@ mod tests {
         ids.dedup();
         assert_eq!(ids.len(), c.len());
         assert!(c.iter().any(|m| m.id == dito_core::config::DEFAULT_ASR_LOCAL));
-        assert!(c.iter().any(|m| m.id == dito_core::config::DEFAULT_POLISH_LOCAL));
+        assert!(c.iter().any(|m| m.id == dito_core::config::DEFAULT_TEXT_LOCAL));
     }
 
     #[test]
@@ -492,8 +492,8 @@ mod tests {
     #[test]
     fn user_parameters_replace_the_recommended_sampling_field_by_field() {
         let recommended = Sampling { temperature: 0.2, top_p: Some(0.9), top_k: None, max_tokens: None };
-        assert_eq!(recommended.with_params(&LocalPolishParams::default()), recommended, "nothing set, nothing changed");
-        let set = LocalPolishParams { temperature: Some(0.7), top_p: None, top_k: Some(40), max_tokens: Some(100) };
+        assert_eq!(recommended.with_params(&LocalTextParams::default()), recommended, "nothing set, nothing changed");
+        let set = LocalTextParams { temperature: Some(0.7), top_p: None, top_k: Some(40), max_tokens: Some(100) };
         let expected = Sampling { temperature: 0.7, top_p: Some(0.9), top_k: Some(40), max_tokens: Some(100) };
         assert_eq!(recommended.with_params(&set), expected, "an unset field keeps the recommendation");
     }
@@ -504,8 +504,8 @@ mod tests {
             for name in spec.format.files() {
                 assert!(spec.files.iter().any(|f| f.name == name), "{}: missing {name}", spec.id);
             }
-            assert_eq!(spec.kind == ModelKind::Polish, matches!(spec.format, ModelFormat::Chat { .. }));
-            assert_eq!(spec.format.sampling().is_some(), spec.kind == ModelKind::Polish, "{}", spec.id);
+            assert_eq!(spec.kind == ModelKind::Text, matches!(spec.format, ModelFormat::Chat { .. }));
+            assert_eq!(spec.format.sampling().is_some(), spec.kind == ModelKind::Text, "{}", spec.id);
         }
         let haas = default_catalog().into_iter().find(|s| s.id == "haas-ja").unwrap();
         assert!(haas.files.iter().any(|f| f.name == "encoder.data" && f.sha256.is_some()));

@@ -12,22 +12,22 @@ use aws_sdk_bedrockruntime::types::{
 use aws_smithy_types::{Document, Number};
 use serde_json::Value;
 
-use super::{PolishRequest, Polisher};
-use crate::config::CloudPolishParams;
+use super::{TextModel, TextRequest};
+use crate::config::CloudTextParams;
 use crate::error::{ErrorKind, ProviderError, ProviderResult};
 
 #[derive(Clone)]
 pub struct BedrockEngine {
     client: Client,
     model_id: String,
-    params: CloudPolishParams,
+    params: CloudTextParams,
 }
 
 pub struct BedrockParams {
     pub profile: String,
     pub region: String,
     pub model_id: String,
-    pub params: CloudPolishParams,
+    pub params: CloudTextParams,
     pub endpoint_override: Option<String>,
 }
 
@@ -61,12 +61,12 @@ fn classify<E: ProvideErrorMetadata + std::fmt::Debug, R>(e: SdkError<E, R>) -> 
 
 /// Claude's reasoning effort is `output_config.effort` next to adaptive thinking, not `reasoning_effort`.
 /// <https://docs.aws.amazon.com/bedrock/latest/userguide/claude-messages-adaptive-thinking.html>
-fn adaptive_thinking(model_id: &str, params: &CloudPolishParams) -> bool {
+fn adaptive_thinking(model_id: &str, params: &CloudTextParams) -> bool {
     model_id.contains("anthropic") && !params.reasoning_effort.as_str().trim().is_empty()
 }
 
 /// Bedrock refuses temperature and top-p while adaptive thinking is on, so those are left out then.
-fn inference_config(model_id: &str, params: &CloudPolishParams) -> Option<InferenceConfiguration> {
+fn inference_config(model_id: &str, params: &CloudTextParams) -> Option<InferenceConfiguration> {
     let sampling = !adaptive_thinking(model_id, params);
     let temperature = params.temperature.filter(|_| sampling);
     let top_p = params.top_p.filter(|_| sampling);
@@ -83,7 +83,7 @@ fn inference_config(model_id: &str, params: &CloudPolishParams) -> Option<Infere
     )
 }
 
-fn additional_fields(model_id: &str, params: &CloudPolishParams) -> Option<Document> {
+fn additional_fields(model_id: &str, params: &CloudTextParams) -> Option<Document> {
     let text = |value: &str| Document::String(value.to_owned());
     let mut fields = HashMap::new();
     let effort = params.reasoning_effort.as_str().trim();
@@ -172,8 +172,8 @@ impl BedrockEngine {
 }
 
 #[async_trait]
-impl Polisher for BedrockEngine {
-    async fn polish(&self, req: &PolishRequest<'_>) -> ProviderResult<String> {
+impl TextModel for BedrockEngine {
+    async fn polish(&self, req: &TextRequest<'_>) -> ProviderResult<String> {
         let mut turns = Vec::with_capacity(req.examples.len() * 2 + 1);
         for example in req.examples {
             turns.push((ConversationRole::User, example.said));
@@ -192,22 +192,21 @@ mod tests {
     const CLAUDE: &str = "apac.anthropic.claude-sonnet-4-20250514-v1:0";
     const OTHER: &str = "openai.gpt-oss-120b-1:0";
 
-    fn params(effort: &str) -> CloudPolishParams {
-        CloudPolishParams {
+    fn params(effort: &str) -> CloudTextParams {
+        CloudTextParams {
             temperature: Some(0.2),
             top_p: Some(0.9),
             max_tokens: Some(2048),
             reasoning_effort: ReasoningEffort::from(effort.to_owned()),
-            ..CloudPolishParams::default()
+            ..CloudTextParams::default()
         }
     }
 
     #[test]
     fn an_unset_parameter_is_not_in_the_inference_configuration() {
-        let unset =
-            CloudPolishParams { reasoning_effort: ReasoningEffort::Custom(String::new()), ..Default::default() };
+        let unset = CloudTextParams { reasoning_effort: ReasoningEffort::Custom(String::new()), ..Default::default() };
         assert_eq!(inference_config(CLAUDE, &unset), None, "no empty configuration is sent");
-        let tokens_only = CloudPolishParams { max_tokens: Some(64), ..unset };
+        let tokens_only = CloudTextParams { max_tokens: Some(64), ..unset };
         let config = inference_config(CLAUDE, &tokens_only).unwrap();
         assert_eq!((config.max_tokens(), config.temperature(), config.top_p()), (Some(64), None, None));
     }
@@ -232,7 +231,7 @@ mod tests {
         let other = additional_fields(OTHER, &params("high")).unwrap();
         assert_eq!(other, document(&serde_json::json!({"reasoning_effort": "high"})));
 
-        let extra = CloudPolishParams {
+        let extra = CloudTextParams {
             extra: serde_json::from_str(r#"{"reasoning_effort": "x", "top_k": 5, "stop": [null, 1.5, -2, true]}"#)
                 .unwrap(),
             ..params("high")
