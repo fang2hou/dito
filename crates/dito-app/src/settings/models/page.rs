@@ -393,21 +393,24 @@ impl ModelsPage {
                 ui::dismiss_tips(&tips);
                 window.refresh();
             })
-            .child(page(
-                p,
-                "models",
-                c.t(Tr::NavModels),
-                actions,
-                div()
-                    .w_full()
-                    .flex()
-                    .flex_col()
-                    .gap(px(24.))
-                    .child(div().flex().child(self.role_tabs(&c, cx)))
-                    .children(self.save_banner(&c, cx))
-                    .child(card)
-                    .children(sections),
-            ))
+            .child(
+                page(
+                    p,
+                    "models",
+                    c.t(Tr::NavModels),
+                    actions,
+                    div()
+                        .w_full()
+                        .flex()
+                        .flex_col()
+                        .gap(px(24.))
+                        .child(div().flex().child(self.role_tabs(&c, cx)))
+                        .children(self.save_banner(&c, cx))
+                        .child(card)
+                        .children(sections),
+                )
+                .track_scroll(self.editor.read(cx).page_scroll()),
+            )
     }
 
     fn save_banner(&self, c: &Ctx, cx: &mut Context<Self>) -> Option<Div> {
