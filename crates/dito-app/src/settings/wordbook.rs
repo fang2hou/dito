@@ -435,7 +435,7 @@ impl WordbookPage {
                 &p,
                 &c.t(Tr::WordbookFindWords),
                 BtnKind::Secondary,
-                Some(Ic::Sparkles),
+                Some(Ic::BookSearch),
                 cbk(cx, Self::open_find),
             ))
             .child(ui::button(
