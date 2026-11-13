@@ -57,7 +57,8 @@ pub(crate) async fn chat(State(s): SharedState, headers: HeaderMap, Json(body): 
         )
             .into_response();
     }
-    let polished = mock::rule_polish(msg("user").as_deref().unwrap_or_default());
+    let polished =
+        mock::rule_reply(msg("system").as_deref().unwrap_or_default(), msg("user").as_deref().unwrap_or_default());
     let finish_reason = if s.behavior().truncate_chat { "length" } else { "stop" };
     Json(json!({
         "id": "chatcmpl-mock",

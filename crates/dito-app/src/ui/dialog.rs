@@ -20,10 +20,11 @@ pub struct DialogAnswer {
 #[derive(Clone, Copy)]
 pub enum ConfirmStyle {
     Standard,
+    Compact,
     CompactDestructive,
 }
 
-/// Cancel is also what Escape does. `focus` owns the keyboard while the dialog is open; the caller focuses it when it
+/// Cancel is also what Escape does. Without `confirm` the dialog has that one answer. `focus` owns the keyboard while the dialog is open; the caller focuses it when it
 /// opens the dialog.
 #[allow(clippy::too_many_arguments)]
 pub fn confirm_dialog(
@@ -34,11 +35,12 @@ pub fn confirm_dialog(
     title: impl Into<SharedString>,
     content: Vec<AnyElement>,
     cancel: DialogAnswer,
-    confirm: DialogAnswer,
+    confirm: Option<DialogAnswer>,
     style: ConfirmStyle,
 ) -> AnyElement {
     let (width, padding, action_gap, confirm_kind) = match style {
         ConfirmStyle::Standard => (620., 28., 10., BtnKind::Primary),
+        ConfirmStyle::Compact => (524., 28., 10., BtnKind::Primary),
         ConfirmStyle::CompactDestructive => (524., 24., 12., BtnKind::Destructive),
     };
     let escape = cancel.on_click.clone();
@@ -62,7 +64,9 @@ pub fn confirm_dialog(
                 .justify_end()
                 .gap(px(action_gap))
                 .child(answer(p, ElementId::from((ElementId::from(id), "cancel")), BtnKind::Secondary, cancel))
-                .child(answer(p, ElementId::from((ElementId::from(id), "confirm")), confirm_kind, confirm)),
+                .children(confirm.map(|confirm| {
+                    answer(p, ElementId::from((ElementId::from(id), "confirm")), confirm_kind, confirm)
+                })),
         );
     modal_layer(id, focus)
         .on_key_down(move |event: &KeyDownEvent, window, cx| {

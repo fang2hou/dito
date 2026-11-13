@@ -39,6 +39,8 @@ impl Failure {
     }
 }
 
+mod find_words;
+
 pub(super) struct ModalChanged;
 
 // Dim both labels a little at the midpoint so the shared baseline stays legible.
@@ -78,6 +80,7 @@ pub struct WordbookPage {
     confirming_delete: bool,
     deleting: bool,
     delete_focus: FocusHandle,
+    find: find_words::FindWords,
     motion: ui::MotionScope,
 }
 
@@ -150,6 +153,7 @@ impl WordbookPage {
             confirming_delete: false,
             deleting: false,
             delete_focus: cx.focus_handle(),
+            find: find_words::FindWords::new(window, cx),
         }
     }
 
@@ -251,6 +255,9 @@ impl WordbookPage {
     }
 
     pub(super) fn overlay(&self, window: &Window, cx: &mut Context<Self>) -> Option<AnyElement> {
+        if self.find.is_open() {
+            return Some(self.find_overlay(window, cx));
+        }
         if !self.confirming_delete {
             return None;
         }
@@ -266,7 +273,7 @@ impl WordbookPage {
                 fmt::wordbook_delete_title(c.lang, &count),
                 vec![body],
                 ui::DialogAnswer { label: c.t(Tr::AsrEditorCancel), on_click: Some(cbk(cx, Self::close_delete)) },
-                ui::DialogAnswer { label: c.t(Tr::ModelsDelete), on_click: Some(cbk(cx, Self::confirm_delete)) },
+                Some(ui::DialogAnswer { label: c.t(Tr::ModelsDelete), on_click: Some(cbk(cx, Self::confirm_delete)) }),
                 ui::ConfirmStyle::CompactDestructive,
             )
         }))
@@ -423,6 +430,14 @@ impl WordbookPage {
         div()
             .flex()
             .gap(px(10.))
+            .child(ui::button(
+                "find-words",
+                &p,
+                &c.t(Tr::WordbookFindWords),
+                BtnKind::Secondary,
+                Some(Ic::Search),
+                cbk(cx, Self::open_find),
+            ))
             .child(ui::button(
                 "import",
                 &p,
@@ -641,44 +656,9 @@ impl WordbookPage {
             let word = word.clone();
             move |this: &mut Self, _, cx| this.toggle_word(&word, cx)
         }));
-        let hover_fill = Hsla { a: hover, ..p.seg };
-        let ring = div()
-            .id(ring_id.clone())
-            .size(px(16.))
-            .flex_none()
-            .flex()
-            .items_center()
-            .justify_center()
-            .rounded_full()
-            .border_1()
-            .border_color(Hsla { a: p.muted.a * (1. - chosen), ..p.muted })
-            .bg(ui::mix_rgb(hover_fill, p.primary, chosen))
-            .opacity(opacity)
-            .on_hover(ui::hover_tracker(ring_id))
-            .when(chosen > 0., |el| el.child(div().opacity(chosen).child(ui::icon(Ic::Check, 12., p.on_primary))));
+        let ring = selection_ring(p, ring_id, hover, chosen).opacity(opacity);
         let marker = div().id(hit_id).size(px(24.)).flex_none().flex().items_center().justify_center().child(ring);
-        let mut chip = div()
-            .id(chip_id.clone())
-            .on_hover(ui::hover_tracker(chip_id))
-            .min_w(px(0.))
-            .h(px(44.))
-            .pl(px(16.))
-            .pr(px(10.))
-            .flex()
-            .items_center()
-            .justify_between()
-            .gap(px(8.))
-            .rounded_full()
-            .bg(ui::mix_rgb(p.card, p.accent_soft, chosen))
-            .border_1()
-            .border_color(ui::mix_rgb(p.border, p.accent, chosen))
-            .child(
-                div()
-                    .flex_1()
-                    .min_w(px(0.))
-                    .overflow_hidden()
-                    .child(text(word, 14., FontWeight::MEDIUM, p.text).whitespace_nowrap().text_ellipsis()),
-            );
+        let mut chip = chip_surface(p, chip_id, word, chosen);
         if selecting && !self.deleting {
             chip = chip.cursor_pointer().on_click(toggle);
         } else if !selecting && !self.deleting {
@@ -686,6 +666,51 @@ impl WordbookPage {
         }
         chip.child(marker)
     }
+}
+
+/// The 16 pt selection marker of a word chip: `hover` fills the inside of its outline, `chosen` turns it into the
+/// solid disc with a check.
+fn selection_ring(p: &Palette, id: ElementId, hover: f32, chosen: f32) -> Stateful<Div> {
+    let hover_fill = Hsla { a: hover, ..p.seg };
+    div()
+        .id(id.clone())
+        .size(px(16.))
+        .flex_none()
+        .flex()
+        .items_center()
+        .justify_center()
+        .rounded_full()
+        .border_1()
+        .border_color(Hsla { a: p.muted.a * (1. - chosen), ..p.muted })
+        .bg(ui::mix_rgb(hover_fill, p.primary, chosen))
+        .on_hover(ui::hover_tracker(id))
+        .when(chosen > 0., |el| el.child(div().opacity(chosen).child(ui::icon(Ic::Check, 12., p.on_primary))))
+}
+
+/// A word chip without its marker; `chosen` blends it to the selected surface and border.
+fn chip_surface(p: &Palette, id: ElementId, word: SharedString, chosen: f32) -> Stateful<Div> {
+    div()
+        .id(id.clone())
+        .on_hover(ui::hover_tracker(id))
+        .min_w(px(0.))
+        .h(px(44.))
+        .pl(px(16.))
+        .pr(px(10.))
+        .flex()
+        .items_center()
+        .justify_between()
+        .gap(px(8.))
+        .rounded_full()
+        .bg(ui::mix_rgb(p.card, p.accent_soft, chosen))
+        .border_1()
+        .border_color(ui::mix_rgb(p.border, p.accent, chosen))
+        .child(
+            div()
+                .flex_1()
+                .min_w(px(0.))
+                .overflow_hidden()
+                .child(text(word, 14., FontWeight::MEDIUM, p.text).whitespace_nowrap().text_ellipsis()),
+        )
 }
 
 /// Fit the widest digit in the localized label, with at least three places.
