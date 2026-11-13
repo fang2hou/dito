@@ -4,7 +4,7 @@ use gpui_kit::*;
 use super::callbacks::{Cb, click_cb};
 use super::hover::{hover_fill, hover_tracker};
 use super::primitives::icon;
-use super::typography::text_tracked;
+use super::typography;
 use crate::assets::Ic;
 use crate::theme::Palette;
 
@@ -146,8 +146,7 @@ fn button_impl(
     if let Some(ic) = lead {
         el = el.child(icon(ic, lead_size, fg));
     }
-    let tracking = if size == BtnSize::Regular { 0.05 } else { 0.04 };
-    el = el.child(text_tracked(label, label_size, FontWeight::MEDIUM, fg, tracking));
+    el = el.child(typography::label(label, label_size, FontWeight::MEDIUM, fg));
     if let Some(ic) = trail {
         el = el.child(icon(ic, trail_size, fg));
     }
@@ -235,6 +234,17 @@ pub fn circle_control(
     let (_, glyph) = size.dimensions();
     let foreground = appearance.foreground;
     circle_shell(id, size, appearance).child(icon(ic, glyph, foreground))
+}
+
+/// A filled status disc that sits beside outlined circle controls. A bright solid disc looks larger than an outlined
+/// circle of the same diameter, so the fill is drawn 1 pt inside the control's slot
+/// (`design:settings/local-models`).
+pub fn status_disc(id: impl Into<ElementId>, ic: Ic, size: CircleSize, fill: Hsla, foreground: Hsla) -> Stateful<Div> {
+    let (_, glyph) = size.dimensions();
+    let slot = CircleAppearance { background: None, foreground, border: None, hover: None };
+    circle_shell(id, size, slot)
+        .child(div().absolute().top(px(1.)).right(px(1.)).bottom(px(1.)).left(px(1.)).rounded_full().bg(fill))
+        .child(icon(ic, glyph, foreground))
 }
 
 /// The circle without its glyph, for controls that draw their own.

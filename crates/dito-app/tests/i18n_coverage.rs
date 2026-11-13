@@ -17,8 +17,6 @@ const EXEMPT: &[(&str, &str)] = &[
     ("dev/shots/polish_form.rs", "*"),
     // List separator chosen per language in code (the ideographic comma, only for Japanese).
     ("settings/models/page.rs", "、"),
-    // Test fixture inside #[cfg(test)] (letter-spacing assertions).
-    ("ui/typography.rs", "認識中"),
 ];
 
 fn src_dir() -> PathBuf {
