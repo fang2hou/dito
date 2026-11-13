@@ -1,26 +1,33 @@
-//! The find words dialog (`design:settings/wordbook/find-words`): pasted text and one chosen file go to the polish
-//! model, and the words it finds are offered for the wordbook.
+//! The find words dialog (`design:settings/wordbook/find-words`, `design:settings/wordbook/find-words-other-ai`).
+//! Pasted text or one chosen file goes to the polish model; for a file Dito cannot read, the user copies a prompt
+//! for another AI and pastes its reply. Either way the words found are offered for the wordbook.
 
 use std::collections::BTreeSet;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
 
 use dito_core::config::Source;
 use dito_core::i18n::{Tr, fmt};
-use dito_core::word_finder::{self, Candidate, Progress};
+use dito_core::word_finder::{self, Candidate, Progress, ReplyError};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
 use super::{ModalChanged, WordbookPage, chip_surface, off_main, selection_ring};
+use crate::assets::Ic;
 use crate::services::{self, WordSearchError};
 use crate::settings::Ctx;
 use crate::settings::edge_fade::{Edge, edge_fade};
 use crate::settings::page_query::QueryPage;
 use crate::timefmt::now;
-use crate::ui::{self, BtnKind, TextAreaStyle, TextareaState, cbk, text};
+use crate::ui::{self, BtnKind, TextAreaStyle, TextareaState, cbk, cbk_idx, text};
 
 const DIALOG: &str = "wordbook-find-words";
-const TEXT_H: f32 = 148.;
+const TEXT_H: f32 = 200.;
+const REPLY_H: f32 = 148.;
+const SEGMENT_W: f32 = 96.;
+/// How long the copy button shows that the prompt was copied.
+const COPIED_FOR: Duration = Duration::from_millis(1500);
 const CHIP_H: f32 = 44.;
 const CHIP_GAP: f32 = 8.;
 const CANDIDATES_H: f32 = 230.;
@@ -31,6 +38,33 @@ struct ChosenFile {
     name: SharedString,
     icon: Option<Arc<Image>>,
 }
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum WordSource {
+    Text,
+    File,
+    OtherAi,
+}
+
+impl WordSource {
+    fn title(self) -> Tr {
+        match self {
+            Self::Text => Tr::WordbookFindTitleText,
+            Self::File => Tr::WordbookFindTitleFile,
+            Self::OtherAi => Tr::WordbookFindTitleAi,
+        }
+    }
+
+    fn description(self) -> Tr {
+        match self {
+            Self::Text => Tr::WordbookFindDescText,
+            Self::File => Tr::WordbookFindDescFile,
+            Self::OtherAi => Tr::WordbookFindDescAi,
+        }
+    }
+}
+
+const SOURCES: [WordSource; 3] = [WordSource::Text, WordSource::File, WordSource::OtherAi];
 
 enum Stage {
     Closed,
@@ -43,11 +77,16 @@ enum Stage {
     Results {
         candidates: Vec<Candidate>,
         selected: BTreeSet<usize>,
+        /// Entries of another AI's reply that were not terms.
+        skipped: usize,
     },
 }
 
 pub(super) struct FindWords {
+    source: WordSource,
     text: Entity<TextareaState>,
+    reply: Entity<TextareaState>,
+    prompt_copied: Option<Task<()>>,
     focus: FocusHandle,
     scroll: ScrollHandle,
     file: Option<ChosenFile>,
@@ -60,9 +99,14 @@ pub(super) struct FindWords {
 impl FindWords {
     pub(super) fn new(window: &mut Window, cx: &mut Context<WordbookPage>) -> Self {
         let text = cx.new(|cx| TextareaState::new(window, cx));
+        let reply = cx.new(|cx| TextareaState::new(window, cx));
         cx.observe(&text, |_, _, cx| cx.notify()).detach();
+        cx.observe(&reply, |_, _, cx| cx.notify()).detach();
         Self {
+            source: WordSource::Text,
             text,
+            reply,
+            prompt_copied: None,
             focus: cx.focus_handle(),
             scroll: ScrollHandle::new(),
             file: None,
@@ -79,8 +123,10 @@ impl FindWords {
 
 impl WordbookPage {
     pub(super) fn open_find(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let placeholder = self.st.cfg.get().general.lang().tr(Tr::WordbookFindTextHint);
-        self.find.text.update(cx, |s, cx| s.set_placeholder(placeholder, window, cx));
+        let lang = self.st.cfg.get().general.lang();
+        self.find.text.update(cx, |s, cx| s.set_placeholder(lang.tr(Tr::WordbookFindTextHint), window, cx));
+        self.find.reply.update(cx, |s, cx| s.set_placeholder(lang.tr(Tr::WordbookFindAiHint), window, cx));
+        self.find.source = WordSource::Text;
         self.find.cloud_consent = false;
         self.find.error = None;
         self.find.stage = Stage::Input;
@@ -96,7 +142,9 @@ impl WordbookPage {
         }
         self.find.stage = Stage::Closed;
         self.find.file = None;
+        self.find.prompt_copied = None;
         self.find.text.update(cx, |s, cx| s.set_value("", window, cx));
+        self.find.reply.update(cx, |s, cx| s.set_value("", window, cx));
         window.blur(cx);
         cx.emit(ModalChanged);
     }
@@ -150,8 +198,21 @@ impl WordbookPage {
     }
 
     fn find_ready(&self, cloud: bool, cx: &App) -> bool {
-        let has_source = self.find.file.is_some() || !self.find.text.read(cx).value().trim().is_empty();
-        has_source && (!cloud || self.find.cloud_consent)
+        match self.find.source {
+            WordSource::Text => {
+                !self.find.text.read(cx).value().trim().is_empty() && (!cloud || self.find.cloud_consent)
+            }
+            WordSource::File => self.find.file.is_some() && (!cloud || self.find.cloud_consent),
+            WordSource::OtherAi => !self.find.reply.read(cx).value().trim().is_empty(),
+        }
+    }
+
+    fn set_find_source(&mut self, index: usize, cx: &mut Context<Self>) {
+        if matches!(self.find.stage, Stage::Input) && SOURCES[index] != self.find.source {
+            self.find.source = SOURCES[index];
+            self.find.error = None;
+            cx.notify();
+        }
     }
 
     fn run_find(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -159,8 +220,11 @@ impl WordbookPage {
         if !matches!(self.find.stage, Stage::Input) || !self.find_ready(cloud, cx) {
             return;
         }
-        let text = self.find.text.read(cx).value().to_string();
-        let file = self.find.file.as_ref().map(|file| file.path.clone());
+        let (text, file) = match self.find.source {
+            WordSource::Text => (self.find.text.read(cx).value().to_string(), None),
+            WordSource::File => (String::new(), self.find.file.as_ref().map(|file| file.path.clone())),
+            WordSource::OtherAi => return self.show_reply(cx),
+        };
         let mut search = services::find_words(self.st.clone(), text, file);
         let mut progress = search.progress.clone();
         let watching = cx.spawn(async move |this, cx| {
@@ -196,11 +260,58 @@ impl WordbookPage {
             Ok(candidates) => {
                 let selected = candidates.iter().enumerate().filter(|(_, c)| c.likely).map(|(i, _)| i).collect();
                 self.find.scroll = ScrollHandle::new();
-                (Stage::Results { candidates, selected }, None)
+                (Stage::Results { candidates, selected, skipped: 0 }, None)
             }
             Err(WordSearchError::File) => (Stage::Input, Some(Tr::WordbookFindFileFailed)),
             Err(WordSearchError::Model) => (Stage::Input, Some(Tr::WordbookFindFailed)),
         };
+        cx.notify();
+    }
+
+    /// Reads the pasted reply of another AI. Nothing leaves the app on this path.
+    fn show_reply(&mut self, cx: &mut Context<Self>) {
+        let reply = self.find.reply.read(cx).value().to_string();
+        let st = self.st.clone();
+        cx.spawn(async move |this, cx| {
+            let store = st.store.clone();
+            let read = off_main(&st, move || Ok(word_finder::read_reply(&reply, &store.words(None)?))).await;
+            let _ = this.update(cx, |this, cx| {
+                if !matches!(this.find.stage, Stage::Input) || this.find.source != WordSource::OtherAi {
+                    return;
+                }
+                (this.find.stage, this.find.error) = match read {
+                    Ok(Ok(reply)) if reply.candidates.is_empty() => (Stage::Input, Some(Tr::WordbookFindNone)),
+                    Ok(Ok(reply)) => {
+                        let selected =
+                            reply.candidates.iter().enumerate().filter(|(_, c)| c.likely).map(|(i, _)| i).collect();
+                        this.find.scroll = ScrollHandle::new();
+                        (Stage::Results { candidates: reply.candidates, selected, skipped: reply.skipped }, None)
+                    }
+                    Ok(Err(ReplyError::Unreadable)) => (Stage::Input, Some(Tr::WordbookFindReplyUnreadable)),
+                    Ok(Err(ReplyError::WrongShape)) => (Stage::Input, Some(Tr::WordbookFindReplyWrongShape)),
+                    Err(e) => {
+                        tracing::warn!("word finder: the wordbook could not be read: {e:#}");
+                        (Stage::Input, Some(Tr::WordbookFindFailed))
+                    }
+                };
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
+    fn copy_find_prompt(&mut self, cx: &mut Context<Self>) {
+        if let Err(e) = dito_platform::insert::copy_to_clipboard(word_finder::OTHER_AI_PROMPT) {
+            tracing::warn!("word finder: the prompt could not be copied: {e}");
+            return;
+        }
+        self.find.prompt_copied = Some(cx.spawn(async move |this, cx| {
+            cx.background_executor().timer(COPIED_FOR).await;
+            let _ = this.update(cx, |this, cx| {
+                this.find.prompt_copied = None;
+                cx.notify();
+            });
+        }));
         cx.notify();
     }
 
@@ -221,7 +332,7 @@ impl WordbookPage {
     }
 
     fn add_candidates(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let Stage::Results { candidates, selected } = &self.find.stage else { return };
+        let Stage::Results { candidates, selected, .. } = &self.find.stage else { return };
         let words: Vec<&str> = selected.iter().filter_map(|i| candidates.get(*i)).map(|c| c.term.as_str()).collect();
         if words.is_empty() {
             return;
@@ -246,58 +357,94 @@ impl WordbookPage {
 
     pub(super) fn find_overlay(&self, window: &Window, cx: &mut Context<Self>) -> AnyElement {
         let c = Ctx::new(&self.st, cx);
-        let cancel = |label: Tr, cx: &mut Context<Self>| ui::DialogAnswer {
-            label: c.t(label),
+        let p = c.p;
+        let cancel = |cx: &mut Context<Self>| ui::DialogAnswer {
+            label: c.t(Tr::AsrEditorCancel),
             on_click: Some(cbk(cx, Self::close_find)),
         };
-        let (title, content, cancel, confirm) = match &self.find.stage {
+        let source = self.find.source;
+        let (title, switch_on, content, cancel, confirm) = match &self.find.stage {
             Stage::Closed | Stage::Input => {
-                let cloud = self.find_cloud_model(&c);
+                let cloud = (source != WordSource::OtherAi).then(|| self.find_cloud_model(&c)).flatten();
                 let ready = self.find_ready(cloud.is_some(), cx);
                 let run = ui::DialogAnswer {
-                    label: c.t(Tr::WordbookFindRun),
+                    label: c.t(if source == WordSource::OtherAi {
+                        Tr::WordbookFindAiShow
+                    } else {
+                        Tr::WordbookFindRun
+                    }),
                     on_click: ready.then(|| cbk(cx, Self::run_find)),
                 };
                 let mut content = vec![self.find_description(&c)];
-                content.extend(self.find.error.map(|error| ui::banner(&c.p, c.t(error), None).into_any_element()));
-                content.push(self.find_sources(&c, window, cx, true));
+                content.extend(self.find.error.map(|error| ui::banner(&p, c.t(error), None).into_any_element()));
+                match source {
+                    WordSource::Text => content.push(self.find_text(&c, window, cx)),
+                    WordSource::File => content.push(self.find_file(&c, cx, true)),
+                    WordSource::OtherAi => content.extend(self.find_other_ai(&c, window, cx)),
+                }
                 content.extend(cloud.map(|model| self.find_consent(&c, &model, cx)));
-                (c.t(Tr::WordbookFindTitle), content, cancel(Tr::AsrEditorCancel, cx), Some(run))
+                (c.t(source.title()), Some(true), content, cancel(cx), Some(run))
             }
             Stage::Searching { progress, .. } => {
                 let stop = ui::DialogAnswer {
                     label: c.t(Tr::WordbookFindStop),
                     on_click: Some(cbk(cx, |this: &mut Self, _, cx| this.stop_find(cx))),
                 };
-                let content = vec![
-                    self.find_description(&c),
-                    self.find_sources(&c, window, cx, false),
-                    find_progress(&c, *progress),
-                ];
-                (c.t(Tr::WordbookFindTitle), content, stop, None)
+                let shown = match source {
+                    WordSource::File => self.find_file(&c, cx, false),
+                    _ => self.find_text(&c, window, cx),
+                };
+                let dimmed =
+                    div().relative().w_full().opacity(0.45).child(shown).child(div().absolute().inset_0().occlude());
+                let content = vec![self.find_description(&c), dimmed.into_any_element(), find_progress(&c, *progress)];
+                (c.t(source.title()), Some(false), content, stop, None)
             }
-            Stage::Results { candidates, selected } => {
+            Stage::Results { candidates, selected, skipped } => {
                 let add = ui::DialogAnswer {
                     label: fmt::wordbook_find_add(c.lang, &selected.len().to_string()).into(),
                     on_click: (!selected.is_empty()).then(|| cbk(cx, Self::add_candidates)),
                 };
-                let content = vec![
-                    text(c.t(Tr::WordbookFindChoose), 13., FontWeight::NORMAL, c.p.muted)
+                let mut content = vec![
+                    text(c.t(Tr::WordbookFindChoose), 13., FontWeight::NORMAL, p.muted)
                         .line_height(px(20.))
                         .into_any_element(),
-                    self.find_candidates(&c, candidates, selected, window, cx),
                 ];
+                if *skipped > 0 {
+                    let note = fmt::wordbook_find_skipped(c.lang, &skipped.to_string());
+                    content.push(ui::muted12(&p, note).line_height(px(18.)).into_any_element());
+                }
+                content.push(self.find_candidates(&c, candidates, selected, window, cx));
                 let title = fmt::wordbook_find_found(c.lang, &candidates.len().to_string()).into();
-                (title, content, cancel(Tr::AsrEditorCancel, cx), Some(add))
+                (title, None, content, cancel(cx), Some(add))
             }
         };
+        let title = text(title, 20., FontWeight::BOLD, p.text).flex_1().min_w(px(0.)).truncate();
+        let header = div().w_full().flex().items_center().justify_between().gap(px(16.)).child(title).children(
+            switch_on.map(|enabled| {
+                let labels = [c.t(Tr::WordbookFindSegText), c.t(Tr::WordbookFindSegFile), c.t(Tr::WordbookFindSegAi)];
+                let selected = SOURCES.iter().position(|s| *s == source).unwrap_or(0);
+                let switch = ui::seg_fixed(
+                    "wordbook-find-source",
+                    &p,
+                    &labels,
+                    SEGMENT_W,
+                    selected,
+                    cbk_idx(cx, |this: &mut Self, index, _, cx| this.set_find_source(index, cx)),
+                );
+                if enabled {
+                    div().child(switch)
+                } else {
+                    div().relative().opacity(0.45).child(switch).child(div().absolute().inset_0().occlude())
+                }
+            }),
+        );
         ui::with_motion_scope(self.motion.handle(), || {
-            ui::confirm_dialog(
+            ui::confirm_dialog_with_header(
                 window,
-                &c.p,
+                &p,
                 DIALOG,
                 &self.find.focus,
-                title,
+                header.into_any_element(),
                 content,
                 cancel,
                 confirm,
@@ -307,17 +454,24 @@ impl WordbookPage {
     }
 
     fn find_description(&self, c: &Ctx) -> AnyElement {
-        text(c.t(Tr::WordbookFindDescription), 13., FontWeight::NORMAL, c.p.muted)
+        text(c.t(self.find.source.description()), 13., FontWeight::NORMAL, c.p.muted)
             .line_height(px(20.))
             .into_any_element()
     }
 
-    /// The text area and the file row. While a search runs they keep their content, dimmed and out of reach.
-    fn find_sources(&self, c: &Ctx, window: &Window, cx: &mut Context<Self>, enabled: bool) -> AnyElement {
+    fn find_area(
+        &self,
+        c: &Ctx,
+        state: &Entity<TextareaState>,
+        id: &'static str,
+        height: f32,
+        window: &Window,
+        cx: &App,
+    ) -> Div {
         let p = c.p;
-        let focused = self.find.text.read(cx).focus_handle(cx).contains_focused(window, cx);
-        let area = div().w_full().h(px(TEXT_H)).rounded(px(12.)).child(ui::text_area(
-            &self.find.text,
+        let focused = state.read(cx).focus_handle(cx).contains_focused(window, cx);
+        let area = div().w_full().h(px(height)).rounded(px(12.)).child(ui::text_area(
+            state,
             TextAreaStyle {
                 bg: p.input_bg,
                 edge: None,
@@ -329,8 +483,16 @@ impl WordbookPage {
                 reserve_bottom: 0.,
             },
         ));
-        let area = ui::with_ring(area, "wordbook-find-text", focused, 12., p.border_strong, p.accent);
+        ui::with_ring(area, id, focused, 12., p.border_strong, p.accent)
+    }
 
+    fn find_text(&self, c: &Ctx, window: &Window, cx: &App) -> AnyElement {
+        self.find_area(c, &self.find.text, "wordbook-find-text", TEXT_H, window, cx).into_any_element()
+    }
+
+    /// The file row; a file dropped on it is taken as the chosen file.
+    fn find_file(&self, c: &Ctx, cx: &mut Context<Self>, enabled: bool) -> AnyElement {
+        let p = c.p;
         let identity = match &self.find.file {
             Some(file) => div()
                 .flex_1()
@@ -373,33 +535,43 @@ impl WordbookPage {
                 None,
                 cbk(cx, Self::choose_find_file),
             ));
-        let file_field = div()
+        let field = div()
+            .id("wordbook-find-file")
+            .w_full()
             .flex()
             .flex_col()
             .gap(px(8.))
             .child(file_slot)
             .child(ui::muted12(&p, c.t(Tr::WordbookFindFileTypes)).line_height(px(18.)));
-
-        let sources = div()
-            .id("wordbook-find-sources")
-            .relative()
-            .w_full()
-            .flex()
-            .flex_col()
-            .gap(px(16.))
-            .child(ui::field(&p, c.t(Tr::WordbookFindText), area))
-            .child(ui::field(&p, c.t(Tr::WordbookFindFile), file_field));
-        if enabled {
-            sources
-                .on_drop(cx.listener(|this, paths: &ExternalPaths, _, cx| {
-                    if let Some(path) = paths.paths().first() {
-                        this.set_find_file(path.clone(), cx);
-                    }
-                }))
-                .into_any_element()
-        } else {
-            sources.opacity(0.45).child(div().absolute().inset_0().occlude()).into_any_element()
+        if !enabled {
+            return field.into_any_element();
         }
+        field
+            .on_drop(cx.listener(|this, paths: &ExternalPaths, _, cx| {
+                if let Some(path) = paths.paths().first() {
+                    this.set_find_file(path.clone(), cx);
+                }
+            }))
+            .into_any_element()
+    }
+
+    /// The two steps of the other AI source: copy the prompt, paste the reply.
+    fn find_other_ai(&self, c: &Ctx, window: &Window, cx: &mut Context<Self>) -> Vec<AnyElement> {
+        let p = c.p;
+        let copied = self.find.prompt_copied.is_some();
+        let copy = div().flex().child(ui::button(
+            "wordbook-find-copy-prompt",
+            &p,
+            &c.t(Tr::WordbookFindAiCopy),
+            BtnKind::Secondary,
+            Some(if copied { Ic::Check } else { Ic::Copy }),
+            cbk(cx, |this: &mut Self, _, cx| this.copy_find_prompt(cx)),
+        ));
+        let reply = self.find_area(c, &self.find.reply, "wordbook-find-reply", REPLY_H, window, cx);
+        vec![
+            ui::field(&p, c.t(Tr::WordbookFindAiStep1), copy).into_any_element(),
+            ui::field(&p, c.t(Tr::WordbookFindAiStep2), reply).into_any_element(),
+        ]
     }
 
     fn find_consent(&self, c: &Ctx, model: &str, cx: &mut Context<Self>) -> AnyElement {

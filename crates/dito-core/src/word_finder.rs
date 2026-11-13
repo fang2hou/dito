@@ -3,6 +3,7 @@
 //! model can leave terms out but cannot invent one (ADR-0012). `design:settings/wordbook/find-words`.
 
 mod prompt;
+mod reply;
 mod source;
 
 use std::collections::HashSet;
@@ -10,6 +11,7 @@ use std::collections::HashSet;
 use tokio::sync::watch;
 
 pub use prompt::is_request;
+pub use reply::{OTHER_AI_PROMPT, Reply, ReplyError, read_reply};
 pub use source::{EXTENSIONS, SourceError, read_source};
 
 use crate::controller::HudState;
@@ -135,12 +137,17 @@ fn terms_in(reply: &str, block: &str) -> Vec<String> {
             };
             line.trim().trim_matches(['"', '\'', '`', '「', '」', '“', '”'])
         })
-        .filter(|term| TERM_CHARS.contains(&term.chars().count()))
-        .filter(|term| term.chars().any(char::is_alphabetic))
-        .filter(|term| !term.contains(['。', '、', '，', ',', '；', ';', '！', '!', '？', '?']))
+        .filter(|term| is_term(term))
         .filter(|term| block.contains(term))
         .map(str::to_string)
         .collect()
+}
+
+/// One word or one short name, not a number and not a sentence.
+fn is_term(term: &str) -> bool {
+    TERM_CHARS.contains(&term.chars().count())
+        && term.chars().any(char::is_alphabetic)
+        && !term.contains(['。', '、', '，', ',', '；', ';', '！', '!', '？', '?', '\n'])
 }
 
 /// Spelled the way names and identifiers are: a capital letter, a digit beside letters, or a joining mark inside.

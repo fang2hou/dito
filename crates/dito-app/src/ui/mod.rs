@@ -48,7 +48,7 @@ pub use button::{
 pub use callbacks::{Cb, cbk, cbk_copy, cbk_idx, click_cb};
 pub use config_tiles::{ConfigTile, TilePlus, TileRowState, cbk_id, cbk_move, tile_row};
 pub use copy_button::{copy_button, copy_button_with};
-pub use dialog::{ConfirmStyle, DialogAnswer, confirm_dialog};
+pub use dialog::{ConfirmStyle, DialogAnswer, confirm_dialog, confirm_dialog_with_header};
 pub use form_footer::{FooterTrash, TestButton, form_footer};
 pub use format::{error_line, error_summary, fmt_bytes, fmt_eta, history_target_label};
 pub use glass::{prepare as prepare_card_backdrop, wordmark as page_wordmark};
@@ -75,7 +75,7 @@ pub use progress_bar::progress_bar;
 pub use radio::radio;
 pub use requests::Requests;
 pub use scope::{MotionScope, ScopeHandle, motion_scope, with_motion_scope};
-pub use segmented::{SegContent, SegOption, SegStyle, seg, seg_with};
+pub use segmented::{SegContent, SegOption, SegStyle, seg, seg_fixed, seg_with};
 pub use select::{SelectItem, select, select_form, select_form_disabled, select_items, select_multi, select_trigger};
 pub use select_badge::SelectBadge;
 pub use selectable::{selectable_spans, selectable_text};

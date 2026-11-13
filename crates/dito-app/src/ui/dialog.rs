@@ -37,6 +37,24 @@ pub fn confirm_dialog(
     confirm: Option<DialogAnswer>,
     style: ConfirmStyle,
 ) -> AnyElement {
+    let header = text(title, 20., FontWeight::BOLD, p.text).into_any_element();
+    confirm_dialog_with_header(window, p, id, focus, header, content, cancel, confirm, style)
+}
+
+/// [`confirm_dialog`] with the caller's first row in place of a plain title, for a title that shares its row with a
+/// control.
+#[allow(clippy::too_many_arguments)]
+pub fn confirm_dialog_with_header(
+    window: &Window,
+    p: &Palette,
+    id: &'static str,
+    focus: &FocusHandle,
+    header: AnyElement,
+    content: Vec<AnyElement>,
+    cancel: DialogAnswer,
+    confirm: Option<DialogAnswer>,
+    style: ConfirmStyle,
+) -> AnyElement {
     let (width, padding, action_gap, confirm_kind) = match style {
         ConfirmStyle::Standard => (620., 28., 10., BtnKind::Primary),
         ConfirmStyle::CompactDestructive => (524., 24., 12., BtnKind::Destructive),
@@ -53,7 +71,7 @@ pub fn confirm_dialog(
         .flex()
         .flex_col()
         .gap(px(16.))
-        .child(text(title, 20., FontWeight::BOLD, p.text))
+        .child(header)
         .children(content)
         .child(
             div()
