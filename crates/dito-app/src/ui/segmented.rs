@@ -5,7 +5,7 @@ use super::button::CONTROL_H;
 use super::callbacks::IndexCb;
 use super::hover::{HOVER_MS, hover_fill_if, hover_tracker, is_hovered};
 use super::plate::{coverage, plate_state};
-use super::primitives::{hud_icon, mix};
+use super::primitives::{hud_icon, mix, mix_rgb};
 use super::scope::{ScopeHandle, motion_scope};
 use super::tooltip::{tip_above, tip_label};
 use super::tween::tweened_at;
@@ -146,7 +146,8 @@ pub fn seg_with(
     let motion = plate_state(ElementId::from((id.clone(), "plate")), layout.plate_target(selected));
     let (seg_on, inset, h) = (p.seg_on, layout.inset, layout.h);
     let mut el = el.child(motion.animate("plate", move |a, b, energy| {
-        let lit = mix(seg_on, hsla(0., 0., 1., 1.), 0.18 * energy);
+        // RGB, because the HSL blend of a blue plate with white passes through green.
+        let lit = mix_rgb(seg_on, hsla(0., 0., 1., 1.), 0.18 * energy);
         div().absolute().top(px(inset)).left(px(a)).w(px(b - a)).h(px(h - 2. * inset)).rounded_full().bg(lit)
     }));
 

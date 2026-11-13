@@ -14,9 +14,9 @@ use super::capture::{
     page_shot, refresh_settings_window, render, render_settings_window, resize_settings_window, save, theme_tag,
     wait_for_frame,
 };
-use super::input::{click, hover, on_settings_window, press, release};
+use super::input::{click, drag_to, hover, on_settings_window, press, redraw, release};
 use super::verify;
-use crate::hotkeys::CaptureState;
+use crate::hotkeys::{CaptureState, ShortcutTarget};
 use crate::services;
 use crate::settings::asr_editor::EditorPreview;
 use crate::settings::{self, Page, Settings};
@@ -217,7 +217,7 @@ pub async fn status_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
                         "https://regional-transcription-gateway.ap-northeast-1.example.com/v1".into();
                     *compat.target.model_mut() = "gpt-4o-mini".into();
                 });
-                open_page_sized(st, Page::Status, width, 1000., cx);
+                open_page_sized(st, Page::Status, width, 1500., cx);
                 page_shot(cx, dir, &format!("status-{}-{size}-{case}.png", theme_tag(appearance))).await;
             }
         }
@@ -227,6 +227,72 @@ pub async fn status_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
         c.general.display_language = original.general.display_language;
         c.asr = original.asr.clone();
         c.polish = original.polish.clone();
+    });
+}
+
+/// The Log group with real lines: the detailed log on, one mock dictation and one mock command, then the page in both
+/// themes. Opt-in: `DITO_SHOTS_ONLY=statuslog`; run with `--mock --log-sink`.
+pub async fn status_log_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
+    let original = st.cfg.get();
+    let pause = |ms| cx.background_executor().timer(Duration::from_millis(ms));
+    st.log.set_detail(true);
+    st.dictation.send(Command::KeyDown);
+    pause(400).await;
+    st.dictation.send(Command::Finish);
+    pause(2500).await;
+    st.dictation.send(Command::CommandKeyDown);
+    pause(600).await;
+    st.dictation.send(Command::CommandKeyUp);
+    st.dictation.send(Command::Finish);
+    pause(2500).await;
+    st.dictation.send(Command::Dismiss);
+    pause(400).await;
+    for appearance in [Appearance::Light, Appearance::Dark] {
+        services::save_config(st, |c| {
+            c.general.appearance = appearance;
+            c.general.display_language = DisplayLanguage::Ja;
+        });
+        open_page_sized(st, Page::Status, 1120., 1500., cx);
+        page_shot(cx, dir, &format!("status-log-{}.png", theme_tag(appearance))).await;
+    }
+    // Scrolling up keeps the view where it is while lines arrive (the shots before and after must match), and a drag
+    // across the log selects its text.
+    on_settings_window(cx, |w, cx, _| {
+        let at = point(px(600.), px(1150.));
+        hover(w, cx, at);
+        let event =
+            ScrollEvent { position: at, delta: ScrollDelta::Pixels(point(px(0.), px(300.))), ..Default::default() };
+        w.dispatch_event(PlatformInput::Scroll(event), cx);
+        redraw(w, cx);
+    });
+    page_shot(cx, dir, "status-log-scrolled-up.png").await;
+    tracing::warn!(kind = "shot", "a warning while scrolled up");
+    tracing::info!("a line while scrolled up");
+    page_shot(cx, dir, "status-log-scrolled-up-after.png").await;
+    on_settings_window(cx, |w, cx, _| {
+        let at = point(px(600.), px(1150.));
+        let event =
+            ScrollEvent { position: at, delta: ScrollDelta::Pixels(point(px(0.), px(-3000.))), ..Default::default() };
+        w.dispatch_event(PlatformInput::Scroll(event), cx);
+        redraw(w, cx);
+    });
+    page_shot(cx, dir, "status-log-bottom-again.png").await;
+    on_settings_window(cx, |w, cx, _| {
+        let (from, to) = (point(px(320.), px(1040.)), point(px(700.), px(1130.)));
+        press(w, cx, from);
+        drag_to(w, cx, to);
+        release(w, cx, to);
+    });
+    cx.background_executor().timer(Duration::from_millis(300)).await;
+    on_settings_window(cx, |w, cx, _| {
+        let selected = gpui_kit::base::TextSelection::selected_text(w, cx);
+        println!("status log selection: {} lines", selected.lines().count());
+        assert!(selected.lines().count() >= 3 && selected.contains("DEBUG"), "the log text is selectable");
+    });
+    st.log.set_detail(false);
+    services::save_config(st, |c| {
+        c.general.appearance = original.general.appearance;
+        c.general.display_language = original.general.display_language;
     });
 }
 
@@ -288,7 +354,7 @@ async fn non_default_page_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncAp
     page_shot(cx, dir, &format!("models-local-{tag}.png")).await;
     services::save_config(st, |c| c.general.appearance = appearance);
     open_page(st, Page::General, cx);
-    st.hotkeys.capture.send_replace(CaptureState::Waiting);
+    st.hotkeys.capture.send_replace(CaptureState::Waiting(ShortcutTarget::Dictation));
     page_shot(cx, dir, &format!("general-recording-{tag}.png")).await;
     st.hotkeys.capture.send_replace(CaptureState::Idle);
     open_page(st, Page::General, cx);

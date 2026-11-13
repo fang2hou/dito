@@ -8,6 +8,7 @@ use image::{Rgba, RgbaImage};
 use super::input::redraw;
 use crate::hud::{HUD_SCALE, HudView, WIN_H, WIN_PAD, WIN_W};
 use crate::settings;
+use crate::ui::{self, Root};
 
 const FRAME_RATE: f32 = 30.;
 
@@ -78,7 +79,7 @@ pub async fn wait_for_frame(cx: &mut AsyncApp, start: Instant, frame: u32) {
 pub fn open_hud_window(
     cx: &mut AsyncApp,
     build: impl FnOnce(&mut Context<HudView>) -> HudView + 'static,
-) -> Option<WindowHandle<HudView>> {
+) -> Option<WindowHandle<Root>> {
     cx.update(|cx| {
         let window_size = size(px((WIN_W + 2. * WIN_PAD) * HUD_SCALE), px((WIN_H + 2. * WIN_PAD) * HUD_SCALE));
         let options = WindowOptions {
@@ -89,8 +90,17 @@ pub fn open_hud_window(
             show: false,
             ..Default::default()
         };
-        cx.open_window(options, |_, cx| cx.new(build)).ok()
+        cx.open_window(options, |window, cx| {
+            let view = cx.new(build);
+            cx.new(|cx| Root::new(view, window, cx).bg(ui::transparent()))
+        })
+        .ok()
     })
+}
+
+/// The HUD view of a window from [`open_hud_window`]; the window root wraps it.
+pub fn hud_view(cx: &mut AsyncApp, window: WindowHandle<Root>) -> Option<Entity<HudView>> {
+    cx.update(|cx| window.update(cx, |root, _, _| root.view().clone().downcast::<HudView>().ok()).ok().flatten())
 }
 
 pub fn resize_settings_window(cx: &mut App, width: f32, height: f32) {

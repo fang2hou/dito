@@ -220,7 +220,7 @@ impl StatusPage {
             InsertMethod::KeyInput => Tr::GeneralKeyInput,
             InsertMethod::Paste => Tr::GeneralPaste,
         };
-        let step = Step::healthy("insert", c.t(Tr::GeneralInput), c.t(Tr::StatusInsertDetail), End::Value(c.t(method)));
+        let step = Step::healthy("insert", c.t(Tr::StatusInsert), c.t(Tr::StatusInsertDetail), End::Value(c.t(method)));
         if self.accessibility_allowed {
             return step;
         }

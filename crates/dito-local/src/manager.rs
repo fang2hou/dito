@@ -4,8 +4,10 @@ use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 use dito_core::config::{ConfigStore, default_data_dir};
+use dito_core::trace_log;
 use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
 
@@ -104,6 +106,19 @@ pub struct ModelManager {
 }
 
 const FREE_MARGIN: u64 = 200 * 1024 * 1024;
+
+/// Reports the percent, in steps of ten, each time a download first passes one after `start` bytes.
+fn milestone_reached(start: u64, total: u64) -> impl FnMut(u64) -> Option<u64> {
+    let step = move |done: u64| (done * 100).checked_div(total).map_or(0, |percent| percent / 10 * 10);
+    let mut last = step(start);
+    move |done| {
+        let now = step(done);
+        (now > last).then(|| {
+            last = now;
+            now
+        })
+    }
+}
 
 impl ModelManager {
     pub fn new(config: Arc<ConfigStore>) -> Self {
@@ -231,24 +246,33 @@ impl ModelManager {
         let this = self.clone();
         let fut = async move {
             let _guard = JobGuard { inner: this.inner.clone(), spec: spec.clone() };
-            let result = this.run_download(&spec, &cancel).await;
             let total = spec.total_size();
+            let started = Instant::now();
+            trace_log!(model = %spec.id, files = spec.files.len(), total_bytes = total, "model download started");
+            let result = this.run_download(&spec, &cancel).await;
             let done_now = || match this.scan(&spec) {
                 ModelState::Paused { done, .. } => done,
                 ModelState::Installed => total,
                 _ => 0,
             };
+            let elapsed_ms = started.elapsed().as_millis() as u64;
             match result {
-                Ok(()) => this.set(&spec.id, ModelState::Installed),
+                Ok(()) => {
+                    trace_log!(model = %spec.id, elapsed_ms, "model download finished");
+                    this.set(&spec.id, ModelState::Installed)
+                }
                 Err(DlError::Cancelled) if paused.load(Ordering::SeqCst) => {
+                    trace_log!(model = %spec.id, elapsed_ms, done_bytes = done_now(), "model download paused");
                     this.set(&spec.id, ModelState::Paused { done: done_now(), total })
                 }
                 Err(DlError::Cancelled) => {
+                    trace_log!(model = %spec.id, elapsed_ms, "model download cancelled");
                     this.remove_partials(&spec);
                     this.set(&spec.id, ModelState::NotInstalled);
                 }
                 Err(e) => {
                     tracing::warn!("download of {} failed: {e}", spec.id);
+                    trace_log!(model = %spec.id, elapsed_ms, done_bytes = done_now(), error = %e, "model download failed");
                     this.set(&spec.id, ModelState::Failed { message: e.to_string(), done: done_now(), total });
                 }
             }
@@ -285,14 +309,17 @@ impl ModelManager {
             let this = self.clone();
             let base = completed;
             let f_size = f.size;
+            let mut milestone = milestone_reached(base, total);
             let mut report = move |phase: download::Phase| match phase {
                 download::Phase::Fetching(p) => {
-                    this.set(
-                        &id,
-                        ModelState::Downloading { done: base + p.done, total, bytes_per_sec: p.bytes_per_sec },
-                    );
+                    let done = base + p.done;
+                    if let Some(percent) = milestone(done) {
+                        trace_log!(model = %id, percent, done_bytes = done, total_bytes = total, "model download progress");
+                    }
+                    this.set(&id, ModelState::Downloading { done, total, bytes_per_sec: p.bytes_per_sec });
                 }
                 download::Phase::Verifying => {
+                    trace_log!(model = %id, "model download verifying");
                     this.set(&id, ModelState::Verifying { done: base + f_size, total });
                 }
             };
@@ -385,5 +412,14 @@ mod tests {
         assert_eq!(downloading(300.0).eta_secs(), Some(4));
         assert_eq!(downloading(0.5).eta_secs(), None);
         assert_eq!(ModelState::Installed.eta_secs(), None);
+    }
+
+    #[test]
+    fn progress_is_reported_once_per_ten_percent_and_never_for_an_empty_total() {
+        let mut reached = milestone_reached(0, 1_000);
+        let seen: Vec<_> = [50, 99, 100, 105, 250, 255, 1_000].into_iter().map(&mut reached).collect();
+        assert_eq!(seen, [None, None, Some(10), None, Some(20), None, Some(100)]);
+        assert_eq!(milestone_reached(300, 1_000)(305), None, "a resumed download starts from where it was");
+        assert_eq!(milestone_reached(0, 0)(10), None);
     }
 }

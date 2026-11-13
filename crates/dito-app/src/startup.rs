@@ -5,7 +5,8 @@ use std::time::Duration;
 use dito_core::factory::LocalBackend;
 use dito_core::health::EngineStatus;
 use dito_core::i18n::{Lang, Tr};
-use dito_platform::{HotkeyService, Permission, Shortcut, Status, permissions};
+use dito_platform::hotkey::dictation_shortcut;
+use dito_platform::{HotkeyService, Permission, Status, permissions};
 use gpui_kit::*;
 
 use crate::dev::demo_run;
@@ -54,6 +55,7 @@ pub fn launch(st: Arc<AppState>, cx: &mut App) {
     }
     retry_hotkeys_when_allowed(st.clone(), cx);
     autostart_local_models(&st);
+    follow_command_shortcut(&st);
     hud::run(st.clone(), cx);
     menubar::run(st.clone(), cx);
     open_first_window(&st, cx);
@@ -171,12 +173,11 @@ fn open_first_window(st: &Arc<AppState>, cx: &mut App) {
 
 fn start_hotkeys(st: &Arc<AppState>) {
     let id = st.cfg.get().general.shortcut.clone();
-    let shortcut = Shortcut::parse(&id)
-        .unwrap_or_else(|| Shortcut::parse(dito_core::config::DEFAULT_SHORTCUT).expect("default shortcut"));
-    match HotkeyService::start(shortcut) {
+    match HotkeyService::start(dictation_shortcut(&id)) {
         Ok((service, rx)) => {
             tracing::info!("shortcut tap live ({id})");
             st.hotkeys.set_service(Some(Arc::new(service)));
+            st.hotkeys.sync_command_shortcut(&st.cfg.get().general);
             hotkeys::spawn_dispatcher(rx, st.hotkeys.clone(), st.cfg.clone(), st.dictation.clone());
         }
         Err(e) => {
@@ -184,6 +185,20 @@ fn start_hotkeys(st: &Arc<AppState>) {
             st.hotkeys.set_service(None);
         }
     }
+}
+
+/// The command shortcut follows the saved settings, and the dictation shortcut while it is unset. The two must never be
+/// the same key.
+fn follow_command_shortcut(st: &Arc<AppState>) {
+    let (hotkeys, mut cfg) = (st.hotkeys.clone(), st.cfg.subscribe());
+    st.rt.spawn(async move {
+        loop {
+            hotkeys.sync_command_shortcut(&cfg.borrow_and_update().general);
+            if cfg.changed().await.is_err() {
+                break;
+            }
+        }
+    });
 }
 
 /// A model the user stopped by hand stays stopped: only newly selected ones start.

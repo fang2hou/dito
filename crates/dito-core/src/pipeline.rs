@@ -11,6 +11,7 @@ use crate::factory::Engines;
 use crate::i18n::Lang;
 use crate::prompts::{PromptInput, Prompts, Style, build_prompt, detect_lang};
 use crate::provider::{AsrRequest, PolishRequest, Polisher};
+use crate::trace_log;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PipelinePhase {
@@ -47,7 +48,7 @@ pub struct PipelineJob<'a> {
     pub wordbook: &'a [String],
 }
 
-async fn or_cancel<T>(cancel: &CancellationToken, fut: impl Future<Output = T>) -> Result<T, PipelineError> {
+pub(crate) async fn or_cancel<T>(cancel: &CancellationToken, fut: impl Future<Output = T>) -> Result<T, PipelineError> {
     tokio::select! {
         biased;
         _ = cancel.cancelled() => Err(PipelineError::Cancelled),
@@ -65,38 +66,63 @@ pub async fn run(
 ) -> Result<Output, PipelineError> {
     reject_silent(job.clip)?;
     on_phase(PipelinePhase::Transcribing);
-    let mut out = transcribe(engines, cfg, job, cancel).await?;
+    let mut out = transcribe(engines, cfg, job.clip, job.wordbook, cancel).await?;
     polish(engines, cfg, job, on_phase, cancel, &mut out).await?;
     Ok(out)
+}
+
+/// The ASR stage alone, with the same silence gate: command mode reads an instruction exactly as it was said.
+pub async fn transcribe_clip(
+    engines: &dyn Engines,
+    cfg: &Config,
+    clip: &AudioClip,
+    wordbook: &[String],
+    cancel: &CancellationToken,
+) -> Result<Output, PipelineError> {
+    reject_silent(clip)?;
+    transcribe(engines, cfg, clip, wordbook, cancel).await
 }
 
 fn reject_silent(clip: &AudioClip) -> Result<(), PipelineError> {
     if !clip.is_effectively_silent() {
         return Ok(());
     }
-    tracing::debug!("clip rejected as silent: {}ms rms {:.4} peak {:.4}", clip.duration_ms(), clip.rms(), clip.peak());
+    trace_log!(
+        duration_ms = clip.duration_ms(),
+        rms = %format!("{:.4}", clip.rms()),
+        peak = %format!("{:.4}", clip.peak()),
+        "clip rejected as silent"
+    );
     Err(PipelineError::Failed(ProviderError::new(ErrorKind::NoSpeech, "silent or too short")))
 }
 
 async fn transcribe(
     engines: &dyn Engines,
     cfg: &Config,
-    job: &PipelineJob<'_>,
+    clip: &AudioClip,
+    wordbook: &[String],
     cancel: &CancellationToken,
 ) -> Result<Output, PipelineError> {
     let started = Instant::now();
     let asr = engines.transcriber(cfg).await.map_err(PipelineError::Failed)?;
-    let transcript = or_cancel(
-        cancel,
-        asr.transcribe(&AsrRequest {
-            clip: job.clip,
-            language: cfg.general.preferred_language.code(),
-            hotwords: job.wordbook,
-        }),
-    )
-    .await?
-    .map_err(PipelineError::Failed)?;
+    let language = cfg.general.preferred_language.code();
+    trace_log!(
+        engine = %cfg.asr.label(),
+        audio_ms = clip.duration_ms(),
+        language = ?language,
+        hotwords = wordbook.len(),
+        "asr request"
+    );
+    let transcript = match or_cancel(cancel, asr.transcribe(&AsrRequest { clip, language, hotwords: wordbook })).await?
+    {
+        Ok(transcript) => transcript,
+        Err(error) => {
+            trace_log!(elapsed_ms = started.elapsed().as_millis() as u64, %error, "asr failed");
+            return Err(PipelineError::Failed(error));
+        }
+    };
     let asr_ms = started.elapsed().as_millis() as u64;
+    trace_log!(asr_ms, detected = ?transcript.language, transcript = ?transcript.text, "asr transcript");
     if transcript.text.trim().is_empty() {
         return Err(PipelineError::Failed(ProviderError::new(ErrorKind::NoSpeech, "nothing was transcribed")));
     }
@@ -115,8 +141,12 @@ async fn polish(
 ) -> Result<(), PipelineError> {
     let polisher = match engines.polisher(cfg).await {
         Ok(Some(polisher)) => polisher,
-        Ok(None) => return Ok(()),
+        Ok(None) => {
+            trace_log!("polish skipped, it is switched off");
+            return Ok(());
+        }
         Err(e) => {
+            trace_log!(error = %e, "polish engine unavailable, the transcript is delivered");
             out.polish_error = Some(e);
             return Ok(());
         }
@@ -159,7 +189,36 @@ pub fn polish_wordbook<'a>(cfg: &Config, words: &'a [String]) -> &'a [String] {
 pub async fn polish_text(polisher: &dyn Polisher, job: PolishJob<'_>) -> ProviderResult<String> {
     let PolishJob { prompts, style, text, wordbook, lang } = job;
     let prompt = build_prompt(&PromptInput { prompts, style, lang, text, wordbook });
-    polisher.polish(&PolishRequest { system: &prompt.system, examples: prompt.examples, text: &prompt.user }).await
+    call_polisher(
+        polisher,
+        "polish",
+        &PolishRequest { system: &prompt.system, examples: prompt.examples, text: &prompt.user },
+    )
+    .await
+}
+
+/// Every model call that rewrites text goes through here, so the debug log holds the full system prompt and user message
+/// that were sent for `what` (a dictation polish or the name of a command tool), the model's output and how long it took.
+pub(crate) async fn call_polisher(
+    polisher: &dyn Polisher,
+    what: &str,
+    request: &PolishRequest<'_>,
+) -> ProviderResult<String> {
+    trace_log!(
+        tool = what,
+        system = ?request.system,
+        examples = request.examples.len(),
+        user = ?request.text,
+        "polish request"
+    );
+    let started = Instant::now();
+    let result = polisher.polish(request).await;
+    let elapsed_ms = started.elapsed().as_millis() as u64;
+    match &result {
+        Ok(output) => trace_log!(tool = what, elapsed_ms, output = ?output, "polish output"),
+        Err(error) => trace_log!(tool = what, elapsed_ms, %error, "polish failed"),
+    }
+    result
 }
 
 /// The language an engine reported for a transcript, or the one its script suggests when the engine gave none or one
@@ -191,7 +250,7 @@ mod tests {
     }
 
     fn engines(asr: MockTranscriber, polish: MockPolisher) -> FixedEngines {
-        FixedEngines { asr: Arc::new(asr), polish: Arc::new(polish) }
+        FixedEngines::new(Arc::new(asr), Arc::new(polish))
     }
 
     async fn go(e: &FixedEngines, cfg: &Config, clip: &AudioClip) -> Result<Output, PipelineError> {
@@ -224,7 +283,7 @@ mod tests {
     #[tokio::test]
     async fn disabled_polish_delivers_the_raw_text_without_calling_the_model() {
         let polish = Arc::new(MockPolisher::default());
-        let e = FixedEngines { asr: Arc::new(MockTranscriber::new("hello")), polish: polish.clone() };
+        let e = FixedEngines::new(Arc::new(MockTranscriber::new("hello")), polish.clone());
         let mut cfg = Config::default();
         cfg.polish.enabled = false;
         let out = go(&e, &cfg, &tone()).await.unwrap();
@@ -252,7 +311,7 @@ mod tests {
     #[tokio::test]
     async fn an_empty_transcript_is_no_speech_and_is_not_polished() {
         let polish = Arc::new(MockPolisher::default());
-        let e = FixedEngines { asr: Arc::new(MockTranscriber::new("  ")), polish: polish.clone() };
+        let e = FixedEngines::new(Arc::new(MockTranscriber::new("  ")), polish.clone());
         match go(&e, &Config::default(), &tone()).await {
             Err(PipelineError::Failed(err)) => assert_eq!(err.kind, ErrorKind::NoSpeech),
             other => panic!("unexpected {other:?}"),
@@ -263,7 +322,7 @@ mod tests {
     #[tokio::test]
     async fn silent_audio_never_reaches_the_engine() {
         let asr = Arc::new(MockTranscriber::new("x"));
-        let e = FixedEngines { asr: asr.clone(), polish: Arc::new(MockPolisher::default()) };
+        let e = FixedEngines::new(asr.clone(), Arc::new(MockPolisher::default()));
         match go(&e, &Config::default(), &AudioClip::silence(1.0)).await {
             Err(PipelineError::Failed(err)) => assert_eq!(err.kind, ErrorKind::NoSpeech),
             other => panic!("unexpected {other:?}"),
@@ -309,7 +368,7 @@ mod tests {
             }
         }
         let spy = Arc::new(Spy(Default::default()));
-        let e = FixedEngines { asr: Arc::new(MockTranscriber::new("Acme")), polish: spy.clone() };
+        let e = FixedEngines::new(Arc::new(MockTranscriber::new("Acme")), spy.clone());
         let dict = vec!["Acme".to_string()];
         let clip = tone();
         let job = PipelineJob { clip: &clip, style: Style::General, wordbook: &dict };

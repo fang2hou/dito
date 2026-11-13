@@ -9,14 +9,14 @@ use crate::prompts::{Style, default_set};
 
 /// Version of the persisted shape that this build reads and writes. Raise it together with appending one function to
 /// `MIGRATIONS`, and never edit or renumber a shipped migration: files in the field have already passed through it.
-pub const SCHEMA_VERSION: u32 = 5;
+pub const SCHEMA_VERSION: u32 = 6;
 
 const VERSION_KEY: &str = "schema_version";
 
 /// `MIGRATIONS[n]` upgrades a table from version `n` to version `n + 1`. The array length is tied to `SCHEMA_VERSION`,
 /// so the compiler rejects a version bump that comes without its migration.
 const MIGRATIONS: [fn(&mut Table); SCHEMA_VERSION as usize] =
-    [herdr_defaults, asr_profile_ids, cloud_configurations, wordbook_setting, prompt_scaffold];
+    [herdr_defaults, asr_profile_ids, cloud_configurations, wordbook_setting, prompt_scaffold, command_settings];
 
 /// Either way the file must stay as it is.
 #[derive(Debug, PartialEq)]
@@ -255,6 +255,16 @@ fn prompt_scaffold(table: &mut Table) {
     table.remove("prompts");
 }
 
+/// 5 to 6: command mode adds `general.command_shortcut` and `general.confirm_before_replace`. A file that has a
+/// `general` table gets both written out, so a build that does not know them refuses the file instead of dropping them
+/// on its next save. The shortcut is written empty: unset, so it is derived from the dictation shortcut (Shift plus it)
+/// and follows when that changes. A file without `general` takes the typed defaults.
+fn command_settings(table: &mut Table) {
+    let Some(general) = table.get_mut("general").and_then(Value::as_table_mut) else { return };
+    general.entry("command_shortcut").or_insert("".into());
+    general.entry("confirm_before_replace").or_insert(false.into());
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -283,6 +293,25 @@ mod tests {
         let config: Config = legacy.try_into().unwrap();
         assert!(config.onboarded);
         assert_eq!(config.prompts, crate::prompts::Prompts::default());
+    }
+
+    #[test]
+    fn version_five_gains_the_command_settings_with_an_unset_shortcut() {
+        let general = |shortcut: &str| {
+            let mut legacy = parse(&format!("schema_version = 5\n[general]\nshortcut = '{shortcut}'\n"));
+            assert_eq!(upgrade(&mut legacy), Ok(5));
+            assert_eq!(legacy["general"]["command_shortcut"].as_str(), Some(""), "written out, but unset");
+            legacy.try_into::<Config>().unwrap().general
+        };
+        for shortcut in ["RightCommand", "RightOption", "Fn"] {
+            let migrated = general(shortcut);
+            assert_eq!((migrated.shortcut.as_str(), migrated.command_shortcut.as_str()), (shortcut, ""));
+            assert!(!migrated.confirm_before_replace);
+        }
+
+        let mut saved = parse("schema_version = 5\n[general]\nshortcut = 'Fn'\ncommand_shortcut = 'LeftCommand'\n");
+        upgrade(&mut saved).unwrap();
+        assert_eq!(saved["general"]["command_shortcut"].as_str(), Some("LeftCommand"), "a saved value stays");
     }
 
     #[test]

@@ -125,8 +125,9 @@ fn hud_slot(p: &Palette, lang: Lang, hud: Option<&HudAt>, still: bool) -> Div {
                     if still { Motion::Reduced } else { Motion::system() },
                 )
             }),
+            command: false,
         }
-        .element(&mut |b, scale| hud::static_button(b, scale, p).into_any_element())
+        .element(&mut |b, scale| hud::static_button(b, scale, p, false).into_any_element())
     };
     let inserted = at.inserted_elapsed.map(|elapsed| {
         let blend = (elapsed / INSERT_FADE_S).clamp(0., 1.);

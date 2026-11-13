@@ -18,6 +18,8 @@ pub(crate) fn fill_at(state: &HudState, t: f32, carry: Option<f32>) -> Option<f3
     let motion = match state {
         HudState::Transcribing => ProcessingMotion::transcribing(1.5, false),
         HudState::Polishing => ProcessingMotion::polishing(Fill::at_rest(carry.unwrap_or(0.5)), 1.5, 0., false),
+        HudState::Thinking => ProcessingMotion::polishing(Fill::at_rest(carry.unwrap_or(0.5)), 0.5, 0., false),
+        HudState::Working => ProcessingMotion::continuing(Fill::at_rest(carry.unwrap_or(0.5)), 2., false),
         _ => return None,
     };
     Some(motion.at(t).value)

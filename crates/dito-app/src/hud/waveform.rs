@@ -238,10 +238,13 @@ fn dot(path: &mut Option<Path<Pixels>>, center: Point<Pixels>, radius: Pixels) {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn ocean(
     frame: OceanFrame,
     scale: Scale,
     dark: bool,
+    // The dot ramp of a command run; `None` keeps gold.
+    ramp: Option<[[f32; 3]; 3]>,
     reduced: bool,
     width: f32,
     frost: bool,
@@ -358,7 +361,9 @@ pub(super) fn ocean(
                     paint_dot(radius, alpha);
                 }
             }
-            let palette = if dark {
+            let palette = if let Some(ramp) = ramp {
+                ramp
+            } else if dark {
                 [[161., 146., 107.], [224., 196., 125.], [255., 236., 189.]]
             } else {
                 [[94., 81., 52.], [133., 104., 41.], [170., 136., 49.]]

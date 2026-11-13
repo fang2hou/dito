@@ -18,16 +18,22 @@ fn sweep_at(t: f32, total: f32) -> f32 {
     if travel < 1. { -half + travel * (total + 2. * half) } else { total + half }
 }
 
+/// The label of a capsule that waits for the user: the processing label at rest, with no sweep.
+pub(super) fn static_label(s: &str, scale: Scale, p: &Palette) -> Div {
+    let size = scale.tx(12.);
+    ui::text_tracked(s, size, FontWeight::NORMAL, theme::hud_color(p, "#444139", "#F7F5F0"), 0.08)
+}
+
 /// The capsule centers the row; nothing is measured or given a computed width, so every language centers exactly at
 /// every display scale. The crest is a moving clip window over stacked copies of the same row; window edges snap to
 /// whole points and stay well above a point wide, so GPUI's paint culling cannot drop them.
-pub(super) fn shimmer_label(s: &str, t: f32, scale: Scale, p: &Palette, motion: Motion) -> Div {
+pub(super) fn shimmer_label(s: &str, t: f32, scale: Scale, p: &Palette, motion: Motion, command: bool) -> Div {
     let px = |v: f32| scale.px(v);
     let size = scale.tx(12.);
     let track = size * ui::tracking_for(s, 0.08);
     let base = theme::hud_color(p, "#6A6455", "#C2BDB2");
     let hot = theme::hud_color(p, "#24221D", "#FFFFFF");
-    let shoulder = theme::hud_color(p, "#444139", "#FFECBD");
+    let shoulder = if command { theme::hud_command_shoulder(p) } else { theme::hud_color(p, "#444139", "#FFECBD") };
     let chars: Vec<char> = s.chars().collect();
     // Only the crest's travel math needs a width; layout never uses it.
     // text_width already returns scaled pixels: do not scale the measurements a second time.

@@ -89,14 +89,19 @@ impl HudView {
         let listening = matches!(self.state, HudState::Listening { mode: RecordMode::Toggle });
         let processing = matches!(self.state, HudState::Transcribing | HudState::Polishing);
         let mut zone = div().id("hud-zone").flex().flex_col().items_center().gap(px(ZONE_GAP));
+        let command = self.command_run();
         let chip_on = listening
             && self.hover_btn.is_none()
             && self.hover_zone
-            && self.st.cfg.get().general.hud_languages().next().is_some();
+            && (command || self.st.cfg.get().general.hud_languages().next().is_some());
         let pill_on = processing && self.hover_zone;
-        let chip = self.language_chip(p, lang, cx);
-        if let Some(chip) = ui::hover_pop_scaled(ElementId::from("hud-lang-chip"), chip_on, 0.8, chip) {
-            zone = zone.child(chip);
+        let row = if command {
+            ui::hover_pop_scaled(ElementId::from("hud-lang-chip"), chip_on, 0.8, self.command_row(p, lang, cx))
+        } else {
+            ui::hover_pop_scaled(ElementId::from("hud-lang-chip"), chip_on, 0.8, self.language_chip(p, lang, cx))
+        };
+        if let Some(row) = row {
+            zone = zone.child(row);
         }
         if let Some(pill) = ui::hover_pop(ElementId::from("hud-stop-pill"), pill_on, || {
             let palette = *p;

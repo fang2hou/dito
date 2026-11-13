@@ -7,6 +7,7 @@ use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 
+use dito_core::intent::{Reading, Request};
 /// A demonstration turn of a polish request, as the engines receive it.
 pub use dito_core::provider::Example;
 
@@ -45,6 +46,13 @@ pub trait LlmRuntime: Send + Sync {
         sampling: &Sampling,
         stop: &AtomicBool,
     ) -> Result<String, RuntimeError>;
+
+    /// One prompt pass with nothing generated: the logits of the request's options at the answer position and the
+    /// hidden states it names (see [`dito_core::intent`]). `stop` works as in [`AsrRuntime::transcribe`]. A runtime
+    /// that cannot read its model this way keeps this default and returns [`RuntimeError::ReadUnsupported`].
+    fn read(&self, _request: &Request, _stop: &AtomicBool) -> Result<Reading, RuntimeError> {
+        Err(RuntimeError::ReadUnsupported)
+    }
 }
 
 pub trait RuntimeLoader: Send + Sync {

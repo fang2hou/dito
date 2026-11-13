@@ -7,6 +7,12 @@ use std::path::PathBuf;
 const EXEMPT: &[(&str, &str)] = &[
     // Demo/seed history entries in full (user content, not UI copy).
     ("dev/seed.rs", "*"),
+    // The mock selection (sample user content) and the keywords the mock router listens for in a spoken or typed
+    // instruction; neither is UI copy.
+    ("dev/mock_selection.rs", "*"),
+    ("dev/mock_router.rs", "*"),
+    // The text the command HUD shots show in the answer, confirm and typing windows (user content).
+    ("dev/shots/hud.rs", "*"),
     // Configuration names the polish form shots type into the form (user content, not UI copy).
     ("dev/shots/polish_form.rs", "*"),
     // List separator chosen per language in code (the ideographic comma, only for Japanese).

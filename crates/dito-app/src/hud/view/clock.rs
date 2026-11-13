@@ -5,12 +5,12 @@ use std::time::Instant;
 use dito_core::controller::{HudState, MAX_RECORDING_DURATION};
 
 use crate::hud::capsule::{self, WIDEN_S};
-use crate::hud::motion::Spring;
+use crate::hud::motion::{Spring, smooth};
 use crate::hud::processing_motion::{Fill, ProcessingMotion};
 use crate::hud::timing::{self, COPY_END, OUTCOME_END, OUTCOME_ICON_DELAY, SETTLE_S};
-use crate::ui::Motion;
+use crate::ui::{self, Motion};
 
-use super::capsule_stack::STATE_FADE_S;
+use super::capsule_stack::{STATE_FADE_S, is_processing};
 use super::{HudView, LABEL_FADE_S, POP_MS};
 
 pub(super) const COUNTDOWN_START_S: f32 = 240.;
@@ -27,7 +27,16 @@ impl HudView {
                     forecast.polishing.map_or((0., 1.5), |(start, secs)| (start.elapsed().as_secs_f32(), secs));
                 Some(ProcessingMotion::polishing(from, estimate, running, reduced))
             }
-            HudState::Inserted | HudState::Copied => Some(ProcessingMotion::finished(from, reduced)),
+            // Routing takes tens of milliseconds, so it is mostly one frame; it carries on from the transcription.
+            HudState::Thinking => Some(ProcessingMotion::polishing(from, 0.5, 0., reduced)),
+            HudState::Working => {
+                let engine = &self.st.cfg.get().polish.engine;
+                let estimate = self.st.dictation.step_times().polishing_secs(engine).unwrap_or(2.);
+                Some(ProcessingMotion::continuing(from, estimate, reduced))
+            }
+            HudState::Inserted | HudState::Replaced | HudState::Copied => {
+                Some(ProcessingMotion::finished(from, reduced))
+            }
             _ => None,
         };
         self.processing_pending = self.processing.is_some();
@@ -35,7 +44,7 @@ impl HudView {
         // The watch channel may coalesce very fast stages. The fill still starts at zero and the processing shell
         // remains visible while it catches up, even if the view first receives a later state.
         if matches!(self.state, HudState::Polishing | HudState::Inserted | HudState::Copied)
-            && !matches!(self.previous, Some(HudState::Transcribing | HudState::Polishing))
+            && !self.previous.as_ref().is_some_and(is_processing)
         {
             self.previous = Some(HudState::Transcribing);
         }
@@ -78,7 +87,7 @@ impl HudView {
                 self.error_reason.advance(error_target, dt, 0.72, 22.);
             }
         }
-        let moving = matches!(self.state, HudState::Transcribing | HudState::Polishing);
+        let moving = is_processing(&self.state);
         let ocean_moving = listening && self.waveform.needs_redraw(motion.is_reduced());
         let entry = self.opened.elapsed().as_millis() < POP_MS as u128;
         let countdown = self.remaining();
@@ -93,7 +102,9 @@ impl HudView {
             || entry
             || self.widening()
             || self.completing()
+            || self.field_moving()
             || self.state_fading()
+            || self.kind_blend().is_some()
             || error_moving
             || countdown_changed
             || countdown_entering
@@ -142,10 +153,18 @@ impl HudView {
             && self.elapsed() < STATE_FADE_S
     }
 
+    /// How far the capsule's colors have moved to the new run kind (eased), while they still move. Only a visible
+    /// recording fades. Like the state cross-fade it is a change of color, not of position, so Reduce Motion keeps it.
+    pub(super) fn kind_blend(&self) -> Option<f32> {
+        let since = self.kind_fade.filter(|_| matches!(self.state, HudState::Listening { .. }))?;
+        let u = since.elapsed().as_secs_f32() / (ui::HOVER_MS as f32 / 1000.);
+        (u < 1.).then(|| smooth(u))
+    }
+
     fn completing(&self) -> bool {
         let end = match self.state {
             HudState::Copied => COPY_END,
-            HudState::Inserted => OUTCOME_END,
+            HudState::Inserted | HudState::Replaced => OUTCOME_END,
             _ => return false,
         };
         self.freeze.is_none() && self.outcome_elapsed(self.elapsed()) < end

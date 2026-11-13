@@ -55,11 +55,18 @@ impl Store {
     }
 
     pub fn add_history(&self, h: &NewHistory) -> Result<i64> {
+        let command = h
+            .command
+            .as_ref()
+            .map(|details| {
+                serde_json::to_string(details).map_err(|e| rusqlite::Error::ToSqlConversionFailure(e.into()))
+            })
+            .transpose()?;
         let c = self.conn();
         c.execute(
             "INSERT INTO history (ts, day, kind, style, app, lang, duration_ms, raw, polished, error, audio_path,
-                                  asr_engine, polish_engine)
-             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)",
+                                  asr_engine, polish_engine, asr_ms, polish_ms, source, command)
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17)",
             params![
                 h.ts,
                 self.day_of(h.ts),
@@ -73,13 +80,17 @@ impl Store {
                 h.error,
                 h.audio_path,
                 h.engines.asr,
-                h.engines.polish
+                h.engines.polish,
+                h.timings.asr.map(|ms| ms as i64),
+                h.timings.polish.map(|ms| ms as i64),
+                h.source,
+                command
             ],
         )?;
         Ok(c.last_insert_rowid())
     }
 
-    /// `engines` are the retry's and replace the earlier attempt's labels, so a polish label the retry lacks is
+    /// `engines` and `timings` are the retry's and replace the earlier attempt's, so a polish label the retry lacks is
     /// cleared.
     pub fn complete_history(
         &self,
@@ -88,21 +99,32 @@ impl Store {
         polished: Option<&str>,
         lang: &str,
         engines: &EngineLabels,
+        timings: &StepMillis,
     ) -> Result<()> {
         self.conn().execute(
             "UPDATE history
-             SET kind='dictation', raw=?2, polished=?3, lang=?4, asr_engine=?5, polish_engine=?6, error=NULL
+             SET kind='dictation', raw=?2, polished=?3, lang=?4, asr_engine=?5, polish_engine=?6, error=NULL,
+                 asr_ms=?7, polish_ms=?8
              WHERE id=?1",
-            params![id, raw, polished, lang, engines.asr, engines.polish],
+            params![
+                id,
+                raw,
+                polished,
+                lang,
+                engines.asr,
+                engines.polish,
+                timings.asr.map(|ms| ms as i64),
+                timings.polish.map(|ms| ms as i64)
+            ],
         )?;
         Ok(())
     }
 
-    /// The transcript is unchanged, so its engine label is left alone.
-    pub fn set_polished(&self, id: i64, polished: &str, polish_engine: &str) -> Result<()> {
+    /// The transcript is unchanged, so its engine label and recognition time are left alone.
+    pub fn set_polished(&self, id: i64, polished: &str, polish_engine: &str, polish_ms: u64) -> Result<()> {
         self.conn().execute(
-            "UPDATE history SET polished=?2, polish_engine=?3 WHERE id=?1",
-            params![id, polished, polish_engine],
+            "UPDATE history SET polished=?2, polish_engine=?3, polish_ms=?4 WHERE id=?1",
+            params![id, polished, polish_engine, polish_ms as i64],
         )?;
         Ok(())
     }
@@ -116,7 +138,10 @@ impl Store {
         let mut sql = format!("{SELECT_HISTORY} WHERE 1=1");
         let mut args: Vec<rusqlite::types::Value> = Vec::new();
         if let Some(q) = f.query.as_deref().filter(|q| !q.trim().is_empty()) {
-            sql.push_str(" AND (raw LIKE ?1 ESCAPE '\\' OR polished LIKE ?1 ESCAPE '\\')");
+            // For a command row these are the instruction, the result and the text it worked on.
+            sql.push_str(
+                " AND (raw LIKE ?1 ESCAPE '\\' OR polished LIKE ?1 ESCAPE '\\' OR source LIKE ?1 ESCAPE '\\')",
+            );
             let esc = q.trim().replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_");
             args.push(format!("%{esc}%").into());
         }
@@ -328,6 +353,7 @@ impl Store {
 mod tests {
     use super::schema::MIGRATIONS;
     use super::*;
+    use crate::intent::{Decision, Intent, RewriteOp};
 
     fn builtin(id: &str) -> Style {
         Style::builtin(id).expect("a built-in style")
@@ -346,6 +372,9 @@ mod tests {
             error: None,
             audio_path: None,
             engines: EngineLabels::default(),
+            timings: StepMillis::default(),
+            source: None,
+            command: None,
         }
     }
 
@@ -364,9 +393,10 @@ mod tests {
         assert_eq!(rows[0].style, row.style);
         assert_eq!(rows[0].engines, row.engines);
 
-        store.set_polished(id, "polished again", "bedrock:example-model").unwrap();
+        store.set_polished(id, "polished again", "bedrock:example-model", 900).unwrap();
         let again = store.get_history(id).unwrap().unwrap();
         assert_eq!(again.polished.as_deref(), Some("polished again"));
+        assert_eq!(again.timings, StepMillis { asr: None, polish: Some(900) });
         assert_eq!(
             again.engines,
             labels("asr.funasr:paraformer-v2", Some("bedrock:example-model")),
@@ -494,12 +524,86 @@ mod tests {
         c.engines = labels("local:old-asr", Some("local:old-polish"));
         let id = s.add_history(&c).unwrap();
         let retry = labels("local:new-asr", Some("local:new-polish"));
-        s.complete_history(id, "こんにちは", Some("こんにちは。"), "ja", &retry).unwrap();
+        let timings = StepMillis { asr: Some(400), polish: Some(700) };
+        s.complete_history(id, "こんにちは", Some("こんにちは。"), "ja", &retry, &timings).unwrap();
         let e = s.get_history(id).unwrap().unwrap();
         assert_eq!(e.kind, HistoryKind::Dictation);
+        assert_eq!(e.timings, timings);
         assert_eq!(e.final_text(), "こんにちは。");
         assert_eq!(e.audio_path.as_deref(), Some("/tmp/a.wav"), "audio is kept for playback");
         assert_eq!(e.engines, retry, "the retry's engines replace the cancelled attempt's");
+    }
+
+    fn command_entry() -> NewHistory {
+        let mut ranked = [0.02; Intent::COUNT];
+        ranked[Intent::Rewrite as usize] = 0.9;
+        NewHistory {
+            kind: HistoryKind::Command,
+            raw: "もっと短く".into(),
+            polished: Some("短い文。".into()),
+            source: Some("これは長い文章です。".into()),
+            duration_ms: 2_500,
+            timings: StepMillis { asr: Some(300), polish: Some(1_200) },
+            engines: labels("local:asr", Some("local:chat")),
+            command: Some(CommandDetails {
+                origin: Some(InstructionOrigin::Spoken),
+                decision: Some(Decision {
+                    intent: Intent::Rewrite,
+                    confidence: 0.9,
+                    probabilities: ranked,
+                    rewrite_op: Some((RewriteOp::Shorten, 0.8)),
+                }),
+                choice: Some(ToolChoice::Confident),
+                tool: Some(Intent::Rewrite),
+                source: Some(SourceKind::Selection),
+                outcome: CommandOutcome::Replaced,
+                route_ms: Some(150),
+                router_engine: Some("local:chat".into()),
+            }),
+            ..entry(5, "Notes", "ja", "", None)
+        }
+    }
+
+    #[test]
+    fn a_command_entry_round_trips_with_its_details() {
+        let s = Store::open_in_memory().unwrap();
+        let row = command_entry();
+        let id = s.add_history(&row).unwrap();
+        let read = s.get_history(id).unwrap().unwrap();
+        assert_eq!(read.kind, HistoryKind::Command);
+        assert_eq!((read.raw.as_str(), read.final_text()), ("もっと短く", "短い文。"));
+        assert_eq!(read.source, row.source);
+        assert_eq!(read.timings, row.timings);
+        assert_eq!(read.engines, row.engines);
+        assert_eq!(read.command, row.command);
+        assert_eq!(read.audio_path, None);
+    }
+
+    #[test]
+    fn search_finds_a_command_by_its_instruction_source_and_result() {
+        let s = Store::open_in_memory().unwrap();
+        s.add_history(&command_entry()).unwrap();
+        let find =
+            |q: &str| s.list_history(&HistoryFilter { query: Some(q.into()), ..Default::default() }).unwrap().len();
+        assert_eq!((find("もっと"), find("長い文章"), find("短い文。"), find("無関係")), (1, 1, 1, 0));
+    }
+
+    #[test]
+    fn command_rows_are_not_dictation_statistics() {
+        let s = Store::open_in_memory().unwrap();
+        s.add_history(&command_entry()).unwrap();
+        assert_eq!(s.stats(None).unwrap().recordings, 0);
+        assert_eq!(s.first_day().unwrap(), None);
+    }
+
+    #[test]
+    fn details_a_build_cannot_read_leave_the_command_row_listed() {
+        let s = Store::open_in_memory().unwrap();
+        let id = s.add_history(&command_entry()).unwrap();
+        s.conn().execute("UPDATE history SET command='{\"outcome\":\"from-the-future\"}' WHERE id=?1", [id]).unwrap();
+        let read = s.get_history(id).unwrap().unwrap();
+        assert_eq!((read.kind, read.command.as_ref()), (HistoryKind::Command, None));
+        assert_eq!(read.final_text(), "短い文。");
     }
 
     #[test]
@@ -606,15 +710,19 @@ mod tests {
 
     #[test]
     fn an_older_database_keeps_its_rows_and_reaches_the_latest_version() {
-        // Version 0 predates versioning, version 1 adopted that schema, and version 2 added engine columns.
-        for applied in [0u32, 1, 2] {
+        // Version 0 predates versioning, version 1 adopted that schema, version 2 added the engine columns and version 3
+        // renamed the wordbook.
+        for applied in [0u32, 1, 2, 3] {
             let dir = tempfile::tempdir().unwrap();
             let path = dir.path().join("h.db");
             {
                 let old = Connection::open(&path).unwrap();
                 old.execute_batch(PRE_VERSIONING_SCHEMA).unwrap();
-                if applied == 2 {
+                if applied >= 2 {
                     old.execute_batch(MIGRATIONS[1]).unwrap();
+                }
+                if applied == 3 {
+                    old.execute_batch(MIGRATIONS[2]).unwrap();
                 }
                 old.execute(
                     "INSERT INTO history (ts, day, kind, style, app, lang, duration_ms, raw)
@@ -622,7 +730,8 @@ mod tests {
                     (),
                 )
                 .unwrap();
-                old.execute("INSERT INTO dictionary (term, created) VALUES ('Acme', 10)", ()).unwrap();
+                let words = if applied == 3 { "wordbook" } else { "dictionary" };
+                old.execute(&format!("INSERT INTO {words} (term, created) VALUES ('Acme', 10)"), ()).unwrap();
                 old.pragma_update(None, "user_version", applied).unwrap();
                 assert_eq!(user_version(&old).unwrap(), applied);
             }
@@ -633,6 +742,8 @@ mod tests {
             let rows = s.list_history(&HistoryFilter::default()).unwrap();
             assert_eq!(rows.iter().map(|e| e.raw.as_str()).collect::<Vec<_>>(), ["from the old build"]);
             assert_eq!(rows[0].engines, EngineLabels::default(), "a row from before the engine columns is unlabelled");
+            assert_eq!(rows[0].timings, StepMillis::default(), "a row from before the timing columns has none");
+            assert_eq!((rows[0].source.as_deref(), rows[0].command.as_ref()), (None, None));
             drop(s);
 
             let reopened = Store::open(&path, 0).unwrap();

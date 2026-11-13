@@ -88,6 +88,14 @@ pub struct Palette {
     pub model_error_text: Hsla,
     pub field_bg: Hsla,
     pub field_border: Hsla,
+    /// Command mode (`design:hud/command`): the ocean accent of its windows and their actions.
+    pub command_primary: Hsla,
+    pub command_primary_hover: Hsla,
+    /// Tinted surfaces: the likeliest choice, the result box.
+    pub command_soft: Hsla,
+    pub command_soft_hover: Hsla,
+    /// The glow under floating action buttons.
+    pub command_glow: Hsla,
     /// Heat steps of the Stats daily view (`stats/heat_0` to `stats/heat_4`): no dictation, then four quartiles.
     pub stats_heat_0: Hsla,
     pub stats_heat_1: Hsla,
@@ -160,6 +168,11 @@ impl Palette {
             model_error_text: hex("#444139"),
             field_bg: hex("#FFFFFF"),
             field_border: hex("#D4D1C9"),
+            command_primary: hex("#3F72AB"),
+            command_primary_hover: hex("#5D90C4"),
+            command_soft: hex("#EEF5FB"),
+            command_soft_hover: hex("#CFE2F5"),
+            command_glow: hex("#3F72AB73"),
             stats_heat_0: hex("#EBE8E1"),
             stats_heat_1: hex("#FFECBD"),
             stats_heat_2: hex("#F6DA97"),
@@ -231,6 +244,11 @@ impl Palette {
             model_error_text: hex("#F7F5F0"),
             field_bg: hex("#38352F"),
             field_border: hex("#716B5E"),
+            command_primary: hex("#7FAEDC"),
+            command_primary_hover: hex("#A3C7EA"),
+            command_soft: hex("#3E4A57"),
+            command_soft_hover: hex("#4A5B70"),
+            command_glow: hex("#7FAEDC8C"),
             stats_heat_0: hex("#3E3B34"),
             stats_heat_1: hex("#685218"),
             stats_heat_2: hex("#826F41"),
@@ -254,6 +272,9 @@ impl Palette {
             Tint::Danger => (self.danger_soft, self.danger_text),
             Tint::Warning => (self.warning_soft, self.warning_text),
             Tint::Blue => (self.blue_soft, self.blue_text),
+            Tint::Command => (self.command_soft, self.command_primary),
+            Tint::Neutral if self.dark => (hex("#46515A"), hex("#C1D6E4")),
+            Tint::Neutral => (self.seg, self.muted),
         }
     }
 }
@@ -263,6 +284,10 @@ pub enum Tint {
     Danger,
     Warning,
     Blue,
+    /// The command tag of a History row.
+    Command,
+    /// A quiet tag next to it, such as the tool a command used.
+    Neutral,
 }
 
 /// Push the palette into gpui-component so its inputs match the design.
@@ -318,6 +343,50 @@ pub fn hud_countdown_warn_border(p: &Palette) -> Hsla {
 
 pub fn hud_countdown_warn_ink(p: &Palette) -> Hsla {
     hud_color(p, "#805A17", "#F1CF83")
+}
+
+/// The capsule surface of a command run, in place of the gold ones.
+pub fn hud_command_capsule(p: &Palette) -> Hsla {
+    hud_color(p, "#EEF5FB", "#3E4A57")
+}
+
+pub fn hud_command_finish(p: &Palette) -> Hsla {
+    hud_color(p, "#A3C7EAE6", "#7FAEDCE6")
+}
+
+pub fn hud_command_finish_hover(p: &Palette) -> Hsla {
+    hud_color(p, "#7FAEDCF5", "#3F72ABF5")
+}
+
+pub fn hud_command_progress_fill(p: &Palette) -> Hsla {
+    hud_color(p, "#A3C7EA", "#4F6480")
+}
+
+pub fn hud_command_progress_edge(p: &Palette) -> Hsla {
+    hud_color(p, "#3F72AB", "#7FAEDC")
+}
+
+pub fn hud_command_lang_on(p: &Palette) -> Hsla {
+    hud_color(p, "#CFE2F5", "#7FAEDC")
+}
+
+/// The Replaced outcome surface.
+pub fn hud_command_replaced() -> Hsla {
+    hex("#3F72AB")
+}
+
+/// Low to high exposure of the listening dots, as RGB bytes.
+pub fn hud_command_dots(p: &Palette) -> [[f32; 3]; 3] {
+    if p.dark {
+        [[108., 134., 165.], [127., 174., 220.], [207., 226., 245.]]
+    } else {
+        [[52., 70., 94.], [47., 92., 140.], [63., 114., 171.]]
+    }
+}
+
+/// The processing label's brightest band in a command run.
+pub fn hud_command_shoulder(p: &Palette) -> Hsla {
+    hud_color(p, "#444139", "#CFE2F5")
 }
 
 pub fn palette(setting: Appearance, cx: &App) -> Palette {

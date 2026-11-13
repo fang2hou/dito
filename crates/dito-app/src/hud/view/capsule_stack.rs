@@ -6,7 +6,7 @@ use gpui_kit::*;
 
 use crate::hud::Scale;
 use crate::hud::buttons;
-use crate::hud::capsule::{Capsule, Wave};
+use crate::hud::capsule::{CAPSULE_H, Capsule, Wave};
 use crate::hud::timing::{COPY_FADE_S, COPY_HOLD_END, OUTCOME_FADE_S, OUTCOME_HOLD_END, OUTCOME_ICON_DELAY};
 use crate::theme::Palette;
 use crate::ui::Motion;
@@ -24,6 +24,11 @@ struct FrameClock {
     scene: f32,
 }
 
+/// States that draw the progress fill and its sweeping label.
+pub(super) fn is_processing(state: &HudState) -> bool {
+    matches!(state, HudState::Transcribing | HudState::Polishing | HudState::Thinking | HudState::Working)
+}
+
 /// The new shell stays opaque for the whole transition, so the background and border cross over without the window
 /// showing through.
 fn crossfade(old: Div, next: Div, blend: f32) -> Div {
@@ -34,7 +39,11 @@ impl HudView {
     pub(super) fn capsule(&self, p: Palette, cx: &mut Context<Self>) -> Stateful<Div> {
         let elapsed = self.elapsed();
         let clock = FrameClock { elapsed, scene: self.freeze.unwrap_or_else(|| self.opened.elapsed().as_secs_f32()) };
-        let terminal = matches!(self.state, HudState::Inserted | HudState::Copied);
+        // The answer and confirm windows stand where the capsule was.
+        if matches!(self.state, HudState::Answer { .. } | HudState::Confirm { .. }) {
+            return div().id("hud-capsule").h(crate::hud::px(CAPSULE_H));
+        }
+        let terminal = matches!(self.state, HudState::Inserted | HudState::Replaced | HudState::Copied);
         let mut cap = self.layers(&p, clock, terminal, cx);
         if terminal && self.freeze.is_none() {
             let (hold_end, fade) = if matches!(self.state, HudState::Copied) {
@@ -58,15 +67,16 @@ impl HudView {
             && elapsed < LABEL_FADE_S
             && let Some(listening @ HudState::Listening { .. }) = &self.previous
         {
+            let command = self.command_run();
             let old = self
-                .layer(p, clock, listening.clone(), None)
-                .element(&mut |b, scale| buttons::static_button(b, scale, p).into_any_element());
+                .layer(p, clock, listening.clone(), None, command)
+                .element(&mut |b, scale| buttons::static_button(b, scale, p, command).into_any_element());
             let next = self.interactive_layer(p, clock, self.state.clone(), self.progress(), cx);
             return crossfade(old, next, (elapsed / LABEL_FADE_S).clamp(0., 1.));
         }
-        let processing_before =
-            self.previous.as_ref().filter(|s| matches!(s, HudState::Transcribing | HudState::Polishing));
-        let changing_phase = self.state == HudState::Polishing && self.processing.is_some();
+        let processing_before = self.previous.as_ref().filter(|s| is_processing(s));
+        let changing_phase = matches!(self.state, HudState::Polishing | HudState::Thinking | HudState::Working)
+            && self.processing.is_some();
         let catch_up = self.catch_up();
         let transition = if terminal { SUCCESS_FADE_S } else { LABEL_FADE_S };
         if let Some(previous) = processing_before
@@ -85,17 +95,28 @@ impl HudView {
         if let Some(previous) = self.previous.as_ref().filter(|previous| **previous != self.state)
             && elapsed < STATE_FADE_S
         {
+            let command = self.command_run();
             let old = self
-                .layer(p, clock, previous.clone(), self.previous_fill)
-                .element(&mut |b, scale| buttons::static_button(b, scale, p).into_any_element());
+                .layer(p, clock, previous.clone(), self.previous_fill, command)
+                .element(&mut |b, scale| buttons::static_button(b, scale, p, command).into_any_element());
             let next = self.interactive_layer(p, clock, self.state.clone(), self.progress(), cx);
             let u = (elapsed / STATE_FADE_S).clamp(0., 1.);
             return crossfade(old, next, u * u * (3. - 2. * u));
         }
+        if let Some(blend) = self.kind_blend() {
+            // The shortcut's keys completed the other shortcut's press under a visible capsule: it takes the new
+            // run's colors over the hover duration instead of switching at once.
+            let from = !self.command_run();
+            let old = self
+                .layer(p, clock, self.state.clone(), self.progress(), from)
+                .element(&mut |b, scale| buttons::static_button(b, scale, p, from).into_any_element());
+            let next = self.interactive_layer(p, clock, self.state.clone(), self.progress(), cx);
+            return crossfade(old, next, blend);
+        }
         self.interactive_layer(p, clock, self.state.clone(), self.progress().filter(|_| !terminal), cx)
     }
 
-    fn layer(&self, p: &Palette, clock: FrameClock, state: HudState, fill: Option<f32>) -> Capsule {
+    fn layer(&self, p: &Palette, clock: FrameClock, state: HudState, fill: Option<f32>, command: bool) -> Capsule {
         let motion = Motion::system();
         Capsule {
             state,
@@ -116,6 +137,7 @@ impl HudView {
                 || Some((self.outcome_elapsed(clock.elapsed) - OUTCOME_ICON_DELAY).max(0.)),
                 |t| (t > 0.).then_some(t),
             ),
+            command,
         }
     }
 
@@ -127,7 +149,8 @@ impl HudView {
         fill: Option<f32>,
         cx: &mut Context<Self>,
     ) -> Div {
-        self.layer(p, clock, state, fill)
-            .element(&mut |b, scale| self.circle_button(b.look(p), b.on_press(), scale, cx).into_any_element())
+        let command = self.command_run();
+        self.layer(p, clock, state, fill, command)
+            .element(&mut |b, scale| self.circle_button(b.look(p, command), b.on_press(), scale, cx).into_any_element())
     }
 }

@@ -7,7 +7,7 @@ use anyhow::Result;
 use dito_audio::{AutoOverrides, Capture};
 use dito_core::audio::AudioClip;
 use dito_core::config::{ConfigStore, default_data_dir};
-use dito_core::controller::{self, Deps, DictationHandle, Env, Recorder, RecorderError, Sink};
+use dito_core::controller::{self, Deps, DictationHandle, Env, Recorder, RecorderError, SelectionSource, Sink};
 use dito_core::factory::{EngineFactory, Engines};
 use dito_core::secrets::{MemorySecrets, SecretStore};
 use dito_core::store::Store;
@@ -19,12 +19,18 @@ use gpui_kit::Global;
 
 use crate::dev::log_sink::LogSink;
 #[cfg(feature = "mock")]
+use crate::dev::mock_router::KeywordRouter;
+#[cfg(feature = "mock")]
+use crate::dev::mock_selection::MockSelection;
+#[cfg(feature = "mock")]
 use crate::dev::seed;
 #[cfg(feature = "mock")]
 use crate::dev::synthetic_recorder::SyntheticRecorder;
 use crate::dev::wav_recorder::WavRecorder;
 use crate::hotkeys::Hotkeys;
+use crate::logbook::LogBook;
 use crate::mac_focus_warmer::MacFocusWarmer;
+use crate::mac_selection::MacSelection;
 use crate::opts::Opts;
 
 pub struct AppState {
@@ -41,6 +47,8 @@ pub struct AppState {
     pub player: Player,
     pub hotkeys: Arc<Hotkeys>,
     pub rt: tokio::runtime::Handle,
+    /// The app's log lines since launch and the switch for the detailed log.
+    pub log: Arc<LogBook>,
     #[cfg(feature = "mock")]
     pub _mock_server: Option<dito_testkit::MockServer>,
 }
@@ -83,12 +91,13 @@ impl AppState {
         let mock_speech = mock_server.as_ref().map(|server| dito_testkit::mock_cloud_asr_config(&server.url));
         #[cfg(not(feature = "mock"))]
         let mock_speech = None;
-        let factory = Arc::new(
-            EngineFactory::new(secrets.clone())
-                .with_local(local.clone())
-                .with_bedrock_endpoint(std::env::var("DITO_BEDROCK_ENDPOINT").ok())
-                .with_speech_config(mock_speech),
-        );
+        let factory = EngineFactory::new(secrets.clone())
+            .with_local(local.clone())
+            .with_bedrock_endpoint(std::env::var("DITO_BEDROCK_ENDPOINT").ok())
+            .with_speech_config(mock_speech);
+        #[cfg(feature = "mock")]
+        let factory = if opts.mock { factory.with_router(Arc::new(KeywordRouter)) } else { factory };
+        let factory = Arc::new(factory);
         let capture = open_capture(&opts, &cfg);
         let recorder = pick_recorder(&opts, capture.as_ref())?;
         let sink: Arc<dyn Sink> = if opts.log_sink { Arc::new(LogSink) } else { Arc::new(MacSink) };
@@ -100,6 +109,7 @@ impl AppState {
                 frontmost: Arc::new(MacFrontmost),
                 focus_warmer: Arc::new(MacFocusWarmer),
                 music_mute: Arc::new(MacMusicMute),
+                selection: pick_selection(&opts),
             },
             config: cfg.clone(),
             store: store.clone(),
@@ -120,6 +130,7 @@ impl AppState {
             player: Player::default(),
             hotkeys: Arc::new(Hotkeys::new()),
             rt: rt.clone(),
+            log: LogBook::shared(),
             #[cfg(feature = "mock")]
             _mock_server: mock_server,
         }))
@@ -205,6 +216,16 @@ fn pick_recorder(opts: &Opts, capture: Option<&Arc<Capture>>) -> Result<Arc<dyn 
         #[cfg(not(feature = "mock"))]
         (None, None) => anyhow::bail!("no audio input is available"),
     })
+}
+
+/// `--mock` never reads or writes another app's text.
+fn pick_selection(opts: &Opts) -> Arc<dyn SelectionSource> {
+    #[cfg(feature = "mock")]
+    if opts.mock {
+        return Arc::new(MockSelection::from_env());
+    }
+    let _ = opts;
+    Arc::new(MacSelection)
 }
 
 struct AuthorizedCapture(Arc<Capture>);

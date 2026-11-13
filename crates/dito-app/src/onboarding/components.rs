@@ -28,7 +28,7 @@ pub(super) fn recommend_tag(label: SharedString, background: Hsla, ink: Hsla) ->
 const STEP_LABELS: [Tr; 6] = [
     Tr::OnboardingStepPermissions,
     Tr::OnboardingStepHowTo,
-    Tr::GeneralRecord,
+    Tr::GeneralShortcut,
     Tr::OnboardingStepEngine,
     Tr::OnboardingStepPrepare,
     Tr::OnboardingStepTry,

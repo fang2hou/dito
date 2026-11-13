@@ -3,6 +3,7 @@
 pub mod catalog;
 mod disk;
 pub mod download;
+pub mod intent;
 pub mod local_engines;
 pub mod manager;
 mod manager_error;

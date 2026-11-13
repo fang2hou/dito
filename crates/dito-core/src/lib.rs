@@ -1,6 +1,7 @@
 //! Dito core: OS-independent logic (config, prompts, providers, pipeline, stores).
 
 pub mod audio;
+pub mod command;
 pub mod config;
 pub mod controller;
 pub mod error;
@@ -9,11 +10,14 @@ pub mod health;
 pub mod i18n;
 pub mod identity;
 pub mod insert;
+pub mod intent;
 pub mod pipeline;
 pub mod prompts;
 pub mod provider;
 pub mod secrets;
 pub mod store;
+pub mod surrounding;
+pub mod trace;
 
 pub use audio::AudioClip;
 pub use config::{Config, ConfigStore};

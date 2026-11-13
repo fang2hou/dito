@@ -1,7 +1,11 @@
 use anyhow::Result;
 use dito_core::config::EngineLabels;
+use dito_core::intent::{Decision, Intent, RewriteOp};
 use dito_core::prompts::Style;
-use dito_core::store::{HistoryKind, NewHistory, Store};
+use dito_core::store::{
+    CommandDetails, CommandOutcome, HistoryKind, InstructionOrigin, NewHistory, SourceKind, StepMillis, Store,
+    ToolChoice,
+};
 
 const SAMPLE_WORDS: [&str; 5] = ["Acme", "Contoso", "gpui-kit", "サンプル株式会社", "Bedrock"];
 const DAILY_CHARS: [usize; 6] = [1200, 980, 1560, 1340, 1820, 560];
@@ -33,6 +37,38 @@ fn entry(ts: i64, kind: HistoryKind, style: Style, app: &str, lang: &str, durati
         error: None,
         audio_path: None,
         engines: EngineLabels::default(),
+        timings: StepMillis::default(),
+        source: None,
+        command: None,
+    }
+}
+
+fn command(
+    ts: i64,
+    instruction: &str,
+    source: (SourceKind, &str),
+    result: &str,
+    decision: Decision,
+    choice: ToolChoice,
+    outcome: CommandOutcome,
+) -> NewHistory {
+    NewHistory {
+        raw: instruction.into(),
+        polished: Some(result.into()),
+        source: Some(source.1.into()),
+        engines: EngineLabels { asr: Some("local:sample-asr".into()), polish: Some("local:sample-chat".into()) },
+        timings: StepMillis { asr: Some(420), polish: Some(1_800) },
+        command: Some(CommandDetails {
+            origin: Some(InstructionOrigin::Spoken),
+            tool: Some(decision.intent),
+            decision: Some(decision),
+            choice: Some(choice),
+            source: Some(source.0),
+            outcome,
+            route_ms: Some(210),
+            router_engine: Some("local:sample-chat".into()),
+        }),
+        ..entry(ts, HistoryKind::Command, Style::General, "Notes", "ja", 2_600)
     }
 }
 
@@ -44,8 +80,39 @@ fn dictation(ts: i64, style: Style, app: &str, lang: &str, duration_ms: u64, raw
     }
 }
 
-fn recent_entries(now: i64) -> [NewHistory; 6] {
+fn recent_entries(now: i64) -> [NewHistory; 8] {
     [
+        command(
+            now - 300,
+            "もっと短くして",
+            (
+                SourceKind::Selection,
+                "明日の会議は、午後4時から、第2会議室で開催いたしますので、ご出席をお願いいたします。",
+            ),
+            "明日16時から第2会議室で会議です。ご出席ください。",
+            Decision {
+                intent: Intent::Rewrite,
+                confidence: 0.96,
+                probabilities: [0.01, 0.96, 0.01, 0.01, 0.005, 0.002, 0.002, 0.001],
+                rewrite_op: Some((RewriteOp::Shorten, 0.93)),
+            },
+            ToolChoice::Confident,
+            CommandOutcome::Replaced,
+        ),
+        command(
+            now - 450,
+            "これを英語にして",
+            (SourceKind::Entered, "金曜日までに議事録を送ってください。"),
+            "Please send me the minutes by Friday.",
+            Decision {
+                intent: Intent::Translate,
+                confidence: 0.62,
+                probabilities: [0.2, 0.08, 0.62, 0.05, 0.01, 0.01, 0.01, 0.02],
+                rewrite_op: None,
+            },
+            ToolChoice::UserChoice,
+            CommandOutcome::Inserted,
+        ),
         dictation(
             now - 600,
             Style::builtin("slack").expect("built-in style"),

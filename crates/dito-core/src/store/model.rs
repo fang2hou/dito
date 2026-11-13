@@ -1,6 +1,7 @@
 //! The records the store reads and writes.
 
 use crate::config::EngineLabels;
+use crate::intent::{Decision, Intent};
 use crate::prompts::Style;
 use serde::{Deserialize, Serialize};
 
@@ -28,6 +29,80 @@ pub enum HistoryKind {
     /// The audio is kept so it can be transcribed again.
     Cancelled,
     Failed,
+    /// One command run. `raw` is its instruction, `polished` its result, `source` the text it worked on, and
+    /// `command` the rest of what happened; there is no audio.
+    Command,
+}
+
+/// How long each step took, in milliseconds. `None`: the step did not run, or the entry predates the figures. For a
+/// command, `polish` is the tool.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct StepMillis {
+    pub asr: Option<u64>,
+    pub polish: Option<u64>,
+}
+
+/// How the instruction of a command reached it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum InstructionOrigin {
+    Spoken,
+    Typed,
+}
+
+/// Why the tool of a command ran.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ToolChoice {
+    /// The decision passed the confidence gate.
+    Confident,
+    /// The decision did not pass it and the user picked in the choice window.
+    UserChoice,
+    /// The polish button skipped routing.
+    PolishButton,
+}
+
+/// Where the text a tool worked on came from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SourceKind {
+    Selection,
+    /// Typed into the command's text window because nothing was selected.
+    Entered,
+}
+
+/// How a command run ended.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CommandOutcome {
+    Replaced,
+    Inserted,
+    Copied,
+    /// The answer window was shown and closed.
+    Answered,
+    /// A window was closed without using its result.
+    Closed,
+    Cancelled,
+    Failed,
+}
+
+/// What a command row keeps besides the shared columns. It is stored as JSON in one column and is a persisted shape:
+/// changing it needs a migration of the stored JSON (ADR-0015).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CommandDetails {
+    /// `None` when the polish button skipped the instruction.
+    pub origin: Option<InstructionOrigin>,
+    /// What the router decided; `None` when it was skipped or failed.
+    pub decision: Option<Decision>,
+    /// `None` when no tool was chosen.
+    pub choice: Option<ToolChoice>,
+    /// The tool that ran, named by its intent.
+    pub tool: Option<Intent>,
+    pub source: Option<SourceKind>,
+    pub outcome: CommandOutcome,
+    pub route_ms: Option<u64>,
+    /// The local chat model that routed, labelled like `EngineLabels`.
+    pub router_engine: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -44,6 +119,10 @@ pub struct NewHistory {
     pub audio_path: Option<String>,
     /// The engines that produced the entry; both labels are `None` for an entry that never reached an engine.
     pub engines: EngineLabels,
+    pub timings: StepMillis,
+    /// The text a command worked on.
+    pub source: Option<String>,
+    pub command: Option<CommandDetails>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -61,6 +140,10 @@ pub struct HistoryEntry {
     pub audio_path: Option<String>,
     /// The engines that produced the entry; both labels are `None` for an entry recorded before they were kept.
     pub engines: EngineLabels,
+    pub timings: StepMillis,
+    pub source: Option<String>,
+    /// Set for a command row whose details this build can read.
+    pub command: Option<CommandDetails>,
 }
 
 impl HistoryEntry {

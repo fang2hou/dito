@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use gpui_kit::component::input::{Input, InputState};
+use gpui_kit::component::input::{Input, InputState, Textarea, TextareaState};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
@@ -154,6 +154,78 @@ impl RenderOnce for TextInput {
                         ),
                 )
         })
+    }
+}
+
+/// The chrome of [`text_area`]: a fill, an optional edge and the text metrics.
+#[derive(Clone, Copy)]
+pub struct TextAreaStyle {
+    pub bg: Hsla,
+    pub edge: Option<Hsla>,
+    pub radius: f32,
+    pub text_size: f32,
+    pub line_height: f32,
+    /// Left, top, right and bottom, inside the edge.
+    pub pad: [f32; 4],
+    /// Fills the parent's size and scrolls its text; `false` grows with the text, within the state's row limits.
+    pub fill: bool,
+    /// Space kept free at the bottom of a filled area, for a control drawn over it.
+    pub reserve_bottom: f32,
+}
+
+/// A multi-line editor that keeps focus ownership here, as [`text_input`] does for one line.
+pub fn text_area(state: &Entity<TextareaState>, style: TextAreaStyle) -> TextArea {
+    TextArea { state: state.clone(), style }
+}
+
+#[derive(IntoElement)]
+pub struct TextArea {
+    state: Entity<TextareaState>,
+    style: TextAreaStyle,
+}
+
+impl RenderOnce for TextArea {
+    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
+        let Self { state, style } = self;
+        let focus = state.read(cx).focus_handle(cx);
+        // The editor keeps its own padding (that of the medium input size) around the text, on top of any it is
+        // given. A side asking for less is pulled outward with a negative margin, so the text lands exactly at `pad`.
+        const EDITOR_PAD: [f32; 4] = [10., 8., 10., 8.];
+        let extra: [f32; 4] = std::array::from_fn(|i| style.pad[i] - EDITOR_PAD[i]);
+        let [l, t, r, b] = extra.map(|v| px(v.max(0.)));
+        let [ml, mt, mr, mb] = extra.map(|v| px(v.min(0.)));
+        let editor = Textarea::new(&state)
+            .appearance(false)
+            .bordered(false)
+            .text_size(px(style.text_size))
+            .font_weight(FontWeight::NORMAL)
+            .line_height(px(style.line_height))
+            .pl(l)
+            .pr(r)
+            .pt(t)
+            .pb(b)
+            .ml(ml)
+            .mr(mr)
+            .mt(mt)
+            .mb(mb);
+        let mut shell = div()
+            .id(("text-area", state.entity_id().as_u64() as usize))
+            .relative()
+            .w_full()
+            .rounded(px(style.radius))
+            .bg(style.bg)
+            .on_mouse_down_out(blur_on_outside(focus.clone()))
+            .on_mouse_down(MouseButton::Left, focus_on_click(focus));
+        if let Some(edge) = style.edge {
+            shell = shell.border_1().border_color(edge);
+        }
+        if style.fill {
+            shell.h_full().child(
+                div().absolute().top_0().left_0().right_0().bottom(px(style.reserve_bottom)).child(editor.h_full()),
+            )
+        } else {
+            shell.child(editor)
+        }
     }
 }
 

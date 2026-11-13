@@ -3,6 +3,7 @@ use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, OnceLock};
 
+use dito_core::intent::{Pool, Reading, Request};
 use dito_local::{AsrOutput, AsrRuntime, Example, LlmRuntime, RuntimeError, Sampling};
 use llama_cpp_2::context::LlamaContext;
 use llama_cpp_2::context::params::LlamaContextParams;
@@ -17,6 +18,7 @@ use llama_cpp_2::sampling::LlamaSampler;
 use llama_cpp_2::token::LlamaToken;
 
 use crate::qwen_text::{asr_prompt, is_hotword_echo, parse_output, strip_think};
+use crate::readout::{Pass, Reader};
 
 fn backend() -> Result<&'static LlamaBackend, RuntimeError> {
     static BACKEND: OnceLock<Result<LlamaBackend, String>> = OnceLock::new();
@@ -55,6 +57,9 @@ fn polish_sampler(sampling: &Sampling) -> LlamaSampler {
 }
 
 pub struct Chat {
+    /// The context decisions are read from, created on the first [`LlmRuntime::read`] and kept with the router's
+    /// prompt prefix decoded. Declared before `model` so it is dropped first.
+    reader: Mutex<Option<Reader>>,
     model: LlamaModel,
     /// Resolved once at load: a GGUF without a template is refused, never given a guessed format.
     template: LlamaChatTemplate,
@@ -72,7 +77,22 @@ impl Chat {
                 path.display()
             ))
         })?;
-        Ok(Self { model, template, gate: Mutex::new(()), disable_thinking })
+        Ok(Self { reader: Mutex::new(None), model, template, gate: Mutex::new(()), disable_thinking })
+    }
+
+    fn token_ids(&self, prompt: &str) -> Vec<i32> {
+        self.tokenize_prompt(prompt).into_iter().map(|token| token.0).collect()
+    }
+
+    /// Token positions `[start, end)` of the last occurrence of `span` in `prompt`, which has `total` tokens.
+    fn token_span(&self, prompt: &str, span: &str, total: usize) -> Result<(usize, usize), RuntimeError> {
+        let offset = prompt
+            .rfind(span)
+            .filter(|_| !span.is_empty())
+            .ok_or_else(|| RuntimeError::engine("the instruction is not in the rendered prompt"))?;
+        let start = self.tokenize_prompt(&prompt[..offset]).len();
+        let end = self.tokenize_prompt(&prompt[..offset + span.len()]).len().min(total);
+        if end > start { Ok((start, end)) } else { Err(RuntimeError::engine("the instruction has no tokens")) }
     }
 
     /// Earlier assistant turns get no think block: the hybrid-thinking checkpoints expect it only where they answer.
@@ -146,6 +166,36 @@ impl LlmRuntime for Chat {
             return Err(RuntimeError::Truncated);
         }
         Ok(strip_think(&generated.text))
+    }
+
+    fn read(&self, request: &Request, stop: &AtomicBool) -> Result<Reading, RuntimeError> {
+        let _one_at_a_time = self.gate.lock().map_err(|_| RuntimeError::LockPoisoned("model lock"))?;
+        if stop.load(Ordering::Relaxed) {
+            return Err(RuntimeError::Cancelled);
+        }
+        backend()?;
+        let prompt = self.render_prompt(request.system, &[], &request.user)?;
+        let tokens = self.token_ids(&prompt);
+        // An option of several tokens has no single logit that stands for answering with it.
+        let option_tokens = request
+            .options
+            .iter()
+            .map(|option| match self.model.vocab().tokenize(option.as_bytes(), false, false).as_slice() {
+                [token] => Ok(token.0),
+                other => Err(RuntimeError::engine(format!("option {option:?} is {} tokens, not one", other.len()))),
+            })
+            .collect::<Result<Vec<i32>, _>>()?;
+        let span = match request.parts.iter().any(|part| part.pool == Pool::Span) {
+            true => Some(self.token_span(&prompt, &request.span, tokens.len())?),
+            false => None,
+        };
+        let mut reader = self.reader.lock().map_err(|_| RuntimeError::LockPoisoned("reader lock"))?;
+        let reader = match &mut *reader {
+            Some(reader) => reader,
+            empty => empty.insert(Reader::new(&self.model)?),
+        };
+        let pass = Pass { tokens: &tokens, option_tokens: &option_tokens, span, parts: &request.parts };
+        reader.read(&pass, || Ok(self.token_ids(&self.render_prompt(request.system, &[], "")?)))
     }
 }
 

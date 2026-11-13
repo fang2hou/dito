@@ -186,6 +186,10 @@ impl Modifier {
         flags & self.spec().flag != 0
     }
 
+    pub(super) fn is_shift(self) -> bool {
+        matches!(self.spec().key, Some((Group::Shift, _)))
+    }
+
     pub fn id(self) -> &'static str {
         self.spec().id
     }
@@ -225,6 +229,11 @@ impl Mods {
 
     pub(super) fn is_empty(self) -> bool {
         self == Self::default()
+    }
+
+    /// Whether every modifier of `other` is held here, possibly with more.
+    pub(super) fn contains(self, other: Self) -> bool {
+        Group::DISPLAY_ORDER.into_iter().all(|g| !other.has(g) || self.has(g))
     }
 
     fn has(self, group: Group) -> bool {

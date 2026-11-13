@@ -37,6 +37,39 @@ pub fn row(p: &Palette, title: impl Into<SharedString>, control: impl IntoElemen
     r
 }
 
+/// [`row`] with a muted explanation under the title, at the same fixed height.
+pub fn row_described(
+    p: &Palette,
+    title: impl Into<SharedString>,
+    description: impl Into<SharedString>,
+    control: impl IntoElement,
+    last: bool,
+) -> Div {
+    let mut r = div()
+        .w_full()
+        .px(px(24.))
+        .h(px(CONTROL_H + 28.))
+        .flex()
+        .items_center()
+        .justify_between()
+        .gap(px(24.))
+        .child(
+            div()
+                .flex_1()
+                .min_w(px(0.))
+                .flex()
+                .flex_col()
+                .gap(px(2.))
+                .child(text(title, 14., FontWeight::MEDIUM, p.text))
+                .child(text(description, 12., FontWeight::NORMAL, p.muted)),
+        )
+        .child(div().flex().items_center().gap(px(8.)).flex_none().child(control));
+    if !last {
+        r = r.border_b_1().border_color(p.border);
+    }
+    r
+}
+
 pub fn group(p: &Palette, title: impl Into<SharedString>, rows: Vec<Div>) -> Div {
     let c = card(p).children(rows);
     div().w_full().flex().flex_col().gap(px(10.)).child(text(title, 13., FontWeight::BOLD, p.muted)).child(c)

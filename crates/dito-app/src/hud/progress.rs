@@ -67,16 +67,27 @@ fn slice_canvas(w: f32, x0: f32, x1: f32, fill: impl Into<Background> + 'static,
     .inset_0()
 }
 
-pub(super) fn progress_layer(frac: f32, w: f32, scale: Scale, p: &Palette, halo_strength: f32) -> impl IntoElement {
+pub(super) fn progress_layer(
+    frac: f32,
+    w: f32,
+    scale: Scale,
+    p: &Palette,
+    halo_strength: f32,
+    command: bool,
+) -> impl IntoElement {
     let x = inner_w(w) * frac.clamp(0., 1.);
-    let edge = theme::hud_color(p, "#AA8C40", "#E0C47D");
+    let (fill, edge) = if command {
+        (theme::hud_command_progress_fill(p), theme::hud_command_progress_edge(p))
+    } else {
+        (theme::hud_color(p, "#F6DA97", "#827554"), theme::hud_color(p, "#AA8C40", "#E0C47D"))
+    };
     let halo = hex_alpha(edge, halo_strength * if p.dark { 0.20 } else { 0.14 });
     let half_height =
         capsule_half_height(inner_w(w), INNER_H, x - 0.5).min(capsule_half_height(inner_w(w), INNER_H, x + 0.5));
     div()
         .absolute()
         .inset_0()
-        .child(slice_canvas(w, 0., x, theme::hud_color(p, "#F6DA97", "#827554"), scale))
+        .child(slice_canvas(w, 0., x, fill, scale))
         .child(slice_canvas(
             w,
             x - 4.,

@@ -17,7 +17,7 @@ One word per concept, in code, docs and conversation. When a name in the code di
 | Style | The writing rules that shape a polish prompt: General, built in (Slack, Teams, Herdr) or per app | `Style`, `BuiltinStyle`, `StylePrompt` | profile, preset |
 | Wordbook | Words the user wants spelled correctly, passed to ASR as hotwords and optionally to polish | `Store::words`, `PipelineJob::wordbook`, `wordbook_for_polish` | dictionary, glossary (that is this file), vocabulary (except the `reference_vocabulary` prompt tag, which the models read) |
 | Hotword | A wordbook word as ASR receives it | `AsrRequest::hotwords`, `is_hotword_echo` | vocabulary, keyword |
-| History | Stored dictation results with their audio | `HistoryEntry`, `HistoryKind` | log |
+| History | Stored dictation results with their audio, and one row for each command run with its instruction, decision, tool, source text, result, outcome and step times | `HistoryEntry`, `HistoryKind`, `CommandDetails` | log (the debug log is `dito_trace`, see [DEBUGGING.md](DEBUGGING.md)) |
 
 ## Engines and models
 
@@ -34,12 +34,32 @@ One word per concept, in code, docs and conversation. When a name in the code di
 | Backend | Only the trait through which core reaches local engines | `LocalBackend` | |
 | Settings | Everything the user can change, stored in `config.toml` | `Config`, `ConfigStore` | preferences, options |
 
+## Command routing
+
+How a command is decided is in [INTENT_ROUTING.md](INTENT_ROUTING.md); how it is shown is in `design:hud/command`.
+
+| Term | Meaning | Code | Avoid |
+| --- | --- | --- | --- |
+| Command | One run from the command shortcut to a replaced selection, an answer or a cancel | `RunKind::Command`, `controller` actor | agent, action |
+| Selection | The text selected in the app in front, captured when a command starts and again when its recording ends | `SelectionSource`, `CapturedSelection` | context, target |
+| Surrounding text | The rest of the focused field's text around the selection, read with the selection and cut to a budget for the tools, as reference only | `Surrounding` | selection, context |
+| Instruction | What the user asks for, spoken or typed, about the selection | `intent::request` | query, prompt (the prompt is what the model reads) |
+| Tool | What runs after the decision: one prompt for one intent, on the selection | `command` module | action, skill |
+| Command window | A small window above the capsule, opened only when the command needs a choice, text or a confirmation, or has an answer | `HudState::{Choosing, NeedsText, Confirm, Answer}` | panel, dialog, popup |
+| Intent | What an instruction asks for: polish, rewrite, translate, summarize, reply, ask, cancel or none | `Intent` | action, tool (a tool is what runs after the decision) |
+| Rewrite | Only the intent: changing length, tone, format, audience or wording on purpose | `Intent::Rewrite`, `RewriteOp` | as a word for the polish stage |
+| Router prompt | The fixed prompt that lists one lettered option per intent | `intent::system_prompt`, `router_system.txt` | |
+| Option | One lettered choice of the router prompt | `intent::OPTIONS` | for anything in the settings |
+| Reading | What one prompt pass returns with nothing generated | `Reading`, `LlmRuntime::read` | |
+| Head | A small fitted classifier over a reading, valid for one model file and one router prompt | `Head`, `Heads` | adapter, layer |
+| Decision | The chosen intent with its probability | `Decision` | |
+
 ## Interface
 
 | Term | Meaning | Code | Avoid |
 | --- | --- | --- | --- |
 | HUD | The floating capsule that shows progress | `hud/`, `HudState`, `HudView` | overlay, toast |
-| HUD state | One of hidden, listening, transcribing, polishing, inserted, copied, error | `HudState` | |
+| HUD state | For a dictation: hidden, listening, transcribing, polishing, inserted, copied, error. A command adds thinking, working, its windows and replaced | `HudState` | |
 | Tile | The UI control for one configuration; a UI word, never used in core | `ConfigTile`, `config_tiles/` | card (cards are the grouped containers) |
 | Page | One screen of the settings window | `settings/*` | tab |
 | Motion scope | The owner of animation state for one view | `MotionScope` | |
@@ -56,6 +76,7 @@ Code, docs and skills name a design section as `design:<id>` (for example `desig
 | Dictation flow, pipeline, controller | `dito-core` | [3](adr/0003-never-lose-speech.md), [5](adr/0005-reliable-delivery.md) |
 | Cloud ASR requests | `dito-core` (`provider/configured_asr`) | [7](adr/0007-declarative-cloud-asr.md) |
 | Local models and runtimes | `dito-local`, `dito-runtimes` | [2](adr/0002-local-first.md) |
+| Intent routing | `dito-core` (`intent`), read through `dito-local`'s `LlmRuntime` | |
 | Microphone | `dito-audio` | |
 | Shortcuts, permissions, insertion, Keychain | `dito-platform` | [6](adr/0006-minimal-permissions.md) |
 | Settings, schema versions | `dito-core` (`config`) | [10](adr/0010-one-home-per-setting.md), [15](adr/0015-versioned-persistence.md) |

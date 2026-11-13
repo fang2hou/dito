@@ -22,6 +22,9 @@ pub enum RuntimeError {
     Cancelled,
     #[error("output was cut off at the token limit")]
     Truncated,
+    /// The runtime generates text but cannot return logits and hidden states of a prompt pass.
+    #[error("this runtime cannot read a decision from its model")]
+    ReadUnsupported,
     #[error("{0}")]
     Engine(String),
 }

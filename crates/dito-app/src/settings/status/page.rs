@@ -15,6 +15,8 @@ use crate::settings::{self, Ctx, role};
 use crate::state::AppState;
 use crate::ui::{self, BtnKind, TestState, cbk, text};
 
+const LOG_REDRAW: std::time::Duration = std::time::Duration::from_millis(150);
+
 /// `design:settings/status`: can the user dictate now, and if not, what to fix.
 pub struct StatusPage {
     pub(super) st: Arc<AppState>,
@@ -24,6 +26,9 @@ pub struct StatusPage {
     pub(super) usage: UsageMeter,
     /// Lives only while the page is on screen: dropping it stops the permission and usage readings.
     refresh: Option<Task<()>>,
+    /// Redraws the log when lines arrive; held only while the page is on screen.
+    log_watch: Option<Task<()>>,
+    pub(super) log_scroll: ScrollHandle,
     motion: ui::MotionScope,
 }
 
@@ -57,6 +62,8 @@ impl StatusPage {
             accessibility_allowed: true,
             usage: UsageMeter::default(),
             refresh: None,
+            log_watch: None,
+            log_scroll: ScrollHandle::new(),
         }
     }
 
@@ -64,9 +71,11 @@ impl StatusPage {
     pub fn set_active(&mut self, active: bool, cx: &mut Context<Self>) {
         if !active {
             self.refresh = None;
+            self.log_watch = None;
             self.usage.stop();
             return;
         }
+        self.watch_log(cx);
         self.read();
         if self.checks.iter().all(|check| *check == TestState::Idle) {
             self.probe_providers(cx);
@@ -84,6 +93,21 @@ impl StatusPage {
             }
         }));
         cx.notify();
+    }
+
+    /// A burst of lines redraws once.
+    fn watch_log(&mut self, cx: &mut Context<Self>) {
+        let mut changes = self.st.log.subscribe();
+        self.log_scroll.scroll_to_bottom();
+        self.log_watch = Some(cx.spawn(async move |this, cx| {
+            while changes.changed().await.is_ok() {
+                cx.background_executor().timer(LOG_REDRAW).await;
+                changes.borrow_and_update();
+                if this.update(cx, |_, cx| cx.notify()).is_err() {
+                    break;
+                }
+            }
+        }));
     }
 
     fn read(&mut self) {
@@ -145,7 +169,8 @@ impl StatusPage {
                 .gap(px(28.))
                 .child(self.verdict(&c, ready))
                 .child(self.flow(&c, cx, steps))
-                .children(self.usage.table(&c)),
+                .children(self.usage.table(&c))
+                .child(self.log_group(&c, cx)),
         )
     }
 

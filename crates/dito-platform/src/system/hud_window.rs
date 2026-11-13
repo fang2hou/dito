@@ -1,10 +1,14 @@
 use std::ffi::c_void;
 use std::ptr::NonNull;
+use std::sync::atomic::{AtomicI32, Ordering};
 use std::time::Instant;
 
 use objc2::rc::Retained;
 use objc2::{MainThreadMarker, Message, class, msg_send};
-use objc2_app_kit::{NSPanel, NSScreen, NSStatusWindowLevel, NSView, NSWindow, NSWindowLevel, NSWindowStyleMask};
+use objc2_app_kit::{
+    NSApplicationActivationOptions, NSModalPanelWindowLevel, NSPanel, NSRunningApplication, NSScreen,
+    NSStatusWindowLevel, NSView, NSWindow, NSWindowLevel, NSWindowStyleMask, NSWorkspace,
+};
 use objc2_foundation::{NSPoint, NSRect, NSSize};
 
 use super::accessibility::reduce_motion;
@@ -27,6 +31,97 @@ pub struct HudWindowMove(Retained<NSWindow>, NSPoint);
 impl HudWindowMove {
     pub fn apply(self) {
         self.0.setFrameOrigin(self.1);
+    }
+}
+
+/// The process that was in front when a command window took the keyboard; 0 when dito itself was, or none is known.
+static SOURCE_APP: AtomicI32 = AtomicI32::new(0);
+/// The process the front was handed back to, until it is seen in front again; 0 when nothing is pending.
+static HANDED_BACK_TO: AtomicI32 = AtomicI32::new(0);
+
+/// Without `ActivateAllWindows`, only the key window comes forward. The cooperative form (no options) is refused for
+/// an app that is not in front.
+#[allow(deprecated)]
+const FORCE_FRONT: NSApplicationActivationOptions = NSApplicationActivationOptions::ActivateIgnoringOtherApps;
+
+/// The level while a text window is open. An input method's candidate and composition windows are drawn in the
+/// client's process at the Dock level (20, measured with `CGWindowListCopyWindowInfo` while composing Japanese and
+/// pinyin), so the status level (25) the HUD otherwise uses would cover them. The modal panel level stays above app
+/// windows and their floating panels, below the candidates.
+const TEXT_WINDOW_LEVEL: NSWindowLevel = NSModalPanelWindowLevel;
+
+fn frontmost_pid() -> Option<i32> {
+    NSWorkspace::sharedWorkspace().frontmostApplication().map(|app| app.processIdentifier())
+}
+
+/// Input methods only compose for the app in front: the panel receives the keys while another app is in front, but the
+/// system then offers them to that app's text client, and a Japanese or Chinese source types plain Latin. So dito takes
+/// the front while a text window is open, and remembers who had it. Only the key window comes forward, so a settings
+/// window behind stays behind.
+fn take_front() {
+    let own = std::process::id() as i32;
+    let front = frontmost_pid();
+    SOURCE_APP.store(front.filter(|pid| *pid != own).unwrap_or(0), Ordering::SeqCst);
+    HANDED_BACK_TO.store(0, Ordering::SeqCst);
+    if front != Some(own) {
+        NSRunningApplication::currentApplication().activateWithOptions(FORCE_FRONT);
+    }
+}
+
+/// Gives the front back to the app that had it, unless the user has already moved to another one. A window that closes
+/// while it holds the front calls this too, since no key change reaches it then.
+pub fn give_front_back() {
+    let source = SOURCE_APP.swap(0, Ordering::SeqCst);
+    if source == 0 || frontmost_pid() != Some(std::process::id() as i32) {
+        return;
+    }
+    if let Some(app) = NSRunningApplication::runningApplicationWithProcessIdentifier(source)
+        && app.activateWithOptions(FORCE_FRONT)
+    {
+        HANDED_BACK_TO.store(source, Ordering::SeqCst);
+    }
+}
+
+/// Whether the app that had the front before a text window took it has it again. `true` when nothing was handed
+/// back. Activation takes a few frames; what a command writes goes to the app in front, so it waits for this.
+pub fn source_app_in_front() -> bool {
+    let pending = HANDED_BACK_TO.load(Ordering::SeqCst);
+    let back = pending == 0 || frontmost_pid() == Some(pending);
+    if back {
+        HANDED_BACK_TO.store(0, Ordering::SeqCst);
+    }
+    back
+}
+
+/// Making a window key or resigning it fires gpui's key-status handler synchronously, and that handler needs the borrow
+/// of the app that is still held inside a window update. Apply it after releasing that borrow, as for
+/// [`HudWindowMove`]. Does nothing when the view had no window.
+pub struct HudKeyChange(Option<Retained<NSWindow>>, bool);
+
+impl HudKeyChange {
+    pub fn apply(self) {
+        let Self(Some(window), accepts) = self else { return };
+        if let Ok(panel) = window.clone().downcast::<NSPanel>() {
+            panel.setBecomesKeyOnlyIfNeeded(!accepts);
+        }
+        if accepts {
+            window.setLevel(TEXT_WINDOW_LEVEL);
+            if !window.isKeyWindow() {
+                window.makeKeyWindow();
+            }
+            take_front();
+        } else {
+            window.setLevel(NSStatusWindowLevel);
+            if window.isKeyWindow() {
+                window.resignKeyWindow();
+                if window.isKeyWindow() {
+                    // Leaving the screen and coming back also hands key status to the app in front.
+                    window.orderOut(None);
+                    window.orderFrontRegardless();
+                }
+            }
+            give_front_back();
+        }
     }
 }
 
@@ -108,6 +203,14 @@ impl<'a> HudNativeWindow<'a> {
             panel.setBecomesKeyOnlyIfNeeded(true);
             panel.setHidesOnDeactivate(false);
         }
+    }
+
+    /// `true`: the panel can become key and is made key by [`HudKeyChange::apply`], and dito takes the front (the app
+    /// that had it is remembered), so a text field in it receives typing and input methods compose. `false`: back to
+    /// the state [`Self::keep_panel_inactive`] sets; a panel that is key gives key status up and the app that had the
+    /// front gets it back, so its key window is key again.
+    pub fn set_accepts_key(&self, accepts: bool) -> HudKeyChange {
+        HudKeyChange(self.window(), accepts)
     }
 
     pub fn pointer(&self) -> Option<HudPointer> {

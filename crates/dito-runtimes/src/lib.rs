@@ -14,6 +14,8 @@ mod llama;
 #[cfg(any(feature = "llama", test))]
 #[cfg_attr(not(feature = "llama"), allow(dead_code))]
 mod qwen_text;
+#[cfg(feature = "llama")]
+mod readout;
 #[cfg(feature = "sherpa")]
 mod sherpa;
 

@@ -48,7 +48,13 @@ pub(super) fn pointer_hit(
         && x <= center + ERROR_NOTE_HALF_W
         && y >= top - ERROR_BUBBLE_H - ZONE_GAP
         && y <= top + CAPSULE_H + ZONE_GAP + ERROR_BUBBLE_H + ERROR_NOTE_BELOW_SLACK;
-    let in_zone = on_capsule || in_error_note || ((toggle || processing) && hover_zone && in_upper);
+    // The notice has no buttons and its reason never leaves the top, so only that strip and the capsule count.
+    let in_notice = matches!(state, HudState::NotRecognized)
+        && x >= center - ERROR_NOTE_HALF_W
+        && x <= center + ERROR_NOTE_HALF_W
+        && y >= top - ERROR_BUBBLE_H - ZONE_GAP
+        && y <= top + CAPSULE_H;
+    let in_zone = on_capsule || in_error_note || in_notice || ((toggle || processing) && hover_zone && in_upper);
     let button = hovered_button(state, left_button, right_button);
     let chip = toggle
         && hover_zone

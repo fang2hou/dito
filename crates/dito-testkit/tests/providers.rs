@@ -329,6 +329,9 @@ async fn full_pipeline_over_http_with_polish_outage_still_delivers_raw_text() {
             self.0.behavior(|b| b.fail_status = Some(503));
             self.1.polisher(c).await
         }
+        async fn router(&self, c: &Config) -> dito_core::error::ProviderResult<Arc<dyn dito_core::provider::Router>> {
+            self.1.router(c).await
+        }
     }
     let engines = Flip(&srv, f);
     let clip = tone();

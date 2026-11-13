@@ -78,6 +78,9 @@ pub enum Ic {
     Play,
     Stop,
     Ban,
+    Keyboard,
+    Send,
+    ArrowLeftRight,
 }
 
 impl Ic {
@@ -123,6 +126,9 @@ impl Ic {
             Self::Stop => "icons/lucide/square.svg",
             Self::Play => "icons/lucide/play.svg",
             Self::Ban => "icons/lucide/ban.svg",
+            Self::Keyboard => "icons/lucide/keyboard.svg",
+            Self::Send => "icons/lucide/send.svg",
+            Self::ArrowLeftRight => "icons/lucide/arrow-left-right.svg",
         }
     }
 }

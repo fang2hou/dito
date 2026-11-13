@@ -3,6 +3,7 @@ use dito_platform::hotkey::Shortcut;
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
+use crate::hotkeys::ShortcutTarget;
 use crate::services;
 use crate::settings::Ctx;
 use crate::ui::{self, text};
@@ -103,7 +104,7 @@ fn current_key(w: &Onboarding, c: &Ctx, cx: &mut Context<Onboarding>) -> (AnyEle
         .relative()
         .cursor_pointer()
         .on_hover(ui::hover_tracker(hero_id.clone()))
-        .on_click(cx.listener(|this, _, _, _| this.st.hotkeys.begin_capture()))
+        .on_click(cx.listener(|this, _, _, _| this.st.hotkeys.begin_capture(ShortcutTarget::Dictation)))
         .child(keycap(p, &current, true))
         .child(ui::hover_fill(&hero_id, Some(20.), ui::hex_alpha(p.seg, 0.6)))
         .into_any_element();

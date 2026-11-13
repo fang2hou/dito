@@ -3,7 +3,8 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use dito_core::controller::{Command, HudState};
+use dito_core::controller::{Command, HudState, RunKind};
+use dito_core::i18n::Tr;
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
@@ -22,6 +23,8 @@ use super::{Scale, WIN_PAD, px};
 mod accessories;
 mod capsule_stack;
 mod clock;
+mod command;
+pub(in crate::hud) use command::KeyStep;
 mod hit;
 mod language_chip;
 mod layout;
@@ -87,8 +90,15 @@ pub struct HudView {
     error_reason: super::motion::Spring,
     error_tick: Instant,
     recording_started: Option<Instant>,
+    /// The kind of run the capsule is drawn for, and when it last changed under a visible recording.
+    kind: RunKind,
+    kind_fade: Option<Instant>,
     countdown_exit: Option<u64>,
     countdown_tick: Option<u64>,
+    /// The command windows' fields and hit regions, created with the first one.
+    command: Option<command::CommandUi>,
+    #[cfg(feature = "screenshots")]
+    preview_kind: Option<RunKind>,
     #[cfg(feature = "screenshots")]
     wave_preview_gain: Option<f32>,
     /// Dropping the view cancels the hidden-capture frame loop.
@@ -103,6 +113,8 @@ impl HudView {
         let initial = rx.borrow_and_update().clone();
         let recording_started = st.dictation.recording_started();
         ui::observe(rx, cx, Self::enter_state);
+        // A dictation that becomes a command keeps its HUD state; only the look changes.
+        ui::notify_on_change(st.dictation.run_kinds(), cx);
         let mut view = Self { recording_started, ..Self::idle(st, initial) };
         view.start_processing(Fill::default());
         view
@@ -110,6 +122,7 @@ impl HudView {
 
     /// No listeners are attached.
     fn idle(st: Arc<AppState>, state: HudState) -> Self {
+        let kind = st.dictation.run_kind();
         Self {
             st,
             width_from: super::motion::Spring { position: capsule::rest_width(&state), velocity: 0. },
@@ -133,8 +146,13 @@ impl HudView {
             error_reason: super::motion::Spring::default(),
             error_tick: Instant::now(),
             recording_started: None,
+            kind,
+            kind_fade: None,
             countdown_exit: None,
             countdown_tick: None,
+            command: None,
+            #[cfg(feature = "screenshots")]
+            preview_kind: None,
             #[cfg(feature = "screenshots")]
             wave_preview_gain: None,
             #[cfg(feature = "screenshots")]
@@ -166,8 +184,11 @@ impl HudView {
             self.wave_tick = Instant::now();
             self.recording_started = self.st.dictation.recording_started();
             self.countdown_exit = None;
+            // A capsule that comes up draws in the run's kind at once, whatever kind the last one had.
+            self.kind = self.st.dictation.run_kind();
+            self.kind_fade = None;
         }
-        if matches!(state, HudState::Error { .. }) {
+        if matches!(state, HudState::Error { .. } | HudState::NotRecognized) {
             self.pointer_in_zone = false;
         }
         self.error_reason = super::motion::Spring::default();
@@ -176,6 +197,20 @@ impl HudView {
         self.since = Instant::now();
         self.start_processing(displayed);
         cx.notify();
+    }
+
+    /// Called at the start of every frame, so the colors and the fade start agree. A recording turned into the other
+    /// kind of run: while its capsule is on screen the colors fade, so the new kind shows only as the fade goes.
+    fn sync_kind(&mut self) {
+        if self.freeze.is_some() {
+            return;
+        }
+        let kind = self.st.dictation.run_kind();
+        if kind != self.kind {
+            self.kind = kind;
+            let visible = matches!(self.state, HudState::Listening { .. });
+            self.kind_fade = visible.then(Instant::now);
+        }
     }
 
     pub(super) fn send(&self, c: Command) {
@@ -221,12 +256,12 @@ impl HudView {
     pub(super) fn pointer_update(&mut self, x: f32, y: f32, cx: &mut Context<Self>) -> bool {
         let width = self.width();
         let cfg = self.st.cfg.get();
-        let chip_width = language_chip::chip_width(cfg.general.hud_languages());
+        let chip_width = self.chip_row_width(&cfg);
         let stop_width = buttons::stop_width(cfg.general.lang());
         let in_zone = hit::pointer_hit(&self.state, width, chip_width, stop_width, self.hover_zone, x, y).in_zone;
         if in_zone != self.pointer_in_zone {
             self.pointer_in_zone = in_zone;
-            if matches!(self.state, HudState::Error { .. }) {
+            if matches!(self.state, HudState::Error { .. } | HudState::NotRecognized) {
                 self.send(Command::ErrorHover(in_zone));
             }
             self.zone_hover(in_zone, cx);
@@ -236,7 +271,22 @@ impl HudView {
             self.hover_btn = pointer.button;
             cx.notify();
         }
-        pointer.interactive
+        pointer.interactive || self.over_command_region(x, y)
+    }
+
+    /// The width of the row above a listening capsule: the language selector and, in a command run, its two buttons.
+    pub(super) fn chip_row_width(&self, cfg: &dito_core::config::Config) -> f32 {
+        let chip = language_chip::chip_width(cfg.general.hud_languages());
+        if self.command_run() { language_chip::command_row_width(chip) } else { chip }
+    }
+
+    /// A run started by the command shortcut draws in blue.
+    pub(super) fn command_run(&self) -> bool {
+        #[cfg(feature = "screenshots")]
+        if let Some(kind) = self.preview_kind {
+            return kind == RunKind::Command;
+        }
+        self.kind == RunKind::Command
     }
 
     fn zone_hover(&mut self, over: bool, cx: &mut Context<Self>) {
@@ -269,7 +319,7 @@ impl Render for HudView {
         // The HUD window owns its transient motion state; without this its hover tweens would run in whatever ambient
         // scope happened to be left over.
         let scope = self.motion.handle();
-        ui::with_motion_scope(scope, || ui::tooltip_root(self.render_scoped(cx)))
+        ui::with_motion_scope(scope, || ui::tooltip_root(self.render_scoped(window, cx)))
     }
 }
 
@@ -287,7 +337,8 @@ impl HudView {
         });
     }
 
-    fn render_scoped(&mut self, cx: &mut Context<Self>) -> Div {
+    fn render_scoped(&mut self, window: &mut Window, cx: &mut Context<Self>) -> Div {
+        self.sync_kind();
         let first_processing_frame = std::mem::take(&mut self.processing_pending);
         if first_processing_frame {
             // Start on the first rendered frame, even if backend notifications arrived before it.
@@ -319,11 +370,20 @@ impl HudView {
             .pl(px(WIN_PAD))
             .pr(px(WIN_PAD))
             .gap(px(layout::ZONE_GAP))
+            .text_color(p.text)
             .font_family(ui::cjk_family());
-        if let Some(msg) = error_detail {
+        // The notice has no buttons, so its reason stays above the capsule (the reason spring only moves in an error).
+        let reason = match self.state {
+            HudState::NotRecognized => Some(lang.tr(Tr::HudNotRecognizedReason)),
+            _ => error_detail,
+        };
+        if let Some(msg) = reason {
             root = root.child(self.error_reason_bubble(msg, &p));
         }
         root = root.child(above).child(zone);
+        if let Some(windows) = self.command_layer(&p, lang, window, cx) {
+            root = root.child(windows);
+        }
         if let Some((seconds, active)) = countdown {
             root = root.child(self.countdown(&p, seconds, active));
         }

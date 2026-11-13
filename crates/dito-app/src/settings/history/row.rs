@@ -1,9 +1,10 @@
-use dito_core::i18n::Tr;
-use dito_core::store::{HistoryEntry, HistoryKind};
+use dito_core::i18n::{Lang, Tr};
+use dito_core::intent::Intent;
+use dito_core::store::{CommandOutcome, HistoryEntry, HistoryKind};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
-use super::disclosure::OriginalDisclosure;
+use super::disclosure::Disclosure;
 use super::page::HistoryPage;
 use crate::assets::Ic;
 use crate::services;
@@ -11,6 +12,9 @@ use crate::settings::Ctx;
 use crate::theme::Tint;
 use crate::timefmt::hhmm;
 use crate::ui::{self, BtnKind, Cb, MenuItem, MenuTone, cbk, text};
+
+/// Width of the label column in a command's disclosure.
+const COMMAND_LABEL_WIDTH: f32 = 72.;
 
 type PageAction = Box<dyn Fn(&mut HistoryPage, &mut Context<HistoryPage>)>;
 
@@ -28,32 +32,34 @@ impl HistoryPage {
             cx.notify();
         });
         let wrap = |cx: &mut Context<Self>, f: PageAction| -> Cb { cbk(cx, move |this: &mut Self, _, cx| f(this, cx)) };
-        let mut items = vec![
-            MenuItem {
+        let mut items = Vec::new();
+        // A command has no recording to transcribe or polish again, and its text is copied from the row.
+        if e.kind != HistoryKind::Command {
+            items.push(MenuItem {
                 icon: Some(Ic::Mic),
                 label: c.t(Tr::HistoryTranscribeAgain),
                 tone: MenuTone::Default,
                 on_click: wrap(cx, Box::new(move |t, cx| t.run_job(id, cx, services::transcribe_again))),
-            },
-            MenuItem {
+            });
+            items.push(MenuItem {
                 icon: Some(Ic::Sparkles),
                 label: c.t(Tr::HistoryPolishAgain),
                 tone: MenuTone::Default,
                 on_click: wrap(cx, Box::new(move |t, cx| t.run_job(id, cx, services::polish_again))),
-            },
-        ];
-        let raw = e.raw.clone();
-        items.push(MenuItem {
-            icon: Some(Ic::Copy),
-            label: c.t(Tr::HistoryCopyOriginal),
-            tone: MenuTone::Default,
-            on_click: wrap(
-                cx,
-                Box::new(move |t, _| {
-                    t.copy(&raw);
-                }),
-            ),
-        });
+            });
+            let raw = e.raw.clone();
+            items.push(MenuItem {
+                icon: Some(Ic::Copy),
+                label: c.t(Tr::HistoryCopyOriginal),
+                tone: MenuTone::Default,
+                on_click: wrap(
+                    cx,
+                    Box::new(move |t, _| {
+                        t.copy(&raw);
+                    }),
+                ),
+            });
+        }
         if let Some(path) = e.audio_path.clone() {
             items.push(MenuItem {
                 icon: Some(Ic::Play),
@@ -120,7 +126,54 @@ impl HistoryPage {
             HistoryKind::Dictation => self.dictation_parts(c, cx, e, parts),
             HistoryKind::Cancelled => self.cancelled_parts(c, cx, e, parts),
             HistoryKind::Failed => self.failed_parts(c, cx, e, parts),
+            HistoryKind::Command => self.command_parts(c, cx, e, parts),
         }
+    }
+
+    /// The result, with the instruction and the text it worked on in the same disclosure a dictation uses for its
+    /// original text. A run that ended without a result shows its error, if it has one.
+    fn command_parts(&self, c: &Ctx, cx: &mut Context<Self>, e: &HistoryEntry, parts: RowParts) -> RowParts {
+        let p = &c.p;
+        let id = e.id;
+        let RowParts { mut meta, mut body, mut actions } = parts;
+        let details = e.command.as_ref();
+        meta = meta.child(ui::tag(p, c.t(Tr::HistoryCommand), Tint::Command));
+        if let Some(tool) = details.and_then(|details| details.tool) {
+            meta = meta.child(ui::tag(p, intent_label(c.lang, tool), Tint::Neutral));
+        }
+        match details.map(|details| details.outcome) {
+            Some(CommandOutcome::Failed) => meta = meta.child(ui::tag(p, c.t(Tr::ModelsFailed), Tint::Danger)),
+            Some(CommandOutcome::Cancelled) => meta = meta.child(ui::tag(p, c.t(Tr::ModelsCancel), Tint::Warning)),
+            _ => {}
+        }
+        match (&e.polished, &e.error) {
+            (Some(result), _) => {
+                body = body.child(text(result.clone(), 14., FontWeight::NORMAL, p.text).line_height(relative(1.6)));
+            }
+            (None, Some(error)) => {
+                body = body.child(text(ui::error_line(c.lang, error), 14., FontWeight::NORMAL, p.muted));
+            }
+            (None, None) => {}
+        }
+        if expandable(e) {
+            let mut lines = Vec::new();
+            if !e.raw.trim().is_empty() {
+                lines.push((c.t(Tr::HistoryInstruction), SharedString::from(e.raw.clone())));
+            }
+            if let Some(source) = e.source.as_ref().filter(|source| !source.trim().is_empty()) {
+                lines.push((c.t(Tr::HistoryOriginal), SharedString::from(source.clone())));
+            }
+            let (open, p) = (self.expanded.contains(&id), *p);
+            body = body.gap(px(0.)).child(Disclosure { id, lines, min_label_width: COMMAND_LABEL_WIDTH, p, open });
+        }
+        if let Some(result) = e.polished.clone() {
+            actions = actions.child(ui::copy_button(
+                SharedString::from(format!("copy-{id}")),
+                p,
+                ui::cbk_copy(cx, move |this: &mut Self, _, _| this.copy(&result)),
+            ));
+        }
+        RowParts { meta, body, actions }
     }
 
     fn dictation_parts(&self, c: &Ctx, cx: &mut Context<Self>, e: &HistoryEntry, parts: RowParts) -> RowParts {
@@ -131,11 +184,9 @@ impl HistoryPage {
         meta = meta.child(ui::tag(p, ui::history_style_label(c.lang, &cfg.prompts, &e.style, &e.app), Tint::Blue));
         body = body.child(text(e.final_text().to_string(), 14., FontWeight::NORMAL, p.text).line_height(relative(1.6)));
         if expandable(e) {
-            let raw = e.raw.clone();
-            let original = c.t(Tr::HistoryOriginal);
-            let p = *p;
-            let open = self.expanded.contains(&id);
-            body = body.gap(px(0.)).child(OriginalDisclosure { id, raw, original, p, open });
+            let lines = vec![(c.t(Tr::HistoryOriginal), SharedString::from(e.raw.clone()))];
+            let (p, open) = (*p, self.expanded.contains(&id));
+            body = body.gap(px(0.)).child(Disclosure { id, lines, min_label_width: 0., p, open });
         }
         let t = e.final_text().to_string();
         actions = actions.child(ui::copy_button(
@@ -276,6 +327,19 @@ impl HistoryPage {
     }
 }
 
+fn intent_label(lang: Lang, intent: Intent) -> &'static str {
+    lang.tr(match intent {
+        Intent::Polish => Tr::HudIntentPolish,
+        Intent::Rewrite => Tr::HudIntentRewrite,
+        Intent::Translate => Tr::HudIntentTranslate,
+        Intent::Summarize => Tr::HudIntentSummarize,
+        Intent::Cancel => Tr::ModelsCancel,
+        Intent::Reply => Tr::HudIntentReply,
+        // Rows saved before the router had `ask` recorded a question as `none`.
+        Intent::Ask | Intent::None => Tr::HudIntentAsk,
+    })
+}
+
 /// A late leave from the previous row must not clear the new row's hint.
 pub(super) fn update_original_hover(current: &mut Option<i64>, id: i64, over: bool) -> bool {
     let next = if over { Some(id) } else { current.filter(|owner| *owner != id) };
@@ -285,7 +349,13 @@ pub(super) fn update_original_hover(current: &mut Option<i64>, id: i64, over: bo
 }
 
 pub(super) fn expandable(entry: &HistoryEntry) -> bool {
-    entry.kind == HistoryKind::Dictation && entry.polished.is_some() && !entry.raw.is_empty()
+    match entry.kind {
+        HistoryKind::Dictation => entry.polished.is_some() && !entry.raw.is_empty(),
+        HistoryKind::Command => {
+            !entry.raw.trim().is_empty() || entry.source.as_ref().is_some_and(|s| !s.trim().is_empty())
+        }
+        HistoryKind::Cancelled | HistoryKind::Failed => false,
+    }
 }
 
 #[cfg(test)]

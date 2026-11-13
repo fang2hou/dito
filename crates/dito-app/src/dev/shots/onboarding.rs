@@ -6,7 +6,7 @@ use dito_core::config::{Appearance, RecordMode};
 use gpui_kit::*;
 
 use super::capture::{close_window, render, save, theme_tag};
-use crate::hotkeys::CaptureState;
+use crate::hotkeys::{CaptureState, ShortcutTarget};
 use crate::onboarding::demo::{self, Frozen};
 use crate::onboarding::{self, Onboarding};
 use crate::services;
@@ -59,7 +59,7 @@ impl WizardShots<'_> {
         let (st, tag) = (self.st, self.tag);
         self.view.update(cx, |o, cx| o.show_step(3, cx));
         let before = st.cfg.get().general.shortcut.clone();
-        st.hotkeys.capture.send_replace(CaptureState::Waiting);
+        st.hotkeys.capture.send_replace(CaptureState::Waiting(ShortcutTarget::Dictation));
         self.shoot(cx, &format!("onboarding-3-capturing-{tag}.png")).await;
         services::save_config(st, |c| c.general.shortcut = CUSTOM_SHORTCUT.into());
         st.hotkeys.capture.send_replace(CaptureState::Idle);

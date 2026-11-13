@@ -6,7 +6,7 @@ use anyhow::Result;
 use dito_core::audio::AudioClip;
 use dito_core::factory::Engines;
 use dito_core::pipeline::{self, CancellationToken, PipelineError, PipelineJob, PolishJob};
-use dito_core::store::HistoryEntry;
+use dito_core::store::{HistoryEntry, StepMillis};
 
 use crate::state::AppState;
 
@@ -69,11 +69,12 @@ pub async fn transcribe_again(st: Arc<AppState>, entry: HistoryEntry) -> Result<
                 PipelineError::Cancelled => "cancelled".to_string(),
                 PipelineError::Failed(e) => e.to_string(),
             })?;
+            let timings = StepMillis { asr: Some(out.asr_ms), polish: out.polished.is_some().then_some(out.polish_ms) };
             let (id, raw, polished, lang) = (entry.id, out.raw, out.polished, out.lang.code().to_string());
             let labels = cfg.engine_labels();
             let store = st2.store.clone();
             st2.rt
-                .spawn_blocking(move || store.complete_history(id, &raw, polished.as_deref(), &lang, &labels))
+                .spawn_blocking(move || store.complete_history(id, &raw, polished.as_deref(), &lang, &labels, &timings))
                 .await
                 .map_err(|e| e.to_string())?
                 .map_err(|e| e.to_string())
@@ -104,12 +105,14 @@ pub async fn polish_again(st: Arc<AppState>, entry: HistoryEntry) -> Result<(), 
                 wordbook: pipeline::polish_wordbook(&cfg, &words),
                 lang: pipeline::transcript_lang(Some(&entry.lang), &entry.raw),
             };
+            let started = std::time::Instant::now();
             let text = pipeline::polish_text(polisher.as_ref(), polish_job).await.map_err(|e| e.to_string())?;
+            let polish_ms = started.elapsed().as_millis() as u64;
             let (id, text) = (entry.id, text);
             let polish_engine = cfg.polish.engine.label();
             let store = st2.store.clone();
             st2.rt
-                .spawn_blocking(move || store.set_polished(id, &text, &polish_engine))
+                .spawn_blocking(move || store.set_polished(id, &text, &polish_engine, polish_ms))
                 .await
                 .map_err(|e| e.to_string())?
                 .map_err(|e| e.to_string())
