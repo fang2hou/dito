@@ -146,6 +146,7 @@ impl AsrEditor {
             .border_color(p.border)
             .bg(p.sub)
             .overflow_hidden()
+            .child(scroll_handoff(source.clone(), self.page_scroll.clone()))
             .child(
                 div().flex_1().min_h(px(0.)).child(
                     Editor::new(source)
@@ -233,6 +234,42 @@ impl AsrEditor {
             vec![help.into_any_element()],
         )
     }
+}
+
+/// The editor keeps every wheel event over text that overflows, even at its first or last line. This watches each
+/// event before the editor does and, when neither the editor nor the page moved, scrolls the page by it.
+fn scroll_handoff(source: Entity<ui::EditorState>, page: ScrollHandle) -> impl IntoElement {
+    canvas(
+        |_, _, _| (),
+        move |bounds, (), window, _| {
+            window.on_mouse_event(move |event: &ScrollEvent, phase, window, cx| {
+                if phase != DispatchPhase::Capture || !bounds.contains(&event.position) {
+                    return;
+                }
+                let delta = event.delta.pixel_delta(window.line_height());
+                if delta.y == px(0.) || delta.y.abs() < delta.x.abs() {
+                    return;
+                }
+                let editor_before = source.read(cx).scroll_offset();
+                let page_before = page.offset();
+                let (source, page) = (source.clone(), page.clone());
+                window.defer(cx, move |window, cx| {
+                    if source.read(cx).scroll_offset() != editor_before || page.offset() != page_before {
+                        return;
+                    }
+                    let y = (page_before.y + delta.y).clamp(-page.max_offset().y, px(0.));
+                    if y != page_before.y {
+                        page.set_offset(point(page_before.x, y));
+                        window.refresh();
+                    }
+                });
+            });
+        },
+    )
+    .absolute()
+    .top_0()
+    .left_0()
+    .size_full()
 }
 
 fn editor_icon(id: &'static str, p: &Palette, label: SharedString, icon: Ic, action: ui::Cb) -> Stateful<Div> {

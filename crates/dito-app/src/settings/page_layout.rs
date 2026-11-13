@@ -40,7 +40,7 @@ pub fn page(
     title: SharedString,
     actions: Option<AnyElement>,
     body: impl IntoElement,
-) -> impl IntoElement {
+) -> Stateful<Div> {
     div()
         .id(id)
         .size_full()
