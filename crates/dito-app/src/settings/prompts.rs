@@ -16,7 +16,7 @@ use gpui_kit::*;
 use super::Ctx;
 use crate::services;
 use crate::state::AppState;
-use crate::ui::{self, InputEvent, InputState, Textarea, TextareaState};
+use crate::ui::{self, InputEvent, Textarea, TextareaState};
 
 enum Try {
     Idle,
@@ -31,7 +31,7 @@ pub struct PromptsPage {
     target: AppTarget,
     base: Entity<TextareaState>,
     instruction: Entity<TextareaState>,
-    samples: Vec<Entity<InputState>>,
+    samples: Vec<Entity<TextareaState>>,
     try_in: Entity<TextareaState>,
     try_out: Entity<TextareaState>,
     placeholder_lang: Lang,
@@ -309,10 +309,12 @@ impl PromptsPage {
         self.samples = list.into_iter().map(|s| self.sample_input(&s, window, cx)).collect();
     }
 
-    fn sample_input(&self, value: &str, window: &mut Window, cx: &mut Context<Self>) -> Entity<InputState> {
+    fn sample_input(&self, value: &str, window: &mut Window, cx: &mut Context<Self>) -> Entity<TextareaState> {
         let v = value.to_string();
-        let ent = cx.new(|cx| InputState::new(window, cx).default_value(v));
-        ui::notify_on_focus(&ent, window, cx);
+        let ent = cx.new(|cx| TextareaState::new(window, cx).auto_grow(1, usize::MAX).default_value(v));
+        let handle = ent.read(cx).focus_handle(cx);
+        cx.on_focus_in(&handle, window, |_, _, cx| cx.notify()).detach();
+        cx.on_focus_out(&handle, window, |_, _, _, cx| cx.notify()).detach();
         cx.subscribe_in(&ent, window, |this: &mut Self, _, ev: &InputEvent, _, cx| {
             if matches!(ev, InputEvent::Change) {
                 this.changed(Editor::Application, cx);
@@ -640,7 +642,15 @@ impl PromptsPage {
                 self.try_state = Try::Done(420);
             }
             "help" => ui::force_hover(&self.motion.handle(), ElementId::from("prompt-examples-help"), true),
-            "herdr" => self.switch(self.lang, AppTarget::builtin("herdr").expect("built-in app rules"), window, cx),
+            "herdr" => {
+                self.switch(self.lang, AppTarget::builtin("herdr").expect("built-in app rules"), window, cx);
+                let one_line = dito_core::i18n::sample_utterance(self.lang).to_owned();
+                let several_lines = self.drafts.default_app_rules(self.lang, &self.target).instruction;
+                for example in [one_line, several_lines] {
+                    let input = self.sample_input(&example, window, cx);
+                    self.samples.push(input);
+                }
+            }
             "custom" | "removeapp" => {
                 self.drafts.add_application("com.apple.AppStore", "App Store", &AppTarget::General);
                 self.apps = app_choices(&self.drafts);
