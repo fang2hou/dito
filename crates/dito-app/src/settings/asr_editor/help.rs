@@ -1,5 +1,5 @@
-//! The 設定の書き方 how-to (design:settings/cloud-models): a lead line, four numbered steps in the order their parts
-//! appear in the JSON, then the common errors.
+//! Cloud speech configuration how-to (`design:settings/cloud-models`): a lead line, four numbered steps in JSON order,
+//! then common validation errors.
 
 use dito_core::i18n::{Lang, Tr, fmt};
 use gpui_kit::*;

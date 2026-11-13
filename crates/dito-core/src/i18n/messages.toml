@@ -37,9 +37,6 @@ asr_editor.help_fix_path = { ja = "/ から始まる部分だけにします。"
 asr_editor.help_error_audio_file = { ja = "JSON の body に {{audio.file}} がある", en = "{{audio.file}} is in a JSON body", zh = "JSON 的 body 中用了 {{audio.file}}" }
 asr_editor.help_fix_audio_file = { ja = "{{audio.base64}} か {{audio.data_uri}} を使います。", en = "Use {{audio.base64}} or {{audio.data_uri}}.", zh = "改用 {{audio.base64}} 或 {{audio.data_uri}}。" }
 asr_editor.help_copy_hint = { ja = "AI に作ってもらうときは、この説明と接続先のドキュメントを一緒に渡します。\nAPI キーと録音は含まれません。", en = "To have an AI write it, hand over this reference together with the provider's documentation.\nIt contains no API key or recordings.", zh = "让 AI 代写时，请把这份说明和服务商的文档一起交给它。\n其中不包含 API 密钥和录音。" }
-asr_editor.edit = { ja = "編集", en = "Edit", zh = "编辑" }
-asr_editor.check = { ja = "自動チェック", en = "Automatic check", zh = "自动检查" }
-asr_editor.save = { ja = "保存", en = "Save", zh = "保存" }
 asr_editor.copy_help = { ja = "AI 用の説明をコピー", en = "Copy instructions for AI", zh = "复制 AI 配置说明" }
 asr_editor.language = { ja = "言語コード", en = "Language codes", zh = "语言代码" }
 asr_editor.undo = { ja = "元に戻す", en = "Undo", zh = "撤销" }
@@ -47,10 +44,8 @@ asr_editor.redo = { ja = "やり直す", en = "Redo", zh = "重做" }
 asr_editor.copy = { ja = "設定をコピー", en = "Copy configuration", zh = "复制配置" }
 asr_editor.pending = { ja = "確認しています…", en = "Checking\u2026", zh = "正在检查…" }
 asr_editor.valid = { ja = "エラーはありません", en = "No errors", zh = "没有错误" }
-asr_editor.validation = { ja = "入力内容の確認", en = "Validation", zh = "内容校验" }
 asr_editor.help = { ja = "ヘルプ", en = "Help", zh = "帮助" }
 asr_editor.cancel = { ja = "キャンセル", en = "Cancel", zh = "取消" }
-# ASR config validation reasons (`ValidationReason` in dito-core), shown after the field path under the editor.
 asr_validation.required = { ja = "値を入力してください。", en = "Enter a value.", zh = "不能为空。" }
 asr_validation.unsupported_version = { ja = "1 を指定してください。", en = "Must be 1.", zh = "必须为 1。" }
 asr_validation.invalid_url = { ja = "URL を確認してください。", en = "Enter a valid URL.", zh = "URL 格式不正确。" }
@@ -76,20 +71,6 @@ models.use = { ja = "使用する", en = "Use", zh = "使用" }
 models.downloaded = { ja = "ダウンロード済み", en = "Downloaded", zh = "已下载" }
 models.connection_settings = { ja = "接続設定", en = "Connection settings", zh = "连接设置" }
 
-# Dito UI copy. One entry per message, all languages side by side.
-#
-# - The dotted key is the template ID; build.rs turns it into a `Tr` enum variant
-#   (`nav.settings` -> `Tr::NavSettings`) and embeds every language at compile time.
-# - ja/en/zh are all required. An empty value or a language that forgets a placeholder
-#   fails the build.
-# - Placeholders are named (`{model}`), never positional `{}`; entries with placeholders
-#   also get a generated formatting function (`i18n::using_model(lang, &name)`) and live
-#   under `fmt.`, where a literal brace is doubled (`{{`, `}}`) as in `format!`. All other
-#   copy is shown as written, so its braces are literal text; a bare `{name}` there fails
-#   the build, since it is a placeholder outside `fmt.`.
-# - Adding a language: add the column here and one match arm in build.rs's LANGS.
-
-# --- sidebar navigation -------------------------------------------------------
 nav.settings = { ja = "設定", en = "Settings", zh = "设置" }
 nav.activity = { ja = "利用状況", en = "Activity", zh = "使用情况" }
 nav.general = { ja = "一般", en = "General", zh = "通用" }
@@ -100,7 +81,6 @@ nav.history = { ja = "履歴", en = "History", zh = "历史" }
 nav.stats = { ja = "統計", en = "Stats", zh = "统计" }
 nav.status = { ja = "ステータス", en = "Status", zh = "状态" }
 
-# --- general page -------------------------------------------------------------
 general.dictation = { ja = "音声入力", en = "Dictation", zh = "语音输入" }
 general.shortcut = { ja = "ショートカット", en = "Shortcut", zh = "快捷键" }
 general.shortcut_hint = { ja = "このキーを押すと、音声入力が始まります", en = "Press this key to start dictating", zh = "按下此键，开始语音输入" }
@@ -113,15 +93,16 @@ general.insert_method_hint = { ja = "文字を1字ずつ打ち込むか、まと
 general.polish_hint = { ja = "話した言葉を、読みやすい文章に整えます", en = "Turns what you say into easy-to-read text", zh = "把说的话整理成易读的文字" }
 general.key_input = { ja = "キー入力", en = "Key input", zh = "模拟键入" }
 general.paste = { ja = "貼り付け", en = "Paste", zh = "粘贴" }
-general.mute_music = { ja = "録音時のミュート", en = "Mute music", zh = "录音时静音" }
+general.mute_music = { ja = "録音時のミュート", en = "Mute during recording", zh = "录音时静音" }
 general.mute_music_hint = { ja = "話している間、ほかの音を一時的に消します", en = "Silences other sounds while you speak", zh = "说话时，暂时关闭其他声音" }
 general.off = { ja = "オフ", en = "Off", zh = "关闭" }
 general.speech_recognition = { ja = "音声認識", en = "Speech recognition", zh = "语音识别" }
 general.microphone = { ja = "マイク", en = "Microphone", zh = "麦克风" }
 general.microphone_hint = { ja = "声を拾うマイクを選びます", en = "Choose the microphone that picks up your voice", zh = "选择用来收音的麦克风" }
 general.preferred_language = { ja = "優先言語", en = "Preferred language", zh = "优先语言" }
-general.preferred_language_hint = { ja = "よく話す言語を選ぶと、聞き取りが正確になります", en = "Pick the language you speak most for more accurate listening", zh = "选择常说的语言，识别会更准确" }
-general.simplified_chinese = { ja = "中国語", en = "Simplified Chinese", zh = "简体中文" }
+general.preferred_language_hint = { ja = "よく話す言語を選ぶと、聞き取りが正確になります", en = "Pick the language you speak most for more accurate transcription", zh = "选择常说的语言，识别会更准确" }
+general.chinese = { ja = "中国語", en = "Chinese", zh = "中文" }
+general.simplified_chinese = { ja = "中国語（簡体字）", en = "Simplified Chinese", zh = "简体中文" }
 general.japanese = { ja = "日本語", en = "Japanese", zh = "日语" }
 general.english = { ja = "英語", en = "English", zh = "英语" }
 general.hud_language_shortcuts = { ja = "言語切替", en = "Language shortcuts", zh = "语言切换" }
@@ -158,20 +139,19 @@ general.confirm_before_replace = { ja = "置き換える前に確認する", en 
 general.confirm_before_replace_hint = { ja = "結果を確認してから選択範囲を書き換えます", en = "Review the result before it replaces the selection", zh = "确认结果后再替换所选内容" }
 general.command = { ja = "コマンド", en = "Command", zh = "命令" }
 general.command_shortcut_hint = { ja = "選択したテキストへの指示を始めます", en = "Starts a command on the selected text", zh = "对所选文本开始执行命令" }
-general.shortcut_taken_hint = { ja = "起動中は他のアプリで使えません。未使用のキーがおすすめ", en = "Other apps lose it while Dito runs. Pick an unused key", zh = "运行期间其他应用无法使用，请选未占用的按键" }
+general.shortcut_taken_hint = { ja = "起動中は他のアプリで使えません。未使用のキーがおすすめです", en = "Other apps can't use it while Dito runs. Pick an unused key", zh = "运行期间其他应用无法使用，建议选未占用的按键" }
 general.shortcut_same_as_dictation = { ja = "音声入力と同じ組み合わせは使えません", en = "Can't be the same as Dictation", zh = "不能与语音输入快捷键相同" }
 general.shortcut_same_as_command = { ja = "コマンドと同じ組み合わせは使えません", en = "Can't be the same as Command", zh = "不能与命令快捷键相同" }
 general.restore_default = { ja = "初期設定に戻す", en = "Restore default", zh = "恢复默认" }
 general.example_hint = { ja = "例：Acme", en = "e.g. Acme", zh = "例如：Acme" }
-general.search_words = { ja = "単語を検索", en = "Search words", zh = "搜索词条" }
+general.search_words = { ja = "単語を検索", en = "Search words", zh = "搜索单词" }
 general.waiting_for_input = { ja = "入力待ち", en = "Waiting for input", zh = "等待输入" }
 general.press_esc_to_cancel = { ja = "Esc で取り消し", en = "Press Esc to cancel", zh = "按 Esc 取消" }
-general.allow = { ja = "許可する", en = "Allow", zh = "去允许" }
+general.allow = { ja = "許可する", en = "Allow", zh = "允许" }
 general.automatic = { ja = "自動", en = "Automatic", zh = "自动" }
 general.included_in_auto_picking = { ja = "自動選択の対象です。クリックで手動のみにします。", en = "Included in automatic selection. Click to switch to manual only.", zh = "已加入自动选择。点击改为仅手动选择。" }
 general.manual_only_click_to_auto = { ja = "手動のみです。クリックで自動選択の対象にします。", en = "Manual only. Click to include in automatic selection.", zh = "仅手动选择。点击加入自动选择。" }
 
-# --- units (suffixes glued to numbers) ----------------------------------------
 units.seconds = { ja = "秒", en = "s", zh = "秒" }
 units.minutes = { ja = "分", en = "m", zh = "分" }
 units.hours = { ja = "時間", en = "hours", zh = "小时" }
@@ -180,7 +160,6 @@ units.items = { ja = "件", en = "items", zh = "条" }
 units.times = { ja = "回", en = "times", zh = "次" }
 units.chars_per_min = { ja = "字/分", en = "chars/m", zh = "字/分" }
 
-# --- stats page ---------------------------------------------------------------
 stats.characters = { ja = "文字数", en = "Characters", zh = "字数" }
 stats.average_speed = { ja = "平均話速", en = "Average speed", zh = "平均语速" }
 stats.time_saved = { ja = "節約した時間", en = "Time saved", zh = "节省的时间" }
@@ -219,7 +198,6 @@ fmt.stats_day_tip = { ja = "{date}：{count} 字", en = "{date}: {count} chars",
 fmt.stats_active_days = { ja = "利用した日 {count} 日", en = "Days used: {count}", zh = "使用 {count} 天" }
 fmt.stats_max_day = { ja = "最大 {count} 字", en = "Best day: {count} chars", zh = "单日最高 {count} 字" }
 
-# --- provider/engine error one-liners ----------------------------------------
 errors.no_response = { ja = "応答がありませんでした", en = "No response", zh = "没有响应" }
 errors.model_not_found = { ja = "モデルが見つかりません", en = "Model not found", zh = "找不到模型" }
 errors.bad_response = { ja = "応答を解釈できませんでした", en = "Could not read the response", zh = "无法解析响应" }
@@ -230,12 +208,11 @@ errors.connect_failed = { ja = "接続できませんでした", en = "Could not
 errors.too_many_requests = { ja = "リクエストが多すぎます", en = "Too many requests", zh = "请求过多" }
 errors.generic = { ja = "うまくいきませんでした", en = "Something went wrong", zh = "出了点问题" }
 
-# --- models page --------------------------------------------------------------
 models.state = { ja = "モデルの状態", en = "Model status", zh = "模型状态" }
 models.polish = { ja = "文章整形", en = "Polish", zh = "文本润色" }
 models.polish_short = { ja = "整形", en = "Polish", zh = "润色" }
 models.polish_off = { ja = "整形は無効", en = "Polish is off", zh = "润色未启用" }
-models.dictation = { ja = "音声認識", en = "Dictation", zh = "语音识别" }
+models.dictation = { ja = "音声認識", en = "Speech recognition", zh = "语音识别" }
 models.dictation_desc = { ja = "音声をテキストに変換します。", en = "Converts speech to text.", zh = "将语音转换为文字。" }
 models.polish_desc = { ja = "フィラーの除去や句読点を整え、プロンプトを適用します。", en = "Removes fillers, fixes punctuation, and applies your prompt.", zh = "去除口头禅、整理标点，并应用你的提示词。" }
 models.local = { ja = "ローカル", en = "Local", zh = "本地" }
@@ -260,7 +237,7 @@ models.extra_placeholder = { ja = '例：{"seed": 42}', en = 'e.g. {"seed": 42}'
 models.cloud_number_placeholder = { ja = "既定値", en = "Default", zh = "默认值" }
 models.local_number_placeholder = { ja = "推奨値", en = "Recommended", zh = "推荐值" }
 models.save_failed = { ja = "設定を保存できませんでした。", en = "Could not save the settings.", zh = "无法保存设置。" }
-models.delete_configuration_title = { ja = "設定を削除しますか？", en = "Delete this configuration?", zh = "要删除这个设置吗？" }
+models.delete_configuration_title = { ja = "設定を削除しますか？", en = "Delete this configuration?", zh = "要删除这项配置吗？" }
 models.checking = { ja = "接続確認中", en = "Checking", zh = "正在检查连接" }
 models.connection_error = { ja = "接続エラー", en = "Connection error", zh = "连接错误" }
 models.latency = { ja = "応答時間", en = "Response time", zh = "响应时间" }
@@ -272,10 +249,10 @@ models.endpoint = { ja = "エンドポイント", en = "Endpoint", zh = "端点"
 models.deployment = { ja = "デプロイ名", en = "Deployment", zh = "部署名称" }
 models.api_key = { ja = "API キー", en = "API key", zh = "API 密钥" }
 models.reasoning_effort = { ja = "思考強度", en = "Reasoning effort", zh = "推理强度" }
-models.new_configuration = { ja = "新しい設定", en = "New configuration", zh = "新设置" }
+models.new_configuration = { ja = "新しい設定", en = "New configuration", zh = "新配置" }
 models.no_model = { ja = "モデル未設定", en = "No model set", zh = "未设置模型" }
 models.create_from_template = { ja = "テンプレートから作成", en = "Create from template", zh = "从模板创建" }
-models.duplicate_configuration = { ja = "選択中の設定を複製", en = "Duplicate the selected one", zh = "复制当前设置" }
+models.duplicate_configuration = { ja = "選択中の設定を複製", en = "Duplicate selected", zh = "复制当前配置" }
 models.aws_profile = { ja = "AWS プロファイル", en = "AWS profile", zh = "AWS 配置文件" }
 models.region = { ja = "リージョン", en = "Region", zh = "区域" }
 models.model_id = { ja = "モデル ID", en = "Model ID", zh = "模型 ID" }
@@ -283,23 +260,19 @@ models.base_url = { ja = "ベース URL", en = "Base URL", zh = "基础 URL" }
 models.no_profiles = { ja = "プロファイルなし", en = "No profiles", zh = "无配置文件" }
 models.test_connection = { ja = "接続テスト", en = "Test connection", zh = "测试连接" }
 models.failed = { ja = "失敗", en = "Failed", zh = "失败" }
-models.click_to_test_again = { ja = "クリックして再テスト", en = "Click to test again", zh = "点击重新测试" }
-models.click_to_retry = { ja = "クリックして再試行", en = "Click to retry", zh = "点击重试" }
 models.folder = { ja = "ローカルモデルの保存先", en = "Local model folder", zh = "本地模型存放位置" }
 models.change_folder = { ja = "フォルダを変更", en = "Change folder", zh = "更改文件夹" }
 models.pause = { ja = "一時停止", en = "Pause", zh = "暂停" }
+models.paused = { ja = "一時停止中", en = "Paused", zh = "已暂停" }
 models.verifying = { ja = "検証中", en = "Verifying", zh = "正在校验" }
-models.download_failed = { ja = "ダウンロードに失敗しました", en = "Download failed", zh = "下载失败" }
-models.verify_failed = { ja = "検証に失敗しました", en = "Verification failed", zh = "校验失败" }
 models.downloading_bg = { ja = "バックグラウンドでダウンロード中：", en = "Downloading in the background: ", zh = "正在后台下载：" }
 models.cancel = { ja = "取り消し", en = "Cancel", zh = "取消" }
-models.start = { ja = "実行", en = "Run", zh = "运行" }
+models.start = { ja = "起動", en = "Start", zh = "启动" }
 models.stop = { ja = "停止", en = "Stop", zh = "停止" }
 models.restart = { ja = "再起動", en = "Restart", zh = "重新启动" }
 models.download_again = { ja = "再ダウンロード", en = "Download again", zh = "重新下载" }
 models.delete = { ja = "削除", en = "Delete", zh = "删除" }
 
-# --- wordbook page ----------------------------------------------------------
 wordbook.word = { ja = "単語", en = "Word", zh = "单词" }
 wordbook.add = { ja = "追加", en = "Add", zh = "添加" }
 wordbook.import = { ja = "インポート", en = "Import", zh = "导入" }
@@ -308,33 +281,30 @@ wordbook.same_spelling = { ja = "整形でも同じ表記を使う", en = "Use t
 wordbook.no_words_yet = { ja = "まだ単語がありません", en = "No words yet", zh = "还没有单词" }
 wordbook.words_passed_to_asr = { ja = "登録した単語は音声認識に渡されます。", en = "Added words are passed to speech recognition.", zh = "添加的单词会传给语音识别。" }
 wordbook.words_sent_to_polish = { ja = "整形モデルにも単語を渡し、表記をそろえます。", en = "Also sends your words to the polish model to keep spelling consistent.", zh = "同时把单词传给润色模型，统一写法。" }
-wordbook.add_failed = { ja = "単語を追加できませんでした。", en = "Could not add the word.", zh = "无法添加词语。" }
+wordbook.add_failed = { ja = "単語を追加できませんでした。", en = "Could not add the word.", zh = "无法添加单词。" }
 wordbook.delete_failed = { ja = "単語を削除できませんでした。", en = "Could not delete the selected words.", zh = "无法删除所选单词。" }
 wordbook.exit_selection = { ja = "選択を終了", en = "Exit selection", zh = "退出选择" }
 wordbook.delete_selected = { ja = "選択した単語を削除", en = "Delete selected words", zh = "删除所选单词" }
 wordbook.delete_description = { ja = "選択した単語を単語帳から削除します。", en = "The selected words will be removed from your wordbook.", zh = "将从单词本中删除所选单词。" }
 fmt.wordbook_selected = { ja = "{count} 件を選択中", en = "{count} selected", zh = "已选 {count} 项" }
-fmt.wordbook_delete_title = { ja = "{count} 件の単語を削除しますか？", en = "Delete selected words ({count})?", zh = "删除选中的 {count} 个单词？" }
+fmt.wordbook_delete_title = { ja = "{count} 件の単語を削除しますか？", en = "Delete selected words ({count})?", zh = "要删除选中的 {count} 个单词吗？" }
 wordbook.import_failed = { ja = "インポートできませんでした。ファイルの内容を確認してください。", en = "Could not import. Check the file's contents.", zh = "导入失败，请检查文件内容。" }
 wordbook.export_failed = { ja = "エクスポートできませんでした。保存先を確認してください。", en = "Could not export. Check the destination.", zh = "导出失败，请检查保存位置。" }
 wordbook.no_hotword_support = { ja = "現在のモデルはホットワードに対応していません。対応する音声認識モデルを選ぶと有効になります。", en = "The current model does not support hotwords. Select a speech recognition model that supports them to use this feature.", zh = "当前模型不支持热词，选择支持热词的语音识别模型后即可生效。" }
 
-# --- prompts page -------------------------------------------------------------
 prompts.base = { ja = "共通ルール", en = "Common rules", zh = "通用规则" }
 prompts.examples = { ja = "書き方の例（任意）", en = "Writing examples (optional)", zh = "写法示例（可选）" }
 prompts.restore_defaults = { ja = "初期設定に戻す", en = "Restore defaults", zh = "恢复默认" }
 prompts.try_it = { ja = "整形を試す", en = "Try polishing", zh = "试试润色" }
-prompts.applied_first = { ja = "すべてのスタイルで最初に適用", en = "Applied first to every style", zh = "所有风格都会先应用" }
 prompts.sample_button = { ja = "試してみる", en = "Try it", zh = "试一试" }
 
-# --- history page -------------------------------------------------------------
 history.search = { ja = "履歴を検索", en = "Search history", zh = "搜索历史" }
 history.all = { ja = "すべて", en = "All", zh = "全部" }
 history.today = { ja = "今日", en = "Today", zh = "今天" }
 history.yesterday = { ja = "昨日", en = "Yesterday", zh = "昨天" }
 history.this_week = { ja = "今週", en = "This week", zh = "本周" }
 history.this_month = { ja = "今月", en = "This month", zh = "本月" }
-history.all_styles = { ja = "すべてのスタイル", en = "All styles", zh = "所有风格" }
+history.all_apps = { ja = "すべてのアプリ", en = "All apps", zh = "所有应用" }
 history.show_original = { ja = "原文を表示", en = "Show original", zh = "展开原文" }
 history.hide_original = { ja = "原文を閉じる", en = "Hide original", zh = "收起原文" }
 history.original = { ja = "原文", en = "Original", zh = "原文" }
@@ -349,7 +319,6 @@ history.open = { ja = "履歴を開く", en = "Open History", zh = "打开历史
 history.command = { ja = "コマンド", en = "Command", zh = "命令" }
 history.instruction = { ja = "指示", en = "Instruction", zh = "指令" }
 
-# --- status page --------------------------------------------------------------
 status.check_all = { ja = "再確認", en = "Recheck", zh = "重新检查" }
 status.ready = { ja = "準備ができています", en = "Ready to dictate", zh = "已准备就绪" }
 fmt.status_ready_summary = { ja = "{key} を押して話すと、文章が入力されます。", en = "Press {key} and speak, and the text is typed for you.", zh = "按下 {key} 说话，文字就会输入。" }
@@ -386,29 +355,27 @@ status.log_title = { ja = "ログ", en = "Log", zh = "日志" }
 status.log_detail = { ja = "詳しく記録する", en = "Detailed log", zh = "详细记录" }
 status.local_stopped = { ja = "ローカルモデルが停止しています", en = "Local model stopped", zh = "本地模型已停止" }
 status.running_locally = { ja = "ローカルで稼働中", en = "Running locally", zh = "本地运行中" }
-status.running_via_provider = { ja = "プロバイダーで稼働中", en = "Running via provider", zh = "通过服务商运行中" }
+status.running_via_provider = { ja = "クラウドで稼働中", en = "Running in the cloud", zh = "云端运行中" }
 status.allowed = { ja = "許可済み", en = "Allowed", zh = "已允许" }
 status.not_allowed = { ja = "未許可", en = "Not allowed", zh = "未允许" }
 status.accessibility = { ja = "アクセシビリティ", en = "Accessibility", zh = "辅助功能" }
 status.open_system_settings = { ja = "システム設定を開く", en = "Open System Settings", zh = "打开系统设置" }
 status.need_accessibility = { ja = "アクセシビリティが許可されていません。ショートカットを検知できません。", en = "Accessibility permission is required to detect shortcuts.", zh = "未允许辅助功能，无法检测快捷键。" }
 
-# --- HUD ----------------------------------------------------------------------
 hud.language_ja_short = { ja = "日", en = "日", zh = "日" }
-hud.language_zh_short = { ja = "简", en = "简", zh = "简" }
+hud.language_zh_short = { ja = "中", en = "中", zh = "中" }
 hud.transcribing = { ja = "認識中", en = "Transcribing", zh = "识别中" }
 hud.polishing = { ja = "整形中", en = "Polishing", zh = "润色中" }
 hud.error = { ja = "エラー", en = "Error", zh = "出错" }
 hud.not_recognized = { ja = "未認識", en = "Not recognized", zh = "未识别" }
 hud.not_recognized_reason = { ja = "指示を認識できませんでした", en = "The instruction wasn't recognized", zh = "没有识别出指令" }
 hud.stop = { ja = "中止", en = "Stop", zh = "中止" }
-hud.finish = { ja = "ディクテーションを終了", en = "Finish dictation", zh = "结束听写" }
-hud.cancel = { ja = "ディクテーションをキャンセル", en = "Cancel dictation", zh = "取消听写" }
+hud.finish = { ja = "録音を完了", en = "Finish recording", zh = "完成录音" }
+hud.cancel = { ja = "録音を取り消し", en = "Cancel recording", zh = "取消录音" }
 hud.copied = { ja = "コピーした！", en = "Copied!", zh = "已复制！" }
 hud.close = { ja = "閉じる", en = "Close", zh = "关闭" }
 hud.retry = { ja = "再試行", en = "Retry", zh = "重试" }
 hud.open_settings = { ja = "設定を開く", en = "Open settings", zh = "打开设置" }
-# command mode
 hud.thinking = { ja = "思考中", en = "Thinking", zh = "思考中" }
 hud.working = { ja = "処理中", en = "Working", zh = "处理中" }
 hud.choosing = { ja = "選択待ち", en = "Choose one", zh = "等待选择" }
@@ -431,7 +398,6 @@ hud.instruction_placeholder = { ja = "指示を入力", en = "Type an instructio
 hud.text_placeholder = { ja = "テキストを入力", en = "Enter text", zh = "输入文本" }
 hud.text_prompt = { ja = "対象のテキストを入力してください", en = "Enter the text to work on", zh = "请输入要处理的文本" }
 
-# --- menubar / tray -----------------------------------------------------------
 menubar.view_status = { ja = "ステータスを見る", en = "View status", zh = "查看状态" }
 menubar.add_word = { ja = "単語帳に単語を追加…", en = "Add Word to Wordbook…", zh = "向单词本添加单词…" }
 menubar.settings = { ja = "設定…", en = "Settings…", zh = "设置…" }
@@ -443,11 +409,8 @@ menubar.stopped = { ja = "停止済み", en = "Stopped", zh = "已停止" }
 menubar.resume = { ja = "再開", en = "Resume", zh = "继续" }
 menubar.download = { ja = "ダウンロード", en = "Download", zh = "下载" }
 menubar.show_in_finder = { ja = "Finder で表示", en = "Show in Finder", zh = "在访达中显示" }
-menubar.free = { ja = "空き", en = "Free", zh = "可用" }
-menubar.connecting = { ja = "接続中…", en = "Connecting…", zh = "连接中…" }
 menubar.working = { ja = "処理中…", en = "Working…", zh = "处理中…" }
 
-# --- startup failure window (opens instead of exiting when settings or history cannot be used) ---
 startup.unreadable_title = { ja = "設定を読み込めませんでした", en = "Could not load settings", zh = "无法读取设置" }
 startup.unreadable_body = { ja = "設定ファイルの内容に誤りがあります。修正して開き直すか、初期設定に戻してください。", en = "The settings file has an error. Fix it and reopen Dito, or restore the default settings.", zh = "设置文件内容有误。请修正后重新打开，或恢复默认设置。" }
 startup.unreadable_hint = { ja = "今の設定ファイルはバックアップとして残ります。履歴、単語帳、API キーは変わりません。", en = "The current file is kept as a backup. History, the wordbook and API keys do not change.", zh = "当前的设置文件会保留为备份。历史记录、单词本和 API 密钥不受影响。" }
@@ -456,9 +419,8 @@ startup.newer_body = { ja = "このデータは新しい Dito で保存されて
 fmt.startup_newer_version = { ja = "形式のバージョン：{found}（この Dito が開けるのは {supported} まで）", en = "Format version: {found} (this Dito opens up to {supported})", zh = "格式版本：{found}（此版本的 Dito 最高支持 {supported}）" }
 startup.quit = { ja = "終了", en = "Quit", zh = "退出" }
 
-# --- onboarding wizard --------------------------------------------------------
-onboarding.step.permissions = { ja = "権限付与", en = "Permissions", zh = "授权" }
-onboarding.step.how_to = { ja = "使い方", en = "How to", zh = "使用方法" }
+onboarding.step.permissions = { ja = "権限", en = "Permissions", zh = "权限" }
+onboarding.step.how_to = { ja = "使い方", en = "How to", zh = "用法" }
 onboarding.step.engine = { ja = "エンジン", en = "Engine", zh = "引擎" }
 onboarding.step.prepare = { ja = "準備", en = "Prepare", zh = "准备" }
 onboarding.step.try = { ja = "試す", en = "Try", zh = "试一试" }
@@ -468,7 +430,7 @@ onboarding.get_started = { ja = "はじめる", en = "Get started", zh = "开始
 onboarding.done = { ja = "完了", en = "Done", zh = "完成" }
 onboarding.run_again = { ja = "やり直す", en = "Run again", zh = "重新开始" }
 onboarding.tagline = { ja = "想いを、そのまま文字へ。", en = "From thought to text, effortlessly.", zh = "所想即所写，从未如此简单。" }
-onboarding.allow_permissions = { ja = "権限を許可する", en = "Allow permissions", zh = "允许权限" }
+onboarding.allow_permissions = { ja = "権限を許可する", en = "Allow permissions", zh = "授予权限" }
 onboarding.permissions_desc = { ja = "Dito を使うには、次の 2 つを許可してください。", en = "Dito needs these two permissions to work.", zh = "使用 Dito 需要以下两项权限。" }
 onboarding.card.mic = { ja = "声を録音して音声認識に使います。", en = "Records your voice for speech recognition.", zh = "录制声音用于语音识别。" }
 onboarding.card.accessibility = { ja = "文章をカーソル位置に入力します。", en = "Types the text at your cursor.", zh = "把文字输入到光标处。" }
@@ -483,7 +445,7 @@ onboarding.press_any_key = { ja = "使いたいキーを押してください。
 onboarding.to_cancel = { ja = "で取り消し", en = "to cancel", zh = "取消" }
 onboarding.click_to_record = { ja = "クリックして、好きなキーを登録できます。", en = "Click to record any key you like.", zh = "点击即可录制任意按键。" }
 onboarding.recommended = { ja = "おすすめ", en = "Recommended", zh = "推荐" }
-onboarding.run_locally = { ja = "ローカルで実行しますか？", en = "Run locally or via a provider?", zh = "在本地运行吗？" }
+onboarding.run_locally = { ja = "ローカルとクラウドのどちらを使いますか？", en = "Run locally or in the cloud?", zh = "使用本地还是云端？" }
 onboarding.choose_engine_desc = { ja = "音声の認識と整形をどこで行うかを選びます。あとから「モデル」で変更できます。", en = "Choose where speech recognition and polishing run. You can change it later in Models.", zh = "选择语音识别和润色在哪里运行，之后可在「模型」中更改。" }
 onboarding.local_card.privacy = { ja = "音声は Mac の外に出ません", en = "Audio never leaves your Mac", zh = "音频不会离开你的 Mac" }
 onboarding.local_card.offline = { ja = "オフラインでも使えます", en = "Works offline", zh = "离线也能使用" }
@@ -503,8 +465,7 @@ onboarding.tier.standard = { ja = "標準", en = "Standard", zh = "标准" }
 onboarding.tier.standard_desc = { ja = "バランス型", en = "Balanced", zh = "均衡" }
 onboarding.tier.high = { ja = "高品質", en = "High quality", zh = "高品质" }
 onboarding.tier.high_desc = { ja = "精度重視", en = "Most accurate", zh = "精度优先" }
-onboarding.connect_provider = { ja = "音声認識サービスに接続", en = "Connect to a provider", zh = "连接服务商" }
-onboarding.connect_provider_desc = { ja = "使うプロバイダーを選び、接続を確認します。あとから「モデル」で変更できます。", en = "Choose a provider and test the connection. You can change it later in Models.", zh = "选择服务商并测试连接，之后可在「模型」中更改。" }
+onboarding.connect_provider = { ja = "クラウドの音声認識に接続", en = "Connect cloud speech recognition", zh = "连接云端语音识别" }
 onboarding.ready = { ja = "準備できました", en = "Ready", zh = "已就绪" }
 onboarding.waiting = { ja = "待機中", en = "Waiting", zh = "等待中" }
 onboarding.try_title = { ja = "試してみましょう", en = "Give it a try", zh = "来试一试" }
@@ -513,7 +474,6 @@ onboarding.try_hold_desc = { ja = "録音のショートカットを押したま
 onboarding.text_appears_here = { ja = "ここに入力されます", en = "Your text appears here", zh = "文字会出现在这里" }
 onboarding.try_speaking = { ja = "話してみてください…", en = "Try speaking…", zh = "试着说点什么…" }
 
-# --- "how to use" demo panel (wizard art) -------------------------------------
 demo.key = { ja = "キー", en = "Key", zh = "按键" }
 demo.released = { ja = "離している", en = "Released", zh = "已松开" }
 demo.held_down = { ja = "押し続けている", en = "Held down", zh = "按住中" }
@@ -532,12 +492,10 @@ models.japanese_focus = { ja = "日本語向け", en = "Japanese-focused", zh = 
 models.english_focus = { ja = "英語向け", en = "English-focused", zh = "面向英语" }
 models.chinese_focus = { ja = "中国語向け", en = "Chinese-focused", zh = "面向中文" }
 
-
-
 prompts.other = { ja = "その他", en = "Other", zh = "其他" }
-prompts.application_settings = { ja = "アプリ別の設定", en = "App settings", zh = "应用专用设置" }
+prompts.app_rules = { ja = "アプリ別のルール", en = "App rules", zh = "应用规则" }
 prompts.add_application = { ja = "アプリを追加…", en = "Add application\u2026", zh = "添加应用…" }
-prompts.add_title = { ja = "アプリ別の書き方を追加", en = "Add app writing settings", zh = "添加应用写法" }
+prompts.add_title = { ja = "アプリ別のルールを追加", en = "Add app rules", zh = "添加应用规则" }
 prompts.target_application = { ja = "対象のアプリ", en = "Application", zh = "目标应用" }
 prompts.choose_application = { ja = "アプリを選ぶ", en = "Choose application", zh = "选择应用" }
 prompts.change_application = { ja = "変更", en = "Change", zh = "更改" }
@@ -545,22 +503,21 @@ prompts.unselected = { ja = "未選択", en = "Unselected", zh = "未选择" }
 prompts.saved = { ja = "保存済み", en = "Saved", zh = "已保存" }
 prompts.unsaved = { ja = "未保存", en = "Unsaved", zh = "未保存" }
 prompts.save_failed = { ja = "保存できませんでした", en = "Could not save", zh = "保存失败" }
-prompts.copy_from = { ja = "設定のコピー元", en = "Copy settings from", zh = "复制已有设置" }
+prompts.copy_from = { ja = "ルールのコピー元", en = "Copy rules from", zh = "复制规则自" }
 prompts.add_confirm = { ja = "追加する", en = "Add", zh = "添加" }
-prompts.add_example = { ja = "例を追加", en = "Add example", zh = "添加范例" }
-prompts.examples_empty = { ja = "例はまだありません。", en = "No examples yet.", zh = "尚未添加范例。" }
-prompts.common_help = { ja = "すべてのアプリに適用する基本のルールです。アプリ別の設定は、このルールに追加されます。", en = "These rules apply to every app. App settings add to them.", zh = "这些规则应用于所有软件，应用专用设置会在此基础上补充。" }
-prompts.examples_help = { ja = "普段の文章を加えると、語尾や言い回しをあなたらしく整えやすくなります。例の内容は出力に追加されません。", en = "Add sentences you normally write to guide tone and phrasing. Their content is never added to the output.", zh = "添加日常写的句子，帮助贴近你的语气和表达。范例内容不会添加到输出中。" }
+prompts.add_example = { ja = "例を追加", en = "Add example", zh = "添加示例" }
+prompts.examples_empty = { ja = "例はまだありません。", en = "No examples yet.", zh = "还没有示例。" }
+prompts.common_help = { ja = "すべてのアプリに適用する基本のルールです。アプリ別のルールは、このルールに追加されます。", en = "These rules apply to every app. App rules add to them.", zh = "这些规则适用于所有应用，应用规则会在此基础上补充。" }
+prompts.examples_help = { ja = "普段の文章を加えると、語尾や言い回しをあなたらしく整えやすくなります。例の内容は出力に追加されません。", en = "Add sentences you normally write to guide tone and phrasing. Their content is never added to the output.", zh = "添加平时常写的句子，帮助贴近你的语气和用词。示例内容不会加入输出中。" }
 prompts.preview_placeholder = { ja = "ここに仕上がりが表示されます。", en = "The polished text will appear here.", zh = "润色结果将显示在这里。" }
-prompts.reset_title = { ja = "初期設定に戻しますか？", en = "Restore default settings?", zh = "恢复默认设置？" }
+prompts.reset_title = { ja = "初期設定に戻しますか？", en = "Restore default settings?", zh = "要恢复默认设置吗？" }
 prompts.application_error = { ja = "アプリを選択できませんでした。もう一度選んでください。", en = "Could not read this application. Choose it again.", zh = "无法读取此应用，请重新选择。" }
-prompts.application_duplicate = { ja = "このアプリはすでに設定されています。", en = "This app already has writing settings.", zh = "此应用已经有专用设置。" }
-prompts.remove_application = { ja = "アプリの設定を削除", en = "Remove app settings", zh = "删除应用设置" }
-prompts.remove_title = { ja = "アプリの設定を削除しますか？", en = "Remove this app's settings?", zh = "要删除这个应用的设置吗？" }
-prompts.remove_history = { ja = "過去の履歴は消えず、「その他」として残ります。", en = "Past history is kept and reads as Other.", zh = "过去的记录会保留，并归为“其他”。" }
+prompts.application_duplicate = { ja = "このアプリはすでに設定されています。", en = "This app already has rules.", zh = "此应用已设置规则。" }
+prompts.remove_application = { ja = "アプリのルールを削除", en = "Remove app rules", zh = "删除应用规则" }
+prompts.remove_title = { ja = "アプリのルールを削除しますか？", en = "Remove this app's rules?", zh = "要删除此应用的规则吗？" }
+prompts.remove_history = { ja = "過去の履歴は消えず、「その他」として残ります。", en = "Past history is kept and reads as Other.", zh = "过去的记录会保留，并归为「其他」。" }
 prompts.remove_confirm = { ja = "削除する", en = "Delete", zh = "删除" }
 
-# --- parameterized messages (generated functions) ------------------------------
 [fmt.using_model]
 ja = "{model} を使用中"
 en = "Using {model}"
@@ -597,9 +554,9 @@ en = "about {n} min left"
 zh = "剩余约 {n} 分钟"
 
 [fmt.remove_application_scope]
-ja = "「{app}」の書き方、例、表示名を削除します。"
-en = "Delete the writing rules, examples and display name for “{app}”."
-zh = "将删除“{app}”的写法、范例和显示名。"
+ja = "「{app}」のルールと例を削除します。"
+en = "Delete the rules and examples for “{app}”."
+zh = "将删除「{app}」的规则和示例。"
 
 [fmt.reset_common_scope]
 ja = "{language}の共通ルールを初期設定に戻します。"
@@ -607,9 +564,9 @@ en = "Restore the default common rules for {language}."
 zh = "恢复{language}的默认通用规则。"
 
 [fmt.reset_app_scope]
-ja = "「{app}」の{language}の書き方と例を初期設定に戻します。"
-en = "Restore the default {language} writing rules and examples for {app}."
-zh = "恢复“{app}”的{language}默认写法和范例。"
+ja = "「{app}」の{language}のルールと例を初期設定に戻します。"
+en = "Restore the default {language} rules and examples for {app}."
+zh = "恢复「{app}」的{language}默认规则和示例。"
 
 [fmt.local_polish_hint]
 ja = "「{model}」の設定です。空欄は推奨値を使います。"

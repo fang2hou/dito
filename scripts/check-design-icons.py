@@ -509,7 +509,7 @@ def check_hud_outcomes(document, nodes, icons, number, errors):
                 source.get("name"), outcome
             )
         if outcome:
-            canvas = 14 if outcome == "copied" else 18
+            canvas = 18
             number(node["width"], canvas, f"HUD {node['id']}, outcome width")
             number(node["height"], canvas, f"HUD {node['id']}, outcome height")
             foreground(node, "hud/on_" + outcome)

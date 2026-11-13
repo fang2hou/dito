@@ -388,7 +388,7 @@ mod tests {
     #[ignore = "requires DITO_POLISH_MODEL_DIR and a local Qwen3.5-4B GGUF"]
     fn polish_reference_vocabulary_regression() {
         use dito_core::i18n::Lang;
-        use dito_core::prompts::{PromptInput, Prompts, Style, build_prompt};
+        use dito_core::prompts::{AppTarget, PromptInput, Prompts, build_prompt};
         use dito_local::LlmRuntime;
         use std::sync::atomic::AtomicBool;
         let spec = dito_local::catalog::default_catalog().into_iter().find(|s| s.id == "qwen3.5-4b-instruct").unwrap();
@@ -405,8 +405,13 @@ mod tests {
             (Lang::Ja, "えーと、明日の午後三時に会議をします。"),
             (Lang::En, "Um, let's meet tomorrow at three."),
         ] {
-            let prompt =
-                build_prompt(&PromptInput { prompts: &prompts, style: Style::General, lang, text, wordbook: &terms });
+            let prompt = build_prompt(&PromptInput {
+                prompts: &prompts,
+                target: AppTarget::General,
+                lang,
+                text,
+                wordbook: &terms,
+            });
             let out = model.generate(&prompt.system, prompt.examples, &prompt.user, &sampling, &stop).unwrap();
             eprintln!("POLISH_REGRESSION {text}: {out}");
             assert!(!out.is_empty());

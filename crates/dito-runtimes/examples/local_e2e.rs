@@ -14,7 +14,7 @@ use dito_core::error::ErrorKind;
 use dito_core::factory::LocalBackend;
 use dito_core::health::EngineStatus;
 use dito_core::i18n::Lang;
-use dito_core::prompts::{PromptInput, Prompts, Style, build_prompt};
+use dito_core::prompts::{AppTarget, PromptInput, Prompts, build_prompt};
 use dito_core::provider::{AsrRequest, PolishRequest};
 use dito_local::{LocalEngines, ModelManager, ModelState};
 use dito_runtimes::Runtimes;
@@ -99,7 +99,7 @@ async fn main() {
     let prompts = Prompts::default();
     let prompt = build_prompt(&PromptInput {
         prompts: &prompts,
-        style: Style::General,
+        target: AppTarget::General,
         lang: Lang::Ja,
         text: transcript,
         wordbook: &["Acme".into()],

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use dito_core::config::EngineLabels;
 use dito_core::intent::{Decision, Intent, RewriteOp};
-use dito_core::prompts::Style;
+use dito_core::prompts::AppTarget;
 use dito_core::store::{
     CommandDetails, CommandOutcome, HistoryKind, InstructionOrigin, NewHistory, SourceKind, StepMillis, Store,
     ToolChoice,
@@ -24,11 +24,11 @@ pub fn demo(store: &Store, now: i64) -> Result<()> {
     Ok(())
 }
 
-fn entry(ts: i64, kind: HistoryKind, style: Style, app: &str, lang: &str, duration_ms: u64) -> NewHistory {
+fn entry(ts: i64, kind: HistoryKind, target: AppTarget, app: &str, lang: &str, duration_ms: u64) -> NewHistory {
     NewHistory {
         ts,
         kind,
-        style,
+        style: target,
         app: app.into(),
         lang: lang.into(),
         duration_ms,
@@ -68,15 +68,23 @@ fn command(
             route_ms: Some(210),
             router_engine: Some("local:sample-chat".into()),
         }),
-        ..entry(ts, HistoryKind::Command, Style::General, "Notes", "ja", 2_600)
+        ..entry(ts, HistoryKind::Command, AppTarget::General, "Notes", "ja", 2_600)
     }
 }
 
-fn dictation(ts: i64, style: Style, app: &str, lang: &str, duration_ms: u64, raw: &str, polished: &str) -> NewHistory {
+fn dictation(
+    ts: i64,
+    target: AppTarget,
+    app: &str,
+    lang: &str,
+    duration_ms: u64,
+    raw: &str,
+    polished: &str,
+) -> NewHistory {
     NewHistory {
         raw: raw.into(),
         polished: Some(polished.into()),
-        ..entry(ts, HistoryKind::Dictation, style, app, lang, duration_ms)
+        ..entry(ts, HistoryKind::Dictation, target, app, lang, duration_ms)
     }
 }
 
@@ -115,17 +123,17 @@ fn recent_entries(now: i64) -> [NewHistory; 8] {
         ),
         dictation(
             now - 600,
-            Style::builtin("slack").expect("built-in style"),
+            AppTarget::builtin("slack").expect("built-in app rules"),
             "Slack",
             "ja",
             9_000,
             "えーと 明日の3時の、あのレビュー会議 4時に変えて、で、えっと Dito のプロトタイプを 見といてください",
             "明日15時のレビュー会議は16時に変更します。事前にDitoのプロトタイプをご確認ください。",
         ),
-        entry(now - 1_000, HistoryKind::Cancelled, Style::General, "Notes", "", 8_000),
+        entry(now - 1_000, HistoryKind::Cancelled, AppTarget::General, "Notes", "", 8_000),
         dictation(
             now - 1_400,
-            Style::General,
+            AppTarget::General,
             "Mail",
             "en",
             5_000,
@@ -134,7 +142,7 @@ fn recent_entries(now: i64) -> [NewHistory; 8] {
         ),
         dictation(
             now - 1_900,
-            Style::General,
+            AppTarget::General,
             "WeChat",
             "zh",
             4_000,
@@ -143,7 +151,7 @@ fn recent_entries(now: i64) -> [NewHistory; 8] {
         ),
         dictation(
             now - 2_300,
-            Style::builtin("teams").expect("built-in style"),
+            AppTarget::builtin("teams").expect("built-in app rules"),
             "Teams",
             "ja",
             6_000,
@@ -152,12 +160,11 @@ fn recent_entries(now: i64) -> [NewHistory; 8] {
         ),
         NewHistory {
             error: Some("Auth: HTTP 401: invalid api key".into()),
-            ..entry(now - 2_600, HistoryKind::Failed, Style::General, "Notes", "", 3_000)
+            ..entry(now - 2_600, HistoryKind::Failed, AppTarget::General, "Notes", "", 3_000)
         },
     ]
 }
 
-/// Gives the statistics page a week to draw.
 fn daily_volume(now: i64) -> Vec<NewHistory> {
     DAILY_CHARS
         .iter()
@@ -167,7 +174,7 @@ fn daily_volume(now: i64) -> Vec<NewHistory> {
             let lang = if i % 3 == 2 { "en" } else { "ja" };
             dictation(
                 now - 86_400 * (6 - i as i64),
-                Style::General,
+                AppTarget::General,
                 DAILY_APPS[i % DAILY_APPS.len()],
                 lang,
                 chars as u64 * 340,

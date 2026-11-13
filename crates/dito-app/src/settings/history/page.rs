@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use dito_core::i18n::Tr;
-use dito_core::prompts::Style;
+use dito_core::prompts::AppTarget;
 use dito_core::store::{HistoryEntry, HistoryFilter};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
@@ -29,7 +29,7 @@ pub struct HistoryPage {
     pub(super) search: Entity<InputState>,
     pub(super) query: String,
     pub(super) period: Period,
-    pub(super) style: Option<Style>,
+    pub(super) target: Option<AppTarget>,
     pub(super) select_open: bool,
     pub(super) menu: Option<i64>,
     pub(super) expanded: HashSet<i64>,
@@ -84,10 +84,10 @@ impl HistoryPage {
         // A config change can add or remove a configured app: drop a filter whose app is gone, and reload so the
         // labels and the Other bucket follow the new list.
         ui::observe(st.cfg.subscribe(), cx, |this: &mut Self, cfg, cx| {
-            if let Some(style) = &this.style
-                && !cfg.prompts.style_enabled(style)
+            if let Some(style) = &this.target
+                && !cfg.prompts.target_enabled(style)
             {
-                this.style = None;
+                this.target = None;
             }
             this.changed(cx);
             cx.notify();
@@ -109,7 +109,7 @@ impl HistoryPage {
             search,
             query: String::new(),
             period: Period::All,
-            style: None,
+            target: None,
             select_open: false,
             menu: None,
             expanded: HashSet::new(),
@@ -160,9 +160,9 @@ impl HistoryPage {
         cx.notify();
     }
 
-    /// Reads as All styles when the selected app is no longer configured, matching what the picker shows.
-    pub(super) fn selected_style(&self) -> Option<Style> {
-        self.style.as_ref().filter(|style| self.st.cfg.get().prompts.style_enabled(style)).cloned()
+    /// Falls back to `None` (All apps) when the selected app is no longer configured, matching the picker.
+    pub(super) fn selected_target(&self) -> Option<AppTarget> {
+        self.target.as_ref().filter(|target| self.st.cfg.get().prompts.target_enabled(target)).cloned()
     }
 
     fn filter(&self) -> HistoryFilter {
@@ -177,7 +177,7 @@ impl HistoryPage {
         HistoryFilter {
             query: Some(self.query.clone()),
             since_ts: since,
-            style: self.selected_style(),
+            style: self.selected_target(),
             configured_apps,
             disabled_builtin_styles: self.st.cfg.get().prompts.disabled_builtin_styles.clone(),
             limit: Some(500),

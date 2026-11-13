@@ -14,16 +14,22 @@ pub enum Lang {
 impl Lang {
     pub const ALL: [Lang; 3] = [Self::Ja, Self::En, Self::Zh];
 
-    /// Name shown in the language picker, always in its own language.
+    /// Self-name for the display-language picker, retaining the UI locale's script variant rather than the broader
+    /// speech language.
     pub fn native_name(self) -> &'static str {
-        self.name(self)
+        self.tr(match self {
+            Self::Ja => Tr::GeneralJapanese,
+            Self::En => Tr::GeneralEnglish,
+            Self::Zh => Tr::GeneralSimplifiedChinese,
+        })
     }
 
+    /// Name of the spoken or written language localized into `ui`.
     pub fn name(self, ui: Lang) -> &'static str {
         ui.tr(match self {
             Self::Ja => Tr::GeneralJapanese,
             Self::En => Tr::GeneralEnglish,
-            Self::Zh => Tr::GeneralSimplifiedChinese,
+            Self::Zh => Tr::GeneralChinese,
         })
     }
 

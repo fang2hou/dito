@@ -181,7 +181,7 @@ impl HistoryPage {
         let id = e.id;
         let RowParts { mut meta, mut body, mut actions } = parts;
         let cfg = self.st.cfg.get();
-        meta = meta.child(ui::tag(p, ui::history_style_label(c.lang, &cfg.prompts, &e.style, &e.app), Tint::Blue));
+        meta = meta.child(ui::tag(p, ui::history_target_label(c.lang, &cfg.prompts, &e.style, &e.app), Tint::Blue));
         body = body.child(text(e.final_text().to_string(), 14., FontWeight::NORMAL, p.text).line_height(relative(1.6)));
         if expandable(e) {
             let lines = vec![(c.t(Tr::HistoryOriginal), SharedString::from(e.raw.clone()))];

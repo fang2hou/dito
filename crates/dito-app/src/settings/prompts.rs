@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use dito_core::i18n::{Lang, Tr};
-use dito_core::prompts::{BUILTIN_STYLES, Prompts, Style};
+use dito_core::prompts::{AppTarget, BUILTIN_APP_RULES, Prompts};
 use dito_platform::system::{InstalledApplication, installed_application};
 
 mod application_ui;
@@ -28,7 +28,7 @@ enum Try {
 pub struct PromptsPage {
     st: Arc<AppState>,
     lang: Lang,
-    style: Style,
+    target: AppTarget,
     base: Entity<TextareaState>,
     instruction: Entity<TextareaState>,
     samples: Vec<Entity<InputState>>,
@@ -36,7 +36,7 @@ pub struct PromptsPage {
     try_out: Entity<TextareaState>,
     placeholder_lang: Lang,
     try_state: Try,
-    histories: HashMap<(Lang, Option<Style>), History>,
+    histories: HashMap<(Lang, Option<AppTarget>), History>,
     save_revision: u64,
     save_error: Option<String>,
     group_started: [Option<Instant>; 2],
@@ -46,9 +46,9 @@ pub struct PromptsPage {
     menu_open: bool,
     copy_menu_open: bool,
     dialog: Option<Dialog>,
-    target: Option<InstalledApplication>,
-    target_icon: Option<Arc<Image>>,
-    copy_source: Style,
+    picked_app: Option<InstalledApplication>,
+    picked_icon: Option<Arc<Image>>,
+    copy_source: AppTarget,
     dialog_error: Option<String>,
     dialog_focus: FocusHandle,
     help_focus: [FocusHandle; 2],
@@ -66,10 +66,10 @@ impl PromptsPage {
     pub fn new(st: Arc<AppState>, window: &mut Window, cx: &mut Context<Self>) -> Self {
         services::watch_config(&st, cx);
         let cfg = st.cfg.get();
-        let (lang, style) = (cfg.general.lang(), Style::General);
+        let (lang, initial_target) = (cfg.general.lang(), AppTarget::General);
         let set = cfg.prompts.set(lang);
         let base = textarea(window, cx, &set.base);
-        let instruction = textarea(window, cx, &set.style(&style).instruction);
+        let instruction = textarea(window, cx, &set.app_rules(&initial_target).instruction);
         let try_in = textarea(window, cx, dito_core::i18n::sample_utterance(lang));
         let placeholder = SharedString::from(lang.tr(Tr::PromptsPreviewPlaceholder));
         let try_out = cx.new(|cx| TextareaState::new(window, cx).placeholder(placeholder));
@@ -107,7 +107,7 @@ impl PromptsPage {
             edit_probe: None,
             st,
             lang,
-            style,
+            target: initial_target,
             base,
             instruction,
             samples: Vec::new(),
@@ -125,9 +125,9 @@ impl PromptsPage {
             menu_open: false,
             copy_menu_open: false,
             dialog: None,
-            target: None,
-            target_icon: None,
-            copy_source: Style::General,
+            picked_app: None,
+            picked_icon: None,
+            copy_source: AppTarget::General,
             dialog_error: None,
             dialog_focus: cx.focus_handle(),
             help_focus: [cx.focus_handle().tab_stop(true), cx.focus_handle().tab_stop(true)],
@@ -141,15 +141,15 @@ impl PromptsPage {
         page
     }
 
-    fn history_key(&self, editor: Editor) -> (Lang, Option<Style>) {
-        (self.lang, (editor == Editor::Application).then(|| self.style.clone()))
+    fn history_key(&self, editor: Editor) -> (Lang, Option<AppTarget>) {
+        (self.lang, (editor == Editor::Application).then(|| self.target.clone()))
     }
 
     fn snapshot(&self, editor: Editor) -> Snapshot {
         let set = self.drafts.set(self.lang);
         match editor {
             Editor::Common => Snapshot::Common(set.base.clone()),
-            Editor::Application => Snapshot::Application(set.style(&self.style).clone()),
+            Editor::Application => Snapshot::Application(set.app_rules(&self.target).clone()),
         }
     }
 
@@ -166,7 +166,7 @@ impl PromptsPage {
         match editor {
             Editor::Common => self.drafts.set_mut(self.lang).base = self.base.read(cx).value().to_string(),
             Editor::Application => {
-                let prompt = self.drafts.set_mut(self.lang).style_mut(&self.style);
+                let prompt = self.drafts.set_mut(self.lang).app_rules_mut(&self.target);
                 prompt.instruction = self.instruction.read(cx).value().to_string();
                 prompt.samples = self.samples.iter().map(|s| s.read(cx).value().to_string()).collect();
             }
@@ -224,7 +224,8 @@ impl PromptsPage {
         let dirty = match editor {
             Editor::Common => self.drafts.set(self.lang).base != saved.prompts.set(self.lang).base,
             Editor::Application => {
-                self.drafts.set(self.lang).style(&self.style) != saved.prompts.set(self.lang).style(&self.style)
+                self.drafts.set(self.lang).app_rules(&self.target)
+                    != saved.prompts.set(self.lang).app_rules(&self.target)
             }
         };
         if dirty {
@@ -250,7 +251,7 @@ impl PromptsPage {
                         .contains_focused(window, cx)
                         .then(|| (index, input.read(cx).selected_range()))
                 });
-                *self.drafts.set_mut(self.lang).style_mut(&self.style) = value.clone();
+                *self.drafts.set_mut(self.lang).app_rules_mut(&self.target) = value.clone();
                 self.instruction.update(cx, |state, cx| {
                     let selection = state.selected_range();
                     state.set_value(value.instruction, window, cx);
@@ -292,7 +293,7 @@ impl PromptsPage {
         let key = self.history_key(editor);
         let snapshot = match editor {
             Editor::Common => Snapshot::Common(Prompts::default().set(self.lang).base.clone()),
-            Editor::Application => Snapshot::Application(self.drafts.default_style(self.lang, &self.style)),
+            Editor::Application => Snapshot::Application(self.drafts.default_app_rules(self.lang, &self.target)),
         };
         let history = self.histories.get_mut(&key).unwrap();
         history.checkpoint(true);
@@ -304,7 +305,7 @@ impl PromptsPage {
     }
 
     fn rebuild_samples(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let list = self.drafts.set(self.lang).style(&self.style).samples.clone();
+        let list = self.drafts.set(self.lang).app_rules(&self.target).samples.clone();
         self.samples = list.into_iter().map(|s| self.sample_input(&s, window, cx)).collect();
     }
 
@@ -336,7 +337,7 @@ impl PromptsPage {
 
     fn load(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let set = self.drafts.set(self.lang);
-        let (base, instr) = (set.base.clone(), set.style(&self.style).instruction.clone());
+        let (base, instr) = (set.base.clone(), set.app_rules(&self.target).instruction.clone());
         self.base.update(cx, |s, cx| s.set_value(base, window, cx));
         self.instruction.update(cx, |s, cx| s.set_value(instr, window, cx));
         self.rebuild_samples(window, cx);
@@ -346,7 +347,7 @@ impl PromptsPage {
         cx.notify();
     }
 
-    fn switch(&mut self, lang: Lang, style: Style, window: &mut Window, cx: &mut Context<Self>) {
+    fn switch(&mut self, lang: Lang, target: AppTarget, window: &mut Window, cx: &mut Context<Self>) {
         self.close_group(Editor::Common, cx);
         self.close_group(Editor::Application, cx);
         self.preview_revision += 1;
@@ -360,7 +361,7 @@ impl PromptsPage {
             }
         }
         self.lang = lang;
-        self.style = style;
+        self.target = target;
         self.load(window, cx);
     }
 
@@ -371,13 +372,13 @@ impl PromptsPage {
         }
         self.try_state = Try::Running;
         cx.notify();
-        let (st, prompts, style, lang) = (self.st.clone(), self.drafts.clone(), self.style.clone(), self.lang);
-        let request_style = style.clone();
+        let (st, prompts, target, lang) = (self.st.clone(), self.drafts.clone(), self.target.clone(), self.lang);
+        let request_target = target.clone();
         let revision = self.preview_revision;
         cx.spawn_in(window, async move |this, cx| {
-            let r = services::try_polish(st, prompts, style, lang, text).await;
+            let r = services::try_polish(st, prompts, target, lang, text).await;
             let _ = this.update_in(cx, |t, window, cx| {
-                if t.preview_revision != revision || t.style != request_style || t.lang != lang {
+                if t.preview_revision != revision || t.target != request_target || t.lang != lang {
                     return;
                 }
                 t.try_state = match r {
@@ -442,7 +443,7 @@ impl Render for PromptsPage {
 
 #[derive(Clone)]
 struct AppChoice {
-    style: Style,
+    target: AppTarget,
     name: String,
     icon: Option<Arc<Image>>,
 }
@@ -456,13 +457,12 @@ enum Dialog {
 
 fn app_choices(prompts: &Prompts) -> Vec<AppChoice> {
     let mut choices = Vec::new();
-    for id in BUILTIN_STYLES
+    for id in BUILTIN_APP_RULES
         .iter()
-        .flat_map(|style| style.bundle_ids.iter().copied())
+        .flat_map(|rules| rules.bundle_ids.iter().copied())
         .chain(prompts.applications.keys().map(String::as_str))
     {
-        // A configured app stays in the list even when the bundle is not installed, so its settings remain selectable
-        // (and removable) instead of silently disappearing from the picker.
+        // Keep configured apps selectable (and removable) even when their bundle is currently uninstalled.
         let (name, icon) = match installed_application(id) {
             Some(app) => (
                 app.name,
@@ -473,16 +473,13 @@ fn app_choices(prompts: &Prompts) -> Vec<AppChoice> {
                 None => continue,
             },
         };
-        let style = prompts.for_application(id);
-        if style == Style::General {
+        let target = prompts.for_application(id);
+        if target == AppTarget::General || choices.iter().any(|c: &AppChoice| c.target == target) {
             continue;
         }
-        if choices.iter().any(|c: &AppChoice| c.style == style) {
-            continue;
-        }
-        choices.push(AppChoice { style, name, icon });
+        choices.push(AppChoice { target, name, icon });
     }
-    choices.push(AppChoice { style: Style::General, name: String::new(), icon: None });
+    choices.push(AppChoice { target: AppTarget::General, name: String::new(), icon: None });
     choices
 }
 
@@ -495,7 +492,7 @@ impl PromptsPage {
             self.dialog = None;
         }
         if self.lang != Lang::Ja {
-            self.switch(Lang::Ja, self.style.clone(), window, cx);
+            self.switch(Lang::Ja, self.target.clone(), window, cx);
         }
         if !preserve_controls {
             self.menu_open = false;
@@ -536,7 +533,7 @@ impl PromptsPage {
             }
             "probe-not-saved" => {
                 let persisted =
-                    Snapshot::Application(self.st.cfg.get().prompts.set(self.lang).style(&self.style).clone());
+                    Snapshot::Application(self.st.cfg.get().prompts.set(self.lang).app_rules(&self.target).clone());
                 assert_eq!(persisted, self.edit_probe.as_ref().unwrap().0, "a short thinking pause must not save");
                 assert_ne!(
                     self.snapshot(Editor::Application),
@@ -548,8 +545,8 @@ impl PromptsPage {
                 let edited = self.snapshot(Editor::Application);
                 assert_ne!(edited, self.edit_probe.as_ref().unwrap().0, "native committed input must update drafts");
                 assert_eq!(
-                    self.drafts.set(self.lang).style(&self.style),
-                    self.st.cfg.get().prompts.set(self.lang).style(&self.style),
+                    self.drafts.set(self.lang).app_rules(&self.target),
+                    self.st.cfg.get().prompts.set(self.lang).app_rules(&self.target),
                     "committed drafts must autosave"
                 );
                 self.edit_probe.as_mut().unwrap().1 = Some(edited);
@@ -599,7 +596,10 @@ impl PromptsPage {
                     persisted,
                     "failed writes must retain the last saved configuration"
                 );
-                assert_ne!(self.drafts.set(self.lang).style(&self.style), persisted.set(self.lang).style(&self.style));
+                assert_ne!(
+                    self.drafts.set(self.lang).app_rules(&self.target),
+                    persisted.set(self.lang).app_rules(&self.target)
+                );
             }
             "probe-retry" => {
                 self.save(cx);
@@ -610,9 +610,9 @@ impl PromptsPage {
             "add-empty" => self.open_dialog(Dialog::Add, window, cx),
             "add" => {
                 self.open_dialog(Dialog::Add, window, cx);
-                self.target = installed_application("com.apple.TextEdit");
-                self.target_icon =
-                    self.target.as_ref().map(|a| Arc::new(Image::from_bytes(ImageFormat::Png, a.icon_png.clone())));
+                self.picked_app = installed_application("com.apple.TextEdit");
+                self.picked_icon =
+                    self.picked_app.as_ref().map(|a| Arc::new(Image::from_bytes(ImageFormat::Png, a.icon_png.clone())));
             }
             "reset" => self.open_dialog(Dialog::Reset(Editor::Common), window, cx),
             "reset-app" => self.open_dialog(Dialog::Reset(Editor::Application), window, cx),
@@ -640,17 +640,17 @@ impl PromptsPage {
                 self.try_state = Try::Done(420);
             }
             "help" => ui::force_hover(&self.motion.handle(), ElementId::from("prompt-examples-help"), true),
-            "herdr" => self.switch(self.lang, Style::builtin("herdr").expect("built-in style"), window, cx),
+            "herdr" => self.switch(self.lang, AppTarget::builtin("herdr").expect("built-in app rules"), window, cx),
             "custom" | "removeapp" => {
-                self.drafts.add_application("com.apple.AppStore", "App Store", &Style::General);
+                self.drafts.add_application("com.apple.AppStore", "App Store", &AppTarget::General);
                 self.apps = app_choices(&self.drafts);
-                self.style = self.drafts.for_application("com.apple.AppStore");
+                self.target = self.drafts.for_application("com.apple.AppStore");
                 self.load(window, cx);
                 if case == "removeapp" {
                     self.open_dialog(Dialog::RemoveApp, window, cx);
                 }
             }
-            _ => self.switch(self.lang, Style::General, window, cx),
+            _ => self.switch(self.lang, AppTarget::General, window, cx),
         }
         cx.notify();
     }

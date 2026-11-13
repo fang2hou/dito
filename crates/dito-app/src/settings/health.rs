@@ -101,7 +101,10 @@ impl Settings {
     /// Fixed text geometry inside the growing surface: reveal text without scaling or reflow.
     pub(super) fn health_card(p: Palette, lang: Lang, rows: &[HealthRow], dot_size: Pixels, width: f32) -> Div {
         let label_left = HEALTH_RADIUS - f32::from(dot_size) / 2.;
-        let role_width = 58.;
+        let role_width = rows
+            .iter()
+            .map(|row| (ui::text_width(row.role, 11., FontWeight::MEDIUM) + 14.).ceil())
+            .fold(58_f32, f32::max);
         let name_left = label_left + role_width + 12.;
         let mut card = div().absolute().left_0().top_0().w(px(width)).h(px(HEALTH_HEIGHT)).child(
             div()

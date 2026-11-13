@@ -402,7 +402,7 @@ async fn toggle_mode_runs_listen_transcribe_polish_insert_then_hides() {
 
     let h = history_of(&r.store, 1).await;
     assert_eq!(h.len(), 1);
-    let slack = Style::builtin("slack").unwrap();
+    let slack = AppTarget::builtin("slack").unwrap();
     assert_eq!((h[0].app.as_str(), h[0].style.clone()), ("Slack", slack), "style follows the frontmost app");
     assert_eq!(h[0].raw, "えーと 会議です");
     assert!(h[0].audio_path.as_deref().is_some_and(|p| std::path::Path::new(p).exists()));

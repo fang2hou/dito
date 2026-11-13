@@ -18,9 +18,9 @@ const REWRITE: &[&str] = &["書き換え", "丁寧", "短く", "rewrite"];
 const POLISH: &[&str] = &["整形", "直して", "polish"];
 const QUESTION: &[&str] = &["なぜ", "what", "how"];
 
-/// Routes by keywords of the instruction, so every state of command mode is reachable without a model. An empty or
-/// unknown instruction, and one that says "どれ" or "unclear", is not confident: the HUD shows the choices. An action
-/// Dito cannot do ("送って", "send") is `none`: the capsule closes.
+/// Keyword-driven mock router so every command-mode state is reachable without a local LLM. Empty, unknown, or
+/// explicitly ambiguous (`UNCLEAR`) instructions stay below the confidence threshold so the HUD opens the choice
+/// window; unsupported app actions (`ACTION`) return `Intent::None` so the capsule closes with a notice.
 pub struct KeywordRouter;
 
 fn has(text: &str, words: &[&str]) -> bool {

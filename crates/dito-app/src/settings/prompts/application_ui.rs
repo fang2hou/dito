@@ -1,4 +1,4 @@
-//! Selection, copying and reset dialogs for the Styles of configured applications.
+//! Selection, copy-source, and reset dialogs for per-app prompt rules.
 
 use super::*;
 use crate::assets::Ic;
@@ -11,9 +11,9 @@ impl PromptsPage {
         self.menu_open = false;
         self.copy_menu_open = false;
         self.dialog_error = None;
-        self.target = None;
-        self.target_icon = None;
-        self.copy_source = self.style.clone();
+        self.picked_app = None;
+        self.picked_icon = None;
+        self.copy_source = self.target.clone();
         self.dialog = Some(dialog);
         self.dialog_focus.focus(window, cx);
         cx.notify();
@@ -31,9 +31,9 @@ impl PromptsPage {
                     } else {
                         None
                     };
-                    this.target_icon =
+                    this.picked_icon =
                         app.as_ref().map(|a| Arc::new(Image::from_bytes(ImageFormat::Png, a.icon_png.clone())));
-                    this.target = app;
+                    this.picked_app = app;
                     cx.notify();
                 });
             }
@@ -42,29 +42,29 @@ impl PromptsPage {
     }
 
     fn add_application(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let Some(app) = self.target.clone() else { return };
+        let Some(app) = self.picked_app.clone() else { return };
         let before = self.drafts.clone();
         if !self.drafts.add_application(&app.bundle_id, &app.name, &self.copy_source) {
             self.dialog_error = Some(self.st.cfg.get().general.lang().tr(Tr::PromptsApplicationDuplicate).into());
             cx.notify();
             return;
         }
-        let style = self.drafts.for_application(&app.bundle_id);
+        let added_target = self.drafts.for_application(&app.bundle_id);
         self.save(cx);
         if self.save_error.is_some() {
             self.drafts = before;
             self.dialog_error = Some(self.st.cfg.get().general.lang().tr(Tr::PromptsSaveFailed).into());
             return;
         }
-        self.style = style;
+        self.target = added_target;
         self.apps = app_choices(&self.drafts);
         self.dialog = None;
         self.load(window, cx);
     }
 
-    /// A neutral action appears only for a configured application, never for the Other fallback.
+    /// Shown only for a configured app, never for the Other fallback.
     pub(super) fn remove_app_control(&self, c: &Ctx, cx: &mut Context<Self>) -> Option<Stateful<Div>> {
-        if self.style == Style::General {
+        if self.target == AppTarget::General {
             return None;
         }
         let p = c.p;
@@ -84,9 +84,9 @@ impl PromptsPage {
     }
 
     fn remove_application(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let style = self.style.clone();
+        let removed_target = self.target.clone();
         let before = self.drafts.clone();
-        self.drafts.remove_style(&style);
+        self.drafts.remove_target(&removed_target);
         self.save(cx);
         if self.save_error.is_some() {
             self.drafts = before;
@@ -94,23 +94,23 @@ impl PromptsPage {
             return;
         }
         for lang in Lang::ALL {
-            self.histories.remove(&(lang, Some(style.clone())));
+            self.histories.remove(&(lang, Some(removed_target.clone())));
         }
         self.apps = app_choices(&self.drafts);
-        self.style = Style::General;
+        self.target = AppTarget::General;
         self.dialog = None;
         self.load(window, cx);
     }
 
     fn choice_label(&self, c: &Ctx, choice: &AppChoice) -> SharedString {
-        if choice.style == Style::General { c.t(Tr::PromptsOther) } else { choice.name.clone().into() }
+        if choice.target == AppTarget::General { c.t(Tr::PromptsOther) } else { choice.name.clone().into() }
     }
 
     pub(super) fn application_picker(&self, c: &Ctx, cx: &mut Context<Self>, copying: bool) -> Div {
         let p = c.p;
         let id = if copying { "prompt-copy-source" } else { "prompt-application" };
-        let selected = if copying { &self.copy_source } else { &self.style };
-        let choice = self.apps.iter().find(|a| &a.style == selected).unwrap_or_else(|| self.apps.last().unwrap());
+        let selected = if copying { &self.copy_source } else { &self.target };
+        let choice = self.apps.iter().find(|a| &a.target == selected).unwrap_or_else(|| self.apps.last().unwrap());
         let open = if copying { self.copy_menu_open } else { self.menu_open };
         let content = div()
             .flex_1()
@@ -180,7 +180,7 @@ impl PromptsPage {
                 .flex_col()
                 .gap(px(2.));
             for (i, app) in self.apps.iter().enumerate() {
-                let style = app.style.clone();
+                let item_target = app.target.clone();
                 let mut row = ui::menu_row(ElementId::from((id, i)), &p);
                 row = row.child(app_identity(app, 24., 20., p.text));
                 row = row
@@ -193,15 +193,15 @@ impl PromptsPage {
                     .child(
                         div()
                             .size(px(14.))
-                            .when(&app.style == selected, |d| d.child(ui::icon(Ic::Check, 14., p.accent_text))),
+                            .when(&app.target == selected, |d| d.child(ui::icon(Ic::Check, 14., p.accent_text))),
                     )
                     .on_click(cx.listener(move |this, _, w, cx| {
                         if copying {
-                            this.copy_source = style.clone();
+                            this.copy_source = item_target.clone();
                             this.copy_menu_open = false;
                             cx.notify();
                         } else {
-                            this.switch(this.lang, style.clone(), w, cx);
+                            this.switch(this.lang, item_target.clone(), w, cx);
                         }
                     }));
                 list = list.child(row);
@@ -234,7 +234,7 @@ impl PromptsPage {
         let remove_name = self
             .apps
             .iter()
-            .find(|a| a.style == self.style)
+            .find(|a| a.target == self.target)
             .map(|a| self.choice_label(&c, a).to_string())
             .unwrap_or_default();
         let mut content: Vec<AnyElement> = Vec::new();
@@ -262,7 +262,7 @@ impl PromptsPage {
                     .into_any_element(),
             );
         } else {
-            let mut target = div()
+            let mut app_slot = div()
                 .w_full()
                 .h(px(72.))
                 .px(px(16.))
@@ -275,29 +275,33 @@ impl PromptsPage {
                 .items_center()
                 .justify_between()
                 .gap(px(16.));
-            if let Some(app) = &self.target {
+            if let Some(app) = &self.picked_app {
                 let mut identity = div().flex().items_center().gap(px(16.)).flex_1().min_w(px(0.));
-                if let Some(icon) = &self.target_icon {
+                if let Some(icon) = &self.picked_icon {
                     identity = identity.child(img(icon.clone()).size(px(40.)).flex_none());
                 }
-                target = target
+                app_slot = app_slot
                     .child(identity.child(
                         text(app.name.clone(), 25., FontWeight::MEDIUM, p.text).line_height(px(40.)).truncate(),
                     ));
             } else {
-                target = target.child(text(c.t(Tr::PromptsUnselected), 14., FontWeight::NORMAL, p.muted).flex_1());
+                app_slot = app_slot.child(text(c.t(Tr::PromptsUnselected), 14., FontWeight::NORMAL, p.muted).flex_1());
             }
-            target = target.child(ui::button_with(
+            app_slot = app_slot.child(ui::button_with(
                 "choose-prompt-app",
                 &p,
-                &c.t(if self.target.is_some() { Tr::PromptsChangeApplication } else { Tr::PromptsChooseApplication }),
+                &c.t(if self.picked_app.is_some() {
+                    Tr::PromptsChangeApplication
+                } else {
+                    Tr::PromptsChooseApplication
+                }),
                 BtnKind::Primary,
                 ui::BtnSize::Large,
                 None,
                 None,
                 cbk(cx, |this: &mut Self, window, cx| this.choose_application(window, cx)),
             ));
-            content.push(ui::field(&p, c.t(Tr::PromptsTargetApplication), target).into_any_element());
+            content.push(ui::field(&p, c.t(Tr::PromptsTargetApplication), app_slot).into_any_element());
             content.push(
                 ui::field(&p, c.t(Tr::PromptsCopyFrom), self.application_picker(&c, cx, true)).into_any_element(),
             );
@@ -325,7 +329,7 @@ impl PromptsPage {
             ui::DialogAnswer { label: c.t(Tr::AsrEditorCancel), on_click: Some(close) },
             ui::DialogAnswer {
                 label: c.t(confirm_label),
-                on_click: (dialog != Dialog::Add || self.target.is_some()).then_some(confirm),
+                on_click: (dialog != Dialog::Add || self.picked_app.is_some()).then_some(confirm),
             },
             ui::ConfirmStyle::Standard,
         ))

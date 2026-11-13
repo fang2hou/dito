@@ -20,26 +20,24 @@ use crate::error::{ErrorKind, ProviderError};
 use crate::factory::Engines;
 use crate::intent::{AUTO_THRESHOLD, Decision, Intent};
 use crate::pipeline::{self, PipelineError, or_cancel};
-use crate::prompts::{Style, detect_lang};
+use crate::prompts::{AppTarget, detect_lang};
 use crate::store::{CommandDetails, CommandOutcome, HistoryKind, InstructionOrigin, NewHistory, SourceKind};
 use crate::store::{StepMillis, Store, ToolChoice};
 use crate::surrounding::{Surrounding, context_tokens};
 use crate::trace;
 use crate::trace_log;
 
-/// What starts a recording.
 pub(super) enum Start {
     Dictation,
     Command { selection: Option<Arc<dyn CapturedSelection>> },
 }
 
-/// What a command run carries from the shortcut press to its end.
 pub(super) struct CommandRun {
-    /// Read when the run starts and replaced by the reading at the end of the recording, unless that fails.
+    /// Captured at shortcut down and refreshed when recording ends, unless the second read fails.
     selection: Option<Arc<dyn CapturedSelection>>,
-    /// The style of the app in front, taken when the shortcut went down.
-    style: Style,
-    /// Empty for the polish button, which has none.
+    /// Frontmost app target captured at shortcut down.
+    target: AppTarget,
+    /// Empty when started from the polish button.
     instruction: String,
     record: Record,
 }
@@ -70,7 +68,7 @@ struct Record {
 impl CommandRun {
     pub(super) fn new(selection: Option<Arc<dyn CapturedSelection>>, meta: &Meta) -> Self {
         let record = Record { ts: meta.ts, app: meta.app.name.clone(), ..Record::default() };
-        Self { selection, style: meta.style.clone(), instruction: String::new(), record }
+        Self { selection, target: meta.target.clone(), instruction: String::new(), record }
     }
 
     /// The captured selection is also there when only the field's text was read; then nothing is selected.
@@ -103,8 +101,7 @@ pub(super) struct CommandState {
 }
 
 impl CommandState {
-    /// For the debug log.
-    pub(super) fn name(&self) -> &'static str {
+    pub(super) fn trace_name(&self) -> &'static str {
         match self.phase {
             Phase::Working { .. } => "working",
             Phase::Choosing => "choosing",
@@ -184,7 +181,7 @@ async fn tool_step(
     intent: Intent,
     write: ResultWrite,
     tool: Tool,
-    style: Style,
+    style: AppTarget,
     surrounding: Option<Surrounding>,
 ) -> StepResult {
     trace_log!(tool = tool.name(), "tool started");
@@ -199,7 +196,7 @@ async fn tool_step(
             if matches!(tool, Tool::Polish { .. }) { load_wordbook(env.store.clone()).await } else { Vec::new() };
         let ctx = ToolContext {
             prompts: &env.cfg.prompts,
-            style,
+            target: style,
             wordbook: pipeline::polish_wordbook(&env.cfg, &words),
             surrounding: surrounding.as_ref(),
         };
@@ -525,7 +522,7 @@ impl Actor {
         run.record.source =
             text.map(|text| (if from_selection { SourceKind::Selection } else { SourceKind::Entered }, text));
         trace_log!(engine = ?run.record.polish_engine, rewrite_hint = ?hint, "tool runs");
-        let style = run.style.clone();
+        let style = run.target.clone();
         self.start_step(run, HudState::Working, move |env| tool_step(env, intent, write, tool, style, surrounding));
     }
 
@@ -593,7 +590,7 @@ impl Actor {
 
     /// Queues the history row of the run.
     fn finish_run(&self, run: CommandRun, outcome: CommandOutcome, error: Option<String>) {
-        let CommandRun { selection, style, instruction, record } = run;
+        let CommandRun { selection, target: style, instruction, record } = run;
         let source = record.source.or_else(|| {
             selection
                 .filter(|selection| !selection.text().is_empty())
@@ -647,7 +644,7 @@ impl Actor {
     fn show_window(&mut self, run: CommandRun, phase: Phase, hud: HudState) {
         self.epoch += 1;
         self.state = State::Command(CommandState { run, phase });
-        trace_log!(window = self.state.name(), hud = ?hud, "window shown");
+        trace_log!(window = self.state.trace_name(), hud = ?hud, "window shown");
         self.set_hud(hud);
     }
 
