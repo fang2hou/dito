@@ -290,6 +290,37 @@ fmt.wordbook_selected = { ja = "{count} 件を選択中", en = "{count} selected
 fmt.wordbook_delete_title = { ja = "{count} 件の単語を削除しますか？", en = "Delete selected words ({count})?", zh = "要删除选中的 {count} 个单词吗？" }
 wordbook.import_failed = { ja = "インポートできませんでした。ファイルの内容を確認してください。", en = "Could not import. Check the file's contents.", zh = "导入失败，请检查文件内容。" }
 wordbook.export_failed = { ja = "エクスポートできませんでした。保存先を確認してください。", en = "Could not export. Check the destination.", zh = "导出失败，请检查保存位置。" }
+wordbook.find_words = { ja = "解析して追加", en = "Analyze and add", zh = "解析并添加" }
+wordbook.find_seg_text = { ja = "テキスト", en = "Text", zh = "文字" }
+wordbook.find_seg_file = { ja = "ファイル", en = "File", zh = "文件" }
+wordbook.find_seg_ai = { ja = "ほかの AI", en = "Other AI", zh = "其他 AI" }
+wordbook.find_title_text = { ja = "テキストから単語を解析", en = "Find words in text", zh = "从文字里解析单词" }
+wordbook.find_title_file = { ja = "ファイルから単語を解析", en = "Find words in a file", zh = "从文件里解析单词" }
+wordbook.find_title_ai = { ja = "ほかの AI で単語を解析", en = "Find words with another AI", zh = "用其他 AI 解析单词" }
+wordbook.find_desc_text = { ja = "貼り付けたテキストを解析し、単語帳に入れる候補を挙げます。", en = "Analyzes pasted text and suggests candidate words for your wordbook.", zh = "解析粘贴的文字，找出可加入单词本的候选词。" }
+wordbook.find_desc_file = { ja = "ファイルを解析し、単語帳に入れる候補を挙げます。", en = "Analyzes a file and suggests candidate words for your wordbook.", zh = "解析文件，找出可加入单词本的候选词。" }
+wordbook.find_desc_ai = { ja = "PDF や画像はほかの AI に読んでもらい、その回答から候補を挙げます。", en = "Have another AI read PDFs or images, then get candidate words from its reply.", zh = "让其他 AI 读取 PDF 或图片，再从它的回答里找出候选词。" }
+wordbook.find_text_hint = { ja = "ここにテキストを貼り付け", en = "Paste text here", zh = "在此粘贴文字" }
+wordbook.find_choose_file = { ja = "ファイルを選ぶ", en = "Choose file", zh = "选择文件" }
+wordbook.find_file_types = { ja = "Markdown、テキスト、Word、PowerPoint のファイルに対応しています。", en = "Markdown, plain text, Word, and PowerPoint files.", zh = "支持 Markdown、纯文本、Word、PowerPoint 文件。" }
+fmt.wordbook_find_consent = { ja = "クラウドのモデル（{model}）で解析します。内容がこのモデルに送信されることに同意します。", en = "Uses the cloud model ({model}) for analysis. I understand the content will be sent to this model.", zh = "使用云端模型（{model}）解析。我了解内容会发送给该模型。" }
+wordbook.find_run = { ja = "解析する", en = "Analyze", zh = "解析" }
+wordbook.find_running = { ja = "解析しています", en = "Analyzing", zh = "正在解析" }
+wordbook.find_stop = { ja = "中止", en = "Stop", zh = "中止" }
+wordbook.find_ai_step1 = { ja = "1. プロンプトをコピーして、ファイルと一緒に AI に渡す", en = "1. Copy the prompt and send it to an AI with your files", zh = "1. 复制提示词，连同文件发给 AI" }
+wordbook.find_ai_copy = { ja = "プロンプトをコピー", en = "Copy prompt", zh = "复制提示词" }
+wordbook.find_ai_step2 = { ja = "2. AI の回答を貼り付ける", en = "2. Paste the AI's reply", zh = "2. 粘贴 AI 的回答" }
+wordbook.find_ai_hint = { ja = "ここに AI の回答を貼り付け", en = "Paste the AI's reply here", zh = "在此粘贴 AI 的回答" }
+wordbook.find_ai_show = { ja = "候補を表示", en = "Show candidates", zh = "查看候选词" }
+wordbook.find_reply_unreadable = { ja = "AI の回答を読み取れませんでした。回答のコードブロックをそのまま貼り付けてください。", en = "Could not read the AI's reply. Paste the code block from the reply as is.", zh = "无法读取 AI 的回答。请把回答里的代码块原样粘贴过来。" }
+wordbook.find_reply_wrong_shape = { ja = "Dito の形式と合いません。プロンプトをコピーし直して、もう一度 AI に送ってください。", en = "The reply isn't in Dito's format. Copy the prompt again and resend it to the AI.", zh = "回答不符合 Dito 的格式。请重新复制提示词，再发给 AI 一次。" }
+wordbook.find_none = { ja = "新しく追加できる単語はありませんでした。", en = "No new words to add.", zh = "没有可新添的单词。" }
+wordbook.find_file_failed = { ja = "ファイルを読み取れませんでした。対応している形式か確認してください。", en = "Could not read the file. Make sure it's in a supported format.", zh = "无法读取文件。请确认文件格式受支持。" }
+wordbook.find_failed = { ja = "解析できませんでした。モデルの設定を確認してください。", en = "Could not analyze. Check your model settings.", zh = "解析失败。请检查模型设置。" }
+fmt.wordbook_find_found = { ja = "候補が {count} 件見つかりました", en = "{count} candidates found", zh = "找到 {count} 个候选词" }
+wordbook.find_choose = { ja = "単語帳に追加する単語を選んでください。", en = "Select the words to add to your wordbook.", zh = "请选择要加入单词本的单词。" }
+fmt.wordbook_find_skipped = { ja = "形式に合わない {count} 件は除きました。", en = "Skipped {count} items in the wrong format.", zh = "已跳过 {count} 条格式不符的内容。" }
+fmt.wordbook_find_add = { ja = "{count} 件を追加", en = "Add {count}", zh = "添加 {count} 个" }
 wordbook.no_hotword_support = { ja = "現在のモデルはホットワードに対応していません。対応する音声認識モデルを選ぶと有効になります。", en = "The current model does not support hotwords. Select a speech recognition model that supports them to use this feature.", zh = "当前模型不支持热词，选择支持热词的语音识别模型后即可生效。" }
 
 prompts.base = { ja = "共通ルール", en = "Common rules", zh = "通用规则" }

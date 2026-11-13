@@ -87,6 +87,20 @@ pub fn rule_polish(text: &str) -> String {
     }
 }
 
+/// What a mock engine answers to any polish model request: the name-shaped words of a word finder passage, one per
+/// line, or the rule-polished text of everything else.
+pub fn rule_reply(system: &str, user: &str) -> String {
+    if !crate::word_finder::is_request(system) {
+        return rule_polish(user);
+    }
+    let terms: Vec<&str> = crate::prompts::unfenced(user)
+        .split(|c: char| !(c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.')))
+        .map(|word| word.trim_matches(['-', '_', '.']))
+        .filter(|word| word.len() > 1 && crate::word_finder::is_name_shaped(word))
+        .collect();
+    if terms.is_empty() { "NONE".into() } else { terms.join("\n") }
+}
+
 impl MockPolisher {
     pub fn with_delay(mut self, d: Duration) -> Self {
         self.delay = d;
@@ -113,7 +127,7 @@ impl Polisher for MockPolisher {
         match self.script.lock().expect("script mutex poisoned").pop_front() {
             Some(Ok(text)) => Ok(text),
             Some(Err(kind)) => Err(ProviderError::new(kind, "scripted failure")),
-            None => Ok(rule_polish(req.text)),
+            None => Ok(rule_reply(req.system, req.text)),
         }
     }
 }

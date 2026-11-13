@@ -48,7 +48,7 @@ pub use button::{
 pub use callbacks::{Cb, cbk, cbk_copy, cbk_idx, click_cb};
 pub use config_tiles::{ConfigTile, TilePlus, TileRowState, cbk_id, cbk_move, tile_row};
 pub use copy_button::{copy_button, copy_button_with};
-pub use dialog::{ConfirmStyle, DialogAnswer, confirm_dialog};
+pub use dialog::{ConfirmStyle, DialogAnswer, confirm_dialog, confirm_dialog_with_header};
 pub use form_footer::{FooterTrash, TestButton, form_footer};
 pub use format::{error_line, error_summary, fmt_bytes, fmt_eta, history_target_label};
 pub use glass::{prepare as prepare_card_backdrop, wordmark as page_wordmark};

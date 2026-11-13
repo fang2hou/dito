@@ -2368,6 +2368,7 @@ dependencies = [
  "aws-smithy-types",
  "base64 0.22.1",
  "directories",
+ "quick-xml",
  "reqwest",
  "rusqlite",
  "serde",
@@ -2379,6 +2380,7 @@ dependencies = [
  "tokio-util",
  "toml 0.9.12+spec-1.1.0",
  "tracing",
+ "zip",
 ]
 
 [[package]]

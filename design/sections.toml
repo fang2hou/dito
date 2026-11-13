@@ -115,6 +115,16 @@ board = "20.02"
 item = "20.02.4"
 layer = "Operation failure"
 
+[settings.wordbook.find-words]
+board = "20.02"
+item = "20.02.8"
+layer = "Find words in text"
+
+[settings.wordbook.find-words-other-ai]
+board = "20.02"
+item = "20.02.9"
+layer = "Find words with another AI"
+
 [settings.local-models]
 board = "20.04"
 layer = "Local Models"
