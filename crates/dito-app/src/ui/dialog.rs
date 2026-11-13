@@ -20,7 +20,6 @@ pub struct DialogAnswer {
 #[derive(Clone, Copy)]
 pub enum ConfirmStyle {
     Standard,
-    Compact,
     CompactDestructive,
 }
 
@@ -40,7 +39,6 @@ pub fn confirm_dialog(
 ) -> AnyElement {
     let (width, padding, action_gap, confirm_kind) = match style {
         ConfirmStyle::Standard => (620., 28., 10., BtnKind::Primary),
-        ConfirmStyle::Compact => (524., 28., 10., BtnKind::Primary),
         ConfirmStyle::CompactDestructive => (524., 24., 12., BtnKind::Destructive),
     };
     let escape = cancel.on_click.clone();

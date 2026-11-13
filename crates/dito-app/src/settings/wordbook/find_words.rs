@@ -301,7 +301,7 @@ impl WordbookPage {
                 content,
                 cancel,
                 confirm,
-                ui::ConfirmStyle::Compact,
+                ui::ConfirmStyle::Standard,
             )
         })
     }
