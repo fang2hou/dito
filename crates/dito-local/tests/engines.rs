@@ -73,6 +73,8 @@ fn installed_manager() -> (ModelManager, tempfile::TempDir) {
         name: id.into(),
         kind,
         files: vec![FileSpec { name: "f".into(), url: String::new(), size: 3, sha256: None }],
+        parameters_m: 1,
+        quantization: dito_local::catalog::Quantization::Q8_0,
         memory_mb: 1,
         format: match kind {
             ModelKind::Asr => ModelFormat::SenseVoice { model: "f", tokens: "f" },

@@ -68,7 +68,7 @@ impl ModelsPage {
                     .items_center()
                     .gap(px(10.))
                     .child(text(spec.name.clone(), 16., FontWeight::SEMIBOLD, c.p.text).truncate())
-                    .child(text(super::metadata::model_metadata(c, spec), 12., FontWeight::NORMAL, c.p.model_meta)),
+                    .child(super::metadata::model_labels(c, spec)),
             )
             .child(if selected {
                 EngineLine::new(c, &self.st.local.status(&spec.id)).element()

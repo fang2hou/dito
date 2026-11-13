@@ -8,9 +8,10 @@ publish.workspace = true
 workspace = true
 
 [features]
-default = ["llama", "sherpa"]
+default = ["llama", "sherpa", "transcribe"]
 llama = ["dep:llama-cpp-2", "dep:llama-cpp-sys-2", "dep:encoding_rs"]
 sherpa = ["dep:sherpa-onnx-sys", "dep:serde_json"]
+transcribe = ["dep:transcribe-cpp"]
 
 [dependencies]
 dito-core = { path = "../dito-core" }
@@ -21,6 +22,7 @@ llama-cpp-2 = { version = "=0.1.160", optional = true, features = ["metal", "mtm
 llama-cpp-sys-2 = { version = "=0.1.160", optional = true }
 sherpa-onnx-sys = { version = "=2.0.1", optional = true }
 serde_json = { workspace = true, optional = true }
+transcribe-cpp = { version = "=0.4.2", optional = true }
 
 [dev-dependencies]
 serde = { workspace = true, features = ["derive"] }

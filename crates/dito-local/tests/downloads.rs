@@ -30,6 +30,8 @@ fn spec(id: &str, url: &str, data: &[u8], good_hash: bool) -> ModelSpec {
             size: data.len() as u64,
             sha256: Some(hash),
         }],
+        parameters_m: 1,
+        quantization: dito_local::catalog::Quantization::Q8_0,
         memory_mb: 1,
         format: ModelFormat::SenseVoice { model: "f", tokens: "f" },
         language_focus: None,

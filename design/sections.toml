@@ -119,6 +119,11 @@ layer = "Operation failure"
 board = "20.04"
 layer = "Local Models"
 
+[settings.local-models.labels]
+board = "20.04"
+item = "20.04.6"
+layer = "Model labels"
+
 [settings.status]
 board = "20.08"
 layer = "Status"

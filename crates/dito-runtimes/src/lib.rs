@@ -6,8 +6,8 @@ use std::sync::Arc;
 use dito_local::catalog::{ModelFormat, ModelSpec, Runtime};
 use dito_local::{AsrRuntime, LlmRuntime, RuntimeError, RuntimeLoader};
 
-#[cfg(any(feature = "sherpa", test))]
-#[cfg_attr(not(feature = "sherpa"), allow(dead_code))]
+#[cfg(any(feature = "sherpa", feature = "transcribe", test))]
+#[cfg_attr(not(any(feature = "sherpa", feature = "transcribe")), allow(dead_code))]
 mod chunking;
 #[cfg(feature = "llama")]
 mod llama;
@@ -18,12 +18,14 @@ mod qwen_text;
 mod readout;
 #[cfg(feature = "sherpa")]
 mod sherpa;
+#[cfg(feature = "transcribe")]
+mod transcribe;
 
 #[derive(Default)]
 pub struct Runtimes;
 
 impl RuntimeLoader for Runtimes {
-    #[cfg_attr(not(any(feature = "llama", feature = "sherpa")), allow(unused_variables))]
+    #[cfg_attr(not(any(feature = "llama", feature = "sherpa", feature = "transcribe")), allow(unused_variables))]
     fn load_asr(&self, spec: &ModelSpec, dir: &Path) -> Result<Arc<dyn AsrRuntime>, RuntimeError> {
         match spec.format {
             #[cfg(feature = "sherpa")]
@@ -39,6 +41,10 @@ impl RuntimeLoader for Runtimes {
                     &model_file(dir, tokens)?,
                     feature_dim,
                 )?))
+            }
+            #[cfg(feature = "transcribe")]
+            ModelFormat::TranscribeCpp { model, .. } => {
+                Ok(Arc::new(transcribe::Speech::load(&model_file(dir, model)?)?))
             }
             #[cfg(feature = "llama")]
             ModelFormat::QwenAsr { model, projector } => {

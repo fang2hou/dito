@@ -57,8 +57,9 @@ The sidebar shows a health dot (green when ready, red with the reason when a loc
 
 ## Models
 
-- Local speech recognition: Qwen3-ASR 1.7B (default, most accurate) and 0.6B, both with hotwords; SenseVoice Small (fastest).
+- Local speech recognition: Qwen3-ASR 1.7B (default, most accurate) and 0.6B, both with hotwords; SenseVoice Small (fastest). Optional downloads to compare: Confucius4-R2T2, Fun-ASR-MLT-Nano-2512, whisper-large-v3 and whisper-large-v3-turbo (all with hotwords), and Haas-ja v1.0.
 - Local polishing: Qwen3.5 Instruct 2B, 4B and 9B.
+- Each local model lists from small to large and carries labels for its parameter count, quantization, language (speech models) and download size. Hovering a label explains it in everyday words (`design:settings/local-models/labels`).
 - Nothing downloads until the user asks; downloads resume and are verified. Models in use start at launch.
 
 ## Menu Bar

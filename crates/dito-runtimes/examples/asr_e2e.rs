@@ -34,7 +34,7 @@ async fn main() {
     if !manager.is_installed(&model) {
         manager.start_download(&model).expect("start download");
         let mut updates = manager.subscribe();
-        tokio::time::timeout(Duration::from_secs(300), async {
+        tokio::time::timeout(Duration::from_secs(1800), async {
             loop {
                 let state = updates.borrow_and_update().get(&model).cloned();
                 match state {
@@ -47,10 +47,12 @@ async fn main() {
             }
         })
         .await
-        .expect("download and verification within five minutes");
+        .expect("download and verification within thirty minutes");
     }
     println!("{model}: files downloaded and verified");
-    let detects_language = matches!(manager.spec(&model).unwrap().format, ModelFormat::SenseVoice { .. });
+    let format = manager.spec(&model).unwrap().format;
+    let detects_language = matches!(format, ModelFormat::SenseVoice { .. });
+    let reports_no_language = matches!(format, ModelFormat::NemoTdt { .. });
     let engines = LocalEngines::new(manager, Arc::new(Runtimes));
     let start = Instant::now();
     let transcriber = engines.transcriber(&model).await.expect("load native runtime");
@@ -73,7 +75,7 @@ async fn main() {
                 .await
                 .expect("automatic language detection");
             assert_eq!(automatic.language.as_deref(), Some(expected));
-        } else {
+        } else if reports_no_language {
             assert!(result.language.is_none(), "a decoder without language detection must not invent one");
         }
         if clip == "ja_01" {
