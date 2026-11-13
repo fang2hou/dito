@@ -4,13 +4,14 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Result;
-use dito_audio::{AutoOverrides, Capture};
+use dito_audio::{AutoOverrides, Capture, LiveCapture};
 use dito_core::audio::AudioClip;
 use dito_core::config::{ConfigStore, default_data_dir};
 use dito_core::controller::{self, Deps, DictationHandle, Env, Recorder, RecorderError, SelectionSource, Sink};
 use dito_core::factory::{EngineFactory, Engines};
 use dito_core::secrets::{MemorySecrets, SecretStore};
 use dito_core::store::Store;
+use dito_core::transcription::{self, TranscriptionDeps, TranscriptionHandle, VoiceDetector, VoiceDetectors};
 #[cfg(not(feature = "runtimes"))]
 use dito_local::NoRuntime;
 use dito_local::{LocalEngines, ModelManager, RuntimeLoader};
@@ -42,6 +43,7 @@ pub struct AppState {
     pub factory: Arc<EngineFactory>,
     pub secrets: Arc<dyn SecretStore>,
     pub dictation: DictationHandle,
+    pub transcription: TranscriptionHandle,
     pub recorder: Arc<dyn Recorder>,
     pub capture: Option<Arc<Capture>>,
     pub player: Player,
@@ -102,6 +104,14 @@ impl AppState {
         let recorder = pick_recorder(&opts, capture.as_ref())?;
         let sink: Arc<dyn Sink> = if opts.log_sink { Arc::new(LogSink) } else { Arc::new(MacSink) };
         let engines: Arc<dyn Engines> = factory.clone();
+        let microphone_cfg = cfg.clone();
+        let transcription = transcription::spawn(TranscriptionDeps {
+            audio: Arc::new(LiveCapture::new(move || microphone_cfg.get().general.microphone.clone())),
+            detectors: Arc::new(ModelDetectors { models: models.clone() }),
+            engines: engines.clone(),
+            config: cfg.clone(),
+            store: store.clone(),
+        });
         let dictation = controller::spawn(Deps {
             env: Env {
                 recorder: recorder.clone(),
@@ -125,6 +135,7 @@ impl AppState {
             factory,
             secrets,
             dictation,
+            transcription,
             recorder,
             capture,
             player: Player::default(),
@@ -194,6 +205,26 @@ fn runtime_loader() -> Arc<dyn RuntimeLoader> {
 #[cfg(not(feature = "runtimes"))]
 fn runtime_loader() -> Arc<dyn RuntimeLoader> {
     Arc::new(NoRuntime)
+}
+
+/// Transcription detectors from the downloaded Silero model. Without the on-device runtimes (`--mock` builds) a
+/// level-based detector stands in.
+struct ModelDetectors {
+    #[cfg_attr(not(feature = "runtimes"), allow(dead_code))]
+    models: ModelManager,
+}
+
+impl VoiceDetectors for ModelDetectors {
+    #[cfg(feature = "runtimes")]
+    fn create(&self) -> Result<Box<dyn VoiceDetector>, String> {
+        let dir = self.models.model_dir(dito_local::SILERO_VAD);
+        dito_runtimes::SileroDetectors::new(&dir.join("silero_vad.onnx")).create()
+    }
+
+    #[cfg(not(feature = "runtimes"))]
+    fn create(&self) -> Result<Box<dyn VoiceDetector>, String> {
+        transcription::EnergyDetectors.create()
+    }
 }
 
 /// The real microphone, unless `--mock` or `--wav` replaces it (`--real-mic` keeps it under `--mock`).

@@ -77,6 +77,7 @@ fn installed_manager() -> (ModelManager, tempfile::TempDir) {
         format: match kind {
             ModelKind::Asr => ModelFormat::SenseVoice { model: "f", tokens: "f" },
             ModelKind::Polish => ModelFormat::Chat { model: "f", disable_thinking: false, sampling: RECOMMENDED },
+            ModelKind::Vad => ModelFormat::SileroVad { model: "f" },
         },
         language_focus: None,
     };

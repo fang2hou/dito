@@ -21,6 +21,7 @@ mod shell;
 mod sidebar;
 mod stats;
 mod status;
+mod transcription;
 mod window;
 mod wordbook;
 
@@ -28,7 +29,7 @@ pub use ctx::Ctx;
 #[cfg(feature = "screenshots")]
 pub use models::ModelsProbe;
 pub use page::Page;
-pub use page_layout::{content_width, page, page_fill};
+pub use page_layout::{content_width, page, page_fill, page_scroll};
 #[cfg(feature = "screenshots")]
 pub use shell::Settings;
 pub use window::{global_state, is_open, open};

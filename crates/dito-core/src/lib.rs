@@ -18,6 +18,7 @@ pub mod secrets;
 pub mod store;
 pub mod surrounding;
 pub mod trace;
+pub mod transcription;
 
 pub use audio::AudioClip;
 pub use config::{Config, ConfigStore};

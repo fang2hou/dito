@@ -7,7 +7,7 @@ use gpui_kit::*;
 
 use super::models;
 use super::page::{RAIL_COLLAPSE, RAIL_EXPAND, traffic_light_position};
-use super::{Ctx, Page, general, history, prompts, stats, status, wordbook};
+use super::{Ctx, Page, general, history, prompts, stats, status, transcription, wordbook};
 use crate::services;
 use crate::state::AppState;
 use crate::theme::{self, Palette};
@@ -21,6 +21,7 @@ pub struct Settings {
     /// The persistent shell scope: the sidebar's nav plate and hover live here for the window's
     /// whole life; page navigation resets page scopes but never this one.
     pub(super) motion: ui::MotionScope,
+    pub(super) transcription: Entity<transcription::TranscriptionPage>,
     pub(super) general: Entity<general::GeneralPage>,
     pub(super) models: Entity<models::ModelsPage>,
     pub(super) wordbook: Entity<wordbook::WordbookPage>,
@@ -38,6 +39,7 @@ impl Settings {
         services::watch_config(&st, cx);
         let s = &st;
         let this = Self {
+            transcription: cx.new(|cx| transcription::TranscriptionPage::new(s.clone(), window, cx)),
             general: cx.new(|cx| general::GeneralPage::new(s.clone(), cx)),
             models: cx.new(|cx| models::ModelsPage::new(s.clone(), window, cx)),
             wordbook: cx.new(|cx| wordbook::WordbookPage::new(s.clone(), window, cx)),
@@ -61,6 +63,7 @@ impl Settings {
 
     pub(super) fn activate(&self, page: Page, cx: &mut Context<Self>) {
         match page {
+            Page::Transcription => self.transcription.update(cx, |t, cx| t.set_active(true, cx)),
             Page::History => self.history.update(cx, |h, cx| {
                 // Heavy list: skeleton it while the nav plate settles so its frames stay smooth.
                 h.enter(cx);
@@ -102,6 +105,7 @@ impl Settings {
 
     pub(super) fn reset_page_motion(&self, page: Page, cx: &mut Context<Self>) {
         match page {
+            Page::Transcription => self.transcription.update(cx, |t, _| t.reset_motion()),
             Page::General => self.general.update(cx, |g, _| g.reset_motion()),
             Page::Models => self.models.update(cx, |m, cx| m.reset_motion(cx)),
             Page::Wordbook => self.wordbook.update(cx, |d, _| d.reset_motion()),
@@ -148,6 +152,7 @@ impl Settings {
 
     fn page_view(&self) -> AnyElement {
         match self.page {
+            Page::Transcription => self.transcription.clone().into_any_element(),
             Page::General => self.general.clone().into_any_element(),
             Page::Models => self.models.clone().into_any_element(),
             Page::Wordbook => self.wordbook.clone().into_any_element(),

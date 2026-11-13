@@ -12,6 +12,7 @@ mod migrate;
 mod restore;
 mod settings;
 mod store;
+mod transcription;
 
 pub use cloud_asr::{CloudAsrConfiguration, CloudAsrConfigurations, CloudAsrTemplate};
 pub use cloud_polish::{
@@ -31,3 +32,4 @@ pub use migrate::SCHEMA_VERSION;
 pub use restore::{ParseProblem, parse_problem, restore_defaults};
 pub use settings::Config;
 pub use store::ConfigStore;
+pub use transcription::TranscriptionSettings;

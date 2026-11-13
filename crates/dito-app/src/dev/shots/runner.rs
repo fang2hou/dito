@@ -80,6 +80,12 @@ async fn render_app_shots(st: &Arc<AppState>, dir: &Path, groups: &Groups, cx: &
     if groups.selects("prompts") {
         pages::prompt_shots(st, dir, cx).await;
     }
+    if groups.selects("transcription") {
+        pages::transcript_shots(st, dir, cx).await;
+    }
+    if groups.selects("transcriptfilm") {
+        super::transcript_film::run(st, dir, cx).await;
+    }
     if groups.selects("wordbook") {
         wordbook::wordbook_failure_shots(st, dir, cx).await;
     }

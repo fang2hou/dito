@@ -1,3 +1,4 @@
+use gpui_kit::prelude::*;
 use gpui_kit::*;
 
 use crate::theme::Palette;
@@ -41,10 +42,23 @@ pub fn page(
     actions: Option<AnyElement>,
     body: impl IntoElement,
 ) -> impl IntoElement {
+    page_scroll(p, id, title, actions, body, None)
+}
+
+/// Like [`page`], with the page-level scroll tracked by `scroll` so the page can read and move it.
+pub fn page_scroll(
+    p: Palette,
+    id: &'static str,
+    title: SharedString,
+    actions: Option<AnyElement>,
+    body: impl IntoElement,
+    scroll: Option<&ScrollHandle>,
+) -> impl IntoElement {
     div()
         .id(id)
         .size_full()
         .overflow_y_scroll()
+        .when_some(scroll, |d, scroll| d.track_scroll(scroll))
         .px(px(56.))
         .pt(px(44.))
         .pb(px(36.))

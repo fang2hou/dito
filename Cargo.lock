@@ -2423,6 +2423,7 @@ dependencies = [
 name = "dito-runtimes"
 version = "0.1.0"
 dependencies = [
+ "dito-audio",
  "dito-core",
  "dito-local",
  "encoding_rs",

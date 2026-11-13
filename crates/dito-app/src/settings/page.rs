@@ -5,6 +5,7 @@ use crate::assets::Ic;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Page {
+    Transcription,
     General,
     Models,
     Wordbook,
@@ -17,6 +18,7 @@ pub enum Page {
 impl Page {
     pub fn label(self) -> Tr {
         match self {
+            Self::Transcription => Tr::NavTranscription,
             Self::General => Tr::NavGeneral,
             Self::Models => Tr::NavModels,
             Self::Wordbook => Tr::NavWordbook,
@@ -29,6 +31,7 @@ impl Page {
 
     pub fn english(self) -> &'static str {
         match self {
+            Self::Transcription => "Transcription",
             Self::General => "General",
             Self::Models => "Models",
             Self::Wordbook => "Wordbook",
@@ -40,11 +43,20 @@ impl Page {
     }
 
     /// In sidebar order.
-    pub const ALL: [Page; 7] =
-        [Self::General, Self::Models, Self::Wordbook, Self::Prompts, Self::History, Self::Stats, Self::Status];
+    pub const ALL: [Page; 8] = [
+        Self::Transcription,
+        Self::General,
+        Self::Models,
+        Self::Wordbook,
+        Self::Prompts,
+        Self::History,
+        Self::Stats,
+        Self::Status,
+    ];
 
     pub(super) fn icon(self) -> Ic {
         match self {
+            Self::Transcription => Ic::AudioLines,
             Self::General => Ic::Sliders,
             Self::Models => Ic::Cpu,
             Self::Wordbook => Ic::BookOpen,
@@ -82,12 +94,37 @@ pub(super) const fn sidebar_top_height(rail: bool) -> f32 {
 /// Top of the collapsed nav column: drag strip + brand slot (51) + two gaps (4 each).
 pub(super) const NAV_COL_Y: f32 = sidebar_top_height(true) + 51. + 2. * NAV_GAP;
 
-/// Two section headers, then the items in order.
+/// The sidebar's sections, each a header and its pages, in order.
+pub(super) const SECTIONS: [(Tr, &[Page]); 3] = [
+    (Tr::NavFeatures, &[Page::Transcription]),
+    (Tr::NavSettings, &[Page::General, Page::Models, Page::Wordbook, Page::Prompts]),
+    (Tr::NavActivity, &[Page::History, Page::Stats, Page::Status]),
+];
+
+/// Each section header, then its items in order.
 pub(super) fn nav_y(page: Page) -> f32 {
     let step = NAV_H + NAV_GAP;
     let header = NAV_SECTION_H + NAV_GAP;
-    match page {
-        Page::General | Page::Models | Page::Wordbook | Page::Prompts => header + (page as usize) as f32 * step,
-        _ => header + 4. * step + header + ((page as usize) - 4) as f32 * step,
+    let mut y = 0.;
+    for (_, pages) in SECTIONS {
+        y += header;
+        for p in pages {
+            if *p == page {
+                return y;
+            }
+            y += step;
+        }
+    }
+    unreachable!("every page is in a section")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Page, SECTIONS};
+
+    #[test]
+    fn every_page_is_in_one_section_in_sidebar_order() {
+        let listed: Vec<Page> = SECTIONS.iter().flat_map(|(_, pages)| pages.iter().copied()).collect();
+        assert_eq!(listed, Page::ALL);
     }
 }

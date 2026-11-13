@@ -71,6 +71,8 @@ models.use = { ja = "使用する", en = "Use", zh = "使用" }
 models.downloaded = { ja = "ダウンロード済み", en = "Downloaded", zh = "已下载" }
 models.connection_settings = { ja = "接続設定", en = "Connection settings", zh = "连接设置" }
 
+nav.features = { ja = "機能", en = "Features", zh = "功能" }
+nav.transcription = { ja = "書き起こし", en = "Transcription", zh = "转写" }
 nav.settings = { ja = "設定", en = "Settings", zh = "设置" }
 nav.activity = { ja = "利用状況", en = "Activity", zh = "使用情况" }
 nav.general = { ja = "一般", en = "General", zh = "通用" }
@@ -517,6 +519,39 @@ prompts.remove_application = { ja = "アプリのルールを削除", en = "Remo
 prompts.remove_title = { ja = "アプリのルールを削除しますか？", en = "Remove this app's rules?", zh = "要删除此应用的规则吗？" }
 prompts.remove_history = { ja = "過去の履歴は消えず、「その他」として残ります。", en = "Past history is kept and reads as Other.", zh = "过去的记录会保留，并归为「其他」。" }
 prompts.remove_confirm = { ja = "削除する", en = "Delete", zh = "删除" }
+
+transcription.start = { ja = "録音を開始", en = "Start recording", zh = "开始录音" }
+transcription.stop = { ja = "停止", en = "Stop", zh = "停止" }
+transcription.starting = { ja = "準備中", en = "Getting ready", zh = "正在准备" }
+transcription.finishing = { ja = "仕上げ中", en = "Finishing", zh = "正在收尾" }
+transcription.recording = { ja = "録音中", en = "Recording", zh = "正在录音" }
+transcription.recording_group = { ja = "録音", en = "Recording", zh = "录音" }
+transcription.source_system = { ja = "デスクトップ音声", en = "Desktop audio", zh = "桌面音频" }
+transcription.source_system_hint = { ja = "Mac で再生される音声です。会議の相手の声や動画の音声を書き起こします。", en = "Everything the Mac plays, such as the other side of a meeting or a video.", zh = "Mac 播放的声音，例如会议中对方的声音或视频的声音。" }
+transcription.source_mic = { ja = "マイク", en = "Microphone", zh = "麦克风" }
+transcription.source_mic_hint = { ja = "自分の声を書き起こします。デスクトップ音声と一緒に使うときは、ヘッドホンを付けてください。スピーカーで聞いていると、相手の声がマイクにも入ります。", en = "Transcribes your own voice. With desktop audio too, wear headphones: through speakers, the microphone also picks up the other side.", zh = "转写你自己的声音。与桌面音频一起使用时，请戴上耳机：用扬声器收听时，麦克风也会录到对方的声音。" }
+transcription.sources_rule = { ja = "1 つ以上を選びます。両方を選ぶと、自分と相手を分けて書き起こします。", en = "Choose at least one. With both, you and the other side are kept apart.", zh = "至少选择一项。两项都选时，会分开转写你和对方。" }
+transcription.permission_note = { ja = "初回は、macOS がシステム音声の録音の許可を求めます。", en = "The first time, macOS asks for permission to record system audio.", zh = "首次使用时，macOS 会请求录制系统音频的权限。" }
+transcription.transcripts = { ja = "記録", en = "Transcripts", zh = "记录" }
+transcription.empty = { ja = "まだ書き起こしはありません。会議が始まったら「録音を開始」を押します。", en = "No transcripts yet. Press Start recording when the meeting begins.", zh = "还没有转写记录。会议开始时按「开始录音」。" }
+transcription.untitled = { ja = "無題", en = "Untitled", zh = "无标题" }
+transcription.title_placeholder = { ja = "タイトル", en = "Title", zh = "标题" }
+transcription.me = { ja = "自分", en = "Me", zh = "我" }
+transcription.others = { ja = "相手", en = "Others", zh = "对方" }
+transcription.listening = { ja = "聞き取り中", en = "Listening", zh = "正在听写" }
+transcription.polishing = { ja = "整形中", en = "Polishing", zh = "正在润色" }
+transcription.not_polished = { ja = "整形できなかったため、認識結果のままです", en = "Not polished, so this is the recognized text", zh = "未能润色，这里是识别结果" }
+transcription.nothing_yet = { ja = "まだ発言はありません", en = "Nothing said yet", zh = "还没有发言" }
+transcription.back = { ja = "一覧に戻る", en = "Back to the list", zh = "返回列表" }
+transcription.delete = { ja = "削除", en = "Delete", zh = "删除" }
+transcription.delete_confirm = { ja = "もう一度押すと削除します", en = "Press again to delete", zh = "再按一次即删除" }
+transcription.vad_title = { ja = "発話検出モデルが必要です", en = "A speech detection model is needed", zh = "需要语音检测模型" }
+transcription.vad_body = { ja = "話している区間を見つけるために、Silero VAD（約 0.6 MB）を GitHub からダウンロードします。", en = "To find where people speak, Silero VAD (about 0.6 MB) is downloaded from GitHub.", zh = "为了找出说话的部分，将从 GitHub 下载 Silero VAD（约 0.6 MB）。" }
+transcription.vad_download = { ja = "ダウンロードして開始", en = "Download and start", zh = "下载并开始" }
+transcription.vad_downloading = { ja = "ダウンロード中", en = "Downloading", zh = "正在下载" }
+transcription.vad_failed = { ja = "発話検出モデルをダウンロードできませんでした", en = "The speech detection model could not be downloaded", zh = "无法下载语音检测模型" }
+transcription.cancel = { ja = "キャンセル", en = "Cancel", zh = "取消" }
+transcription.mic_denied = { ja = "マイクの使用が許可されていません。ステータスから許可してください。", en = "Microphone access is off. Allow it from Status.", zh = "未允许使用麦克风，请在「状态」中允许。" }
 
 [fmt.using_model]
 ja = "{model} を使用中"

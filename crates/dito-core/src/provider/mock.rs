@@ -56,6 +56,60 @@ impl Transcriber for MockTranscriber {
     }
 }
 
+/// Recognizes scripted speech: line `i` of the script is spoken as a tone of [`tone_hz`]`(i)`, and the text of a clip
+/// is as much of that line as the clip holds tone, so partial audio reads as a partial line. Takes longer for longer
+/// clips, like a real model, and stops early when the request is dropped.
+pub struct ToneTranscriber {
+    /// (text, seconds the line is spoken for)
+    lines: Vec<(String, f32)>,
+    base: Duration,
+    per_second: Duration,
+}
+
+const TONE_RATE: f32 = 16_000.;
+const TONE_LEVEL: f32 = 0.3;
+
+pub fn tone_hz(line: usize) -> f32 {
+    200. + 50. * line as f32
+}
+
+/// `secs` of line `line` spoken, as 16 kHz samples.
+pub fn tone(line: usize, secs: f32) -> Vec<f32> {
+    let step = std::f32::consts::TAU * tone_hz(line) / TONE_RATE;
+    (0..(secs * TONE_RATE) as usize).map(|i| (i as f32 * step).sin() * TONE_LEVEL).collect()
+}
+
+impl ToneTranscriber {
+    pub fn new(lines: Vec<(String, f32)>, base: Duration, per_second: Duration) -> Self {
+        Self { lines, base, per_second }
+    }
+}
+
+#[async_trait]
+impl Transcriber for ToneTranscriber {
+    async fn transcribe(&self, req: &AsrRequest<'_>) -> ProviderResult<Transcript> {
+        let samples = &req.clip.samples;
+        tokio::time::sleep(self.base + self.per_second.mul_f32(samples.len() as f32 / TONE_RATE)).await;
+        // The tone runs from the first loud sample to the last; each period crosses zero twice.
+        let first = samples.iter().position(|s| s.abs() > 0.01).unwrap_or(0);
+        let last = samples.iter().rposition(|s| s.abs() > 0.01).unwrap_or(0);
+        let tone = &samples[first..=last.max(first)];
+        let secs = tone.len() as f32 / TONE_RATE;
+        if secs < 0.2 {
+            return Err(ProviderError::new(ErrorKind::NoSpeech, "no tone"));
+        }
+        let crossings = tone.windows(2).filter(|w| (w[0] < 0.) != (w[1] < 0.)).count() as f32;
+        let hz = crossings / 2. / secs;
+        let line = ((hz - tone_hz(0)) / (tone_hz(1) - tone_hz(0))).round().max(0.) as usize;
+        let Some((text, spoken)) = self.lines.get(line) else {
+            return Err(ProviderError::new(ErrorKind::NoSpeech, "unknown tone"));
+        };
+        let chars = text.chars().count();
+        let heard = ((secs / spoken).min(1.) * chars as f32).ceil() as usize;
+        Ok(Transcript { text: text.chars().take(heard).collect(), language: None })
+    }
+}
+
 pub struct MockPolisher {
     script: Mutex<VecDeque<Reply>>,
     delay: Duration,

@@ -33,6 +33,17 @@ What the app is for and what it does, from the user's side. How it looks and mov
 - A command needs a local polish model, which also decides what the instruction asks for.
 - One step per instruction for now.
 
+## Transcription
+
+- Started and stopped from the 書き起こし page; nothing is recorded until the user starts a session.
+- Records one or both sources the user picks: デスクトップ音声 (what the Mac plays, through a system audio tap on macOS 14.6 or later) and マイク (the user's own voice, such as a long monologue). With both, meant for headphones, the two are kept apart as 自分 and 相手.
+- Speech is cut into utterances by Silero VAD and recognized as each one ends with the speech engine chosen for dictation. While an utterance goes on, it is recognized again about every second when the engine is free; the final recognition of a finished utterance always goes first and cancels a partial one in progress.
+- The paragraph still being heard stays in a floating box at the bottom of the entry for the whole session: its settled words in normal text, then the unsettled words with a sweeping gradient and a trailing ellipsis (trailing punctuation removed). Unsettled words stay until their final text replaces them. Only closed paragraphs are rows, first marked 整形中 and then editable; a reader at the end of the entry stays at the end as rows arrive.
+- Utterances are grouped into paragraphs at a 2 second pause, a change of speaker, the first sentence end past 80 characters (about three sentences), or 280 characters without one. A closed paragraph goes to polishing at once.
+- Each paragraph is polished with the two paragraphs before it as read-only context, plus the wordbook when it applies to polishing. A paragraph keeps the recognized words if polishing fails or is off.
+- Each session is one entry, like a memo: a title, the start time and length, and its paragraphs with time and speaker. Finished paragraphs are edited in place; an entry can be copied as text or deleted.
+- The voice activity model (about 0.6 MB) is downloaded on the first start, after the user agrees to it.
+
 ## HUD
 
 - A small capsule above the Dock, or following the pointer. It never takes focus and stays above app windows. Only a command window with a text field takes the keyboard, and gives it back when it closes.
@@ -45,6 +56,7 @@ What the app is for and what it does, from the user's side. How it looks and mov
 
 | Page | What it does |
 | --- | --- |
+| 書き起こし (Transcription) | Under 機能, above the settings: start or stop a session, pick what it records (desktop audio, microphone or both), the list of transcripts and each transcript as an editable entry |
 | 一般 (General) | Shortcut, record mode, insert method, command shortcut (with a button back to the default; never the same as the dictation shortcut), music mute, microphone (automatic or fixed), speech language, display language, appearance, HUD appearance and position, launch at login, restart onboarding |
 | モデル (Models) | Local models (download, pause, resume, verify, delete, switch with 使用する, move the folder), with request parameters per local polish model; cloud configurations for speech and for polishing, shown as a scrolling row of tiles that can be added from a template (FunASR, Qwen ASR, OpenRouter for speech; Azure OpenAI, Amazon Bedrock, OpenAI-compatible for polishing), duplicated, renamed, reordered by dragging and deleted; cloud speech edits the full request in the inline JSON editor with valid-draft autosave, native undo and redo, and a single documentation help dialog with four scrollable reference cards; cloud polishing has request parameters (temperature, top-p, max tokens, reasoning effort, extra JSON); connection tests |
 | 単語帳 (Wordbook) | Words passed to speech recognition as hotwords, optionally also to polishing; import, export and confirmed bulk deletion; a banner when an action fails |
@@ -53,7 +65,7 @@ What the app is for and what it does, from the user's side. How it looks and mov
 | 統計 (Stats) | Time saved first, then characters, recordings and speaking speed; characters per day as a week of tiles, a month calendar or a heatmap since first use, following the period, top apps and languages |
 | ステータス (Status) | Whether dictation works right now: a verdict, then shortcut, microphone, speech recognition, polishing and insertion in order, each with what it uses or how long it takes, and the reason and one fix when it fails |
 
-The sidebar shows a health dot (green when ready, red with the reason when a local model is stopped) and collapses to a rail in narrow windows.
+The sidebar groups pages under 機能 (Features), 設定 (Settings) and 利用状況 (Activity). It shows a health dot (green when ready, red with the reason when a local model is stopped) and collapses to a rail in narrow windows.
 
 ## Models
 

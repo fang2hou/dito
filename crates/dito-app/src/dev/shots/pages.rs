@@ -53,6 +53,26 @@ pub async fn page_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     }
 }
 
+/// An open transcript, in both appearances.
+pub async fn transcript_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
+    for appearance in [Appearance::Light, Appearance::Dark] {
+        services::save_config(st, |c| c.general.appearance = appearance);
+        open_page_sized(st, Page::Transcription, 1120., 900., cx);
+        on_settings_window(cx, |w, cx, _| {
+            if let Some((_, view)) = settings::handle(cx) {
+                view.update(cx, |s, cx| s.preview_transcript(w, cx));
+            }
+        });
+        page_shot(cx, dir, &format!("transcript-{}.png", theme_tag(appearance))).await;
+        on_settings_window(cx, |w, cx, _| {
+            if let Some((_, view)) = settings::handle(cx) {
+                view.update(cx, |s, cx| s.preview_live_transcript(crate::dev::seed::LIVE_TAIL, w, cx));
+            }
+        });
+        page_shot(cx, dir, &format!("transcript-live-{}.png", theme_tag(appearance))).await;
+    }
+}
+
 pub async fn prompt_motion_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     let original = st.cfg.get();
     for appearance in [Appearance::Light, Appearance::Dark] {

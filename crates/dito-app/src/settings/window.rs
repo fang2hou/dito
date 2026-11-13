@@ -41,6 +41,7 @@ pub fn page_motion(page: Page, cx: &App) -> Option<ui::ScopeHandle> {
     cx.try_global::<SettingsHandle>().map(|h| {
         let view = h.view.read(cx);
         match page {
+            Page::Transcription => view.transcription.read(cx).motion_scope(),
             Page::General => view.general.read(cx).motion_scope(),
             Page::Models => view.models.read(cx).motion_scope(),
             Page::Wordbook => view.wordbook.read(cx).motion_scope(),

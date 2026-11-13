@@ -6,6 +6,8 @@ use dito_core::config::LocalPolishParams;
 pub enum ModelKind {
     Asr,
     Polish,
+    /// Voice activity detection for transcription. Never selectable on the Models page, which lists Asr and Polish.
+    Vad,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -79,12 +81,16 @@ pub enum ModelFormat {
         disable_thinking: bool,
         sampling: Sampling,
     },
+    /// Not loaded by `LocalEngines`: each audio source creates its own detector from the file.
+    SileroVad {
+        model: &'static str,
+    },
 }
 
 impl ModelFormat {
     pub fn runtime(self) -> Runtime {
         match self {
-            Self::SenseVoice { .. } | Self::NemoTdt { .. } => Runtime::SherpaOnnx,
+            Self::SenseVoice { .. } | Self::NemoTdt { .. } | Self::SileroVad { .. } => Runtime::SherpaOnnx,
             Self::QwenAsr { .. } | Self::Chat { .. } => Runtime::LlamaCpp,
         }
     }
@@ -97,12 +103,13 @@ impl ModelFormat {
     pub fn sampling(self) -> Option<Sampling> {
         match self {
             Self::Chat { sampling, .. } => Some(sampling),
-            Self::SenseVoice { .. } | Self::NemoTdt { .. } | Self::QwenAsr { .. } => None,
+            Self::SenseVoice { .. } | Self::NemoTdt { .. } | Self::QwenAsr { .. } | Self::SileroVad { .. } => None,
         }
     }
 
     pub fn files(self) -> Vec<&'static str> {
         match self {
+            Self::SileroVad { model } => vec![model],
             Self::SenseVoice { model, tokens } => vec![model, tokens],
             Self::NemoTdt { encoder, decoder, joiner, tokens, .. } => vec![encoder, decoder, joiner, tokens],
             Self::QwenAsr { model, projector } => vec![model, projector],
@@ -327,8 +334,26 @@ pub fn default_catalog() -> Vec<ModelSpec> {
             },
             language_focus: None,
         },
+        // Silero VAD v5 as published with sherpa-onnx; cuts transcription audio into utterances.
+        ModelSpec {
+            id: SILERO_VAD.into(),
+            name: "Silero VAD".into(),
+            kind: ModelKind::Vad,
+            files: vec![file(
+                "silero_vad.onnx",
+                "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad.onnx",
+                643_854,
+                Some("9e2449e1087496d8d4caba907f23e0bd3f78d91fa552479bb9c23ac09cbb1fd6"),
+            )],
+            memory_mb: 20,
+            format: ModelFormat::SileroVad { model: "silero_vad.onnx" },
+            language_focus: None,
+        },
     ]
 }
+
+/// The voice activity detector transcription downloads on first use.
+pub const SILERO_VAD: &str = "silero-vad";
 
 #[cfg(test)]
 mod tests {
@@ -372,6 +397,7 @@ mod tests {
             }
             assert_eq!(spec.kind == ModelKind::Polish, matches!(spec.format, ModelFormat::Chat { .. }));
             assert_eq!(spec.format.sampling().is_some(), spec.kind == ModelKind::Polish, "{}", spec.id);
+            assert_eq!(spec.kind == ModelKind::Vad, matches!(spec.format, ModelFormat::SileroVad { .. }));
         }
         let haas = default_catalog().into_iter().find(|s| s.id == "haas-ja").unwrap();
         assert!(haas.files.iter().any(|f| f.name == "encoder.data" && f.sha256.is_some()));

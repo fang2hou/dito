@@ -12,6 +12,7 @@ mod polish_form;
 mod runner;
 mod startup;
 mod tile_row;
+mod transcript_film;
 mod verify;
 mod wordbook;
 

@@ -3,7 +3,10 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use super::{CloudAsrConfigurations, EngineConfig, General, PolishConfig, ReasoningEffort, SCHEMA_VERSION, Source};
+use super::{
+    CloudAsrConfigurations, EngineConfig, General, PolishConfig, ReasoningEffort, SCHEMA_VERSION, Source,
+    TranscriptionSettings,
+};
 use crate::prompts::Prompts;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -18,6 +21,7 @@ pub struct Config {
     pub wordbook_for_polish: bool,
     pub onboarded: bool,
     pub models_dir: Option<PathBuf>,
+    pub transcription: TranscriptionSettings,
 }
 
 impl Default for Config {
@@ -31,6 +35,7 @@ impl Default for Config {
             wordbook_for_polish: false,
             onboarded: false,
             models_dir: None,
+            transcription: TranscriptionSettings::default(),
         }
     }
 }

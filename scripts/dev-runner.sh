@@ -33,8 +33,10 @@ if [[ "$(basename "$bin")" == dito ]]; then
   # Localize the system permission prompt (it reads InfoPlist.strings, not our UI code).
   for lproj in en zh; do
     text=$([ "$lproj" = en ] \
-      && echo 'NSMicrophoneUsageDescription = "Dito uses the microphone for voice input.";' \
-      || echo 'NSMicrophoneUsageDescription = "Dito 使用麦克风进行语音输入。";')
+      && printf '%s\n' 'NSMicrophoneUsageDescription = "Dito uses the microphone for voice input.";' \
+      'NSAudioCaptureUsageDescription = "Dito records system audio to transcribe meetings.";' \
+      || printf '%s\n' 'NSMicrophoneUsageDescription = "Dito 使用麦克风进行语音输入。";' \
+      'NSAudioCaptureUsageDescription = "Dito 录制系统音频以转写会议。";')
     mkdir -p "$app/Contents/Resources/$lproj.lproj"
     printf '%s\n' "$text" > "$app/Contents/Resources/$lproj.lproj/InfoPlist.strings"
   done
@@ -55,6 +57,7 @@ if [[ "$(basename "$bin")" == dito ]]; then
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>NSHighResolutionCapable</key><true/>
   <key>NSMicrophoneUsageDescription</key><string>音声入力のためにマイクを使用します。</string>
+  <key>NSAudioCaptureUsageDescription</key><string>会議の書き起こしのためにシステム音声を録音します。</string>
 </dict>
 </plist>
 PLIST

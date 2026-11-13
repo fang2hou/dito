@@ -2,7 +2,7 @@ use gpui_kit::prelude::*;
 use gpui_kit::*;
 
 use super::page::{
-    NAV_COL_Y, NAV_GAP, NAV_H, NAV_SECTION_H, RAIL_MS, RAIL_PADDING, RAIL_WIDTH, nav_y, sidebar_top_height,
+    NAV_COL_Y, NAV_GAP, NAV_H, NAV_SECTION_H, RAIL_MS, RAIL_PADDING, RAIL_WIDTH, SECTIONS, nav_y, sidebar_top_height,
 };
 use super::shell::Settings;
 use super::{Ctx, Page};
@@ -196,13 +196,11 @@ impl Settings {
                     .flex_col()
                     .gap(px(NAV_GAP))
                     .child(plate)
-                    .child(nav_section(c, rail, Tr::NavSettings))
-                    .children(
-                        [Page::General, Page::Models, Page::Wordbook, Page::Prompts]
-                            .map(|pg| self.nav_item(c, cx, rail, pg)),
-                    )
-                    .child(nav_section(c, rail, Tr::NavActivity))
-                    .children([Page::History, Page::Stats, Page::Status].map(|pg| self.nav_item(c, cx, rail, pg)))
+                    .children(SECTIONS.iter().flat_map(|(label, pages)| {
+                        std::iter::once(nav_section(c, rail, *label))
+                            .chain(pages.iter().map(|pg| self.nav_item(c, cx, rail, *pg)))
+                            .collect::<Vec<_>>()
+                    }))
                     .child(contents),
             )
             .child(ui::drag_area("sidebar-drag").flex_1())

@@ -18,6 +18,11 @@ mod qwen_text;
 mod readout;
 #[cfg(feature = "sherpa")]
 mod sherpa;
+#[cfg(feature = "sherpa")]
+mod vad;
+
+#[cfg(feature = "sherpa")]
+pub use vad::SileroDetectors;
 
 #[derive(Default)]
 pub struct Runtimes;

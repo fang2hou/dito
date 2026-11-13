@@ -23,6 +23,7 @@ sherpa-onnx-sys = { version = "=2.0.1", optional = true }
 serde_json = { workspace = true, optional = true }
 
 [dev-dependencies]
+dito-audio = { path = "../dito-audio" }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 tokio.workspace = true
