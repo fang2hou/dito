@@ -294,9 +294,9 @@ wordbook.find_words = { ja = "解析して追加", en = "Analyze and add", zh = 
 wordbook.find_seg_text = { ja = "テキスト", en = "Text", zh = "文字" }
 wordbook.find_seg_file = { ja = "ファイル", en = "File", zh = "文件" }
 wordbook.find_seg_ai = { ja = "ほかの AI", en = "Other AI", zh = "其他 AI" }
-wordbook.find_title_text = { ja = "テキストを解析", en = "Analyze text", zh = "解析文字" }
-wordbook.find_title_file = { ja = "ファイルを解析", en = "Analyze a file", zh = "解析文件" }
-wordbook.find_title_ai = { ja = "ほかの AI で解析", en = "Use another AI", zh = "用其他 AI 解析" }
+wordbook.find_title_text = { ja = "テキストから単語を解析", en = "Find words in text", zh = "从文字里解析单词" }
+wordbook.find_title_file = { ja = "ファイルから単語を解析", en = "Find words in a file", zh = "从文件里解析单词" }
+wordbook.find_title_ai = { ja = "ほかの AI で単語を解析", en = "Find words with another AI", zh = "用其他 AI 解析单词" }
 wordbook.find_desc_text = { ja = "貼り付けたテキストを解析し、単語帳に入れる候補を挙げます。", en = "Analyzes pasted text and suggests candidate words for your wordbook.", zh = "解析粘贴的文字，找出可加入单词本的候选词。" }
 wordbook.find_desc_file = { ja = "ファイルを解析し、単語帳に入れる候補を挙げます。", en = "Analyzes a file and suggests candidate words for your wordbook.", zh = "解析文件，找出可加入单词本的候选词。" }
 wordbook.find_desc_ai = { ja = "PDF や画像はほかの AI に読んでもらい、その回答から候補を挙げます。", en = "Have another AI read PDFs or images, then get candidate words from its reply.", zh = "让其他 AI 读取 PDF 或图片，再从它的回答里找出候选词。" }

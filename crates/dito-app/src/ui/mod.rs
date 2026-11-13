@@ -75,7 +75,7 @@ pub use progress_bar::progress_bar;
 pub use radio::radio;
 pub use requests::Requests;
 pub use scope::{MotionScope, ScopeHandle, motion_scope, with_motion_scope};
-pub use segmented::{SegContent, SegOption, SegStyle, seg, seg_fixed, seg_with};
+pub use segmented::{SegContent, SegOption, SegStyle, seg, seg_with};
 pub use select::{SelectItem, select, select_form, select_form_disabled, select_items, select_multi, select_trigger};
 pub use select_badge::SelectBadge;
 pub use selectable::{selectable_spans, selectable_text};

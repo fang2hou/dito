@@ -130,30 +130,6 @@ pub fn seg(
     )
 }
 
-/// [`seg`] with every cell `width` wide, for a control that reads as one block beside a title.
-pub fn seg_fixed(
-    id: impl Into<ElementId>,
-    p: &Palette,
-    options: &[SharedString],
-    width: f32,
-    selected: usize,
-    on_select: IndexCb,
-) -> Stateful<Div> {
-    let options: Vec<_> = options
-        .iter()
-        .cloned()
-        .map(|text| SegOption { content: SegContent::Text(text), width: Some(width), tip: None })
-        .collect();
-    seg_with(
-        id,
-        p,
-        &options,
-        selected,
-        on_select,
-        SegStyle { h: CONTROL_H, label: 13., cell_pad: SEG_CELL_PAD, inset: SEG_PAD, gap: SEG_GAP, hover: None },
-    )
-}
-
 pub fn seg_with(
     id: impl Into<ElementId>,
     p: &Palette,

@@ -25,7 +25,6 @@ use crate::ui::{self, BtnKind, TextAreaStyle, TextareaState, cbk, cbk_idx, text}
 const DIALOG: &str = "wordbook-find-words";
 const TEXT_H: f32 = 200.;
 const REPLY_H: f32 = 148.;
-const SEGMENT_W: f32 = 96.;
 /// How long the copy button shows that the prompt was copied.
 const COPIED_FOR: Duration = Duration::from_millis(1500);
 const CHIP_H: f32 = 44.;
@@ -423,11 +422,10 @@ impl WordbookPage {
             switch_on.map(|enabled| {
                 let labels = [c.t(Tr::WordbookFindSegText), c.t(Tr::WordbookFindSegFile), c.t(Tr::WordbookFindSegAi)];
                 let selected = SOURCES.iter().position(|s| *s == source).unwrap_or(0);
-                let switch = ui::seg_fixed(
+                let switch = ui::seg(
                     "wordbook-find-source",
                     &p,
                     &labels,
-                    SEGMENT_W,
                     selected,
                     cbk_idx(cx, |this: &mut Self, index, _, cx| this.set_find_source(index, cx)),
                 );
