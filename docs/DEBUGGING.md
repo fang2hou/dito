@@ -6,7 +6,7 @@ Run, inspect and diagnose Dito locally. Setup and commands are in [IMPLEMENTATIO
 
 - Humans: `mise run dev:mock` runs the whole app against a mock cloud and a synthetic microphone.
 - Agents and automated runs: always `--mock --log-sink`. `--mock` alone types into the frontmost app.
-- Never use a bare `target/debug/dito` for permission or insertion work; use `mise run dev`, which signs and launches `DitoDev.app`.
+- Never use a bare `target/debug/dito` for permission or insertion work; use `mise run dev`, which signs and launches `DitoDev.app`. Every run has its own copy of that wrapper, so several dev instances can run at once and closing one leaves the others open.
 
 ## Flags, data and logs
 
