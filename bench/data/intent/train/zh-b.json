@@ -1,0 +1,1967 @@
+[
+  {
+    "id": "zh-tb001",
+    "lang": "zh",
+    "text": "帮我翻译……不对，不用翻译，总结一下",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "self_correction",
+      "negation"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb002",
+    "lang": "zh",
+    "text": "帮我翻易成法语，再改正式一点",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "multi_request"
+    ],
+    "slots": {
+      "target": "other"
+    },
+    "note": "翻易 -> 翻译"
+  },
+  {
+    "id": "zh-tb003",
+    "lang": "zh",
+    "text": "别翻译，帮我闰色一下这段",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "negation"
+    ],
+    "slots": {},
+    "note": "闰色 -> 润色"
+  },
+  {
+    "id": "zh-tb004",
+    "lang": "zh",
+    "text": "哈哈，我今天交搞又拖到最后一天了",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "交搞 -> 交稿"
+  },
+  {
+    "id": "zh-tb005",
+    "lang": "zh",
+    "text": "咚咚嘎啦咯咯儿",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb006",
+    "lang": "zh",
+    "text": "这句话不用翻译，帮我修该一下，主要是错字和语病",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "negation"
+    ],
+    "slots": {},
+    "note": "修该 -> 修改"
+  },
+  {
+    "id": "zh-tb007",
+    "lang": "zh",
+    "text": "润色一下，不用翻译",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "negation"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb008",
+    "lang": "zh",
+    "text": "嗯，改括成三个要点",
+    "intent": "summarize",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "filler"
+    ],
+    "slots": {},
+    "note": "改括 -> 概括"
+  },
+  {
+    "id": "zh-tb009",
+    "lang": "zh",
+    "text": "我这个读后感只有三百字，老师要求八百字，帮我往长了写，内容千万别跑篇，多写点我自己的感受",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "op": "expand"
+    },
+    "note": "跑篇 -> 跑偏"
+  },
+  {
+    "id": "zh-tb010",
+    "lang": "zh",
+    "text": "润色一下，再总结成两句话",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb011",
+    "lang": "zh",
+    "text": "不要太书面，语气变得亲切一点，像跟朋友聊天那样",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "negation"
+    ],
+    "slots": {
+      "op": "casual"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-tb012",
+    "lang": "zh",
+    "text": "把这段 technical 的说明改得让非技术的人也能看懂，别用那些书语，我要发给产品和运营的同学看",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "asr_error",
+      "code_mix"
+    ],
+    "slots": {
+      "op": "audience"
+    },
+    "note": "书语 -> 术语"
+  },
+  {
+    "id": "zh-tb013",
+    "lang": "zh",
+    "text": "先润色一下，再转成繁体字",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "target": "zh-Hant"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-tb014",
+    "lang": "zh",
+    "text": "给我来个 TLDR",
+    "intent": "summarize",
+    "complexity": "simple",
+    "tags": [
+      "code_mix"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb015",
+    "lang": "zh",
+    "text": "帮我润色润色，我这篇意论文写得有点像流水账，不过字数别增减太多，老师说不能超过一千二，所以别写太长",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "意论文 -> 议论文"
+  },
+  {
+    "id": "zh-tb016",
+    "lang": "zh",
+    "text": "你是谁啊",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb017",
+    "lang": "zh",
+    "text": "那个，换个说发，意思别变",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "filler"
+    ],
+    "slots": {
+      "op": "paraphrase"
+    },
+    "note": "说发 -> 说法"
+  },
+  {
+    "id": "zh-tb018",
+    "lang": "zh",
+    "text": "总结一下，不是，用别的词重新说一遍，意思一样就行",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {
+      "op": "paraphrase"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-tb019",
+    "lang": "zh",
+    "text": "把它理顺一点，呃，对，就是并句",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "filler"
+    ],
+    "slots": {},
+    "note": "并句 -> 病句"
+  },
+  {
+    "id": "zh-tb020",
+    "lang": "zh",
+    "text": "能不能帮我翻成英文，顺便把错别字改一改",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "multi_request",
+      "question"
+    ],
+    "slots": {
+      "target": "en"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-tb021",
+    "lang": "zh",
+    "text": "嗯，帮我纵结一下",
+    "intent": "summarize",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "filler"
+    ],
+    "slots": {},
+    "note": "纵结 -> 总结"
+  },
+  {
+    "id": "zh-tb022",
+    "lang": "zh",
+    "text": "体炼一下重点，我要放到笔记里，对了错别字也顺手改改，这是上午讲座的录音转写，有点乱，晚上再整理",
+    "intent": "summarize",
+    "complexity": "long",
+    "tags": [
+      "asr_error",
+      "multi_request"
+    ],
+    "slots": {},
+    "note": "体炼 -> 提炼"
+  },
+  {
+    "id": "zh-tb023",
+    "lang": "zh",
+    "text": "缩短一点，顺便润色一下",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "op": "shorten"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-tb024",
+    "lang": "zh",
+    "text": "能帮我把这条长评盖括成一句话吗",
+    "intent": "summarize",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "question"
+    ],
+    "slots": {},
+    "note": "盖括 -> 概括"
+  },
+  {
+    "id": "zh-tb025",
+    "lang": "zh",
+    "text": "翻成日语，然后再概括一下",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "target": "ja"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-tb026",
+    "lang": "zh",
+    "text": "帮我缩短一点……我想想，还是算了吧，原文挺好的，每句话都有用，删了反而可惜，你什么都别动，真的不用改了",
+    "intent": "cancel",
+    "complexity": "long",
+    "tags": [
+      "retraction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb027",
+    "lang": "zh",
+    "text": "嗯，把这个说明文档的背景部分写详细一点，再顺手改改错别字",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {
+      "op": "expand"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-tb028",
+    "lang": "zh",
+    "text": "嗯，帮我把这段的大意整一下，再口语化一点",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb029",
+    "lang": "zh",
+    "text": "翻成韩语，语气再随和一点",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "target": "ko"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-tb030",
+    "lang": "zh",
+    "text": "打开浏览器搜一下这个词怎么读",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb031",
+    "lang": "zh",
+    "text": "太生硬了，柔和一点，嗯，别那么冲",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "filler"
+    ],
+    "slots": {
+      "op": "casual"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-tb032",
+    "lang": "zh",
+    "text": "帮我括写一下这句话，别缩短",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "negation"
+    ],
+    "slots": {
+      "op": "expand"
+    },
+    "note": "括写 -> 扩写"
+  },
+  {
+    "id": "zh-tb033",
+    "lang": "zh",
+    "text": "帮我转烦体中文",
+    "intent": "translate",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "target": "zh-Hant"
+    },
+    "note": "烦体 -> 繁体"
+  },
+  {
+    "id": "zh-tb034",
+    "lang": "zh",
+    "text": "帮我该一下错别字",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "该 -> 改"
+  },
+  {
+    "id": "zh-tb035",
+    "lang": "zh",
+    "text": "帮我转成马克当的列表",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "op": "format"
+    },
+    "note": "马克当 -> markdown"
+  },
+  {
+    "id": "zh-tb036",
+    "lang": "zh",
+    "text": "一句话描述一下这个 PR，我要贴到 description 里，别写太长，让评审的同学一眼就能看明白改了什么",
+    "intent": "summarize",
+    "complexity": "long",
+    "tags": [
+      "code_mix"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb037",
+    "lang": "zh",
+    "text": "嗯，那个，翻译一下……算了，我自己来，这段里有好多专业名词，机器翻我也不放心，还是我自己对着词典弄吧",
+    "intent": "cancel",
+    "complexity": "long",
+    "tags": [
+      "retraction",
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb038",
+    "lang": "zh",
+    "text": "帮我整理一下……好了好了，别弄了",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "retraction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb039",
+    "lang": "zh",
+    "text": "改成 email 的格式，加上称呼和落款，最后检查一下语法，我是要发给项目组全体同事的，别忘了加个主题",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "code_mix",
+      "multi_request"
+    ],
+    "slots": {
+      "op": "format"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-tb040",
+    "lang": "zh",
+    "text": "帮我总结一下……呃，算了，不用了",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "retraction",
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb041",
+    "lang": "zh",
+    "text": "这段是我课程论文的引言，感觉有点啰嗦，语句也不太通顺，你帮我润涩一下，但是意思千万别动，我明天要交",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "润涩 -> 润色"
+  },
+  {
+    "id": "zh-tb042",
+    "lang": "zh",
+    "text": "这段话帮我改得更政式一点",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "op": "formal"
+    },
+    "note": "政式 -> 正式"
+  },
+  {
+    "id": "zh-tb043",
+    "lang": "zh",
+    "text": "帮我阔写一下，多加点细节，再把语句理顺",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "multi_request"
+    ],
+    "slots": {
+      "op": "expand"
+    },
+    "note": "阔写 -> 扩写"
+  },
+  {
+    "id": "zh-tb044",
+    "lang": "zh",
+    "text": "刚才说的作废，什么都别改",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "retraction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb045",
+    "lang": "zh",
+    "text": "酸了，不搞了",
+    "intent": "cancel",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "酸了 -> 算了"
+  },
+  {
+    "id": "zh-tb046",
+    "lang": "zh",
+    "text": "这篇会议记录太长了，我实在没时间看，帮我提炼一下核心结论和代办事项，其他细节都不用管，最好别超过一页",
+    "intent": "summarize",
+    "complexity": "long",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "代办事项 -> 待办事项"
+  },
+  {
+    "id": "zh-tb047",
+    "lang": "zh",
+    "text": "那个，这段文案里的错字帮我挑出来改掉，别的原样保留，我怕你乱改，上次改完意思都变了，你可千万小心点",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb048",
+    "lang": "zh",
+    "text": "帮我润色一下……啊不对，不用了，就这样吧",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "self_correction",
+      "retraction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb049",
+    "lang": "zh",
+    "text": "不用总结，把这段英文翻成中文就行",
+    "intent": "translate",
+    "complexity": "simple",
+    "tags": [
+      "negation"
+    ],
+    "slots": {
+      "target": "zh"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-tb050",
+    "lang": "zh",
+    "text": "嗯，先润色……不对，翻成日语，用敬体就可以",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "self_correction",
+      "filler"
+    ],
+    "slots": {
+      "target": "ja"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-tb051",
+    "lang": "zh",
+    "text": "各位同学大家好，今天我们来讲一下第三张的内容",
+    "intent": "none",
+    "complexity": "compound",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "第三张 -> 第三章"
+  },
+  {
+    "id": "zh-tb052",
+    "lang": "zh",
+    "text": "帮我润色一下，不对不对，改成商务一点的说法",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {
+      "op": "formal"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-tb053",
+    "lang": "zh",
+    "text": "帮我润色一下再翻成日文，我要发给日本的网友",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "target": "ja"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-tb054",
+    "lang": "zh",
+    "text": "把口头蝉去掉，再把句子 clean up 一下",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "code_mix"
+    ],
+    "slots": {},
+    "note": "口头蝉 -> 口头禅"
+  },
+  {
+    "id": "zh-tb055",
+    "lang": "zh",
+    "text": "帮我把这段改得接地气一点，短视频口拨用的，要有那种唠嗑的感觉，别太书面，听着像真人说话，念出来要顺口",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "op": "casual"
+    },
+    "note": "口拨 -> 口播"
+  },
+  {
+    "id": "zh-tb056",
+    "lang": "zh",
+    "text": "缩短一点……不对，还是别动了，先这样",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "self_correction",
+      "retraction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb057",
+    "lang": "zh",
+    "text": "不用翻译，也不用润色，帮我写个债要",
+    "intent": "summarize",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "negation"
+    ],
+    "slots": {},
+    "note": "债要 -> 摘要"
+  },
+  {
+    "id": "zh-tb058",
+    "lang": "zh",
+    "text": "帮我把它缩短一点，哎不对，其实是要写长一点，再加点细节",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {
+      "op": "expand"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-tb059",
+    "lang": "zh",
+    "text": "帮我翻译一下，不是，改得口语化一点，我要发到评论区",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {
+      "op": "casual"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-tb060",
+    "lang": "zh",
+    "text": "帮我效对一下，看看有没有语法问题",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "效对 -> 校对"
+  },
+  {
+    "id": "zh-tb061",
+    "lang": "zh",
+    "text": "呃，改得正式一点，这个是发给到师的邮件，顺便把错别字改了",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "filler",
+      "multi_request"
+    ],
+    "slots": {
+      "op": "formal"
+    },
+    "note": "到师 -> 导师"
+  },
+  {
+    "id": "zh-tb062",
+    "lang": "zh",
+    "text": "先翻译成英文，嗯，不对，这个词在这里到底是啥意思，我怎么觉得跟平时用的不太一样，真的很奇怪",
+    "intent": "ask",
+    "complexity": "long",
+    "tags": [
+      "self_correction",
+      "filler",
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb063",
+    "lang": "zh",
+    "text": "嗯，那个，帮我顺一顺，读起来有点拗口",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb064",
+    "lang": "zh",
+    "text": "语气改正式一点，然后翻成西班牙雨，发给国外的同学，他们是交换生，下周要一起做小组作业，他们很期待",
+    "intent": "translate",
+    "complexity": "long",
+    "tags": [
+      "asr_error",
+      "multi_request"
+    ],
+    "slots": {
+      "target": "other"
+    },
+    "note": "西班牙雨 -> 西班牙语"
+  },
+  {
+    "id": "zh-tb065",
+    "lang": "zh",
+    "text": "帮我 rephrase 一下，这句重复率太高了，我要过查重",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "code_mix"
+    ],
+    "slots": {
+      "op": "paraphrase"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-tb066",
+    "lang": "zh",
+    "text": "我想想，帮我概括一下……还是不要了，帮我看看有没有错别子，有就改掉",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "self_correction"
+    ],
+    "slots": {},
+    "note": "错别子 -> 错别字"
+  },
+  {
+    "id": "zh-tb067",
+    "lang": "zh",
+    "text": "欸，帮我翻成寒语",
+    "intent": "translate",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "filler"
+    ],
+    "slots": {
+      "target": "ko"
+    },
+    "note": "寒语 -> 韩语"
+  },
+  {
+    "id": "zh-tb068",
+    "lang": "zh",
+    "text": "欸，帮我把这段改通顺一点，别改变原意哈",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb069",
+    "lang": "zh",
+    "text": "帮我扩写……布要了，曲消",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "retraction"
+    ],
+    "slots": {},
+    "note": "布要了 -> 不要了; 曲消 -> 取消"
+  },
+  {
+    "id": "zh-tb070",
+    "lang": "zh",
+    "text": "改成给小学生看得懂的说法，再检查一下有没有错字",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "op": "audience"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-tb071",
+    "lang": "zh",
+    "text": "刚才那个，呃，算了，我不弄了",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "retraction",
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb072",
+    "lang": "zh",
+    "text": "嗯，把这段删掉",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb073",
+    "lang": "zh",
+    "text": "呃，帮我把这段缩断一点",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "filler"
+    ],
+    "slots": {
+      "op": "shorten"
+    },
+    "note": "缩断 -> 缩短"
+  },
+  {
+    "id": "zh-tb074",
+    "lang": "zh",
+    "text": "这段代码注释里的 idempotent 是啥意思，我没看懂，是说重复调用也不会有副作用吗",
+    "intent": "ask",
+    "complexity": "long",
+    "tags": [
+      "code_mix",
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb075",
+    "lang": "zh",
+    "text": "别翻译成英文，只要把语气改成书面语就行，我要放进毕业论文里，现在读起来太像聊天了，所以得正式点",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "negation"
+    ],
+    "slots": {
+      "op": "formal"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-tb076",
+    "lang": "zh",
+    "text": "帮我总洁一下这篇文章",
+    "intent": "summarize",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "总洁 -> 总结"
+  },
+  {
+    "id": "zh-tb077",
+    "lang": "zh",
+    "text": "欸，帮我翻译成日文，哦不，换成第一人称来写就行",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "self_correction",
+      "filler"
+    ],
+    "slots": {
+      "op": "audience"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-tb078",
+    "lang": "zh",
+    "text": "不用润色，转成繁体字，台湾那边的读者要看",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "negation"
+    ],
+    "slots": {
+      "target": "zh-Hant"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-tb079",
+    "lang": "zh",
+    "text": "先扩写一下，嗯，不用了，我再想想",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "self_correction",
+      "retraction",
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb080",
+    "lang": "zh",
+    "text": "这段话有几个地方是语音识别识错的，你帮我改正过来，该通顺的地方也顺一下，不过意思和长度都尽量别动",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb081",
+    "lang": "zh",
+    "text": "三的是嗯么哒那里的诶",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb082",
+    "lang": "zh",
+    "text": "帮我宝存一下这个文档",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "宝存 -> 保存"
+  },
+  {
+    "id": "zh-tb083",
+    "lang": "zh",
+    "text": "嗯，你好呀，今天天气不错",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb084",
+    "lang": "zh",
+    "text": "苏买搜么巴嘎哒",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb085",
+    "lang": "zh",
+    "text": "能不能换成比较礼貌的语气？我要回复甲方",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "question"
+    ],
+    "slots": {
+      "op": "formal"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-tb086",
+    "lang": "zh",
+    "text": "帮我总结一下，嗯不，列成清单就行，每条前面加个序号",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "self_correction",
+      "filler"
+    ],
+    "slots": {
+      "op": "format"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-tb087",
+    "lang": "zh",
+    "text": "改得口语一点，然后概括一下",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb088",
+    "lang": "zh",
+    "text": "把这些课堂笔记弄成 table，一列概念一列解释，错别字也一起改了，我要打印出来复习用，大概一页纸",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "code_mix",
+      "multi_request"
+    ],
+    "slots": {
+      "op": "format"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-tb089",
+    "lang": "zh",
+    "text": "帮我把这段扩写一下，啊不对，是砍掉一半，意思留着",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {
+      "op": "shorten"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-tb090",
+    "lang": "zh",
+    "text": "帮我总结一下……算了，直接发给老师吧",
+    "intent": "none",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb091",
+    "lang": "zh",
+    "text": "不用翻译，改成第三人称，我要放进人物简介里",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "negation"
+    ],
+    "slots": {
+      "op": "audience"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-tb092",
+    "lang": "zh",
+    "text": "这篇文章是谁写的",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb093",
+    "lang": "zh",
+    "text": "帮我该写一下，查重率太高了",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "op": "paraphrase"
+    },
+    "note": "该写 -> 改写"
+  },
+  {
+    "id": "zh-tb094",
+    "lang": "zh",
+    "text": "嗯，帮我入色一下这句话",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "filler"
+    ],
+    "slots": {},
+    "note": "入色 -> 润色"
+  },
+  {
+    "id": "zh-tb095",
+    "lang": "zh",
+    "text": "帮我总结一下，哎不对，翻译成日文",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {
+      "target": "ja"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-tb096",
+    "lang": "zh",
+    "text": "帮我把这个瑞得米里面的错字改一改，顺便把句子捋顺",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "瑞得米 -> README"
+  },
+  {
+    "id": "zh-tb097",
+    "lang": "zh",
+    "text": "把这段 translate 成英文",
+    "intent": "translate",
+    "complexity": "simple",
+    "tags": [
+      "code_mix"
+    ],
+    "slots": {
+      "target": "en"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-tb098",
+    "lang": "zh",
+    "text": "帮我扩写一下……啊不对，没必要，我这是视频字幕，只要把里面的错别字改掉就行，时间轴千万别碰，不然后面对不上",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb099",
+    "lang": "zh",
+    "text": "呃，总结一下",
+    "intent": "summarize",
+    "complexity": "simple",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb100",
+    "lang": "zh",
+    "text": "帮我番译成英文",
+    "intent": "translate",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "target": "en"
+    },
+    "note": "番译 -> 翻译"
+  },
+  {
+    "id": "zh-tb101",
+    "lang": "zh",
+    "text": "今天的视频就到这里，我们下起再见",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "下起 -> 下期"
+  },
+  {
+    "id": "zh-tb102",
+    "lang": "zh",
+    "text": "不用缩短，帮我把这个回复改得 formal 一点，是发给客户的，现在这个太随便了，还带着表情",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "negation",
+      "code_mix"
+    ],
+    "slots": {
+      "op": "formal"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-tb103",
+    "lang": "zh",
+    "text": "明天下午三点在二号会议室讨论一下选提，大家把各自的初稿提前发到群里，方便先看一遍，不要迟到了",
+    "intent": "none",
+    "complexity": "long",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "选提 -> 选题"
+  },
+  {
+    "id": "zh-tb104",
+    "lang": "zh",
+    "text": "把这段粤语转成普通话的书面语，再总结一句",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "target": "zh"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-tb105",
+    "lang": "zh",
+    "text": "布用了",
+    "intent": "cancel",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "布用了 -> 不用了"
+  },
+  {
+    "id": "zh-tb106",
+    "lang": "zh",
+    "text": "帮我改成正式一点……不好意思点错了，不用了，这段本来就是发给同学的，随便一点才对，不用改，你不用管它了",
+    "intent": "cancel",
+    "complexity": "long",
+    "tags": [
+      "self_correction",
+      "retraction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb107",
+    "lang": "zh",
+    "text": "帮我总结一下，啊不对，润色就行",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb108",
+    "lang": "zh",
+    "text": "帮我润色一下……不对，先告诉我这句话是什么意思，我看了半天还是没明白作者到底想说什么，下午还要交给组长",
+    "intent": "ask",
+    "complexity": "long",
+    "tags": [
+      "self_correction",
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb109",
+    "lang": "zh",
+    "text": "翻译成韩文，再缩短一点，视频字幕要用的，一句一行，每行最好别超过十五个字，不然屏幕放不下，免得观众看不清",
+    "intent": "translate",
+    "complexity": "long",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "target": "ko"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-tb110",
+    "lang": "zh",
+    "text": "总结一下，再改得正式一点",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb111",
+    "lang": "zh",
+    "text": "cancel 一下",
+    "intent": "cancel",
+    "complexity": "simple",
+    "tags": [
+      "code_mix"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb112",
+    "lang": "zh",
+    "text": "不用润色，直接缩短一点就行",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "negation"
+    ],
+    "slots": {
+      "op": "shorten"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-tb113",
+    "lang": "zh",
+    "text": "这句话是什么意识",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "question"
+    ],
+    "slots": {},
+    "note": "意识 -> 意思"
+  },
+  {
+    "id": "zh-tb114",
+    "lang": "zh",
+    "text": "闰色是什么意思",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "question"
+    ],
+    "slots": {},
+    "note": "闰色 -> 润色"
+  },
+  {
+    "id": "zh-tb115",
+    "lang": "zh",
+    "text": "站在用户的角度重新写一下这段更新说名，别用开发者的口吻，我们这次主要是改了登录和同步",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "op": "audience"
+    },
+    "note": "说名 -> 说明"
+  },
+  {
+    "id": "zh-tb116",
+    "lang": "zh",
+    "text": "这个函数的返回值是空字符串，需要在调用前先做盘空，另外异常也要捕获，不然上线会出问题，记得提醒我写测试",
+    "intent": "none",
+    "complexity": "long",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "盘空 -> 判空"
+  },
+  {
+    "id": "zh-tb117",
+    "lang": "zh",
+    "text": "先把错别字改了，再改成口语化一点",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "op": "casual"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-tb118",
+    "lang": "zh",
+    "text": "标题限制二十个字，先润色一下，再压缩到二十个字以内，意思别丢，关键词一定要留着，别把核心意思删掉了",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "op": "shorten"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-tb119",
+    "lang": "zh",
+    "text": "把这段发给小旺",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "小旺 -> 小王"
+  },
+  {
+    "id": "zh-tb120",
+    "lang": "zh",
+    "text": "翻译成英文……不是，总结一下就好",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb121",
+    "lang": "zh",
+    "text": "这段摘要要放到论文里，帮我润色一下然后翻成英文，学术一点，注意专业术语别翻错了，导师比较严格，谢谢",
+    "intent": "translate",
+    "complexity": "long",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "target": "en"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-tb122",
+    "lang": "zh",
+    "text": "能不能帮我把标点符号加一下，我是用语音输进去的，全是逗号，看着太费劲了，有几个字好像也不对你顺手看看",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb123",
+    "lang": "zh",
+    "text": "请把这段改得正式一点……不好意思说错了，是把错别字和病句改正过来",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb124",
+    "lang": "zh",
+    "text": "帮我 polish 一下这条 commit message，语法别出错就行",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "code_mix"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb125",
+    "lang": "zh",
+    "text": "帮我缩短一点，嗯不对，改成口余化一点的",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "self_correction",
+      "filler"
+    ],
+    "slots": {
+      "op": "casual"
+    },
+    "note": "口余化 -> 口语化"
+  },
+  {
+    "id": "zh-tb126",
+    "lang": "zh",
+    "text": "先总结一下，再翻译成英文，这段我要发给国外的导士，他看中文比较吃力，所以别太长，他看起来很赶时间",
+    "intent": "translate",
+    "complexity": "long",
+    "tags": [
+      "asr_error",
+      "multi_request"
+    ],
+    "slots": {
+      "target": "en"
+    },
+    "note": "导士 -> 导师"
+  },
+  {
+    "id": "zh-tb127",
+    "lang": "zh",
+    "text": "把这个文档的开头意成英语，专有名词保持原样",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "target": "en"
+    },
+    "note": "意成 -> 译成"
+  },
+  {
+    "id": "zh-tb128",
+    "lang": "zh",
+    "text": "这个成语用得对不对啊，不用改，我就想知道对不对",
+    "intent": "ask",
+    "complexity": "compound",
+    "tags": [
+      "negation",
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb129",
+    "lang": "zh",
+    "text": "不用总结，给它起个标题，十个字左右",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "negation"
+    ],
+    "slots": {
+      "op": "format"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-tb130",
+    "lang": "zh",
+    "text": "这段太干了，嗯，你给我展开讲讲，再多举两个例子",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {
+      "op": "expand"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-tb131",
+    "lang": "zh",
+    "text": "帮我忧化一下这段表述，嗯，就是语句顺一点，别改太多",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "filler"
+    ],
+    "slots": {},
+    "note": "忧化 -> 优化"
+  },
+  {
+    "id": "zh-tb132",
+    "lang": "zh",
+    "text": "帮我扩写一下……不对不对，直接概括成几个要点就行，这篇采访稿太长了我只想抓一下重点，因为稿子太散了",
+    "intent": "summarize",
+    "complexity": "long",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb133",
+    "lang": "zh",
+    "text": "这个 issue 的描述我写得有点乱，是昨晚加班写的，语法和拼写你帮我 proofread 一下，技术名词别动",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "code_mix"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb134",
+    "lang": "zh",
+    "text": "把这句话换种方式表达，意思不变，然后顺一顺语句",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "op": "paraphrase"
+    },
+    "note": ""
+  },
+  {
+    "id": "zh-tb135",
+    "lang": "zh",
+    "text": "给我翻译成英文，哦不，给我把这段捋顺就行，读着不通",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb136",
+    "lang": "zh",
+    "text": "总结一下，顺便把错字改了",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb137",
+    "lang": "zh",
+    "text": "算了",
+    "intent": "cancel",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb138",
+    "lang": "zh",
+    "text": "帮我改错别字，然后给我加上表点",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "表点 -> 标点"
+  },
+  {
+    "id": "zh-tb139",
+    "lang": "zh",
+    "text": "呃，帮我叫对一下这篇文档",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "asr_error",
+      "filler"
+    ],
+    "slots": {},
+    "note": "叫对 -> 校对"
+  },
+  {
+    "id": "zh-tb140",
+    "lang": "zh",
+    "text": "帮我分店列出来",
+    "intent": "rewrite",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "op": "format"
+    },
+    "note": "分店 -> 分点"
+  },
+  {
+    "id": "zh-tb141",
+    "lang": "zh",
+    "text": "你觉得这段写得好不好，有没有罗辑问题",
+    "intent": "ask",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "question"
+    ],
+    "slots": {},
+    "note": "罗辑 -> 逻辑"
+  },
+  {
+    "id": "zh-tb142",
+    "lang": "zh",
+    "text": "先帮我翻译一下，哎不对，翻译不用了，把错别字改一改就好",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "self_correction",
+      "negation"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb143",
+    "lang": "zh",
+    "text": "帮我润色……不对，用一句话概扩就行",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "self_correction"
+    ],
+    "slots": {},
+    "note": "概扩 -> 概括"
+  },
+  {
+    "id": "zh-tb144",
+    "lang": "zh",
+    "text": "你能帮我把语法检查一下吗，我英文不太好，这段是我自己写的",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb145",
+    "lang": "zh",
+    "text": "把它复制到备忘录里",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb146",
+    "lang": "zh",
+    "text": "这篇种草文案我晚上就想发了，你先帮我剪查一下有没有错别字，有的话直接改了，不用再问我，反正我最后还会看一遍",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "剪查 -> 检查"
+  },
+  {
+    "id": "zh-tb147",
+    "lang": "zh",
+    "text": "不用缩短，也不用扩写，就帮我把病句改了",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "negation"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "zh-tb148",
+    "lang": "zh",
+    "text": "这段字幕我听了半天没抓住重店，你就告诉我说了什么，三句话以内就行，不用管那些细节，越短越好",
+    "intent": "summarize",
+    "complexity": "long",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "重店 -> 重点"
+  },
+  {
+    "id": "zh-tb149",
+    "lang": "zh",
+    "text": "这页批批踢字太多了，帮我经简一下，只留最关键的几个词",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "op": "shorten"
+    },
+    "note": "批批踢 -> PPT; 经简 -> 精简"
+  },
+  {
+    "id": "zh-tb150",
+    "lang": "zh",
+    "text": "帮我总结……不是，翻译成简体中文，术语保留英文，这是我在网上找到的一份英文技术文档，一共有好几页",
+    "intent": "translate",
+    "complexity": "long",
+    "tags": [
+      "self_correction"
+    ],
+    "slots": {
+      "target": "zh"
+    },
+    "note": ""
+  }
+]

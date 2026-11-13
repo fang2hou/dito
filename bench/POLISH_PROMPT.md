@@ -65,6 +65,10 @@ Three distinct delimiter styles separate the three types of content: `#Section#`
 
 Style rules remain localized per language because punctuation and phrasing conventions differ by language. The builder selects rules using the language reported by the speech engine, falling back to script detection only when the engine reports none. A misdetected language now affects only style phrasing rather than the task definition, because the English scaffold and demonstration turns stay fixed.
 
+## The command tools follow the same scaffold
+
+The command tools (rewrite, translate, summarize, reply and answer, `crates/dito-core/src/command/`) use the same construction instead of fixed system prompts that quoted the data in tags: English `#Section#` blocks, the selected text between `===` lines, short reference items in escaped tags, three demonstration turns (one each in Chinese, Japanese and English) as real turns, and "language type" in place of "language". The instruction is the last block of the final user turn, so it is the freshest thing the model reads, and the text it applies to is stated to be content, never a request. The measurements in this document cover the polish prompt only; the command tools were checked by hand on the 2B, 4B and 9B models, not benchmarked.
+
 ## Results
 
 Passing runs out of three seeds per case at temperature 0.2:

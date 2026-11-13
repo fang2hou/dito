@@ -40,6 +40,11 @@ mise run bench asr report --markdown                # Markdown tables, for docs
 mise run bench asr compare recordings/<file>.wav    # transcribe any file with several models (not stored)
 mise run bench asr download r2t2                    # fetch weights without running
 mise run bench polish list | run | report           # same workflow for polish models
+mise run bench intent run -v base -s train test --layers all   # voice command intent routing (see INTENT.md): probe runs into cache/intent/
+mise run bench intent fit | export | parity         # fit heads on the runs, write the .heads files into crates/dito-core/src/intent/heads/, check the app path against numpy
+mise run bench intent decide -m qwen3.5-4b "text"   # one decision through the app path (intent_decide)
+mise run bench intent summary | confusion | oof | efficiency | sweep | order | errors | charts   # tables and charts, no model needed
+mise run bench intent all                           # regenerate every intent artifact in results/intent/<chip>/
 mise run bench record --seconds 5 --note "test"     # record into recordings/
 mise run bench:notebook                             # JupyterLab on notebooks/
 ```
@@ -56,6 +61,9 @@ Add a runtime's Python package to the matching extra in `pyproject.toml` (`sherp
 
 - `data/clips.json`: clips and their reference text. Clips with `hotwords` also run as a second case with those hotwords for models that support them.
 - `data/polish_cases.json`: dirty dictation text for the polish models. Optional `wordbook` terms are passed as the reference vocabulary.
+- `data/intent/test.json`: the frozen intent test set, 600 spoken command instructions (200 per language) with gold intents and an instruction card. The cards give the rewrite and translate arguments.
+- `data/intent/train/*.json`: the intent training set; cases that repeat or nearly repeat a test case are dropped at load time.
+- `data/intent/GUIDE.md`: the one guide for both intent sets: intents, rules, fields, counts and quality bar.
 - The prompt in `src/dito_bench/polish/prompts.py` mirrors `crates/dito-core/src/prompts.rs`: the scaffold, the demonstration turns and the default rules of each language. Keep them identical; a change makes stored polish results stale.
 - Clip texts, prompts and polish inputs are Japanese, Chinese and English on purpose. They are test data, not documentation.
 
@@ -70,15 +78,48 @@ mise run bench:format    # ruff autofix and format
 Layout:
 
 ```
-src/dito_bench/   package: cli, store, sync, clips, metrics, asr/, polish/
-data/             clip definitions and polish cases (committed)
-results/          stored benchmark results (committed)
+src/dito_bench/   package: cli, store, sync, clips, metrics, asr/, polish/, intent/
+data/             clip definitions, polish cases (committed)
+data/intent/      intent test.json, train/ and GUIDE.md (committed)
+results/          stored benchmark results, intent fit reports and charts included (committed)
 notebooks/        interactive playgrounds
-tests/            unit tests for the store, metrics, prompts and weights identity
+tests/            unit tests for the store, metrics, prompts, weights identity and the intent package
 audio/            synthesized clips (git-ignored)
 models/           downloaded weights (git-ignored)
 recordings/       microphone recordings (git-ignored)
+cache/            intent probe runs: option logits, timings and hidden states (git-ignored, local only)
 ```
+
+The intent package is split by role (details in [INTENT.md](INTENT.md)):
+
+```
+src/dito_bench/intent/
+  data.py         cases, loading, validation, the near-test filter
+  prompts.py      router prompt variants
+  stats.py        probabilities, metrics, McNemar
+  models.py       model keys and where their GGUF files are
+  locations.py    chip, cache folder, results folder
+  probe/          runner (the intent_probe example) and the run cache
+  train/          heads, fit, fit report, export, the .heads format, parity with the app path
+  experiments/    prompt sweep, option order, efficiency, rounds, learning curve, errors
+  report/         tables, summary, confusion, out-of-fold errors, charts
+  pipeline.py     `intent all`
+```
+
+Only `train/` produces something the app ships. The rest reads runs and fit reports and writes tables.
+
+### Intent heads
+
+The heads under `crates/dito-core/src/intent/heads/` are committed build inputs: a build of the app never refits, and the bench is not needed to build it. To refit (new training data, a new router prompt, another GGUF file):
+
+```bash
+mise run bench intent all      # probes what is missing, fits, exports the heads, checks parity, rewrites results/intent/<chip>/
+mise run bench intent fit      # only the fit reports, from the stored probe runs
+mise run bench intent export   # only the .heads files, from the stored probe runs
+cargo test -p dito-local --lib intent   # the heads match the catalog files and the router prompt
+```
+
+Commit the changed `.heads` files and `results/intent/<chip>/` together. `cache/intent/` is local only: it holds several GB of probe runs and is rebuilt from the models in Dito's model folder when missing. A run is valid while its stored requests equal the current ones, which come from the case texts and the prompt, so moving a data file does not invalidate the cache.
 
 ## Polish prompt exploration
 

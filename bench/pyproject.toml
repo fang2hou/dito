@@ -16,6 +16,7 @@ sherpa = ["sherpa-onnx>=2.0"]
 mlx = ["mlx-lm>=0.32", "mlx-qwen3-asr>=0.4", "mlx-whisper>=0.4"]
 llama = ["llama-cpp-python>=0.3.36"]
 recording = ["sounddevice>=0.5"]
+charts = ["matplotlib>=3.11"]
 
 [project.scripts]
 dito-bench = "dito_bench.cli:main"
@@ -45,6 +46,7 @@ select = [
 "src/dito_bench/cli.py" = ["T201"]
 "src/dito_bench/recorder.py" = ["T201"]
 "src/dito_bench/polish/prompts.py" = ["E501", "RUF001"]
+"src/dito_bench/intent/prompts.py" = ["E501", "RUF001"]
 "tests/*" = ["ANN"]
 "notebooks/*" = ["T201", "ANN", "E402", "E501", "RUF001"]
 

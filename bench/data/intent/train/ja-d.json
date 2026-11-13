@@ -1,0 +1,1243 @@
+[
+  {
+    "id": "ja-td001",
+    "lang": "ja",
+    "text": "えっと、ここ先に誤字直して、それから短くして",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {
+      "op": "shorten"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-td002",
+    "lang": "ja",
+    "text": "これ、これまず短くして、ついでに誤字も直して",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "op": "shorten"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-td003",
+    "lang": "ja",
+    "text": "えーと、これ取引先に出すメールなんだけど、まず丁寧にして、あと変な日本語もついでに直して",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {
+      "op": "formal"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-td004",
+    "lang": "ja",
+    "text": "ここの暴投のてにをは直してから丁寧な言い方にして",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "multi_request"
+    ],
+    "slots": {
+      "op": "formal"
+    },
+    "note": "暴投 -> 冒頭"
+  },
+  {
+    "id": "ja-td005",
+    "lang": "ja",
+    "text": "あの、一回整えてから、もうちょっと膨らませて",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {
+      "op": "expand"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-td006",
+    "lang": "ja",
+    "text": "公判のところもっと書き足して、最後に全体を整えて",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "multi_request"
+    ],
+    "slots": {
+      "op": "expand"
+    },
+    "note": "公判 -> 後半"
+  },
+  {
+    "id": "ja-td007",
+    "lang": "ja",
+    "text": "なんかこれ箇条書きにして、句読点もついでにお願い",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {
+      "op": "format"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-td008",
+    "lang": "ja",
+    "text": "ここ句読点直して、あともっとくだけた感じにして",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {
+      "op": "casual"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-td009",
+    "lang": "ja",
+    "text": "あのー、さっき課長から来たこの長文なんだけど、まず要約して、それから丁寧な言い方にして",
+    "intent": "summarize",
+    "complexity": "long",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td010",
+    "lang": "ja",
+    "text": "車内向けのやつだから丁寧にしてから三つにまとめて",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "multi_request"
+    ],
+    "slots": {},
+    "note": "車内 -> 社内"
+  },
+  {
+    "id": "ja-td011",
+    "lang": "ja",
+    "text": "えーと、ここの誤字直して、あと要点もまとめて",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td012",
+    "lang": "ja",
+    "text": "これ要点まとめて、ついでにてにをはもお願い",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td013",
+    "lang": "ja",
+    "text": "あの、ちょっと短くしてから要点出して",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td014",
+    "lang": "ja",
+    "text": "後輩に見せるやつだからざっくりまとめて、話し言葉っぽく",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td015",
+    "lang": "ja",
+    "text": "この規格書、要約してから英語にして",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "multi_request"
+    ],
+    "slots": {
+      "target": "en"
+    },
+    "note": "規格書 -> 企画書"
+  },
+  {
+    "id": "ja-td016",
+    "lang": "ja",
+    "text": "えっと、海外の担当者からさっき届いたやつなんだけど、まずこれを英語にして、それから要約して",
+    "intent": "translate",
+    "complexity": "long",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {
+      "target": "en"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-td017",
+    "lang": "ja",
+    "text": "これ一回整えてから日本語に訳してもらえますか",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "multi_request",
+      "polite",
+      "question"
+    ],
+    "slots": {
+      "target": "ja"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-td018",
+    "lang": "ja",
+    "text": "あの、まず日本語に訳して、そのあと整えて",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {
+      "target": "ja"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-td019",
+    "lang": "ja",
+    "text": "機能来たメール、短くしてから中国語にして",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "multi_request"
+    ],
+    "slots": {
+      "target": "zh"
+    },
+    "note": "機能 -> 昨日"
+  },
+  {
+    "id": "ja-td020",
+    "lang": "ja",
+    "text": "えーと、これ中国語にして、くだけた感じでね",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {
+      "target": "zh"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-td021",
+    "lang": "ja",
+    "text": "あの、これ英語で返事しといて",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td022",
+    "lang": "ja",
+    "text": "上海のスタッフからなんだけど、中国語で返信書いて",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td023",
+    "lang": "ja",
+    "text": "うーん、ちょっと戦法が何言ってるかよく分かんないからさ、一回要約してからそれに返事書いて",
+    "intent": "reply",
+    "complexity": "long",
+    "tags": [
+      "asr_error",
+      "filler",
+      "multi_request"
+    ],
+    "slots": {},
+    "note": "戦法 -> 先方"
+  },
+  {
+    "id": "ja-td024",
+    "lang": "ja",
+    "text": "えっと、これに返信書いて、それを英語にして",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td025",
+    "lang": "ja",
+    "text": "あの、お客さん宛てなんだけど、とりあえずこれに返事書いて、書いたらそのまま全体も整えといて",
+    "intent": "reply",
+    "complexity": "long",
+    "tags": [
+      "filler",
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td026",
+    "lang": "ja",
+    "text": "取引先からだからこれに返信して、かしこまった感じで",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "multi_request"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td027",
+    "lang": "ja",
+    "text": "水曜で大丈夫って伝えて",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td028",
+    "lang": "ja",
+    "text": "もう下着いてるって言っといて",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td029",
+    "lang": "ja",
+    "text": "商品は明日発想しますってお客さんに伝えて",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "発想 -> 発送"
+  },
+  {
+    "id": "ja-td030",
+    "lang": "ja",
+    "text": "あの、先制にアドバイスありがとうございますって",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "filler"
+    ],
+    "slots": {},
+    "note": "先制 -> 先生"
+  },
+  {
+    "id": "ja-td031",
+    "lang": "ja",
+    "text": "みんなにもうお礼言っといて",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td032",
+    "lang": "ja",
+    "text": "親さんに家賃は来週月曜に払いますって",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "親さん -> 大家さん"
+  },
+  {
+    "id": "ja-td033",
+    "lang": "ja",
+    "text": "了解ですとだけね",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td034",
+    "lang": "ja",
+    "text": "今日行けないって伝えて",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td035",
+    "lang": "ja",
+    "text": "えーと、道が重体で十分遅れるって言っといて",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "filler"
+    ],
+    "slots": {},
+    "note": "重体 -> 渋滞"
+  },
+  {
+    "id": "ja-td036",
+    "lang": "ja",
+    "text": "会議は明日に偏向って知らせて",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "偏向 -> 変更"
+  },
+  {
+    "id": "ja-td037",
+    "lang": "ja",
+    "text": "えっと、心配しないで大丈夫だよって伝えて",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td038",
+    "lang": "ja",
+    "text": "あのー、お待たせしてすみませんってお客さんに",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td039",
+    "lang": "ja",
+    "text": "さっきの面接間にお礼伝えといて",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "面接間 -> 面接官"
+  },
+  {
+    "id": "ja-td040",
+    "lang": "ja",
+    "text": "えっと、試料は今夜送りますって伝えて",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "filler"
+    ],
+    "slots": {},
+    "note": "試料 -> 資料"
+  },
+  {
+    "id": "ja-td041",
+    "lang": "ja",
+    "text": "さっき催促来てたから、部長に今月のレポートできましたって",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td042",
+    "lang": "ja",
+    "text": "あの、承知しました、すぐ太陽しますって",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "filler"
+    ],
+    "slots": {},
+    "note": "太陽 -> 対応"
+  },
+  {
+    "id": "ja-td043",
+    "lang": "ja",
+    "text": "これ英語で返して",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td044",
+    "lang": "ja",
+    "text": "英語で返答しといて",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td045",
+    "lang": "ja",
+    "text": "ここ日本語で返事して",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td046",
+    "lang": "ja",
+    "text": "えーと、韓国語でありがとうって返して",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td047",
+    "lang": "ja",
+    "text": "向こうアメリカの人だからさ、返すとき英語で書いて",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td048",
+    "lang": "ja",
+    "text": "これ中国語で返信して",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td049",
+    "lang": "ja",
+    "text": "あの、これに英語で了解って返しといて",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td050",
+    "lang": "ja",
+    "text": "えっと、英語でまた来週って伝えて",
+    "intent": "reply",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td051",
+    "lang": "ja",
+    "text": "この人のやつ英語にして",
+    "intent": "translate",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {
+      "target": "en"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-td052",
+    "lang": "ja",
+    "text": "さっき北この海外の人のメッセージ日本語にして",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {
+      "target": "ja"
+    },
+    "note": "北 -> 来た"
+  },
+  {
+    "id": "ja-td053",
+    "lang": "ja",
+    "text": "えーと、この自分で書いた返事を英語に訳して",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {
+      "target": "en"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-td054",
+    "lang": "ja",
+    "text": "現地スタッフに見せるから、このメール中国語に訳して",
+    "intent": "translate",
+    "complexity": "compound",
+    "tags": [],
+    "slots": {
+      "target": "zh"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-td055",
+    "lang": "ja",
+    "text": "えーと、これさっき急いで自分で書いた返信なんだけど、出す前にちょっとだけ全体を整えて",
+    "intent": "polish",
+    "complexity": "long",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td056",
+    "lang": "ja",
+    "text": "これ、返すつもりのこれ、誤字直して",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td057",
+    "lang": "ja",
+    "text": "さっきの以来の件で部長への返事なんだけど、変な日本語ないか見て",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "以来 -> 依頼"
+  },
+  {
+    "id": "ja-td058",
+    "lang": "ja",
+    "text": "あの、この送る前の返信、もっと読みやすく直して",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td059",
+    "lang": "ja",
+    "text": "なんか変な気がして、この自分の返信、軽く手直しして",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td060",
+    "lang": "ja",
+    "text": "返事の句読点だけ直して",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td061",
+    "lang": "ja",
+    "text": "えーと、いま打った返事に誤字ないか見て",
+    "intent": "polish",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td062",
+    "lang": "ja",
+    "text": "掲示版に書く返信のてにをは直して",
+    "intent": "polish",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "掲示版 -> 掲示板"
+  },
+  {
+    "id": "ja-td063",
+    "lang": "ja",
+    "text": "あのー、さっき打った自分の返信なんだけど、相手にこれだとくだけすぎてるからもっと丁寧にして",
+    "intent": "rewrite",
+    "complexity": "long",
+    "tags": [
+      "filler"
+    ],
+    "slots": {
+      "op": "formal"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-td064",
+    "lang": "ja",
+    "text": "うーん、この返信ちょっと長すぎるから短くして",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {
+      "op": "shorten"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-td065",
+    "lang": "ja",
+    "text": "この自分の返事なんかそっけないからもっと明るくして",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {
+      "op": "casual"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-td066",
+    "lang": "ja",
+    "text": "お礼なのに自分の返信短いからさ、もう少し足して",
+    "intent": "rewrite",
+    "complexity": "compound",
+    "tags": [],
+    "slots": {
+      "op": "expand"
+    },
+    "note": ""
+  },
+  {
+    "id": "ja-td067",
+    "lang": "ja",
+    "text": "えっと、さっきバイト先の先輩から来たやつなんだけど、このメッセージに返事して、自然な感じでね",
+    "intent": "reply",
+    "complexity": "long",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td068",
+    "lang": "ja",
+    "text": "この人に返しといて",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td069",
+    "lang": "ja",
+    "text": "もっと明るい感じで返信して",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td070",
+    "lang": "ja",
+    "text": "これ短めに返事書いて",
+    "intent": "reply",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td071",
+    "lang": "ja",
+    "text": "あの、このチャット全体で結局何の話してるの",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td072",
+    "lang": "ja",
+    "text": "これざっくり何書いてある",
+    "intent": "summarize",
+    "complexity": "simple",
+    "tags": [
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td073",
+    "lang": "ja",
+    "text": "ここのやりとりまとめて",
+    "intent": "summarize",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td074",
+    "lang": "ja",
+    "text": "えーと、後方のこの長いお知らせ結局何なの",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "filler",
+      "question"
+    ],
+    "slots": {},
+    "note": "後方 -> 広報"
+  },
+  {
+    "id": "ja-td075",
+    "lang": "ja",
+    "text": "なんか長くて読めないから、この人の言ってること大まかに教えて",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td076",
+    "lang": "ja",
+    "text": "えっと、この資料って主に何について書いてあるの",
+    "intent": "summarize",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td077",
+    "lang": "ja",
+    "text": "これ締め切りいつって言ってる",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td078",
+    "lang": "ja",
+    "text": "住所どこって書いてあるこれ",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td079",
+    "lang": "ja",
+    "text": "あの、講座に振り込む料金いくらって書いてある",
+    "intent": "ask",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "filler",
+      "question"
+    ],
+    "slots": {},
+    "note": "講座 -> 口座"
+  },
+  {
+    "id": "ja-td080",
+    "lang": "ja",
+    "text": "この人誰のこと言ってるの",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td081",
+    "lang": "ja",
+    "text": "えーと、海上の集合って何時って書いてある",
+    "intent": "ask",
+    "complexity": "compound",
+    "tags": [
+      "asr_error",
+      "filler",
+      "question"
+    ],
+    "slots": {},
+    "note": "海上 -> 会場"
+  },
+  {
+    "id": "ja-td082",
+    "lang": "ja",
+    "text": "違約金っていくらって書いてある",
+    "intent": "ask",
+    "complexity": "simple",
+    "tags": [
+      "question"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td083",
+    "lang": "ja",
+    "text": "あ、いいや",
+    "intent": "cancel",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td084",
+    "lang": "ja",
+    "text": "うーん、もういい",
+    "intent": "cancel",
+    "complexity": "simple",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td085",
+    "lang": "ja",
+    "text": "いやなんでもない",
+    "intent": "cancel",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td086",
+    "lang": "ja",
+    "text": "返事して、あやっぱいいや",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "retraction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td087",
+    "lang": "ja",
+    "text": "英語にして、あいいや",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "retraction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td088",
+    "lang": "ja",
+    "text": "これ要約して、あいや短いし自分で読むわ",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "retraction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td089",
+    "lang": "ja",
+    "text": "ここ丁寧にして、うーんやっぱこのままでいいや",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "filler",
+      "retraction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td090",
+    "lang": "ja",
+    "text": "あ、ストップストップ",
+    "intent": "cancel",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td091",
+    "lang": "ja",
+    "text": "膨らませて、いややめとく",
+    "intent": "cancel",
+    "complexity": "compound",
+    "tags": [
+      "retraction"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td092",
+    "lang": "ja",
+    "text": "うーん今はいいや",
+    "intent": "cancel",
+    "complexity": "simple",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td093",
+    "lang": "ja",
+    "text": "この返信もう送信して",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td094",
+    "lang": "ja",
+    "text": "ここの段落消して",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td095",
+    "lang": "ja",
+    "text": "あの、さっき来たこの返事そのまま山田さんに転送して",
+    "intent": "none",
+    "complexity": "compound",
+    "tags": [
+      "filler"
+    ],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td096",
+    "lang": "ja",
+    "text": "これそのままコピーして",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td097",
+    "lang": "ja",
+    "text": "これ既読にしといて",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td098",
+    "lang": "ja",
+    "text": "共有ホルダーに保存しといて",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [
+      "asr_error"
+    ],
+    "slots": {},
+    "note": "ホルダー -> フォルダ"
+  },
+  {
+    "id": "ja-td099",
+    "lang": "ja",
+    "text": "このメールアーカイブしといて",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td100",
+    "lang": "ja",
+    "text": "これグループに貼っといて",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td101",
+    "lang": "ja",
+    "text": "これそのまま部長に送って",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  },
+  {
+    "id": "ja-td102",
+    "lang": "ja",
+    "text": "ここスクショ撮っといて",
+    "intent": "none",
+    "complexity": "simple",
+    "tags": [],
+    "slots": {},
+    "note": ""
+  }
+]

@@ -1,0 +1,41 @@
+[
+ {
+  "model": "qwen3.5-2b",
+  "cases": 600,
+  "max_abs_diff": 0.004202954353475841,
+  "same_top": 1.0,
+  "accuracy": 0.9316666666666666,
+  "auto": 0.8116666666666666,
+  "auto_acc": 0.9876796714579056,
+  "auto_wrong": 6,
+  "p50_ms": 36.414146,
+  "p95_ms": 40.6683625,
+  "prompt_tokens": 1383
+ },
+ {
+  "model": "qwen3.5-4b",
+  "cases": 600,
+  "max_abs_diff": 4.779841746072044e-06,
+  "same_top": 1.0,
+  "accuracy": 0.955,
+  "auto": 0.865,
+  "auto_acc": 0.9845857418111753,
+  "auto_wrong": 8,
+  "p50_ms": 75.410042,
+  "p95_ms": 88.13137259999999,
+  "prompt_tokens": 1383
+ },
+ {
+  "model": "qwen3.5-9b",
+  "cases": 600,
+  "max_abs_diff": 4.55929078874151e-06,
+  "same_top": 1.0,
+  "accuracy": 0.9666666666666667,
+  "auto": 0.9033333333333333,
+  "auto_acc": 0.992619926199262,
+  "auto_wrong": 4,
+  "p50_ms": 119.826396,
+  "p95_ms": 135.18200145,
+  "prompt_tokens": 1383
+ }
+]

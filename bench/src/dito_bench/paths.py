@@ -8,3 +8,5 @@ AUDIO_DIR = ROOT / "audio"
 RECORDINGS_DIR = ROOT / "recordings"
 MODELS_DIR = ROOT / "models"
 RESULTS_DIR = ROOT / "results"
+CACHE_DIR = ROOT / "cache"
+REPO_ROOT = ROOT.parent
