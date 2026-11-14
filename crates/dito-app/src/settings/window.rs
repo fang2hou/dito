@@ -3,8 +3,8 @@ use std::sync::Arc;
 use gpui_kit::*;
 
 use super::Page;
-use super::page::traffic_light_position;
 use super::shell::Settings;
+use crate::app_shell::traffic_light_position;
 use crate::state::{AppGlobal, AppState};
 #[cfg(feature = "screenshots")]
 use crate::ui;
@@ -33,28 +33,24 @@ pub fn handle(cx: &App) -> Option<(WindowHandle<Root>, Entity<Settings>)> {
 
 #[cfg(feature = "screenshots")]
 pub fn shell_motion(cx: &App) -> Option<ui::ScopeHandle> {
-    cx.try_global::<SettingsHandle>().map(|h| h.view.read(cx).motion.handle())
+    cx.try_global::<SettingsHandle>().map(|h| h.view.read(cx).chrome.motion())
 }
 
 #[cfg(feature = "screenshots")]
 pub fn page_motion(page: Page, cx: &App) -> Option<ui::ScopeHandle> {
-    cx.try_global::<SettingsHandle>().map(|h| {
-        let view = h.view.read(cx);
-        match page {
-            Page::Transcription => view.transcription.read(cx).motion_scope(),
-            Page::General => view.general.read(cx).motion_scope(),
-            Page::Models => view.models.read(cx).motion_scope(),
-            Page::Wordbook => view.wordbook.read(cx).motion_scope(),
-            Page::Prompts => view.prompts.read(cx).motion_scope(),
-            Page::History => view.history.read(cx).motion_scope(),
-            Page::Stats => view.stats.read(cx).motion_scope(),
-            Page::Status => view.status.read(cx).motion_scope(),
-        }
-    })
+    cx.try_global::<SettingsHandle>().map(|h| h.view.read(cx).page_motion(page, cx))
 }
 
 pub fn is_open(cx: &App) -> bool {
     cx.has_global::<SettingsHandle>()
+}
+
+/// Opens Settings on the Models page with the speech-detection tab selected: where the missing model
+/// the transcription page asked for lives.
+pub fn open_vad_models(st: Arc<AppState>, cx: &mut App) {
+    open(st, Page::Models, cx);
+    let Some(view) = cx.try_global::<SettingsHandle>().map(|h| h.view.clone()) else { return };
+    view.update(cx, |settings, cx| settings.show_vad(cx));
 }
 
 pub fn open(st: Arc<AppState>, page: Page, cx: &mut App) {

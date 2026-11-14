@@ -158,6 +158,15 @@ impl Store {
         Ok(())
     }
 
+    /// The sources a session recorded, which may have been turned on and off while it ran.
+    pub fn set_transcript_sources(&self, id: i64, sources: Sources) -> Result<()> {
+        self.conn().execute(
+            "UPDATE transcripts SET with_mic = ?2, with_system = ?3 WHERE id = ?1",
+            params![id, sources.microphone, sources.system],
+        )?;
+        Ok(())
+    }
+
     pub fn delete_transcript(&self, id: i64) -> Result<()> {
         let mut c = self.conn();
         let tx = c.transaction()?;

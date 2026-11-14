@@ -16,11 +16,11 @@ use dito_core::transcription::{
 };
 use gpui_kit::*;
 
-use super::capture::{render_settings_window, resize_settings_window, save};
-use super::input::on_settings_window;
+use super::capture::{render_tools_window, resize_tools_window, save};
+use super::input::on_tools_window;
 use crate::services;
-use crate::settings::{self, Page};
 use crate::state::AppState;
+use crate::tools;
 
 const FRAME: Duration = Duration::from_millis(250);
 /// After the script ends: long enough for the last paragraph to close by silence and be polished.
@@ -62,8 +62,8 @@ impl LiveAudio for Talk {
 pub async fn run(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     services::save_config(st, |c| c.general.appearance = Appearance::Light);
     cx.update(|cx| {
-        settings::open(st.clone(), Page::Transcription, cx);
-        resize_settings_window(cx, 1120., 720.);
+        tools::open(st.clone(), cx);
+        resize_tools_window(cx, 1120., 720.);
     });
     let mut audio = vec![0.0; 8_000];
     let mut lines = Vec::new();
@@ -87,9 +87,9 @@ pub async fn run(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
             store: st.store.clone(),
         })
     };
-    on_settings_window(cx, |w, cx, view| {
+    on_tools_window(cx, |w, cx, view| {
         let handle = handle.clone();
-        view.update(cx, |s, cx| s.follow_transcription(handle, w, cx));
+        view.update(cx, |t, cx| t.follow_transcription(handle, w, cx));
     });
     handle.start(Sources { system: true, microphone: false });
 
@@ -110,7 +110,7 @@ pub async fn run(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
             handle.stop();
             stopped = true;
         }
-        if let Some(Ok(image)) = render_settings_window(cx) {
+        if let Some(Ok(image)) = render_tools_window(cx) {
             let state = match handle.status().state {
                 SessionState::Recording { .. } => "rec",
                 SessionState::Finishing { .. } => "fin",

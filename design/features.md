@@ -35,14 +35,16 @@ What the app is for and what it does, from the user's side. How it looks and mov
 
 ## Transcription
 
-- Started and stopped from the 書き起こし page; nothing is recorded until the user starts a session.
-- Records one or both sources the user picks: デスクトップ音声 (what the Mac plays, through a system audio tap on macOS 14.6 or later) and マイク (the user's own voice, such as a long monologue). With both, meant for headphones, the two are kept apart as 自分 and 相手.
+- Lives in the Tools window (ツールウィンドウ), outside Settings, opened from the menu bar (ツールを開く), the Dock menu or its global shortcut (Control+Option+T by default, set in General under システム). The 書き起こし page is the first tool under ツール.
+- Started and stopped from the bottom Dock Panel; nothing is recorded until the user starts a session. At rest it is a small capsule with the two source toggles and 開始; while recording it widens and grows into one live lane per source above a bar with the timer, the title, the toggles and 停止. Browsing the list during a session tucks it back into that bar.
+- Before the first session, a readiness check lists what is missing: the マイク and システムオーディオ録音 permissions and the voice activity model, each with one fix.
+- Records one or both sources the user picks: デスクトップ音声 (what the Mac plays, through a system audio tap on macOS 14.6 or later) and マイク (the user's own voice, such as a long monologue). With both, meant for headphones, the two are kept apart as 自分 and 相手. Either source can be turned off or back on during a session (at least one stays on): an off source is closed, so the macOS microphone indicator goes out, and its lane folds away.
 - Speech is cut into utterances by Silero VAD and recognized as each one ends with the speech engine chosen for dictation. While an utterance goes on, it is recognized again about every second when the engine is free; the final recognition of a finished utterance always goes first and cancels a partial one in progress.
-- The paragraph still being heard stays in a floating box at the bottom of the entry for the whole session: its settled words in normal text, then the unsettled words with a sweeping gradient and a trailing ellipsis (trailing punctuation removed). Unsettled words stay until their final text replaces them. Only closed paragraphs are rows, first marked 整形中 and then editable; a reader at the end of the entry stays at the end as rows arrive.
+- The paragraph still being heard stays in its speaker's lane of the Dock Panel for the whole session: its settled words in normal text, then the unsettled words with a sweeping gradient and a trailing ellipsis (trailing punctuation removed). Unsettled words stay until their final text replaces them. Only closed paragraphs are rows, first marked 整形中 and then editable; a reader at the end of the entry stays at the end as rows arrive.
 - Utterances are grouped into paragraphs at a 2 second pause, a change of speaker, the first sentence end past 80 characters (about three sentences), or 280 characters without one. A closed paragraph goes to polishing at once.
 - Each paragraph is polished with the two paragraphs before it as read-only context, plus the wordbook when it applies to polishing. A paragraph keeps the recognized words if polishing fails or is off.
 - Each session is one entry, like a memo: a title, the start time and length, and its paragraphs with time and speaker. Finished paragraphs are edited in place; an entry can be copied as text or deleted.
-- The voice activity model (about 0.6 MB) is downloaded on the first start, after the user agrees to it.
+- The voice activity model (Silero VAD, about 0.6 MB) is downloaded from the 発話検出 tab of the Models page, like every other model.
 
 ## HUD
 
@@ -56,16 +58,15 @@ What the app is for and what it does, from the user's side. How it looks and mov
 
 | Page | What it does |
 | --- | --- |
-| 書き起こし (Transcription) | Under 機能, above the settings: start or stop a session, pick what it records (desktop audio, microphone or both), the list of transcripts and each transcript as an editable entry |
-| 一般 (General) | Shortcut, record mode, insert method, command shortcut (with a button back to the default; never the same as the dictation shortcut), music mute, microphone (automatic or fixed), speech language, display language, appearance, HUD appearance and position, launch at login, restart onboarding |
-| モデル (Models) | Local models (download, pause, resume, verify, delete, switch with 使用する, move the folder), with request parameters per local text model; cloud configurations for speech and for polishing, shown as a scrolling row of tiles that can be added from a template (FunASR, Qwen ASR, OpenRouter for speech; Azure OpenAI, Amazon Bedrock, OpenAI-compatible for polishing), duplicated, renamed, reordered by dragging and deleted; cloud speech edits the full request in the inline JSON editor with valid-draft autosave, native undo and redo, and a single documentation help dialog with four scrollable reference cards; cloud polishing has request parameters (temperature, top-p, max tokens, reasoning effort, extra JSON); connection tests |
+| 一般 (General) | Shortcut, record mode, insert method, command shortcut (with a button back to the default; never the same as the dictation shortcut), music mute, microphone (automatic or fixed), speech language, display language, appearance, HUD appearance and position, launch at login, the Tools window shortcut, restart onboarding |
+| モデル (Models) | Three tabs: 音声認識, テキスト and 発話検出 (the Silero VAD used by transcription, local only and active once downloaded). Local models (download, pause, resume, verify, delete, switch with 使用する, move the folder), with request parameters per local text model; cloud configurations for speech and for polishing, shown as a scrolling row of tiles that can be added from a template (FunASR, Qwen ASR, OpenRouter for speech; Azure OpenAI, Amazon Bedrock, OpenAI-compatible for polishing), duplicated, renamed, reordered by dragging and deleted; cloud speech edits the full request in the inline JSON editor with valid-draft autosave, native undo and redo, and a single documentation help dialog with four scrollable reference cards; cloud polishing has request parameters (temperature, top-p, max tokens, reasoning effort, extra JSON); connection tests |
 | 単語帳 (Wordbook) | Words passed to speech recognition as hotwords, optionally also to polishing; import, export and confirmed bulk deletion; a banner when an action fails; finding words in pasted text or in a Markdown, plain text, Word or PowerPoint file with the text model, or in the reply of another AI that was given a copied prompt and files Dito cannot read (PDF, images), then choosing which to add |
 | プロンプト (Prompts) | Shared rules and app writing styles per language, installed-app icons, add or remove an app style, copy settings to another app, optional style examples and a safe preview. `design:settings/prompts`: taller editors, grouped undo and redo, draft autosave, scoped reset confirmation and plain-text before and after panes |
 | 履歴 (History) | Search and filter by period, text or app; entries from configured apps carry the app name and the rest read as Other; each entry shows the polished text and the original; transcribe again, polish again, copy, play audio, delete |
 | 統計 (Stats) | Time saved first, then characters, recordings and speaking speed; characters per day as a week of tiles, a month calendar or a heatmap since first use, following the period, top apps and languages |
-| ステータス (Status) | Whether dictation works right now: a verdict, then shortcut, microphone, speech recognition, polishing and insertion in order, each with what it uses or how long it takes, and the reason and one fix when it fails |
+| ステータス (Status) | Whether dictation works right now: a verdict, then shortcut, microphone, speech recognition, polishing and insertion in order, each with what it uses or how long it takes, and the reason and one fix when it fails; the システムオーディオ録音 permission for transcription is listed too but never blocks dictation |
 
-The sidebar groups pages under 機能 (Features), 設定 (Settings) and 利用状況 (Activity). It shows a health dot (green when ready, red with the reason when a local model is stopped) and collapses to a rail in narrow windows.
+The sidebar groups pages under 設定 (Settings) and 利用状況 (Activity). It shows a health dot (green when ready, red with the reason when a local model is stopped) and collapses to a rail in narrow windows.
 
 ## Models
 
@@ -76,17 +77,17 @@ The sidebar groups pages under 機能 (Features), 設定 (Settings) and 利用�
 
 ## Menu Bar
 
-A waveform icon showing the engine status and today's character count, with shortcuts to History, Wordbook, Status, Settings and Quit. It never changes settings.
+A waveform icon showing the engine status and today's character count, with shortcuts to the Tools window, History, Wordbook, Status, Settings and Quit. It never changes settings.
 
 ## Dock
 
 - **Dock icon (General, on by default).** Off, Dito runs from the menu bar alone and has no Dock tile. While a window is open the tile comes back, so the window can be found with the Dock and Cmd-Tab, and it leaves again when the last window closes.
-- **Dock menu.** Right-clicking the tile lists the first four rows of the menu bar menu, Settings first, with no status line. Like the menu bar, it only opens pages.
+- **Dock menu.** Right-clicking the tile lists ツールを開く, then Settings and the History, Wordbook and Status rows of the menu bar menu, with no status line. Like the menu bar, it only opens windows and pages.
 - **Reopen.** Clicking the tile, or opening Dito again from Finder or Spotlight, while it runs with no window opens Settings on General.
 
 ## Onboarding
 
-Shown on first launch and restartable from General, in seven steps: welcome, permissions (Microphone and Accessibility), how to use (with a looping demo), recording shortcut, engine choice (local or provider), preparing the models or the connection, and trying a dictation. Steps slide forward and back; with Reduce Motion they cross-fade.
+Shown on first launch and restartable from General, in seven steps: welcome, permissions (Microphone and Accessibility, plus System Audio Recording for transcription, which never blocks continuing), how to use (with a looping demo), recording shortcut, engine choice (local or provider), preparing the models or the connection, and trying a dictation. Steps slide forward and back; with Reduce Motion they cross-fade.
 
 ## Behavior Details
 

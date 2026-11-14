@@ -53,6 +53,12 @@ impl HotkeyService {
         self.machine.lock().expect("hotkey machine lock").set_command_shortcut(s);
     }
 
+    /// The Tools window's shortcut, reported as [`Action::ToolsPressed`] once per press; `None` turns it off. It is
+    /// inert while it is the dictation or the command shortcut's key.
+    pub fn set_tools_shortcut(&self, s: Option<Shortcut>) {
+        self.machine.lock().expect("hotkey machine lock").set_tools_shortcut(s);
+    }
+
     /// The next shortcut the user presses is reported as [`Action::Captured`]; Esc reports `CaptureCancelled`.
     pub fn begin_capture(&self) {
         self.machine.lock().expect("hotkey machine lock").begin_capture();

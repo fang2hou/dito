@@ -62,7 +62,7 @@ impl Onboarding {
         .detach();
     }
 
-    fn apply_polled(&mut self, perms: [Status; 2], cx: &mut Context<Self>) {
+    fn apply_polled(&mut self, perms: [Status; 3], cx: &mut Context<Self>) {
         self.perms = perms;
         if self.step == Step::Try && self.tried_text.is_none() {
             let filter = HistoryFilter { since_ts: Some(self.started_at), limit: Some(1), ..Default::default() };

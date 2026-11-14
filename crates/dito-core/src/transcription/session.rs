@@ -22,7 +22,7 @@ use super::paragraphs::{self, Paragraph, Paragrapher};
 use super::prompt::{CONTEXT_PARAGRAPHS, ContextParagraph, system_prompt, worth_polishing};
 use super::recognizer::{Job, Recognized, Recognizer, Utterance};
 use super::source::{SourceEvent, detect};
-use super::{AudioSource, LiveAudio, Sources, Speaker, VoiceDetectors};
+use super::{AudioSource, LiveAudio, LiveInput, Sources, Speaker, VoiceDetectors};
 use crate::config::ConfigStore;
 use crate::factory::Engines;
 use crate::pipeline::polish_wordbook;
@@ -30,6 +30,10 @@ use crate::provider::{TextModel, TextRequest};
 use crate::store::Store;
 
 const IDLE_TICK: Duration = Duration::from_millis(250);
+
+/// Each audio source of a session and the speaker it records.
+const SOURCES: [(AudioSource, Speaker); 2] =
+    [(AudioSource::System, Speaker::Others), (AudioSource::Microphone, Speaker::Me)];
 
 pub struct TranscriptionDeps {
     pub audio: Arc<dyn LiveAudio>,
@@ -82,6 +86,7 @@ pub struct TranscriptionStatus {
 
 enum Cmd {
     Start { sources: Sources },
+    SetSources { sources: Sources },
     Stop,
 }
 
@@ -100,6 +105,11 @@ impl TranscriptionHandle {
     /// The session finishes the utterances it already heard before it ends.
     pub fn stop(&self) {
         let _ = self.tx.send(Cmd::Stop);
+    }
+
+    /// Turns sources on or off in the running session. Ignored unless recording, and when neither source is set.
+    pub fn set_sources(&self, sources: Sources) {
+        let _ = self.tx.send(Cmd::SetSources { sources });
     }
 
     pub fn status(&self) -> TranscriptionStatus {
@@ -125,7 +135,7 @@ pub fn spawn(deps: TranscriptionDeps) -> TranscriptionHandle {
 type Status = Arc<watch::Sender<TranscriptionStatus>>;
 
 async fn actor(deps: Arc<TranscriptionDeps>, mut rx: mpsc::UnboundedReceiver<Cmd>, status: Status) {
-    let mut running: Option<CancellationToken> = None;
+    let mut running: Option<(CancellationToken, watch::Sender<Sources>)> = None;
     while let Some(cmd) = rx.recv().await {
         match cmd {
             Cmd::Start { sources } => {
@@ -133,15 +143,23 @@ async fn actor(deps: Arc<TranscriptionDeps>, mut rx: mpsc::UnboundedReceiver<Cmd
                     continue;
                 }
                 let stop = CancellationToken::new();
-                running = Some(stop.clone());
+                let (source_tx, source_rx) = watch::channel(sources);
+                running = Some((stop.clone(), source_tx));
                 status.send_modify(|s| {
                     s.state = SessionState::Starting;
                     s.error = None;
                 });
-                tokio::spawn(run(deps.clone(), sources, stop, status.clone()));
+                tokio::spawn(run(deps.clone(), sources, stop, status.clone(), source_rx));
+            }
+            Cmd::SetSources { sources } => {
+                if let Some((_, source_tx)) = &running
+                    && (sources.system || sources.microphone)
+                {
+                    let _ = source_tx.send(sources);
+                }
             }
             Cmd::Stop => {
-                if let Some(stop) = running.take() {
+                if let Some((stop, _)) = running.take() {
                     stop.cancel();
                 }
             }
@@ -149,8 +167,14 @@ async fn actor(deps: Arc<TranscriptionDeps>, mut rx: mpsc::UnboundedReceiver<Cmd
     }
 }
 
-async fn run(deps: Arc<TranscriptionDeps>, sources: Sources, stop: CancellationToken, status: Status) {
-    let result = record(&deps, sources, &stop, &status).await;
+async fn run(
+    deps: Arc<TranscriptionDeps>,
+    sources: Sources,
+    stop: CancellationToken,
+    status: Status,
+    source_rx: watch::Receiver<Sources>,
+) {
+    let result = record(&deps, sources, &stop, &status, source_rx).await;
     if let Err(e) = &result {
         tracing::warn!("transcription failed: {e}");
     }
@@ -180,11 +204,67 @@ struct Source {
     thread: std::thread::JoinHandle<()>,
 }
 
+/// How often each source has been opened in the session, in [`SOURCES`] order. It numbers the utterances of the
+/// source, so a reopened source never reuses or goes below a number it already used.
+#[derive(Default)]
+struct Generations([u64; 2]);
+
+impl Generations {
+    fn next(&mut self, source: AudioSource) -> u64 {
+        let i = match source {
+            AudioSource::System => 0,
+            AudioSource::Microphone => 1,
+        };
+        let generation = self.0[i];
+        self.0[i] += 1;
+        generation
+    }
+}
+
+fn on(sources: Sources, source: AudioSource) -> bool {
+    match source {
+        AudioSource::System => sources.system,
+        AudioSource::Microphone => sources.microphone,
+    }
+}
+
+/// Opens one source's stream and starts the thread that cuts it into utterances.
+fn open_source(
+    deps: &TranscriptionDeps,
+    source: AudioSource,
+    speaker: Speaker,
+    session_start: Instant,
+    heard: &mpsc::UnboundedSender<SourceEvent>,
+    generation: u64,
+) -> Result<(Box<dyn LiveInput>, Source), String> {
+    let detector = deps.detectors.create()?;
+    // Stamped on the audio thread: the detector thread may fall behind, and its clock would then see gaps
+    // that are only a backlog.
+    let (chunk_tx, chunk_rx) = std_mpsc::channel::<(Instant, Vec<f32>)>();
+    let input = deps
+        .audio
+        .open(
+            source,
+            Box::new(move |chunk| {
+                let _ = chunk_tx.send((Instant::now(), chunk.to_vec()));
+            }),
+        )
+        .map_err(|e| e.to_string())?;
+    let speaking = Arc::new(AtomicBool::new(false));
+    let (flag, tx) = (speaking.clone(), heard.clone());
+    let thread = std::thread::Builder::new()
+        .name("dito-transcription-vad".into())
+        .spawn(move || detect(detector, chunk_rx, speaker, session_start, generation << 32, &flag, &tx))
+        .map_err(|e| e.to_string())?;
+    Ok((input, Source { speaker, speaking, thread }))
+}
+
 async fn record(
     deps: &TranscriptionDeps,
     sources: Sources,
     stop: &CancellationToken,
     status: &Status,
+    mut source_rx: watch::Receiver<Sources>,
 ) -> Result<(), String> {
     let cfg = deps.config.get();
     let asr = deps.engines.transcriber(&cfg).await.map_err(|e| e.to_string())?;
@@ -195,47 +275,31 @@ async fn record(
     let words = deps.store.words(None).unwrap_or_default();
     let terms = polish_wordbook(&cfg, &words).to_vec();
     let mut wanted = Vec::new();
-    if sources.system {
-        wanted.push((AudioSource::System, Speaker::Others));
-    }
-    if sources.microphone {
-        wanted.push((AudioSource::Microphone, Speaker::Me));
+    for (source, speaker) in SOURCES {
+        if on(sources, source) {
+            wanted.push((source, speaker));
+        }
     }
     if wanted.is_empty() {
         return Err("no audio source selected".into());
     }
-    let detectors = wanted.iter().map(|_| deps.detectors.create()).collect::<Result<Vec<_>, _>>()?;
     if stop.is_cancelled() {
         return Ok(());
     }
 
     let session_start = Instant::now();
     let (heard_tx, mut heard_rx) = mpsc::unbounded_channel::<SourceEvent>();
-    let mut inputs = Vec::new();
+    let mut generations = Generations::default();
+    let mut opened = Vec::new();
     let mut taps = Vec::new();
-    for ((source, speaker), detector) in wanted.into_iter().zip(detectors) {
-        // Stamped on the audio thread: the detector thread may fall behind, and its clock would then see gaps
-        // that are only a backlog.
-        let (chunk_tx, chunk_rx) = std_mpsc::channel::<(Instant, Vec<f32>)>();
-        let input = deps
-            .audio
-            .open(
-                source,
-                Box::new(move |chunk| {
-                    let _ = chunk_tx.send((Instant::now(), chunk.to_vec()));
-                }),
-            )
-            .map_err(|e| e.to_string())?;
-        let speaking = Arc::new(AtomicBool::new(false));
-        let (flag, tx) = (speaking.clone(), heard_tx.clone());
-        let thread = std::thread::Builder::new()
-            .name("dito-transcription-vad".into())
-            .spawn(move || detect(detector, chunk_rx, speaker, session_start, &flag, &tx))
-            .map_err(|e| e.to_string())?;
-        inputs.push(input);
-        taps.push(Source { speaker, speaking, thread });
+    for (source, speaker) in wanted {
+        let generation = generations.next(source);
+        let (input, tap) = open_source(deps, source, speaker, session_start, &heard_tx, generation)?;
+        opened.push((source, input));
+        taps.push(tap);
     }
-    drop(heard_tx);
+    // Kept open until the session stops: the threads alone would close `heard_rx` before the user is done.
+    let mut heard = Some(heard_tx);
 
     let started_ts = now_ts();
     let id = deps.store.create_transcript(started_ts, sources).map_err(|e| e.to_string())?;
@@ -251,8 +315,10 @@ async fn record(
     let recognizer = Recognizer { asr, language: cfg.general.preferred_language.code().map(str::to_string), words };
     let recognizer = tokio::spawn(recognizer.run(job_rx, text_tx));
     let (polish_tx, polish_rx) = mpsc::unbounded_channel::<Closed>();
+    // Read per paragraph: the user may turn the second source on or off while the session runs.
+    let labelled = Arc::new(AtomicBool::new(sources.both()));
     let polish_task =
-        tokio::spawn(polish_loop(deps.store.clone(), polisher, terms, sources.both(), polish_rx, status.clone()));
+        tokio::spawn(polish_loop(deps.store.clone(), polisher, terms, labelled.clone(), polish_rx, status.clone()));
     let mut session = Session {
         store: &deps.store,
         id,
@@ -264,7 +330,10 @@ async fn record(
         published: Vec::new(),
         closed: 0,
     };
-    let mut inputs = Some(inputs);
+    let mut inputs = Some(opened);
+    let mut current = sources;
+    // Every source recorded in the session, kept in the store so the transcript shows what it holds.
+    let mut union = sources;
     // `None` once every source has ended: the recognizer then finishes what it has and closes `text_rx`.
     let mut jobs = Some(job_tx);
     let mut sources_open = true;
@@ -272,9 +341,62 @@ async fn record(
     loop {
         tokio::select! {
             _ = stop.cancelled(), if inputs.is_some() => {
-                // Dropping the inputs ends the streams; the source threads then flush what they hold.
+                // Dropping the inputs ends the streams; the source threads then flush what they hold. Dropping the
+                // sender here is what lets `heard_rx` close once every one of them has ended.
                 inputs = None;
+                heard = None;
                 status.send_modify(|s| s.state = SessionState::Finishing { id });
+            }
+            changed = source_rx.changed(), if inputs.is_some() => {
+                // Only the actor's own sender could close it, and it lives while this session does.
+                if changed.is_err() {
+                    continue;
+                }
+                let next = *source_rx.borrow_and_update();
+                let Some(open) = inputs.as_mut() else { continue };
+                for (source, speaker) in SOURCES {
+                    if on(current, source) == on(next, source) {
+                        continue;
+                    }
+                    if !on(next, source) {
+                        // Only this stream closes: its thread flushes the speech in progress and ends.
+                        open.retain(|(s, _)| *s != source);
+                        continue;
+                    }
+                    let Some(heard) = heard.as_ref() else { continue };
+                    let generation = generations.next(source);
+                    match open_source(deps, source, speaker, session_start, heard, generation) {
+                        Ok((input, tap)) => {
+                            open.push((source, input));
+                            taps.push(tap);
+                        }
+                        // The session goes on with this source off.
+                        Err(e) => status.send_modify(|s| s.error = Some(e)),
+                    }
+                }
+                let now = Sources {
+                    system: open.iter().any(|(s, _)| *s == AudioSource::System),
+                    microphone: open.iter().any(|(s, _)| *s == AudioSource::Microphone),
+                };
+                if now != current {
+                    current = now;
+                    status.send_modify(|s| {
+                        if let SessionState::Recording { sources, .. } = &mut s.state {
+                            *sources = now;
+                        }
+                    });
+                }
+                let ever = Sources {
+                    system: union.system || now.system,
+                    microphone: union.microphone || now.microphone,
+                };
+                if ever != union {
+                    union = ever;
+                    labelled.store(union.both(), Ordering::Relaxed);
+                    if let Err(e) = deps.store.set_transcript_sources(id, union) {
+                        tracing::warn!("could not store the sources of the transcript: {e}");
+                    }
+                }
             }
             event = heard_rx.recv(), if sources_open => {
                 let Some(event) = event else {
@@ -439,7 +561,7 @@ async fn polish_loop(
     store: Arc<Store>,
     polisher: Option<Result<Arc<dyn TextModel>, String>>,
     terms: Vec<String>,
-    labelled: bool,
+    labelled: Arc<AtomicBool>,
     mut rx: mpsc::UnboundedReceiver<Closed>,
     status: Status,
 ) {
@@ -451,7 +573,8 @@ async fn polish_loop(
             _ if !worth_polishing(&p.text) => (p.text.clone(), None),
             Some(Err(e)) => (p.text.clone(), Some(e.clone())),
             Some(Ok(polisher)) => {
-                let system = system_prompt(&p.text, context.make_contiguous(), labelled, &terms);
+                let system =
+                    system_prompt(&p.text, context.make_contiguous(), labelled.load(Ordering::Relaxed), &terms);
                 match polisher.polish(&TextRequest { system: &system, examples: &[], text: &p.text }).await {
                     Ok(out) if !out.trim().is_empty() => (out.trim().to_string(), None),
                     Ok(_) => (p.text.clone(), None),
@@ -485,6 +608,14 @@ mod tests {
     /// Plays a script per source as soon as it opens, then stays open until dropped.
     struct ScriptedAudio {
         scripts: Mutex<Vec<(AudioSource, Vec<f32>)>>,
+        /// Every source opened, in order.
+        opened: Mutex<Vec<AudioSource>>,
+    }
+
+    impl ScriptedAudio {
+        fn new(scripts: Vec<(AudioSource, Vec<f32>)>) -> Self {
+            Self { scripts: Mutex::new(scripts), opened: Mutex::new(Vec::new()) }
+        }
     }
 
     struct Open(#[allow(dead_code)] ChunkSink);
@@ -497,6 +628,7 @@ mod tests {
             for chunk in samples.chunks(1_600) {
                 on_chunk(chunk);
             }
+            self.opened.lock().unwrap().push(source);
             Ok(Box::new(Open(on_chunk)))
         }
     }
@@ -527,9 +659,10 @@ mod tests {
         let store = Arc::new(Store::open_in_memory().unwrap());
         let config = config();
         let handle = spawn(TranscriptionDeps {
-            audio: Arc::new(ScriptedAudio {
-                scripts: Mutex::new(vec![(AudioSource::System, speech(1.0)), (AudioSource::Microphone, speech(0.8))]),
-            }),
+            audio: Arc::new(ScriptedAudio::new(vec![
+                (AudioSource::System, speech(1.0)),
+                (AudioSource::Microphone, speech(0.8)),
+            ])),
             detectors: Arc::new(EnergyDetectors),
             engines: Arc::new(FixedEngines::new(
                 Arc::new(MockTranscriber::new("えーと決済の件です")),
@@ -578,7 +711,7 @@ mod tests {
         let store = Arc::new(Store::open_in_memory().unwrap());
         let asr = ToneTranscriber::new(script, Duration::from_millis(5), Duration::ZERO);
         let handle = spawn(TranscriptionDeps {
-            audio: Arc::new(ScriptedAudio { scripts: Mutex::new(vec![(AudioSource::System, audio)]) }),
+            audio: Arc::new(ScriptedAudio::new(vec![(AudioSource::System, audio)])),
             detectors: Arc::new(EnergyDetectors),
             engines: Arc::new(FixedEngines::new(
                 Arc::new(asr),
@@ -627,7 +760,7 @@ mod tests {
         let store = Arc::new(Store::open_in_memory().unwrap());
         let handle = spawn(TranscriptionDeps {
             // No system script: opening the Mac's audio would fail the start.
-            audio: Arc::new(ScriptedAudio { scripts: Mutex::new(vec![(AudioSource::Microphone, speech(0.8))]) }),
+            audio: Arc::new(ScriptedAudio::new(vec![(AudioSource::Microphone, speech(0.8))])),
             detectors: Arc::new(EnergyDetectors),
             engines: Arc::new(FixedEngines::demo()),
             config: config(),
@@ -645,7 +778,7 @@ mod tests {
     async fn a_source_that_cannot_open_ends_the_start_with_an_error_and_no_transcript() {
         let store = Arc::new(Store::open_in_memory().unwrap());
         let handle = spawn(TranscriptionDeps {
-            audio: Arc::new(ScriptedAudio { scripts: Mutex::new(vec![(AudioSource::System, speech(0.5))]) }),
+            audio: Arc::new(ScriptedAudio::new(vec![(AudioSource::System, speech(0.5))])),
             detectors: Arc::new(EnergyDetectors),
             engines: Arc::new(FixedEngines::demo()),
             config: config(),
@@ -655,5 +788,54 @@ mod tests {
         let done = wait_until(&handle, |s| s.state == SessionState::Idle && s.error.is_some()).await;
         assert!(done.error.unwrap().contains("no input device"));
         assert!(store.list_transcripts().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn turning_a_source_off_and_on_again_keeps_recording_it() {
+        let store = Arc::new(Store::open_in_memory().unwrap());
+        let audio = Arc::new(ScriptedAudio::new(vec![
+            (AudioSource::System, speech(1.0)),
+            (AudioSource::Microphone, speech(0.8)),
+        ]));
+        let handle = spawn(TranscriptionDeps {
+            audio: audio.clone(),
+            detectors: Arc::new(EnergyDetectors),
+            engines: Arc::new(FixedEngines::new(
+                Arc::new(MockTranscriber::new("えーと決済の件です")),
+                Arc::new(MockTextModel::default()),
+            )),
+            config: config(),
+            store: store.clone(),
+        });
+        let both = Sources { system: true, microphone: true };
+        let system_only = Sources { system: true, microphone: false };
+
+        handle.start(both);
+        let recording = wait_until(&handle, |s| matches!(s.state, SessionState::Recording { .. })).await;
+        let id = recording.state.transcript_id().unwrap();
+
+        handle.set_sources(system_only);
+        wait_until(&handle, |s| matches!(&s.state, SessionState::Recording { sources, .. } if *sources == system_only))
+            .await;
+        // Neither source set: the session keeps the sources it records.
+        handle.set_sources(Sources { system: false, microphone: false });
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        let unchanged = handle.status();
+        assert!(
+            matches!(&unchanged.state, SessionState::Recording { sources, .. } if *sources == system_only),
+            "{:?}",
+            unchanged.state
+        );
+
+        handle.set_sources(both);
+        wait_until(&handle, |s| matches!(&s.state, SessionState::Recording { sources, .. } if *sources == both)).await;
+        handle.stop();
+        let done = wait_until(&handle, |s| s.state == SessionState::Idle).await;
+        assert_eq!(done.error, None);
+        let t = store.get_transcript(id).unwrap().unwrap();
+        assert!(t.summary.ended_ts.is_some());
+        assert_eq!(t.summary.sources, both);
+        let opened = audio.opened.lock().unwrap();
+        assert_eq!(opened.iter().filter(|s| **s == AudioSource::Microphone).count(), 2, "{opened:?}");
     }
 }

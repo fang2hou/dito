@@ -134,6 +134,11 @@ board = "20.04"
 item = "20.04.6"
 layer = "Model labels"
 
+[settings.local-models.speech-detection]
+board = "20.04"
+item = "20.04.7"
+layer = "Speech detection"
+
 [settings.status]
 board = "20.08"
 layer = "Status"
@@ -157,3 +162,28 @@ layer = "HUD Motion Tokens"
 [hud.processing]
 board = "21.06"
 layer = "HUD Processing"
+
+[tools]
+board = "23"
+layer = "Tools"
+page = true
+
+[tools.overview]
+board = "23.00"
+layer = "Tools Window Overview"
+
+[tools.transcripts]
+board = "23.01"
+layer = "Transcripts"
+
+[tools.recording]
+board = "23.02"
+layer = "Recording"
+
+[tools.detail]
+board = "23.03"
+layer = "Transcript detail"
+
+[tools.rail-labels]
+board = "23.04"
+layer = "Compact rail"

@@ -68,6 +68,9 @@ How a command is decided is in [INTENT_ROUTING.md](INTENT_ROUTING.md); how it is
 | Display language | The UI locale of menus, settings, and the HUD, shown as a self-name including script variant (such as Simplified or Traditional Chinese) | 表示言語（日本語, English, 简体中文） | Display language (日本語, English, 简体中文) | 界面语言（日本語, English, 简体中文） | `DisplayLanguage`, `Lang::native_name` | conflating UI script variants with speech language |
 | HUD | The floating capsule that shows live dictation and command state | HUD | HUD | HUD | `hud/`, `HudState`, `HudView` | overlay, toast |
 | HUD state | For dictation: hidden, listening, transcribing, polishing, inserted, copied, error; command adds thinking, working, its windows, and replaced | — | — | — | `HudState` | |
+| Tools window | The standalone workspace window outside Settings that hosts Dito's interactive tools (meeting transcription first, future tools alongside it in the `ツール` sidebar) | ツールウィンドウ（メニュー: ツールを開く） | Tools window (menu: Open Tools) | 工具窗口（菜单: 打开工具） | `tools/` | feature window, transcription window |
+| Transcription | Continuous live transcription of desktop audio, the microphone, or both into an editable meeting entry inside the Tools window | 書き起こし | Transcription | 转写 | `transcription/` | meeting mode, live dictation |
+| Speech detection | The on-device voice activity detector model role (`Silero VAD`) that cuts live streams into utterances | 発話検出 | Speech detection | 发话检测 | `ModelKind::Vad`, `VoiceDetector` | speaker detection, diarization |
 | Tile | The horizontal card control representing one saved cloud configuration | — | — | — | `ConfigTile`, `config_tiles/` | card (cards are grouped containers) |
 | Page | One screen of the settings window | — | — | — | `settings/*` | tab |
 | Motion scope | The owner of animation state for one view | — | — | — | `MotionScope` | |

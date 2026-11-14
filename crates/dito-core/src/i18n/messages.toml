@@ -71,8 +71,8 @@ models.use = { ja = "使用する", en = "Use", zh = "使用" }
 models.downloaded = { ja = "ダウンロード済み", en = "Downloaded", zh = "已下载" }
 models.connection_settings = { ja = "接続設定", en = "Connection settings", zh = "连接设置" }
 
-nav.features = { ja = "機能", en = "Features", zh = "功能" }
 nav.transcription = { ja = "書き起こし", en = "Transcription", zh = "转写" }
+nav.tools = { ja = "ツール", en = "Tools", zh = "工具" }
 nav.settings = { ja = "設定", en = "Settings", zh = "设置" }
 nav.activity = { ja = "利用状況", en = "Activity", zh = "使用情况" }
 nav.general = { ja = "一般", en = "General", zh = "通用" }
@@ -117,6 +117,9 @@ general.launch_at_login = { ja = "ログイン時に起動", en = "Launch at log
 general.launch_at_login_hint = { ja = "Mac にログインすると、自動で立ち上がります", en = "Starts by itself when you log in to your Mac", zh = "登录 Mac 后自动启动" }
 general.show_dock_icon = { ja = "Dock にアイコンを表示", en = "Show icon in Dock", zh = "在 Dock 中显示图标" }
 general.show_dock_icon_hint = { ja = "オフにすると、Dock にアイコンが出なくなります", en = "When off, the icon no longer shows in the Dock", zh = "关闭后，Dock 中不再显示图标" }
+general.tools_shortcut = { ja = "ツールウィンドウ", en = "Tools window", zh = "工具窗口" }
+general.tools_shortcut_hint = { ja = "このキーを押すと、ツールウィンドウが開きます", en = "Press this key to open the tools window", zh = "按下此键，打开工具窗口" }
+general.shortcut_same_as_tools = { ja = "ツールウィンドウと同じ組み合わせは使えません", en = "Can't be the same as the Tools window", zh = "不能与工具窗口快捷键相同" }
 general.appearance = { ja = "外観", en = "Appearance", zh = "外观" }
 general.appearance_hint = { ja = "この設定画面の色合いを選びます", en = "Choose the colors of this settings window", zh = "选择此设置窗口的配色" }
 general.hud = { ja = "HUD", en = "HUD", zh = "HUD" }
@@ -220,6 +223,8 @@ models.dictation_desc = { ja = "音声をテキストに変換します。", en 
 models.text_model_desc = { ja = "整形、コマンド、単語の解析に使うモデルです。", en = "The model for polishing, commands and finding words.", zh = "用于润色、命令和单词解析的模型。" }
 models.local = { ja = "ローカル", en = "Local", zh = "本地" }
 models.provider = { ja = "クラウド", en = "Cloud", zh = "云端" }
+models.vad = { ja = "発話検出", en = "Speech detection", zh = "发话检测" }
+models.vad_desc = { ja = "会議の書き起こしで、話している区間をリアルタイムに見つけます。", en = "Finds where people speak, in real time, for meeting transcription.", zh = "在会议转写中实时找出正在说话的片段。" }
 models.azure_openai = { ja = "Azure OpenAI", en = "Azure OpenAI", zh = "Azure OpenAI" }
 models.amazon_bedrock = { ja = "Amazon Bedrock", en = "Amazon Bedrock", zh = "Amazon Bedrock" }
 models.openai_compatible = { ja = "OpenAI 互換 API", en = "OpenAI-compatible API", zh = "OpenAI 兼容 API" }
@@ -246,6 +251,7 @@ models.connection_error = { ja = "接続エラー", en = "Connection error", zh 
 models.latency = { ja = "応答時間", en = "Response time", zh = "响应时间" }
 models.memory = { ja = "メモリ", en = "Memory", zh = "内存" }
 models.in_use = { ja = "使用中", en = "In use", zh = "使用中" }
+models.active = { ja = "有効", en = "Active", zh = "已启用" }
 models.running = { ja = "稼働中", en = "Running", zh = "运行中" }
 models.configured = { ja = "設定済み", en = "Configured", zh = "已配置" }
 models.endpoint = { ja = "エンドポイント", en = "Endpoint", zh = "端点" }
@@ -393,6 +399,9 @@ status.running_via_provider = { ja = "クラウドで稼働中", en = "Running i
 status.allowed = { ja = "許可済み", en = "Allowed", zh = "已允许" }
 status.not_allowed = { ja = "未許可", en = "Not allowed", zh = "未允许" }
 status.accessibility = { ja = "アクセシビリティ", en = "Accessibility", zh = "辅助功能" }
+status.system_audio = { ja = "システムオーディオ録音", en = "System Audio Recording", zh = "系统录音" }
+status.system_audio_detail = { ja = "通話相手の声や Mac で再生中の音声を収録します。", en = "Records the other side of a call and whatever your Mac plays.", zh = "录制通话对方的声音和 Mac 正在播放的声音。" }
+status.system_audio_blocked = { ja = "システムオーディオ録音が許可されていないため、相手の声を収録できません。", en = "System Audio Recording is not allowed, so the other side can't be recorded.", zh = "未允许系统录音，无法录制对方的声音。" }
 status.open_system_settings = { ja = "システム設定を開く", en = "Open System Settings", zh = "打开系统设置" }
 status.need_accessibility = { ja = "アクセシビリティが許可されていません。ショートカットを検知できません。", en = "Accessibility permission is required to detect shortcuts.", zh = "未允许辅助功能，无法检测快捷键。" }
 
@@ -435,6 +444,7 @@ hud.text_prompt = { ja = "対象のテキストを入力してください", en 
 menubar.view_status = { ja = "ステータスを見る", en = "View status", zh = "查看状态" }
 menubar.add_word = { ja = "単語帳に単語を追加…", en = "Add Word to Wordbook…", zh = "向单词本添加单词…" }
 menubar.settings = { ja = "設定…", en = "Settings…", zh = "设置…" }
+menubar.open_tools = { ja = "ツールを開く", en = "Open Tools", zh = "打开工具" }
 menubar.quit = { ja = "Dito を終了", en = "Quit Dito", zh = "退出 Dito" }
 menubar.what_you_said = { ja = "話した内容", en = "What you said", zh = "口述内容" }
 menubar.polished = { ja = "整形後", en = "Polished", zh = "润色后" }
@@ -465,9 +475,10 @@ onboarding.done = { ja = "完了", en = "Done", zh = "完成" }
 onboarding.run_again = { ja = "やり直す", en = "Run again", zh = "重新开始" }
 onboarding.tagline = { ja = "想いを、そのまま文字へ。", en = "From thought to text, effortlessly.", zh = "所想即所写，从未如此简单。" }
 onboarding.allow_permissions = { ja = "権限を許可する", en = "Allow permissions", zh = "授予权限" }
-onboarding.permissions_desc = { ja = "Dito を使うには、次の 2 つを許可してください。", en = "Dito needs these two permissions to work.", zh = "使用 Dito 需要以下两项权限。" }
+onboarding.permissions_desc = { ja = "音声入力と会議の書き起こしには、次の 3 つの権限を使います。", en = "Dictation and meeting transcription use these three permissions.", zh = "语音输入和会议转写会用到以下三项权限。" }
 onboarding.card.mic = { ja = "声を録音して音声認識に使います。", en = "Records your voice for speech recognition.", zh = "录制声音用于语音识别。" }
 onboarding.card.accessibility = { ja = "文章をカーソル位置に入力します。", en = "Types the text at your cursor.", zh = "把文字输入到光标处。" }
+onboarding.card.system_audio = { ja = "通話相手の声や Mac で再生中の音声を収録します。", en = "Records the other side of a call and whatever your Mac plays.", zh = "录制通话对方的声音和 Mac 正在播放的声音。" }
 onboarding.choose_mode = { ja = "使い方を選ぶ", en = "Choose how to record", zh = "选择使用方式" }
 onboarding.choose_mode_desc = { ja = "あなたに合う録音方式を選びます。あとから「一般」で変更できます。", en = "Pick the recording mode that suits you. You can change it later in General.", zh = "选择适合你的录音方式，之后可在「通用」中更改。" }
 onboarding.toggle_desc = { ja = "キーを押して開始、もう一度押して終了", en = "Press once to start, press again to stop", zh = "按一下开始，再按一下结束" }
@@ -533,6 +544,8 @@ fmt.model_quantization_tip = { ja = "元の{from}ビットを{to}ビットに圧
 fmt.model_quantization_lossy_tip = { ja = "元の{from}ビットを{to}ビットに圧縮。精度はわずかに下がります", en = "Compressed from {from}-bit to {to}-bit. Accuracy drops slightly", zh = "从原来的 {from} 位压缩到 {to} 位，精度略有下降" }
 fmt.model_bit_range = { ja = "{min}〜{max}", en = "{min} to {max}", zh = "{min} 到 {max}" }
 fmt.model_size_tip = { ja = "ダウンロードに {size} の空き容量が必要です", en = "Needs {size} of free space to download", zh = "下载需要 {size} 的可用空间" }
+fmt.transcription_started_at = { ja = "{time} 開始", en = "Started {time}", zh = "{time} 开始" }
+fmt.transcription_count = { ja = "{count} 件", en = "{count} entries", zh = "{count} 条" }
 
 prompts.other = { ja = "その他", en = "Other", zh = "其他" }
 prompts.app_rules = { ja = "アプリ別のルール", en = "App rules", zh = "应用规则" }
@@ -560,20 +573,12 @@ prompts.remove_title = { ja = "アプリのルールを削除しますか？", e
 prompts.remove_history = { ja = "過去の履歴は消えず、「その他」として残ります。", en = "Past history is kept and reads as Other.", zh = "过去的记录会保留，并归为「其他」。" }
 prompts.remove_confirm = { ja = "削除する", en = "Delete", zh = "删除" }
 
-transcription.start = { ja = "録音を開始", en = "Start recording", zh = "开始录音" }
+transcription.start = { ja = "開始", en = "Start", zh = "开始" }
 transcription.stop = { ja = "停止", en = "Stop", zh = "停止" }
 transcription.starting = { ja = "準備中", en = "Getting ready", zh = "正在准备" }
-transcription.finishing = { ja = "仕上げ中", en = "Finishing", zh = "正在收尾" }
+transcription.finishing = { ja = "整形中", en = "Polishing", zh = "正在润色" }
 transcription.recording = { ja = "録音中", en = "Recording", zh = "正在录音" }
-transcription.recording_group = { ja = "録音", en = "Recording", zh = "录音" }
-transcription.source_system = { ja = "デスクトップ音声", en = "Desktop audio", zh = "桌面音频" }
-transcription.source_system_hint = { ja = "Mac で再生される音声です。会議の相手の声や動画の音声を書き起こします。", en = "Everything the Mac plays, such as the other side of a meeting or a video.", zh = "Mac 播放的声音，例如会议中对方的声音或视频的声音。" }
-transcription.source_mic = { ja = "マイク", en = "Microphone", zh = "麦克风" }
-transcription.source_mic_hint = { ja = "自分の声を書き起こします。デスクトップ音声と一緒に使うときは、ヘッドホンを付けてください。スピーカーで聞いていると、相手の声がマイクにも入ります。", en = "Transcribes your own voice. With desktop audio too, wear headphones: through speakers, the microphone also picks up the other side.", zh = "转写你自己的声音。与桌面音频一起使用时，请戴上耳机：用扬声器收听时，麦克风也会录到对方的声音。" }
-transcription.sources_rule = { ja = "1 つ以上を選びます。両方を選ぶと、自分と相手を分けて書き起こします。", en = "Choose at least one. With both, you and the other side are kept apart.", zh = "至少选择一项。两项都选时，会分开转写你和对方。" }
-transcription.permission_note = { ja = "初回は、macOS がシステム音声の録音の許可を求めます。", en = "The first time, macOS asks for permission to record system audio.", zh = "首次使用时，macOS 会请求录制系统音频的权限。" }
-transcription.transcripts = { ja = "記録", en = "Transcripts", zh = "记录" }
-transcription.empty = { ja = "まだ書き起こしはありません。会議が始まったら「録音を開始」を押します。", en = "No transcripts yet. Press Start recording when the meeting begins.", zh = "还没有转写记录。会议开始时按「开始录音」。" }
+transcription.empty = { ja = "まだ書き起こしはありません。下のパネルの「開始」を押すと始まります。", en = "No transcripts yet. Press Start in the panel below to begin.", zh = "还没有转写记录。按下方面板中的「开始」即可开始。" }
 transcription.untitled = { ja = "無題", en = "Untitled", zh = "无标题" }
 transcription.title_placeholder = { ja = "タイトル", en = "Title", zh = "标题" }
 transcription.me = { ja = "自分", en = "Me", zh = "我" }
@@ -583,15 +588,17 @@ transcription.polishing = { ja = "整形中", en = "Polishing", zh = "正在润�
 transcription.not_polished = { ja = "整形できなかったため、認識結果のままです", en = "Not polished, so this is the recognized text", zh = "未能润色，这里是识别结果" }
 transcription.nothing_yet = { ja = "まだ発言はありません", en = "Nothing said yet", zh = "还没有发言" }
 transcription.back = { ja = "一覧に戻る", en = "Back to the list", zh = "返回列表" }
+transcription.overview = { ja = "一覧", en = "List", zh = "列表" }
 transcription.delete = { ja = "削除", en = "Delete", zh = "删除" }
 transcription.delete_confirm = { ja = "もう一度押すと削除します", en = "Press again to delete", zh = "再按一次即删除" }
-transcription.vad_title = { ja = "発話検出モデルが必要です", en = "A speech detection model is needed", zh = "需要语音检测模型" }
-transcription.vad_body = { ja = "話している区間を見つけるために、Silero VAD（約 0.6 MB）を GitHub からダウンロードします。", en = "To find where people speak, Silero VAD (about 0.6 MB) is downloaded from GitHub.", zh = "为了找出说话的部分，将从 GitHub 下载 Silero VAD（约 0.6 MB）。" }
-transcription.vad_download = { ja = "ダウンロードして開始", en = "Download and start", zh = "下载并开始" }
-transcription.vad_downloading = { ja = "ダウンロード中", en = "Downloading", zh = "正在下载" }
-transcription.vad_failed = { ja = "発話検出モデルをダウンロードできませんでした", en = "The speech detection model could not be downloaded", zh = "无法下载语音检测模型" }
-transcription.cancel = { ja = "キャンセル", en = "Cancel", zh = "取消" }
-transcription.mic_denied = { ja = "マイクの使用が許可されていません。ステータスから許可してください。", en = "Microphone access is off. Allow it from Status.", zh = "未允许使用麦克风，请在「状态」中允许。" }
+transcription.source_system_tip = { ja = "デスクトップ音声（相手）", en = "Desktop audio (others)", zh = "桌面音频（对方）" }
+transcription.source_mic_tip = { ja = "マイク（自分）", en = "Microphone (you)", zh = "麦克风（我）" }
+transcription.audio_open_failed = { ja = "オーディオ入力を開けませんでした。接続中のマイクを確認してください。", en = "Couldn't open the audio input. Check the connected microphone.", zh = "无法打开音频输入。请检查已连接的麦克风。" }
+transcription.readiness_lead = { ja = "このツールを使い始めるには、次の権限とモデルが必要です。", en = "This tool needs the following permissions and model before you start.", zh = "开始使用此工具前，需要以下权限和模型。" }
+transcription.readiness_mic = { ja = "自分の発言を収録して文字に起こすために、マイクへのアクセスが必要です。", en = "Microphone access is needed to record and transcribe what you say.", zh = "需要麦克风权限，才能录制并转写你的发言。" }
+transcription.readiness_system_audio = { ja = "通話相手の声や Mac で再生中の音声を収録するために、システムオーディオ録音へのアクセスが必要です。", en = "System Audio Recording access is needed to record the other side of a call and whatever your Mac plays.", zh = "需要系统录音权限，才能录制通话对方的声音和 Mac 正在播放的声音。" }
+transcription.readiness_vad_title = { ja = "発話検出モデル（Silero VAD）", en = "Speech detection model (Silero VAD)", zh = "发话检测模型（Silero VAD）" }
+transcription.readiness_vad = { ja = "連続する音声から発話の区間を切り出して音声認識へ渡すために必要です。", en = "Needed to cut speech out of the continuous audio and pass it to speech recognition.", zh = "用于从连续音频中切出发言片段并交给语音识别。" }
 
 [fmt.using_model]
 ja = "{model} を使用中"
