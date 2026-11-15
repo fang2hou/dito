@@ -139,12 +139,20 @@ fn live_head(open: &OpenTranscript, page: &TranscriptionPage, c: &Ctx, cx: &mut 
 /// The header of a finished transcript: the way back, copy, and delete.
 fn finished_head(page: &TranscriptionPage, c: &Ctx, cx: &mut Context<TranscriptionPage>) -> Div {
     let p = &c.p;
+    let copy_id = ElementId::from("transcript-copy-all");
+    let copy_all = c.t(Tr::TranscriptionCopyAll);
+    ui::tip_label(copy_id.clone(), copy_all.clone());
     div().w_full().flex().items_center().justify_between().gap(px(24.)).child(back_to_list(c, cx)).child(
         div()
             .flex()
             .items_center()
             .gap(px(10.))
-            .child(ui::copy_button("transcript-copy-all", p, cbk_copy(cx, |page, _, cx| page.copy_open(cx))))
+            .child(
+                ui::copy_button(copy_id.clone(), p, cbk_copy(cx, |page, _, cx| page.copy_open(cx)))
+                    .role(Role::Button)
+                    .aria_label(copy_all)
+                    .child(ui::tip_above(p, &copy_id)),
+            )
             .child(delete_button(page, c, cx)),
     )
 }
@@ -201,6 +209,9 @@ fn delete_button(page: &TranscriptionPage, c: &Ctx, cx: &mut Context<Transcripti
             .role(Role::Button)
             .aria_label(label);
     }
+    let key = ElementId::from(id);
+    let label = c.t(Tr::TranscriptionDelete);
+    ui::tip_label(key.clone(), label.clone());
     ui::circle_control(
         id,
         Ic::Trash,
@@ -215,7 +226,8 @@ fn delete_button(page: &TranscriptionPage, c: &Ctx, cx: &mut Context<Transcripti
     .cursor_pointer()
     .on_click(ui::click_cb(delete))
     .role(Role::Button)
-    .aria_label(c.t(Tr::TranscriptionDelete))
+    .aria_label(label)
+    .child(ui::tip_above(p, &key))
 }
 
 fn paragraph_card(
@@ -285,6 +297,8 @@ fn paragraph_row(
     let p = &c.p;
     let key = ElementId::from(("transcript-paragraph-row", v.data.id as usize));
     let copy_id = ElementId::from(("transcript-paragraph-copy", v.data.id as usize));
+    let copy_paragraph = c.t(Tr::TranscriptionCopyParagraph);
+    ui::tip_label(copy_id.clone(), copy_paragraph.clone());
     let paragraph_id = v.data.id;
     let hovered = ui::is_hovered(&key) || ui::is_hovered(&copy_id);
     let at = hhmm(summary.started_ts + v.data.start_ms as i64 / 1000, dito_platform::local_utc_offset_secs());
@@ -325,11 +339,14 @@ fn paragraph_row(
     };
     let action = div().w(px(ACTION_COL)).h(px(ACTION_H)).pt(px(ACTION_TOP)).flex_none().child(if hovered {
         ui::copy_button_with(
-            copy_id,
+            copy_id.clone(),
             p,
             CircleSize::Small,
             cbk_copy(cx, move |page, _, cx| page.copy_paragraph(paragraph_id, cx)),
         )
+        .role(Role::Button)
+        .aria_label(copy_paragraph)
+        .child(ui::tip_above(p, &copy_id))
         .into_any_element()
     } else {
         div().into_any_element()

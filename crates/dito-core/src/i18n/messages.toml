@@ -599,6 +599,8 @@ transcription.polishing = { ja = "整形中", en = "Polishing", zh = "正在润�
 transcription.not_polished = { ja = "整形できなかったため、認識結果のままです", en = "Not polished, so this is the recognized text", zh = "未能润色，这里是识别结果" }
 transcription.nothing_yet = { ja = "まだ発言はありません", en = "Nothing said yet", zh = "还没有发言" }
 transcription.back = { ja = "一覧に戻る", en = "Back to the list", zh = "返回列表" }
+transcription.copy_all = { ja = "すべてをコピー", en = "Copy all", zh = "复制全部" }
+transcription.copy_paragraph = { ja = "この発言をコピー", en = "Copy this entry", zh = "复制这条发言" }
 transcription.delete = { ja = "削除", en = "Delete", zh = "删除" }
 transcription.delete_confirm = { ja = "削除する？", en = "Delete?", zh = "删除？" }
 transcription.source_system_tip = { ja = "デスクトップ音声（相手）", en = "Desktop audio (others)", zh = "桌面音频（对方）" }
