@@ -8,11 +8,12 @@ How to build, run, test and change Dito, for people and AI agents. Product behav
 | --- | --- | --- |
 | Rust 1.99.1 with rustfmt and clippy | Compiler and checks | mise (`mise.toml`) |
 | Python 3.15, uv, ruff and ty | The `bench/` benchmark project | mise (`mise.toml`); packages through uv |
-| Xcode and its Metal Toolchain | GPUI shaders and optional layered icon compilation | Xcode (`xcodebuild -downloadComponent MetalToolchain`) |
+| Apple Command Line Tools | macOS SDK and native compiler | `xcode-select --install` |
+| Xcode (optional) | Liquid Glass app icon compilation and preview | Xcode |
 | cmake | llama.cpp and sherpa-onnx builds | Homebrew |
 | `dito-dev` signing identity | Stable permissions across rebuilds (see Engineering Traps) | `mise run certs` (also run by `release:install`), once per machine |
 
-`scripts/bundle.sh` (release) and `scripts/icon.sh` (icon step, also in dev runs) resolve Xcode themselves: the full Xcode selected by `xcode-select`, or `/Applications/Xcode.app` when only the Command Line Tools are selected. Plain `cargo` runs such as `mise run dev` do not, so with only the Command Line Tools selected export `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` (or another installation, for example `/Applications/Xcode-26.app/Contents/Developer`) before the first build. The Xcode Metal Toolchain is still required to compile the app. When the selected Xcode cannot compile the layered icon (an older Xcode 26, or Command Line Tools only), builds fall back to a flat `Dito.icns` from the checked-in 1024 px artwork and print a warning instead of failing.
+Cargo uses the selected macOS SDK and respects `DEVELOPER_DIR`. GPUI and llama.cpp compile their shaders at runtime with the pinned dependencies. The icon script uses a compatible Xcode for Liquid Glass when available and falls back to `Dito.icns` from the checked-in artwork.
 
 ## Commands
 
@@ -21,7 +22,7 @@ mise install                                  # tools at the pinned versions
 mise run dev:mock                             # whole app with mocks (builds with the mock feature); never types into other apps
 mise run dev                                  # real mode (real microphone, models and providers)
 mise run release                              # optimized release bundle at target/bundle/Dito.app, launched
-mise run release:install                      # release bundle installed to ~/Applications/Dito.app
+bash scripts/install-local.sh                 # build, sign and install to ~/Applications/Dito.app
 mise run check                                # ./scripts/check.sh fast: fmt, unit tests, mock-server tests, i18n coverage
 mise run lint:rust                            # clippy for the workspace, again with the mock and screenshots features
 mise run check:full                           # fast, plus compile checks of every build flavor
@@ -29,7 +30,7 @@ mise run check:design-refs                    # every design:<id> reference reso
 mise run lint                                 # lint:rust, ruff and ty for bench, actionlint for workflows
 mise run hooks:install                        # once per clone: install the prek commit hooks (see CONTRIBUTING.md, Checks)
 mise run hooks                                # run every hook against all files
-mise run setup:macos                          # install the Xcode Metal Toolchain if it is missing
+mise run release:dmg                          # build the binary DMG
 mise run format                               # cargo fmt and ruff format
 cargo test -p <crate>                         # tests for one crate
 cargo test -p dito-app --no-default-features --test i18n_coverage  # after editing messages.toml
@@ -37,9 +38,13 @@ cargo test -p dito-app --no-default-features --test i18n_coverage  # after editi
 
 Extra arguments reach the app: `mise run dev:mock -- --data-dir <empty dir>`.
 
-Cargo features of `dito-app`: `runtimes` (on-device inference, the only default; needs cmake and the Metal toolchain), `mock` (the in-process mock cloud behind `--mock`, so release bundles do not link the test server) and `screenshots` (`--screenshots`). A flag whose feature is not compiled in fails with a usage error.
+Cargo features of `dito-app`: `runtimes` (on-device inference, the only default; needs CMake), `mock` (the in-process mock cloud behind `--mock`, so release bundles do not link the test server) and `screenshots` (`--screenshots`). A flag whose feature is not compiled in fails with a usage error.
 
-`mise run release` builds with `scripts/bundle.sh` (release profile with thin LTO and one codegen unit). `mise run release:install` runs `scripts/certs.sh` first (idempotent; the first run shows one macOS authorization prompt), refuses to install an ad-hoc signed build, quits any running Dito, replaces `~/Applications/Dito.app`, verifies the signature and opens the app. `mise run release:dmg` additionally packs the bundle and an `/Applications` symlink into `target/dist/Dito-v<version>-macos-<arch>.dmg` for distribution outside the App Store; it signs ad-hoc by default (set `CODESIGN_IDENTITY` to a Developer ID certificate to change that), so recipients clear Gatekeeper once via System Settings, Privacy & Security, Open Anyway.
+`mise run release` builds with `scripts/bundle.sh` (release profile with thin LTO and one codegen unit). `bash scripts/install-local.sh` (also available as `mise run release:install`) uses the current Rust toolchain and an optimized local profile with incremental compilation and parallel code generation. It creates or reuses the local signing identity, quits the running Dito release, replaces `~/Applications/Dito.app`, verifies the signature and opens the app. See [INSTALL.md](../INSTALL.md) for how the standalone installer prepares missing tools.
+
+`mise run release:dmg` packs the bundle and an `/Applications` symlink into `target/dist/Dito-v<version>-macos-<arch>.dmg`. It uses `figcraft-cli` to export the DMG background at 1× and 2× from `design/dmg-background.figcraft`. The export hides the illustration layers (`app-icon` and `folder-*`) because Finder places the actual app and shortcut over the background. `design/dmg-layout.dsstore` stores the Finder window and icon positions and points to the background inside the volume. Update the layout alongside the design if the drop zones move.
+
+The DMG and app are signed ad-hoc by default (set `CODESIGN_IDENTITY` to a Developer ID certificate to change that), so recipients clear Gatekeeper once via System Settings, Privacy & Security, Open Anyway.
 
 The Python benchmark harness has its own tasks: `mise run bench:sync`, `bench:test`, `bench:lint`, `bench:format`, and `mise run bench <args>` for `dito-bench` (see `bench/README.md`).
 
