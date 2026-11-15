@@ -12,6 +12,7 @@ mod migrate;
 mod restore;
 mod settings;
 mod store;
+mod transcription;
 
 pub use cloud_asr::{CloudAsrConfiguration, CloudAsrConfigurations, CloudAsrTemplate};
 pub use cloud_text::{
@@ -24,10 +25,12 @@ pub use engine::{
 };
 pub use error::ConfigError;
 pub use general::{
-    Appearance, DEFAULT_SHORTCUT, DisplayLanguage, General, InsertMethod, MusicMuteMode, PreferredLanguage, RecordMode,
+    Appearance, DEFAULT_SHORTCUT, DEFAULT_TOOLS_SHORTCUT, DisplayLanguage, General, InsertMethod, MusicMuteMode,
+    PreferredLanguage, RecordMode,
 };
 pub use hud::HudPosition;
 pub use migrate::SCHEMA_VERSION;
 pub use restore::{ParseProblem, parse_problem, restore_defaults};
 pub use settings::Config;
 pub use store::ConfigStore;
+pub use transcription::{DEFAULT_TITLE_TEMPLATE, TranscriptionSettings};

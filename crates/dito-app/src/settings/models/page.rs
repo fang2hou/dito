@@ -60,10 +60,36 @@ impl CloudTextPanel {
     }
 }
 
+/// The tabs of the Models page: the two engine roles, plus the speech detector. The detector is always local and,
+/// once its file is on disk, always the one in use.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum Tab {
+    Role(Role),
+    Vad,
+}
+
+impl Tab {
+    pub(super) fn index(self) -> usize {
+        match self {
+            Self::Role(role) => role::index(role),
+            Self::Vad => 2,
+        }
+    }
+
+    /// The stable part of a row's element id: controls of different tabs never share one.
+    pub(super) fn tag(self) -> &'static str {
+        match self {
+            Self::Role(Role::Asr) => "asr",
+            Self::Role(Role::Text) => "text",
+            Self::Vad => "vad",
+        }
+    }
+}
+
 pub struct ModelsPage {
     pub(super) st: Arc<AppState>,
     pub(in crate::settings) editor: Entity<AsrEditor>,
-    pub(super) tab: Role,
+    pub(super) tab: Tab,
     pub(super) menu: Option<String>,
     pub(super) select: Option<&'static str>,
     pub(super) cloud_text: CloudTextPanel,
@@ -112,7 +138,7 @@ impl ModelsPage {
             motion: ui::MotionScope::new(),
             st,
             editor,
-            tab: Role::Asr,
+            tab: Tab::Role(Role::Asr),
             menu: None,
             select: None,
             cloud_text,
@@ -342,7 +368,7 @@ impl Render for ModelsPage {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         // Own scope: after a page switch the controls mount statically instead of sliding to values remembered from an
         // earlier visit.
-        ui::with_motion_scope(self.motion.handle(), || self.view(window, cx))
+        ui::render_with_scope(self.motion.handle(), || self.view(window, cx))
     }
 }
 
@@ -351,22 +377,31 @@ impl ModelsPage {
         let c = Ctx::new(&self.st, cx);
         let p = c.p;
         self.follow_text_model_settings(c.lang, window, cx);
-        let role = self.tab;
-        let engine = role::engine(&self.st.cfg.get(), role).clone();
-        let is_local = engine.source == Source::Local;
-
-        let mut card = ui::card(&p).p(px(26.)).gap(px(20.)).child(self.card_header(&c, cx, role, is_local));
+        let mut card = ui::card(&p).p(px(26.)).gap(px(20.));
         let mut sections: Vec<AnyElement> = Vec::new();
-        if is_local {
-            card = self.local_models(&c, cx, role, card);
-            sections.push(self.storage_card(&c, cx).into_any_element());
-        } else if role == Role::Asr {
-            card = card.child(self.editor.clone());
-        } else {
-            card = card.child(self.cloud_text_tile_row(&c, cx)).child(self.cloud_text_view(&c, cx));
-        }
+        let local = match self.tab {
+            Tab::Role(role) => {
+                let engine = role::engine(&self.st.cfg.get(), role).clone();
+                let is_local = engine.source == Source::Local;
+                card = card.child(self.card_header(&c, cx, role, is_local));
+                if is_local {
+                    card = self.local_models(&c, cx, role, card);
+                    sections.push(self.storage_card(&c, cx).into_any_element());
+                } else if role == Role::Asr {
+                    card = card.child(self.editor.clone());
+                } else {
+                    card = card.child(self.cloud_text_tile_row(&c, cx)).child(self.cloud_text_view(&c, cx));
+                }
+                is_local
+            }
+            Tab::Vad => {
+                card = card.child(self.vad_header(&c)).child(self.vad_models(&c, cx));
+                sections.push(self.storage_card(&c, cx).into_any_element());
+                true
+            }
+        };
 
-        let actions = is_local.then(|| {
+        let actions = local.then(|| {
             ui::button(
                 "to-status",
                 &p,
@@ -428,17 +463,42 @@ impl ModelsPage {
         ui::seg(
             "models-tab",
             &c.p,
-            &[c.t(Tr::ModelsDictation), c.t(Tr::ModelsTextModelShort)],
-            role::index(self.tab),
+            &[c.t(Tr::ModelsDictation), c.t(Tr::ModelsTextModelShort), c.t(Tr::ModelsVad)],
+            self.tab.index(),
             cbk_idx(cx, |this: &mut Self, i, _, cx| {
                 ui::dismiss_tips(&this.motion.handle());
-                this.tab = if i == 0 { Role::Asr } else { Role::Text };
+                this.tab = match i {
+                    0 => Tab::Role(Role::Asr),
+                    1 => Tab::Role(Role::Text),
+                    _ => Tab::Vad,
+                };
                 this.menu = None;
                 this.select = None;
                 this.cloud_text.tiles.close_menu();
                 cx.notify();
             }),
         )
+    }
+
+    /// The Tools window points at this tab when a transcription has no detector yet.
+    pub(crate) fn show_vad(&mut self, cx: &mut Context<Self>) {
+        ui::dismiss_tips(&self.motion.handle());
+        self.tab = Tab::Vad;
+        self.menu = None;
+        self.select = None;
+        self.cloud_text.tiles.close_menu();
+        cx.notify();
+    }
+
+    /// One model, one source: the detector has no switcher beside its title.
+    fn vad_header(&self, c: &Ctx) -> Div {
+        div()
+            .w_full()
+            .flex()
+            .flex_col()
+            .gap(px(4.))
+            .child(text(c.t(Tr::ModelsVad), 17., FontWeight::BOLD, c.p.text))
+            .child(text(c.t(Tr::ModelsVadDesc), 13., FontWeight::NORMAL, c.p.muted))
     }
 
     fn card_header(&self, c: &Ctx, cx: &mut Context<Self>, role: Role, is_local: bool) -> Div {
@@ -475,21 +535,36 @@ impl ModelsPage {
 
     fn local_models(&self, c: &Ctx, cx: &mut Context<Self>, role: Role, mut card: Div) -> Div {
         let kind = if role == Role::Asr { ModelKind::Asr } else { ModelKind::Text };
-        let snap = self.st.models.subscribe().borrow().clone();
-        #[cfg(feature = "screenshots")]
-        let snap = self.preview_snapshot.clone().unwrap_or(snap);
+        let snap = self.snapshot();
         if let Some(note) = self.background_downloads(c, kind, &snap) {
             card = card.child(note);
         }
         let mut list = div().w_full().flex().flex_col().gap(px(8.));
         for spec in self.st.models.catalog().iter().filter(|m| m.kind == kind) {
-            list = list.child(self.model_row(c, cx, role, spec, &snap));
+            list = list.child(self.model_row(c, cx, Tab::Role(role), spec, &snap));
         }
         card = card.child(list);
         if role == Role::Text {
             card = card.child(self.local_text_parameters(c, cx));
         }
         card
+    }
+
+    fn vad_models(&self, c: &Ctx, cx: &mut Context<Self>) -> Div {
+        let snap = self.snapshot();
+        let mut list = div().w_full().flex().flex_col().gap(px(8.));
+        for spec in self.st.models.catalog().iter().filter(|m| m.kind == ModelKind::Vad) {
+            list = list.child(self.model_row(c, cx, Tab::Vad, spec, &snap));
+        }
+        list
+    }
+
+    fn snapshot(&self) -> Snapshot {
+        #[cfg(feature = "screenshots")]
+        if let Some(preview) = self.preview_snapshot.clone() {
+            return preview;
+        }
+        self.st.models.subscribe().borrow().clone()
     }
 
     /// Downloads for the *other* tab keep running; surface them here so switching tabs

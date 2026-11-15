@@ -6,7 +6,7 @@ use gpui_kit::*;
 use crate::settings::asr_editor::EditorPreview;
 use crate::ui::{self, InputEvent, InputState, TestState};
 
-use super::page::{CloudTextPanel, ModelsPage};
+use super::page::{CloudTextPanel, ModelsPage, Tab};
 use super::text_field_rules::{CloudTextField, LocalTextField};
 
 impl ModelsPage {
@@ -17,7 +17,7 @@ impl ModelsPage {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.tab = role;
+        self.tab = Tab::Role(role);
         // Each shot starts from the settings alone: nothing typed, scrolled or opened before is left in the page.
         self.cloud_text = CloudTextPanel::new(window, cx);
         self.save_failed = false;
@@ -105,8 +105,17 @@ impl ModelsPage {
             // A window that is never shown moves no focus, so focus leaving the name is delivered as the input's own
             // event, which is what the page listens to.
             "blur-name" => self.cloud_text.form[CloudTextField::Name].update(cx, |_, cx| cx.emit(InputEvent::Blur)),
-            "source" => self.set_source(self.tab, if arg == "local" { 0 } else { 1 }, cx),
-            "use-model" => self.use_model(self.tab, arg),
+            "source" => {
+                if let Tab::Role(role) = self.tab {
+                    self.set_source(role, if arg == "local" { 0 } else { 1 }, cx);
+                }
+            }
+            "use-model" => {
+                if let Tab::Role(role) = self.tab {
+                    self.use_model(role, arg);
+                }
+            }
+            "vad" => self.show_vad(cx),
             // The form shows a configuration that was just deleted until the page is drawn again, and a key typed
             // into that gap has nowhere to go.
             "delete-then-key" => {

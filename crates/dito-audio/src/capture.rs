@@ -66,11 +66,11 @@ fn is_builtin_name(name: &str) -> bool {
     ["macbook", "imac", "built-in", "builtin", "built in", "内蔵", "内置"].iter().any(|k| n.contains(k))
 }
 
-fn device_error(error: impl std::fmt::Display) -> RecorderError {
+pub(crate) fn device_error(error: impl std::fmt::Display) -> RecorderError {
     RecorderError::Device(error.to_string())
 }
 
-fn find_device(name: &str) -> Result<(Device, String), RecorderError> {
+pub(crate) fn find_device(name: &str) -> Result<(Device, String), RecorderError> {
     let host = cpal::default_host();
     if name.trim().is_empty() {
         let d = host.default_input_device().ok_or(RecorderError::NoInputDevice)?;
@@ -145,6 +145,18 @@ where
     F: FnMut(&[f32]) + Send + 'static,
 {
     let config = device.default_input_config().map_err(device_error)?;
+    open_mono_stream_with(device, config, on_mono)
+}
+
+/// An input stream in `config`. For an output device, Core Audio records what it plays through a process tap.
+pub(crate) fn open_mono_stream_with<F>(
+    device: &Device,
+    config: cpal::SupportedStreamConfig,
+    on_mono: F,
+) -> Result<cpal::Stream, RecorderError>
+where
+    F: FnMut(&[f32]) + Send + 'static,
+{
     match config.sample_format() {
         SampleFormat::F32 => build_stream::<f32, F>(device, config, on_mono),
         SampleFormat::I16 => build_stream::<i16, F>(device, config, on_mono),

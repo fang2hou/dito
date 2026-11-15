@@ -6,7 +6,7 @@ use std::sync::Arc;
 use gpui_kit::*;
 
 use crate::state::{AppGlobal, AppState};
-use crate::{onboarding, settings};
+use crate::{onboarding, settings, tools};
 
 /// True while the app has the Regular activation policy.
 struct IconShown(bool);
@@ -39,7 +39,7 @@ pub fn run(st: Arc<AppState>, cx: &mut App) {
 pub fn sync(cx: &mut App) {
     let Some(shown) = cx.try_global::<IconShown>().map(|s| s.0) else { return };
     let setting = cx.global::<AppGlobal>().0.cfg.get().general.show_dock_icon;
-    let wanted = setting || settings::is_open(cx) || onboarding::is_open(cx);
+    let wanted = setting || settings::is_open(cx) || tools::is_open(cx) || onboarding::is_open(cx);
     if wanted == shown {
         return;
     }

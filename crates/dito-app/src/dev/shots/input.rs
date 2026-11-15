@@ -1,6 +1,7 @@
 use gpui_kit::*;
 
 use crate::settings::{self, Settings};
+use crate::tools::{self, Tools};
 
 /// Run `f` against the open settings window and its view inside one UI update, so native resize and mouse events
 /// cannot interleave with a simulated pointer sequence.
@@ -8,6 +9,15 @@ pub fn on_settings_window(cx: &mut AsyncApp, f: impl FnOnce(&mut Window, &mut Ap
     cx.update(|cx| {
         let (window, view) = settings::handle(cx).expect("settings window");
         cx.update_window(window.into(), |_, w, cx| f(w, cx, &view)).expect("settings window update");
+    });
+}
+
+/// Run `f` against the open tools window and its view inside one UI update, so native resize and mouse events
+/// cannot interleave with a simulated pointer sequence.
+pub fn on_tools_window(cx: &mut AsyncApp, f: impl FnOnce(&mut Window, &mut App, &Entity<Tools>)) {
+    cx.update(|cx| {
+        let (window, view) = tools::handle(cx).expect("tools window");
+        cx.update_window(window.into(), |_, w, cx| f(w, cx, &view)).expect("tools window update");
     });
 }
 

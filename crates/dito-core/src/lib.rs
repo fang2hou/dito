@@ -18,6 +18,7 @@ pub mod secrets;
 pub mod store;
 pub mod surrounding;
 pub mod trace;
+pub mod transcription;
 pub mod word_finder;
 
 pub use audio::AudioClip;

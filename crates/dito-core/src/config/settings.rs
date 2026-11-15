@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{
     CloudAsrConfigurations, DEFAULT_TEXT_LOCAL, EngineConfig, General, PolishConfig, ReasoningEffort, SCHEMA_VERSION,
-    Source,
+    Source, TranscriptionSettings,
 };
 use crate::prompts::Prompts;
 
@@ -22,6 +22,7 @@ pub struct Config {
     pub wordbook_for_polish: bool,
     pub onboarded: bool,
     pub models_dir: Option<PathBuf>,
+    pub transcription: TranscriptionSettings,
 }
 
 impl Default for Config {
@@ -36,6 +37,7 @@ impl Default for Config {
             wordbook_for_polish: false,
             onboarded: false,
             models_dir: None,
+            transcription: TranscriptionSettings::default(),
         }
     }
 }

@@ -25,10 +25,10 @@ aws-config = { version = "1", default-features = false, features = ["behavior-ve
 aws-sdk-bedrockruntime = { version = "1", default-features = false, features = ["rustls", "rt-tokio", "behavior-version-latest"] }
 aws-smithy-types = "1"
 zip = { version = "9", default-features = false, features = ["deflate-flate2-zlib-rs"] }
-quick-xml = "0.41"
+quick-xml = "0.42"
 
 [build-dependencies]
-toml = { version = "0.9", features = ["preserve_order"] }
+toml = { version = "1", features = ["preserve_order"] }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }

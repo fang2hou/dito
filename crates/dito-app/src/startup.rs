@@ -13,7 +13,7 @@ use crate::dev::demo_run;
 use crate::state::{AppGlobal, AppState};
 use crate::{hotkeys, hud, menubar, onboarding, settings};
 
-actions!(dito, [Quit, OpenSettings, OpenHistory, OpenWordbook, OpenStatus]);
+actions!(dito, [Quit, OpenSettings, OpenHistory, OpenWordbook, OpenStatus, OpenTools]);
 
 /// Needs no app state: the startup failure window runs it too.
 pub fn init(cx: &mut App) {
@@ -55,7 +55,8 @@ pub fn launch(st: Arc<AppState>, cx: &mut App) {
     }
     retry_hotkeys_when_allowed(st.clone(), cx);
     autostart_local_models(&st);
-    follow_command_shortcut(&st);
+    follow_shortcuts(&st);
+    open_tools_on_press(&st, cx);
     hud::run(st.clone(), cx);
     menubar::run(st.clone(), cx);
     open_first_window(&st, cx);
@@ -75,6 +76,7 @@ fn install_app_menu(st: &Arc<AppState>, cx: &mut App) {
     on_open_page::<OpenHistory>(st, settings::Page::History, cx);
     on_open_page::<OpenWordbook>(st, settings::Page::Wordbook, cx);
     on_open_page::<OpenStatus>(st, settings::Page::Status, cx);
+    on_open_tools(st, cx);
     set_menus(st.cfg.get().general.lang(), cx);
     let mut config_rx = st.cfg.subscribe();
     cx.spawn(async move |cx| {
@@ -95,6 +97,11 @@ fn on_open_page<A: Action>(st: &Arc<AppState>, page: settings::Page, cx: &mut Ap
     cx.on_action(move |_: &A, cx| settings::open(st.clone(), page, cx));
 }
 
+fn on_open_tools(st: &Arc<AppState>, cx: &mut App) {
+    let st = st.clone();
+    cx.on_action(move |_: &OpenTools, cx| crate::tools::open(st.clone(), cx));
+}
+
 fn set_menus(lang: Lang, cx: &mut App) {
     set_app_menu(lang, cx);
     set_dock_menu(lang, cx);
@@ -110,6 +117,7 @@ pub fn set_app_menu(lang: Lang, cx: &mut App) {
 
 fn set_dock_menu(lang: Lang, cx: &mut App) {
     cx.set_dock_menu(vec![
+        MenuItem::action(lang.tr(Tr::MenubarOpenTools), OpenTools),
         MenuItem::action(lang.tr(Tr::MenubarSettings), OpenSettings),
         MenuItem::action(lang.tr(Tr::HistoryOpen), OpenHistory),
         MenuItem::action(lang.tr(Tr::MenubarAddWord), OpenWordbook),
@@ -177,7 +185,9 @@ fn start_hotkeys(st: &Arc<AppState>) {
         Ok((service, rx)) => {
             tracing::info!("shortcut tap live ({id})");
             st.hotkeys.set_service(Some(Arc::new(service)));
-            st.hotkeys.sync_command_shortcut(&st.cfg.get().general);
+            let config = st.cfg.get();
+            st.hotkeys.sync_command_shortcut(&config.general);
+            st.hotkeys.sync_tools_shortcut(&config.general);
             hotkeys::spawn_dispatcher(rx, st.hotkeys.clone(), st.cfg.clone(), st.dictation.clone());
         }
         Err(e) => {
@@ -187,18 +197,31 @@ fn start_hotkeys(st: &Arc<AppState>) {
     }
 }
 
-/// The command shortcut follows the saved settings, and the dictation shortcut while it is unset. The two must never be
-/// the same key.
-fn follow_command_shortcut(st: &Arc<AppState>) {
+/// The command and Tools shortcuts follow the saved settings; the command one follows the dictation shortcut while it is
+/// unset. No two of the three may be the same key.
+fn follow_shortcuts(st: &Arc<AppState>) {
     let (hotkeys, mut cfg) = (st.hotkeys.clone(), st.cfg.subscribe());
     st.rt.spawn(async move {
         loop {
-            hotkeys.sync_command_shortcut(&cfg.borrow_and_update().general);
+            let general = cfg.borrow_and_update().general.clone();
+            hotkeys.sync_command_shortcut(&general);
+            hotkeys.sync_tools_shortcut(&general);
             if cfg.changed().await.is_err() {
                 break;
             }
         }
     });
+}
+
+/// The hotkey dispatcher thread has no window context, so a Tools press is drained here and opens the window.
+fn open_tools_on_press(st: &Arc<AppState>, cx: &mut App) {
+    let (st, mut pressed) = (st.clone(), st.hotkeys.subscribe_tools_pressed());
+    cx.spawn(async move |cx| {
+        while pressed.changed().await.is_ok() {
+            cx.update(|cx| crate::tools::open(st.clone(), cx));
+        }
+    })
+    .detach();
 }
 
 /// A model the user stopped by hand stays stopped: only newly selected ones start.

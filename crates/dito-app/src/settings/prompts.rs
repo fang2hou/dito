@@ -439,7 +439,7 @@ impl Render for PromptsPage {
         // Own scope: after a page switch the controls mount statically instead of sliding to values remembered from an
         // earlier visit.
         self.sync_result_placeholder(window, cx);
-        ui::with_motion_scope(self.motion.handle(), || self.view(window, cx))
+        ui::render_with_scope(self.motion.handle(), || self.view(window, cx))
     }
 }
 

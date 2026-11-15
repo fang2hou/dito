@@ -16,7 +16,7 @@ impl Settings {
     }
 
     pub fn health_hover_probe(&self) -> (Option<Bounds<Pixels>>, bool) {
-        (self.health_dot_bounds.get(), Self::health_hovered(&self.motion.handle()))
+        (self.chrome.health_dot_bounds(), self.chrome.health_hovered())
     }
 
     pub fn set_hud_appearance(&self, appearance: Appearance, cx: &mut App) {

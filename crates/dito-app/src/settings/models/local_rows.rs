@@ -1,12 +1,11 @@
 use dito_core::i18n::Tr;
-use dito_core::secrets::Role;
 use dito_local::catalog::ModelSpec;
 use dito_local::{ModelState, Snapshot};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
 use super::action::model_action;
-use super::page::ModelsPage;
+use super::page::{ModelsPage, Tab};
 use crate::assets::Ic;
 use crate::settings::{Ctx, role};
 use crate::theme::Palette;
@@ -51,15 +50,19 @@ impl ModelsPage {
         &self,
         c: &Ctx,
         cx: &mut Context<Self>,
-        role: Role,
+        tab: Tab,
         spec: &ModelSpec,
         snap: &Snapshot,
     ) -> AnyElement {
         let p = &c.p;
-        let selected = role::engine(&self.st.cfg.get(), role).local_model == spec.id;
         let state = snap.get(&spec.id).cloned().unwrap_or(ModelState::NotInstalled);
-        let RowParts { body, ctl } = self.state_parts(c, cx, role, spec, &state, selected);
-        let tile_id = ElementId::from(SharedString::from(format!("model-row-{}-{}", role::index(role), spec.id)));
+        let selected = match tab {
+            Tab::Role(role) => role::engine(&self.st.cfg.get(), role).local_model == spec.id,
+            // The detector is in use from the moment its file is on disk: there is only one, and nothing to switch.
+            Tab::Vad => state == ModelState::Installed,
+        };
+        let RowParts { body, ctl } = self.state_parts(c, cx, tab, spec, &state, selected);
+        let tile_id = ElementId::from(SharedString::from(format!("model-row-{}-{}", tab.tag(), spec.id)));
         let base = row_slot(Self::row_plate(p, &state, selected, &tile_id), body, ctl);
         // Rows provide hover feedback only; selection belongs to the explicit Use button.
         // Track selected rows too so deselecting under the pointer cannot leave a stale hover.
@@ -74,14 +77,14 @@ impl ModelsPage {
         &self,
         c: &Ctx,
         cx: &mut Context<Self>,
-        role: Role,
+        tab: Tab,
         spec: &ModelSpec,
         state: &ModelState,
         selected: bool,
     ) -> RowParts {
         let parts = RowParts::new(c, spec, state);
         match state {
-            ModelState::Installed => self.installed_row(c, cx, role, spec, selected, parts),
+            ModelState::Installed => self.installed_row(c, cx, tab, spec, selected, parts),
             ModelState::Downloading { done, total, .. } => {
                 self.downloading_row(c, cx, spec, state, Transfer { done: *done, total: *total }, parts)
             }
@@ -94,7 +97,7 @@ impl ModelsPage {
             ModelState::Failed { message, done, total } => {
                 self.failed_row(c, cx, spec, message, Transfer { done: *done, total: *total }, parts)
             }
-            ModelState::NotInstalled => self.not_installed_row(c, cx, role, spec, parts),
+            ModelState::NotInstalled => self.not_installed_row(c, cx, tab, spec, parts),
         }
     }
 
@@ -305,7 +308,7 @@ impl ModelsPage {
         &self,
         c: &Ctx,
         cx: &mut Context<Self>,
-        role: Role,
+        tab: Tab,
         spec: &ModelSpec,
         parts: RowParts,
     ) -> RowParts {
@@ -315,7 +318,7 @@ impl ModelsPage {
         body = body.child(status_line(c.t(Tr::ModelsDownloadAvailable), p.model_meta));
         let id2 = id.clone();
         ctl = ctl.child(model_action(
-            SharedString::from(format!("dl-{}-{id}", role::index(role))),
+            SharedString::from(format!("dl-{}-{id}", tab.tag())),
             p,
             &c.t(Tr::MenubarDownload),
             BtnKind::Secondary,

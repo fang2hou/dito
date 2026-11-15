@@ -157,6 +157,7 @@ impl LocalEngines {
         let loaded = tokio::task::spawn_blocking(move || match spec.kind {
             ModelKind::Asr => loader.load_asr(&spec, &dir).map(Slot::Asr),
             ModelKind::Text => loader.load_llm(&spec, &dir).map(Slot::Llm),
+            ModelKind::Vad => Err(RuntimeError::engine("a voice activity detector is not an engine")),
         })
         .await
         .map_err(|e| ProviderError::new(ErrorKind::Other, e.to_string()))?;

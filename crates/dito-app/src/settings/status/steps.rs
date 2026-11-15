@@ -1,4 +1,4 @@
-//! The five steps of a dictation, in the order it runs: what each uses, and what to fix when it cannot run.
+//! The steps of a dictation, in the order it runs: what each uses, and what to fix when it cannot run.
 
 use std::rc::Rc;
 use std::time::Duration;
@@ -9,7 +9,7 @@ use dito_core::factory::LocalBackend;
 use dito_core::health::EngineStatus;
 use dito_core::i18n::{Tr, fmt};
 use dito_core::secrets::Role;
-use dito_platform::{Permission, Shortcut, permissions};
+use dito_platform::{Permission, Shortcut, Status, permissions};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
@@ -38,6 +38,9 @@ impl Dot {
 }
 
 enum Fix {
+    /// Opens the permission's System Settings pane.
+    OpenSettings(Permission),
+    /// Asks for the permission where the system still allows a prompt.
     Allow(Permission),
     Start(String),
     Retry(String),
@@ -61,6 +64,8 @@ pub(super) struct Step {
     end: End,
     message: Option<SharedString>,
     fix: Option<Fix>,
+    /// System audio is needed to transcribe meetings, not to dictate, so it never decides the verdict.
+    pub(super) blocks_dictation: bool,
 }
 
 struct Problem {
@@ -72,7 +77,7 @@ struct Problem {
 
 impl Step {
     fn healthy(id: &'static str, title: SharedString, detail: SharedString, end: End) -> Self {
-        Self { id, title, detail, dot: Dot::Ok, end, message: None, fix: None }
+        Self { id, title, detail, dot: Dot::Ok, end, message: None, fix: None, blocks_dictation: true }
     }
 
     fn changing(mut self, c: &Ctx, label: Tr) -> Self {
@@ -91,12 +96,13 @@ impl Step {
 }
 
 impl StatusPage {
-    pub(super) fn steps(&self, c: &Ctx) -> [Step; 5] {
+    pub(super) fn steps(&self, c: &Ctx) -> [Step; 6] {
         let cfg = self.st.cfg.get();
         let times = self.st.dictation.step_times();
         [
             self.shortcut_step(c, &cfg),
             self.microphone_step(c, &cfg),
+            self.system_audio_step(c),
             self.engine_step(c, Role::Asr, &cfg.asr, times.transcription_secs(&cfg.asr)),
             self.polish_step(c, &cfg, times.polishing_secs(&cfg.text_model)),
             self.insert_step(c, &cfg),
@@ -124,7 +130,7 @@ impl StatusPage {
                 label: Tr::StatusNotAllowed,
                 tone: StatusTone::Danger,
                 message: c.t(Tr::StatusShortcutBlocked),
-                fix: Some(Fix::Allow(Permission::Accessibility)),
+                fix: Some(Fix::OpenSettings(Permission::Accessibility)),
             },
         )
     }
@@ -143,7 +149,34 @@ impl StatusPage {
                 label: Tr::StatusNotAllowed,
                 tone: StatusTone::Danger,
                 message: c.t(Tr::StatusMicrophoneBlocked),
-                fix: Some(Fix::Allow(Permission::Microphone)),
+                fix: Some(Fix::OpenSettings(Permission::Microphone)),
+            },
+        )
+    }
+
+    fn system_audio_step(&self, c: &Ctx) -> Step {
+        let step = Step {
+            blocks_dictation: false,
+            ..Step::healthy(
+                "system-audio",
+                c.t(Tr::StatusSystemAudio),
+                c.t(Tr::StatusSystemAudioDetail),
+                End::Value(c.t(Tr::StatusAllowed)),
+            )
+        };
+        let fix = match self.system_audio {
+            Status::Granted => return step,
+            // An unanswered permission can still show the system prompt; a refused one only reopens in Settings.
+            Status::NotDetermined => Fix::Allow(Permission::SystemAudio),
+            Status::Denied => Fix::OpenSettings(Permission::SystemAudio),
+        };
+        step.failing(
+            c,
+            Problem {
+                label: Tr::StatusNotAllowed,
+                tone: StatusTone::Danger,
+                message: c.t(Tr::StatusSystemAudioBlocked),
+                fix: Some(fix),
             },
         )
     }
@@ -251,8 +284,11 @@ impl StatusPage {
 
     fn fix_button(&self, c: &Ctx, cx: &mut Context<Self>, step: &'static str, fix: Fix) -> Stateful<Div> {
         let (label, on_click): (Tr, Cb) = match fix {
-            Fix::Allow(permission) => {
+            Fix::OpenSettings(permission) => {
                 (Tr::StatusOpenSystemSettings, cbk(cx, move |_: &mut Self, _, _| permissions::request(permission)))
+            }
+            Fix::Allow(permission) => {
+                (Tr::GeneralAllow, cbk(cx, move |_: &mut Self, _, _| permissions::request(permission)))
             }
             Fix::Start(id) => (Tr::StatusStart, cbk(cx, move |this: &mut Self, _, cx| this.start_model(&id, cx))),
             Fix::Retry(id) => (Tr::StatusRetry, cbk(cx, move |this: &mut Self, _, cx| this.start_model(&id, cx))),

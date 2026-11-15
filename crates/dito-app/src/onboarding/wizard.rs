@@ -25,7 +25,7 @@ mod watchers;
 use connection::{connection_fields, starting_cloud_asr};
 pub(super) use prepare::PreparePhase;
 
-pub(super) const PERMS: [Permission; 2] = [Permission::Microphone, Permission::Accessibility];
+pub(super) const PERMS: [Permission; 3] = [Permission::Microphone, Permission::Accessibility, Permission::SystemAudio];
 
 pub struct Onboarding {
     pub(super) st: Arc<AppState>,
@@ -40,7 +40,7 @@ pub struct Onboarding {
     pub(super) test: TestState,
     /// Generation of the connection-test request whose result may still land.
     pub(super) reqs: ui::Requests,
-    pub(super) perms: [Status; 2],
+    pub(super) perms: [Status; 3],
     pub(super) capturing: bool,
     pub(super) seen: [bool; 3],
     pub(super) started_at: i64,

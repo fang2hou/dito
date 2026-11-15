@@ -21,6 +21,12 @@ mod sherpa;
 #[cfg(feature = "transcribe")]
 mod transcribe;
 
+#[cfg(feature = "sherpa")]
+mod vad;
+
+#[cfg(feature = "sherpa")]
+pub use vad::SileroDetectors;
+
 #[derive(Default)]
 pub struct Runtimes;
 

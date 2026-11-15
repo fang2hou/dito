@@ -16,7 +16,8 @@ pub(super) fn model_labels(c: &Ctx, spec: &ModelSpec) -> Div {
         ("parameters", parameters_label(spec.parameters_m), parameters_tip(c.lang, spec.parameters_m)),
         ("quantization", spec.quantization.label.to_string(), quantization_tip(c.lang, spec.quantization)),
     ];
-    if spec.kind == ModelKind::Asr {
+    // A detector is language agnostic, which the multilingual code states as well as it does for a speech model.
+    if matches!(spec.kind, ModelKind::Asr | ModelKind::Vad) {
         let (code, tip) = match spec.language_focus {
             None => ("MULT", Tr::ModelsLabelMultilingualTip),
             Some(Lang::Ja) => ("JA", Tr::ModelsLabelJapaneseTip),

@@ -11,16 +11,17 @@ use dito_core::store::HistoryFilter;
 use gpui_kit::*;
 
 use super::capture::{
-    page_shot, refresh_settings_window, render, render_settings_window, resize_settings_window, save, theme_tag,
-    wait_for_frame,
+    close_window, page_shot, refresh_settings_window, render, render_settings_window, resize_settings_window,
+    resize_tools_window, save, theme_tag, tools_page_shot, wait_for_frame,
 };
-use super::input::{click, drag_to, hover, on_settings_window, press, redraw, release};
+use super::input::{click, drag_to, hover, on_settings_window, on_tools_window, press, redraw, release};
 use super::verify;
 use crate::hotkeys::{CaptureState, ShortcutTarget};
 use crate::services;
 use crate::settings::asr_editor::EditorPreview;
 use crate::settings::{self, Page, Settings};
 use crate::state::AppState;
+use crate::tools;
 use crate::ui::{self, ScopeHandle};
 
 fn open_page(st: &Arc<AppState>, page: Page, cx: &mut AsyncApp) {
@@ -51,6 +52,58 @@ pub async fn page_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
             }
         }
     }
+}
+
+fn open_tools(st: &Arc<AppState>, width: f32, height: f32, cx: &mut AsyncApp) {
+    cx.update(|cx| {
+        tools::open(st.clone(), cx);
+        resize_tools_window(cx, width, height);
+        assert!(tools::shell_motion(cx).is_some(), "tools shell scope");
+        assert!(tools::page_motion(cx).is_some(), "transcription page scope");
+    });
+}
+
+/// The Tools window in both appearances, in Japanese like the design: the readiness gate as this machine sees it, then
+/// past the gate the transcript list, an entry open, the entry live, and the compact rail.
+pub async fn tools_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
+    let original = st.cfg.get();
+    for appearance in [Appearance::Light, Appearance::Dark] {
+        services::save_config(st, |c| {
+            c.general.appearance = appearance;
+            c.general.display_language = DisplayLanguage::Ja;
+        });
+        open_tools(st, 1120., 680., cx);
+        tools_page_shot(cx, dir, &format!("tools-readiness-{}.png", theme_tag(appearance))).await;
+        on_tools_window(cx, |_, cx, view| view.update(cx, |t, cx| t.assume_transcription_ready(true, cx)));
+        tools_page_shot(cx, dir, &format!("tools-{}.png", theme_tag(appearance))).await;
+        on_tools_window(cx, |_, cx, view| view.update(cx, |t, cx| t.pose_transcription_settings(true, cx)));
+        tools_page_shot(cx, dir, &format!("tools-settings-{}.png", theme_tag(appearance))).await;
+        for (language, name) in [(DisplayLanguage::En, "en"), (DisplayLanguage::Zh, "zh")] {
+            services::save_config(st, |c| c.general.display_language = language);
+            tools_page_shot(cx, dir, &format!("tools-settings-{name}-{}.png", theme_tag(appearance))).await;
+        }
+        services::save_config(st, |c| c.general.display_language = DisplayLanguage::Ja);
+        on_tools_window(cx, |_, cx, view| view.update(cx, |t, cx| t.pose_transcription_settings(false, cx)));
+        on_tools_window(cx, |w, cx, view| view.update(cx, |t, cx| t.preview_transcript(w, cx)));
+        tools_page_shot(cx, dir, &format!("tools-transcription-{}.png", theme_tag(appearance))).await;
+        on_tools_window(cx, |w, cx, view| view.update(cx, |t, cx| t.pose_transcription_paragraph_focus(w, cx)));
+        tools_page_shot(cx, dir, &format!("tools-transcription-edit-{}.png", theme_tag(appearance))).await;
+        on_tools_window(cx, |w, cx, view| {
+            view.update(cx, |t, cx| t.preview_live_transcript(crate::dev::seed::LIVE_TAIL, w, cx));
+        });
+        tools_page_shot(cx, dir, &format!("tools-transcription-live-{}.png", theme_tag(appearance))).await;
+        // Under the collapse width the sidebar folds into the icon rail on its own.
+        open_tools(st, 900., 680., cx);
+        tools_page_shot(cx, dir, &format!("tools-rail-{}.png", theme_tag(appearance))).await;
+        // The next appearance starts from a fresh window, back on the list behind the gate.
+        if let Some((window, _)) = cx.update(|cx| tools::handle(cx)) {
+            close_window(cx, window);
+        }
+    }
+    services::save_config(st, |c| {
+        c.general.appearance = original.general.appearance;
+        c.general.display_language = original.general.display_language;
+    });
 }
 
 pub async fn prompt_motion_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {

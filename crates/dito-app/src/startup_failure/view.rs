@@ -230,7 +230,7 @@ impl Render for FailureView {
         let p = theme::palette(self.appearance, cx);
         theme::apply(&p, cx);
         let motion = self.motion.handle();
-        ui::with_motion_scope(motion, || self.card(&p, lang, cx))
+        ui::render_with_scope(motion, || self.card(&p, lang, cx))
     }
 }
 

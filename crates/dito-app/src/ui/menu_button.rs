@@ -53,7 +53,7 @@ pub fn menu_button(id: impl Into<ElementId>, p: &Palette, ic: Ic, open: bool, to
         ic,
         CircleSize::Regular,
         CircleAppearance {
-            background: Some(if open { p.seg } else { p.card }),
+            background: Some(if open { p.seg } else { p.input_bg }),
             foreground: p.text,
             border: Some(p.border_strong),
             hover: Some(p.seg),

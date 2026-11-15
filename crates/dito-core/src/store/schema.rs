@@ -41,6 +41,33 @@ pub(super) const MIGRATIONS: &[&str] = &[
      ALTER TABLE history ADD COLUMN polish_ms INTEGER;
      ALTER TABLE history ADD COLUMN source TEXT;
      ALTER TABLE history ADD COLUMN command TEXT;",
+    // 5: transcription sessions and their paragraphs. `text` is what the user reads and edits; `raw` keeps the
+    // recognized words so a failed polish never loses them. `IF NOT EXISTS` lets a database that ran the
+    // pre-release numbering of these tables be set back to version 3 and catch up.
+    "CREATE TABLE IF NOT EXISTS transcripts (
+       id INTEGER PRIMARY KEY AUTOINCREMENT,
+       started_ts INTEGER NOT NULL,
+       ended_ts INTEGER,
+       title TEXT NOT NULL DEFAULT '',
+       with_mic INTEGER NOT NULL,
+       with_system INTEGER NOT NULL DEFAULT 1
+     );
+     CREATE INDEX IF NOT EXISTS transcripts_started ON transcripts(started_ts DESC);
+     CREATE TABLE IF NOT EXISTS transcript_paragraphs (
+       id INTEGER PRIMARY KEY AUTOINCREMENT,
+       transcript_id INTEGER NOT NULL,
+       speaker TEXT NOT NULL,
+       start_ms INTEGER NOT NULL,
+       end_ms INTEGER NOT NULL,
+       raw TEXT NOT NULL,
+       text TEXT NOT NULL,
+       state TEXT NOT NULL,
+       error TEXT
+     );
+     CREATE INDEX IF NOT EXISTS transcript_paragraphs_order ON transcript_paragraphs(transcript_id, start_ms);",
+    // 6: the time a transcript has recorded across its sessions, without the gaps between them. Nullable: a
+    // transcript from before it ran one session, so its span from start to end is its length.
+    "ALTER TABLE transcripts ADD COLUMN recorded_ms INTEGER;",
 ];
 
 pub(super) const SCHEMA_VERSION: u32 = MIGRATIONS.len() as u32;

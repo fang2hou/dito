@@ -1,4 +1,4 @@
-use dito_core::config::DEFAULT_SHORTCUT;
+use dito_core::config::{DEFAULT_SHORTCUT, DEFAULT_TOOLS_SHORTCUT};
 use dito_core::i18n::Lang;
 
 use super::keys::{KEY_NAMES, Modifier, Mods, ansi_symbol, is_standalone_key, key_name, prints_character};
@@ -111,6 +111,17 @@ pub fn dictation_may_hand_over(dictation: &str, command: &str) -> bool {
     command_shortcut(dictation, command).is_some_and(|command| dictation_shortcut(dictation).may_hand_over_to(&command))
 }
 
+/// The shortcut that opens the Tools window. An empty saved id means none; an id that does not parse falls back to the
+/// default, as the dictation shortcut does.
+pub fn tools_shortcut(id: &str) -> Option<Shortcut> {
+    if id.is_empty() {
+        return None;
+    }
+    // The default parses, so an unreadable id can never leave the Tools window without a way to open it.
+    let fallback = Shortcut::parse(DEFAULT_TOOLS_SHORTCUT).expect("the default shortcut parses");
+    Some(Shortcut::parse(id).unwrap_or(fallback))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -128,6 +139,14 @@ mod tests {
         for dictation in ["RightShift", "Shift+Fn", "Shift+Command+A"] {
             assert_eq!(id(dictation, ""), None, "{dictation}");
         }
+    }
+
+    #[test]
+    fn an_empty_tools_id_means_no_shortcut_and_junk_falls_back_to_the_default() {
+        let id = |tools: &str| tools_shortcut(tools).map(|s| s.id());
+        assert_eq!(id(""), None, "off");
+        assert_eq!(id("Control+Option+T").as_deref(), Some("Control+Option+T"));
+        assert_eq!(id("Nope").as_deref(), Some("Control+Option+T"), "unreadable falls back to the default");
     }
 
     #[test]

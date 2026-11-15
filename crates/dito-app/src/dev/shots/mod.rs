@@ -12,6 +12,7 @@ mod runner;
 mod startup;
 mod text_model_form;
 mod tile_row;
+mod transcript_film;
 mod verify;
 mod wordbook;
 

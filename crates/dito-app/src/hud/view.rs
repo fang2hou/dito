@@ -319,7 +319,7 @@ impl Render for HudView {
         // The HUD window owns its transient motion state; without this its hover tweens would run in whatever ambient
         // scope happened to be left over.
         let scope = self.motion.handle();
-        ui::with_motion_scope(scope, || ui::tooltip_root(self.render_scoped(window, cx)))
+        ui::render_with_scope(scope, || ui::tooltip_root(self.render_scoped(window, cx)))
     }
 }
 

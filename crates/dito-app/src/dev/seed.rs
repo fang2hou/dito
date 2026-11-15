@@ -3,8 +3,8 @@ use dito_core::config::EngineLabels;
 use dito_core::intent::{Decision, Intent, RewriteOp};
 use dito_core::prompts::AppTarget;
 use dito_core::store::{
-    CommandDetails, CommandOutcome, HistoryKind, InstructionOrigin, NewHistory, SourceKind, StepMillis, Store,
-    ToolChoice,
+    CommandDetails, CommandOutcome, HistoryKind, InstructionOrigin, NewHistory, SourceKind, Sources, Speaker,
+    StepMillis, Store, ToolChoice,
 };
 
 const SAMPLE_WORDS: [&str; 5] = ["Acme", "Contoso", "gpui-kit", "サンプル株式会社", "Bedrock"];
@@ -21,6 +21,60 @@ pub fn demo(store: &Store, now: i64) -> Result<()> {
     for entry in recent_entries(now).iter().chain(&daily_volume(now)) {
         store.add_history(entry)?;
     }
+    transcript(store, now)
+}
+
+/// The newest transcript's tail while it is shown as still recording: a paragraph waiting for polishing, then the
+/// settled and the unsettled words of the paragraph still being heard.
+pub const LIVE_TAIL: [&str; 3] = [
+    "残りの二件は調査中ですが、こちらも木曜のリリースで直る見込みです。",
+    "最後に来週の予定です。",
+    "月曜は全社会議があるので、定例は火曜に移します。",
+];
+
+/// A meeting played to a transcription session in real time: each line, how long it is spoken and the pause after it.
+pub const FILM_SCRIPT: [(&str, f32, f32); 9] = [
+    ("えーと、それでは定例を始めます。", 2.5, 0.7),
+    ("今日は、あの、リリース計画と、問い合わせ対応の二点です。", 3.5, 0.7),
+    ("まずリリースですが、来週の水曜に、いや木曜に、ステージングに出す予定です。", 4.5, 0.6),
+    ("結合テストはほぼ終わっていて、残りは決済まわりだけです。", 3.5, 3.0),
+    ("はい、決済の件なんですけど、えー、テスト環境の証明書が切れていて、昨日から止まってます。", 5.5, 0.6),
+    ("今日中に更新できれば、木曜には間に合うと思います。", 3.0, 3.0),
+    ("では次に、問い合わせ対応です。先週は、えー、ログインできないという問い合わせが十二件ありました。", 6.0, 0.7),
+    ("ほとんどがパスワードの再設定で解決していますが、二件はまだ調査中です。", 4.0, 0.6),
+    ("こちらも、あの、木曜のリリースで直る見込みです。", 3.0, 0.0),
+];
+
+/// One finished meeting recorded with the microphone, so both speakers show.
+fn transcript(store: &Store, now: i64) -> Result<()> {
+    let started = now - 3 * 3600;
+    let id = store.create_transcript(started, Sources { system: true, microphone: true })?;
+    store.set_transcript_title(id, "週次定例")?;
+    let paragraphs = [
+        (
+            Speaker::Others,
+            4_000,
+            21_000,
+            "それでは定例を始めます。今日はリリース計画と問い合わせ対応の二点です。来週の木曜にステージングに出す予定で、結合テストは決済周りを残すだけです。",
+        ),
+        (
+            Speaker::Me,
+            23_500,
+            31_000,
+            "決済の件ですが、テスト環境の証明書が切れていて昨日から止まっています。今日中に更新できれば、木曜に間に合います。",
+        ),
+        (
+            Speaker::Others,
+            34_000,
+            49_000,
+            "では次に問い合わせ対応です。先週はログインできないという問い合わせが 12 件ありました。ほとんどはパスワードの再設定で解決しています。",
+        ),
+    ];
+    for (speaker, start_ms, end_ms, text) in paragraphs {
+        let p = store.add_paragraph(id, speaker, start_ms, end_ms, text)?;
+        store.finish_paragraph(p, text, None)?;
+    }
+    store.end_transcript(id, started, started + 52 * 60)?;
     Ok(())
 }
 

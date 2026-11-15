@@ -37,7 +37,7 @@ pub fn read_source(path: &Path) -> Result<String, SourceError> {
 
 fn docx_text(bytes: Vec<u8>) -> Result<String, SourceError> {
     let mut archive = ZipArchive::new(Cursor::new(bytes)).map_err(unreadable)?;
-    xml_text(&entry(&mut archive, "word/document.xml")?, b"w:t", b"w:p")
+    xml_text(&entry(&mut archive, "word/document.xml")?, "w:t", "w:p")
 }
 
 /// Slides in their numbered order, a blank line between two of them.
@@ -57,7 +57,7 @@ fn pptx_text(bytes: Vec<u8>) -> Result<String, SourceError> {
     slides.sort_unstable();
     let mut out = String::new();
     for (_, name) in slides {
-        out.push_str(&xml_text(&entry(&mut archive, &name)?, b"a:t", b"a:p")?);
+        out.push_str(&xml_text(&entry(&mut archive, &name)?, "a:t", "a:p")?);
         out.push('\n');
     }
     Ok(out)
@@ -70,7 +70,7 @@ fn entry(archive: &mut ZipArchive<Cursor<Vec<u8>>>, name: &str) -> Result<Vec<u8
 }
 
 /// The character data of every `text` element, with a line break where a `paragraph` element ends.
-fn xml_text(xml: &[u8], text: &[u8], paragraph: &[u8]) -> Result<String, SourceError> {
+fn xml_text(xml: &[u8], text: &str, paragraph: &str) -> Result<String, SourceError> {
     let mut reader = Reader::from_reader(xml);
     let mut out = String::new();
     let mut in_text = false;
@@ -79,12 +79,12 @@ fn xml_text(xml: &[u8], text: &[u8], paragraph: &[u8]) -> Result<String, SourceE
             Event::Start(e) if e.name().as_ref() == text => in_text = true,
             Event::End(e) if e.name().as_ref() == text => in_text = false,
             Event::End(e) if e.name().as_ref() == paragraph => out.push('\n'),
-            Event::Text(t) if in_text => out.push_str(&t.decode().map_err(unreadable)?),
+            Event::Text(t) if in_text => out.push_str(&t.xml10_content()),
             Event::GeneralRef(r) if in_text => {
                 if let Some(c) = r.resolve_char_ref().map_err(unreadable)? {
                     out.push(c);
                 } else {
-                    match &*r.decode().map_err(unreadable)? {
+                    match &*r {
                         "amp" => out.push('&'),
                         "lt" => out.push('<'),
                         "gt" => out.push('>'),

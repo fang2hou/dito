@@ -8,7 +8,7 @@ use gpui_kit::*;
 
 use super::action::{in_use_status, model_action};
 use super::local_rows::{RowParts, status_line};
-use super::page::ModelsPage;
+use super::page::{ModelsPage, Tab};
 use crate::assets::Ic;
 use crate::settings::{Ctx, role};
 use crate::ui::{self, BtnKind, cbk, text};
@@ -38,14 +38,24 @@ impl EngineLine {
     }
 
     fn element(&self) -> Div {
-        div()
-            .h(px(STATUS_H))
-            .flex()
-            .items_center()
-            .gap(px(6.))
-            .child(div().size(px(6.)).flex_none().rounded_full().bg(self.dot))
-            .child(text(self.text.clone(), 13., FontWeight::MEDIUM, self.fg).truncate())
+        dot_line(self.dot, self.text.clone(), self.fg)
     }
+}
+
+/// A state said in one line: a dot and a short label in the same color.
+fn dot_line(dot: Hsla, label: SharedString, fg: Hsla) -> Div {
+    div()
+        .h(px(STATUS_H))
+        .flex()
+        .items_center()
+        .gap(px(6.))
+        .child(div().size(px(6.)).flex_none().rounded_full().bg(dot))
+        .child(text(label, 13., FontWeight::MEDIUM, fg).truncate())
+}
+
+/// An installed detector is in use, so its line never reads as started or stopped.
+fn active_line(c: &Ctx) -> Div {
+    dot_line(c.p.success, c.t(Tr::ModelsActive), c.p.success)
 }
 
 impl ModelsPage {
@@ -54,7 +64,7 @@ impl ModelsPage {
         &self,
         c: &Ctx,
         cx: &mut Context<Self>,
-        role: Role,
+        tab: Tab,
         spec: &ModelSpec,
         selected: bool,
         parts: RowParts,
@@ -70,14 +80,18 @@ impl ModelsPage {
                     .child(text(spec.name.clone(), 16., FontWeight::SEMIBOLD, c.p.text).truncate())
                     .child(super::metadata::model_labels(c, spec)),
             )
-            .child(if selected {
-                EngineLine::new(c, &self.st.local.status(&spec.id)).element()
-            } else {
-                status_line(c.t(Tr::ModelsDownloaded), c.p.model_badge_text)
+            .child(match tab {
+                Tab::Vad => active_line(c),
+                Tab::Role(_) if selected => EngineLine::new(c, &self.st.local.status(&spec.id)).element(),
+                Tab::Role(_) => status_line(c.t(Tr::ModelsDownloaded), c.p.model_badge_text),
             });
-        let ctl = ctl
-            .child(self.use_action(c, cx, role, spec, selected))
-            .child(self.more_control(c, cx, role, spec, selected));
+        let ctl = match tab {
+            Tab::Role(role) => ctl
+                .child(self.use_action(c, cx, role, spec, selected))
+                .child(self.more_control(c, cx, tab, spec, selected)),
+            // Nothing to choose and nothing to start: the detector every audio source builds its own from.
+            Tab::Vad => ctl.child(self.more_control(c, cx, tab, spec, selected)),
+        };
         RowParts { body, ctl }
     }
 
@@ -126,20 +140,13 @@ impl ModelsPage {
         }
     }
 
-    fn more_control(
-        &self,
-        c: &Ctx,
-        cx: &mut Context<Self>,
-        role: Role,
-        spec: &ModelSpec,
-        selected: bool,
-    ) -> AnyElement {
+    fn more_control(&self, c: &Ctx, cx: &mut Context<Self>, tab: Tab, spec: &ModelSpec, selected: bool) -> AnyElement {
         let p = &c.p;
         let id = spec.id.clone();
         let more_open = self.menu.as_deref() == Some(id.as_str());
         let id2 = id.clone();
         let btn = ui::menu_button(
-            SharedString::from(format!("more-{}-{id}", role::index(role))),
+            SharedString::from(format!("more-{}-{id}", tab.tag())),
             p,
             Ic::MoreV,
             more_open,
@@ -151,11 +158,11 @@ impl ModelsPage {
         );
         let mut wrap = div()
             .relative()
-            .id(ElementId::from(SharedString::from(format!("more-wrap-{}-{id}", role::index(role)))))
+            .id(ElementId::from(SharedString::from(format!("more-wrap-{}-{id}", tab.tag()))))
             .child(btn)
             .on_click(ui::click_cb(cbk(cx, |_: &mut Self, _, cx| cx.stop_propagation())));
         if more_open {
-            wrap = wrap.child(self.model_menu(c, cx, role, spec, selected));
+            wrap = wrap.child(self.model_menu(c, cx, tab, spec, selected));
         }
         wrap.into_any_element()
     }

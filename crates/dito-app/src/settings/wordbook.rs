@@ -381,7 +381,7 @@ impl Render for WordbookPage {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         // Own scope: after a page switch the controls mount statically instead of sliding to values remembered from an
         // earlier visit.
-        ui::with_motion_scope(self.motion.handle(), || self.view(window, cx))
+        ui::render_with_scope(self.motion.handle(), || self.view(window, cx))
     }
 }
 
@@ -567,7 +567,7 @@ impl WordbookPage {
         let delete = ElementId::from("wordbook-delete-selected");
         let (exit_button, delete_button) = if !selecting {
             let appearance = || ui::CircleAppearance {
-                background: None,
+                background: Some(p.input_bg),
                 foreground: p.text,
                 border: Some(p.border_strong),
                 hover: Some(p.seg),
