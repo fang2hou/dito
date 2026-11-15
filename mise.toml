@@ -112,7 +112,7 @@ run = "scripts/check-release-tag.sh"
 [tasks."bench:sync"]
 description = "Install the bench Python environment with every runtime extra"
 dir = "bench"
-run = "uv sync --frozen --all-extras --all-groups"
+run = "uv sync --all-extras --all-groups"
 
 [tasks."bench:lint"]
 description = "Ruff lint, format check and type check for bench"
@@ -124,7 +124,7 @@ run = ["ruff check .", "ruff format --check .", "ty check"]
 description = "Run the bench unit tests"
 dir = "bench"
 depends = ["bench:sync"]
-run = "uv run --frozen pytest"
+run = "uv run pytest"
 
 [tasks."bench:check"]
 description = "Lint, type check and test bench"
