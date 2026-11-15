@@ -5,6 +5,7 @@ mod detail;
 mod dock;
 mod lanes;
 mod list;
+mod morph;
 mod readiness;
 
 use std::cell::Cell;
@@ -13,7 +14,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use dito_core::i18n::Tr;
-use dito_core::store::{ParagraphState, Speaker, Transcript, TranscriptParagraph, TranscriptSummary};
+use dito_core::store::{ParagraphState, Sources, Speaker, Transcript, TranscriptParagraph, TranscriptSummary};
 use dito_core::transcription::{SessionState, TranscriptionStatus};
 use dito_local::SILERO_VAD;
 use dito_platform::{Permission, Status, permissions};
@@ -29,7 +30,10 @@ use crate::ui::{self, InputEvent, InputState, TextareaState};
 /// The page gutters and rhythm, the same as every other page of the window.
 const PAGE_PAD_X: f32 = 56.;
 const PAGE_PAD_TOP: f32 = 40.;
-const PAGE_PAD_BOTTOM: f32 = 28.;
+/// Room for the 30 pt tooltip and its entry motion above the return control.
+const DETAIL_PAD_TOP: f32 = 50.;
+// Leave room for the recording dock's panel shadow.
+const PAGE_PAD_BOTTOM: f32 = 40.;
 const PAGE_GAP: f32 = 18.;
 /// The sweep over unsettled words is redrawn this often instead of every display frame: it is a slow color change,
 /// and each redraw renders the whole page.
@@ -57,7 +61,7 @@ pub(super) struct OpenTranscript {
 }
 
 /// The permissions a session needs, polled while the gate is visible: macOS changes them outside the app.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct Perms {
     microphone: Status,
     system_audio: Status,
@@ -101,7 +105,12 @@ pub struct TranscriptionPage {
     /// different window widths, so the panel cannot guess it from the window.
     dock_width: Rc<Cell<Option<f32>>>,
     /// The lanes stay drawn while the panel folds, so they shrink into the bar instead of vanishing.
-    dock_lanes: bool,
+    dock_lanes: Option<Sources>,
+    /// Held while a session runs: the window is usually behind the meeting app then, and a napped app would
+    /// draw the live lanes and the dock at a crawl.
+    nap: Option<dito_platform::system::NapGuard>,
+    /// Esc folds the armed stop pill back, from anywhere in the window.
+    _escape: Subscription,
     /// Lets the screenshot harness pose the tool past the readiness gate on any machine.
     #[cfg(feature = "screenshots")]
     assume_ready: bool,
@@ -165,6 +174,17 @@ impl TranscriptionPage {
             }
         })
         .detach();
+        let owner = window.window_handle();
+        let weak = cx.entity().downgrade();
+        let escape = cx.intercept_keystrokes(move |event, window, cx| {
+            if window.window_handle() == owner && event.keystroke.key == "escape" {
+                let _ = weak.update(cx, |page, cx| {
+                    if page.dock.disarm(ui::Motion::system(), Instant::now()) {
+                        cx.notify();
+                    }
+                });
+            }
+        });
         let status = st.transcription.status();
         let mut page = Self {
             st,
@@ -183,7 +203,9 @@ impl TranscriptionPage {
             list_scroll: ScrollHandle::new(),
             dock: dock::DockAnim::new(),
             dock_width: Rc::new(Cell::new(None)),
-            dock_lanes: false,
+            dock_lanes: None,
+            _escape: escape,
+            nap: None,
             #[cfg(feature = "screenshots")]
             assume_ready: false,
         };
@@ -255,8 +277,15 @@ impl TranscriptionPage {
             editor: None,
         });
         let (id, sources) = (open.summary.id, open.summary.sources);
-        // The clock reads 03:42 like the design: the stored entry started hours ago, the pose starts fresh.
-        self.status.state = SessionState::Recording { id, started_ts: crate::timefmt::now() - 222, sources };
+        // The clock reads 03:42 like the design: the pose opens with that much already recorded.
+        let started = crate::timefmt::now();
+        self.status.state = SessionState::Recording {
+            id,
+            started_ts: started - 222,
+            sources,
+            recorded_ms: 222_000,
+            segment_start: Some(started),
+        };
         self.status.closed = open.paragraphs.len();
         self.status.live = vec![dito_core::transcription::LiveText {
             speaker: Speaker::Others,
@@ -288,10 +317,23 @@ impl TranscriptionPage {
         .detach();
     }
 
+    /// Applies a session status now, for the screenshot film.
+    #[cfg(feature = "screenshots")]
+    pub fn apply_status(&mut self, status: TranscriptionStatus, window: &mut Window, cx: &mut Context<Self>) {
+        if status.revision != self.status.revision || status.state != self.status.state {
+            self.on_status(status, window, cx);
+        }
+    }
+
     fn on_status(&mut self, status: TranscriptionStatus, window: &mut Window, cx: &mut Context<Self>) {
         let (before, after) = (self.status.state.transcript_id(), status.state.transcript_id());
         let changed = status.revision != self.status.revision;
         self.status = status;
+        if matches!(self.status.state, SessionState::Idle) {
+            self.nap = None;
+        } else if self.nap.is_none() {
+            self.nap = Some(dito_platform::system::NapGuard::new("transcription-session"));
+        }
         match after {
             // A new session opens its own entry, so the user watches it fill.
             Some(id) if before != Some(id) => self.open_transcript(id, window, cx),
@@ -312,6 +354,9 @@ impl TranscriptionPage {
     }
 
     fn open_transcript(&mut self, id: i64, window: &mut Window, cx: &mut Context<Self>) {
+        if self.view != View::Detail || self.open.as_ref().is_none_or(|open| open.summary.id != id) {
+            self.reset_back_button();
+        }
         self.reload_list();
         self.delete_armed = false;
         let Some(t) = self.load(id) else {
@@ -409,7 +454,14 @@ impl TranscriptionPage {
         ParagraphView { data, editor }
     }
 
+    fn reset_back_button(&self) {
+        let scope = self.motion.handle();
+        ui::dismiss_tips(&scope);
+        ui::reset_hover_in(scope, &ElementId::from(detail::BACK_BUTTON_ID));
+    }
+
     fn close_detail(&mut self, cx: &mut Context<Self>) {
+        self.reset_back_button();
         self.view = View::List;
         self.delete_armed = false;
         self.reload_list();
@@ -420,6 +472,7 @@ impl TranscriptionPage {
         self.dismissed = None;
         self.perms = Perms::read();
         if !self.perms.ready() {
+            tracing::warn!(?self.perms, "start held: permissions not ready");
             if self.perms.microphone == Status::NotDetermined {
                 permissions::request(Permission::Microphone);
             }
@@ -430,6 +483,7 @@ impl TranscriptionPage {
             return;
         }
         if !self.vad_ready() {
+            tracing::warn!("start held: silero vad not installed");
             cx.notify();
             return;
         }
@@ -445,12 +499,10 @@ impl TranscriptionPage {
         }
         if let Err(e) = self.st.store.delete_transcript(id) {
             tracing::warn!("could not delete transcript {id}: {e}");
+            return;
         }
         self.open = None;
-        self.view = View::List;
-        self.delete_armed = false;
-        self.reload_list();
-        cx.notify();
+        self.close_detail(cx);
     }
 
     fn copy_open(&self, cx: &mut App) -> bool {
@@ -487,19 +539,19 @@ impl TranscriptionPage {
         true
     }
 
-    /// Milliseconds since the running session started, for the panel's clock.
+    /// The time recorded so far, for the panel's clock: it ticks while recording and freezes while paused.
     fn session_elapsed_ms(&self) -> Option<u64> {
-        let started = match self.status.state {
-            SessionState::Recording { started_ts, .. } => started_ts,
+        match self.status.state {
+            SessionState::Recording { .. } => Some(self.status.state.elapsed_ms()),
             SessionState::Finishing { id } => self
                 .open
                 .as_ref()
                 .filter(|open| open.summary.id == id)
                 .map(|open| open.summary.started_ts)
-                .or_else(|| self.list.iter().find(|row| row.id == id).map(|row| row.started_ts))?,
-            _ => return None,
-        };
-        Some((now() - started).max(0) as u64 * 1000)
+                .or_else(|| self.list.iter().find(|row| row.id == id).map(|row| row.started_ts))
+                .map(|started| (now() - started).max(0) as u64 * 1000),
+            _ => None,
+        }
     }
 
     fn mic_ready(&self) -> bool {
@@ -543,6 +595,22 @@ impl TranscriptionPage {
             }
         }));
     }
+}
+
+/// Paint the row's tint as a slice of the viewport's rounded face, including while it scrolls.
+fn row_fill(scroll: ScrollHandle, color: Hsla) -> impl IntoElement {
+    canvas(
+        |_, _, _| (),
+        move |bounds, _, window, _| {
+            let viewport = scroll.bounds();
+            let visible = bounds.intersect(&viewport);
+            window.with_content_mask(Some(ContentMask { bounds: visible }), |window| {
+                window.paint_quad(fill(viewport, color).corner_radii(Corners::all(px(15.))));
+            });
+        },
+    )
+    .absolute()
+    .inset_0()
 }
 
 fn speaker_label(speaker: Speaker) -> Tr {
@@ -602,8 +670,12 @@ impl TranscriptionPage {
             return page.child(div().flex_1().min_h(px(0.)).child(readiness::view(self, &c, cx)));
         }
         let banner = self.banner(&c, cx);
+        let (dock, pose) = dock::view(self, &c, window, cx);
         if self.view == View::Detail && self.open.is_some() {
-            page = page.children(banner).child(div().flex_1().min_h(px(0.)).child(detail::view(self, &c, window, cx)));
+            page = page
+                .pt(px(DETAIL_PAD_TOP))
+                .children(banner)
+                .child(div().flex_1().min_h(px(0.)).child(detail::view(self, &c, pose, window, cx)));
         } else {
             page = page
                 .child(
@@ -617,14 +689,7 @@ impl TranscriptionPage {
                 .children(banner)
                 .child(div().flex_1().min_h(px(0.)).child(list::view(self, &c, cx)));
         }
-        // Reading a finished entry with no session running leaves the page to the document itself.
-        if self.view == View::Detail && matches!(self.status.state, SessionState::Idle) {
-            self.dock.reset();
-            self.dock_lanes = false;
-            page
-        } else {
-            page.child(dock::view(self, &c, window, cx))
-        }
+        page.child(dock)
     }
 
     /// A runtime failure is one dismissible banner; closing it holds until the next distinct error.

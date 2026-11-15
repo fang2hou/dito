@@ -12,7 +12,7 @@ use crate::theme::Palette;
 use crate::timefmt::hhmm;
 use crate::ui::{self, text};
 
-/// `design:tools/dock` measurements.
+/// `design:tools/recording` measurements.
 const LANE_PAD_X: f32 = 14.;
 const LANE_PAD_TOP: f32 = 12.;
 const LANE_PAD_BOTTOM: f32 = 15.;
@@ -26,16 +26,42 @@ const THUMB_H: f32 = 26.;
 const SWEEP_BAND: f32 = 6.;
 const SWEEP_SPEED: f32 = 18.;
 
+pub(super) struct Geometry {
+    pub(super) width: f32,
+    pub(super) height: f32,
+    pub(super) text_width: f32,
+    pub(super) body_opacity: f32,
+    pub(super) show_status: bool,
+}
+
 /// `t` is the animation clock in seconds for the sweep; `None` holds it still.
-pub(super) fn lane(page: &TranscriptionPage, c: &Ctx, speaker: Speaker, width: f32, t: Option<f32>) -> Div {
+pub(super) fn lane(page: &TranscriptionPage, c: &Ctx, speaker: Speaker, geometry: Geometry, t: Option<f32>) -> Div {
+    let Geometry { width, height, text_width, body_opacity, show_status } = geometry;
     let p = &c.p;
     let live = page.status.live.iter().find(|l| l.speaker == speaker);
     let started_ts = match page.status.state {
         SessionState::Recording { started_ts, .. } => Some(started_ts),
         _ => page.open.as_ref().map(|open| open.summary.started_ts),
     };
-    let head = lane_head(p, c, speaker, live, started_ts);
-    let inner = width - 2. * LANE_PAD_X - 2.;
+    let inner = text_width - 2. * LANE_PAD_X - 2.;
+    let card = div()
+        .w(px(width))
+        .h(px(height))
+        .flex_none()
+        .flex()
+        .flex_col()
+        .gap(px(8.))
+        .pt(px(LANE_PAD_TOP.min((height - 20.).max(0.) / 2.)))
+        .pb(px(LANE_PAD_BOTTOM))
+        .px(px(LANE_PAD_X))
+        .rounded(px(12.))
+        .bg(p.card)
+        .border_1()
+        .border_color(p.border)
+        .when(height >= 26., |d| d.child(lane_head(p, c, speaker, live, started_ts, show_status)));
+    if body_opacity <= 0. {
+        return card;
+    }
     let (words, overflow) = match live {
         Some(live) => {
             (live_words(p, &live.settled, &live.unsettled, inner, t), overflow(&live.settled, &live.unsettled, inner))
@@ -70,24 +96,17 @@ pub(super) fn lane(page: &TranscriptionPage, c: &Ctx, speaker: Speaker, width: f
                     .bg(p.border_strong),
             )
         });
-    div()
-        .w(px(width))
-        .flex_none()
-        .flex()
-        .flex_col()
-        .gap(px(8.))
-        .pt(px(LANE_PAD_TOP))
-        .pb(px(LANE_PAD_BOTTOM))
-        .px(px(LANE_PAD_X))
-        .rounded(px(12.))
-        .bg(p.card)
-        .border_1()
-        .border_color(p.border)
-        .child(head)
-        .child(viewport)
+    card.child(viewport.opacity(body_opacity))
 }
 
-fn lane_head(p: &Palette, c: &Ctx, speaker: Speaker, live: Option<&LiveText>, started_ts: Option<i64>) -> Div {
+fn lane_head(
+    p: &Palette,
+    c: &Ctx,
+    speaker: Speaker,
+    live: Option<&LiveText>,
+    started_ts: Option<i64>,
+    full: bool,
+) -> Div {
     let (dot, ink) = if speaker == Speaker::Me { (p.primary, p.accent_text) } else { (p.muted, p.text) };
     let off = dito_platform::local_utc_offset_secs();
     div()
@@ -100,9 +119,13 @@ fn lane_head(p: &Palette, c: &Ctx, speaker: Speaker, live: Option<&LiveText>, st
                 .flex()
                 .items_center()
                 .gap(px(7.))
-                .child(div().size(px(6.)).rounded_full().bg(dot))
-                .child(text(c.t(speaker_label(speaker)), 12., FontWeight::SEMIBOLD, ink).line_height(px(18.)))
-                .children(live.map(|live| {
+                .child(div().size(px(6.)).flex_none().rounded_full().bg(dot))
+                .child(
+                    text(c.t(speaker_label(speaker)), 12., FontWeight::SEMIBOLD, ink)
+                        .line_height(px(18.))
+                        .whitespace_nowrap(),
+                )
+                .children(live.filter(|_| full).map(|live| {
                     let at = started_ts.map_or_else(
                         || clock(live.start_ms),
                         |started_ts| hhmm(started_ts + live.start_ms as i64 / 1000, off),
@@ -110,10 +133,13 @@ fn lane_head(p: &Palette, c: &Ctx, speaker: Speaker, live: Option<&LiveText>, st
                     text(at, 11., FontWeight::NORMAL, p.muted).line_height(px(18.))
                 })),
         )
-        .child(
-            text(c.t(dito_core::i18n::Tr::TranscriptionListening), 11., FontWeight::MEDIUM, p.muted)
-                .line_height(px(18.)),
-        )
+        .when(full, |head| {
+            head.child(
+                text(c.t(dito_core::i18n::Tr::TranscriptionListening), 11., FontWeight::MEDIUM, p.muted)
+                    .line_height(px(18.))
+                    .whitespace_nowrap(),
+            )
+        })
 }
 
 fn overflow(settled: &str, unsettled: &str, width: f32) -> bool {

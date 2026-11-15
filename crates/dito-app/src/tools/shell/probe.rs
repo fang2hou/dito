@@ -28,4 +28,27 @@ impl Tools {
     pub fn preview_transcript(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.transcription.update(cx, |t, cx| t.open_newest(window, cx));
     }
+
+    /// Arms the two-step stop as a first press does: the confirm pill widens without a pointer.
+    #[cfg(feature = "screenshots")]
+    pub fn pose_transcription_stop_armed(&mut self, cx: &mut Context<Self>) {
+        self.transcription.update(cx, |t, cx| t.pose_stop_armed(cx));
+    }
+
+    /// Hands the page the session's status at once, as its subscription would.
+    #[cfg(feature = "screenshots")]
+    pub fn sync_transcription(
+        &mut self,
+        status: dito_core::transcription::TranscriptionStatus,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.transcription.update(cx, |t, cx| t.apply_status(status, window, cx));
+    }
+
+    /// Marks New meeting as just pressed, so a session started next folds the button as a click does.
+    #[cfg(feature = "screenshots")]
+    pub fn pose_transcription_start_pressed(&mut self, cx: &mut Context<Self>) {
+        self.transcription.update(cx, |t, _| t.pose_start_pressed());
+    }
 }

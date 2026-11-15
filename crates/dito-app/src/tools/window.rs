@@ -57,6 +57,10 @@ pub fn open(st: Arc<AppState>, cx: &mut App) {
     }
 }
 
+pub(crate) fn bring_to_front(cx: &mut App) -> bool {
+    show_in_existing_window(true, cx)
+}
+
 /// `false` when there is none.
 fn show_in_existing_window(foreground: bool, cx: &mut App) -> bool {
     let Some(h) = cx.try_global::<ToolsHandle>() else { return false };

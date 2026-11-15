@@ -30,6 +30,7 @@ mod segmented;
 mod select;
 mod select_badge;
 mod selectable;
+mod shimmer;
 mod switch;
 mod test_state;
 mod tip_bubble;
@@ -42,8 +43,8 @@ pub use appearance_seg::appearance_seg;
 pub use banner::{BannerAction, banner, dismissible_banner};
 pub use button::{
     BtnKind, BtnSize, CONTROL_H, CircleAppearance, CircleSize, bare_icon_button, button, button_with, circle_control,
-    close_button, disabled_button, disabled_icon_button, disabled_icon_button_with, icon_button, icon_button_with,
-    status_disc,
+    circle_control_with_glyph, close_button, disabled_button, disabled_icon_button, disabled_icon_button_with,
+    icon_button, icon_button_with, status_disc,
 };
 pub use callbacks::{Cb, cbk, cbk_copy, cbk_idx, click_cb};
 pub use config_tiles::{ConfigTile, TilePlus, TileRowState, cbk_id, cbk_move, tile_row};
@@ -79,6 +80,7 @@ pub use segmented::{SegContent, SegOption, SegStyle, seg, seg_with};
 pub use select::{SelectItem, select, select_form, select_form_disabled, select_items, select_multi, select_trigger};
 pub use select_badge::SelectBadge;
 pub use selectable::{selectable_spans, selectable_text};
+pub use shimmer::{ShimmerInk, shimmer_text};
 pub use switch::switch;
 pub use test_state::{ErrorPlacement, TestState, test_summary};
 pub use tip_bubble::TIP_BUBBLE_H;

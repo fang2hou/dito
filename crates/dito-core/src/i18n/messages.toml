@@ -573,12 +573,15 @@ prompts.remove_title = { ja = "アプリのルールを削除しますか？", e
 prompts.remove_history = { ja = "過去の履歴は消えず、「その他」として残ります。", en = "Past history is kept and reads as Other.", zh = "过去的记录会保留，并归为「其他」。" }
 prompts.remove_confirm = { ja = "削除する", en = "Delete", zh = "删除" }
 
-transcription.start = { ja = "開始", en = "Start", zh = "开始" }
+transcription.start = { ja = "新しい会議", en = "New meeting", zh = "新会议" }
 transcription.stop = { ja = "停止", en = "Stop", zh = "停止" }
 transcription.starting = { ja = "準備中", en = "Getting ready", zh = "正在准备" }
 transcription.finishing = { ja = "整形中", en = "Polishing", zh = "正在润色" }
 transcription.recording = { ja = "録音中", en = "Recording", zh = "正在录音" }
-transcription.empty = { ja = "まだ書き起こしはありません。下のパネルの「開始」を押すと始まります。", en = "No transcripts yet. Press Start in the panel below to begin.", zh = "还没有转写记录。按下方面板中的「开始」即可开始。" }
+transcription.pause = { ja = "一時停止", en = "Pause", zh = "暂停" }
+transcription.resume = { ja = "再開", en = "Resume", zh = "继续" }
+transcription.stop_confirm = { ja = "停止する？", en = "Stop?", zh = "停止？" }
+transcription.empty = { ja = "まだ書き起こしはありません。下のパネルの「新しい会議」を押すと始まります。", en = "No transcripts yet. Press New meeting in the panel below to begin.", zh = "还没有转写记录。按下方面板中的「新会议」即可开始。" }
 transcription.untitled = { ja = "無題", en = "Untitled", zh = "无标题" }
 transcription.title_placeholder = { ja = "タイトル", en = "Title", zh = "标题" }
 transcription.me = { ja = "自分", en = "Me", zh = "我" }
@@ -588,9 +591,8 @@ transcription.polishing = { ja = "整形中", en = "Polishing", zh = "正在润�
 transcription.not_polished = { ja = "整形できなかったため、認識結果のままです", en = "Not polished, so this is the recognized text", zh = "未能润色，这里是识别结果" }
 transcription.nothing_yet = { ja = "まだ発言はありません", en = "Nothing said yet", zh = "还没有发言" }
 transcription.back = { ja = "一覧に戻る", en = "Back to the list", zh = "返回列表" }
-transcription.overview = { ja = "一覧", en = "List", zh = "列表" }
 transcription.delete = { ja = "削除", en = "Delete", zh = "删除" }
-transcription.delete_confirm = { ja = "もう一度押すと削除します", en = "Press again to delete", zh = "再按一次即删除" }
+transcription.delete_confirm = { ja = "削除する？", en = "Delete?", zh = "删除？" }
 transcription.source_system_tip = { ja = "デスクトップ音声（相手）", en = "Desktop audio (others)", zh = "桌面音频（对方）" }
 transcription.source_mic_tip = { ja = "マイク（自分）", en = "Microphone (you)", zh = "麦克风（我）" }
 transcription.audio_open_failed = { ja = "オーディオ入力を開けませんでした。接続中のマイクを確認してください。", en = "Couldn't open the audio input. Check the connected microphone.", zh = "无法打开音频输入。请检查已连接的麦克风。" }

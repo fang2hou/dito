@@ -5,7 +5,7 @@ use gpui_kit::*;
 
 use super::models;
 use super::{Ctx, Page, general, history, prompts, stats, status, wordbook};
-use crate::app_shell::{self, Chrome, NavHost};
+use crate::app_shell::{self, Chrome, NavHost, WindowDestination};
 use crate::services;
 use crate::state::AppState;
 use crate::theme::{self, Palette};
@@ -141,6 +141,10 @@ impl NavHost for Settings {
 
     fn nav_page(&self) -> Page {
         self.page
+    }
+
+    fn switch_destination(&self) -> WindowDestination {
+        WindowDestination::Tools
     }
 
     fn select_page(&mut self, page: Page, cx: &mut Context<Self>) {

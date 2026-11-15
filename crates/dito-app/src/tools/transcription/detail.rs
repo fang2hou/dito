@@ -3,15 +3,18 @@
 
 use dito_core::i18n::{Tr, fmt};
 use dito_core::store::{ParagraphState, Speaker};
+use dito_core::transcription::SessionState;
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
-use super::{OpenTranscript, ParagraphView, TranscriptionPage, clock, date_time, speaker_label};
+use super::{OpenTranscript, ParagraphView, TranscriptionPage, clock, date_time, row_fill, speaker_label};
 use crate::assets::Ic;
 use crate::settings::{Ctx, Edge, edge_fade};
 use crate::theme::Palette;
 use crate::timefmt::hhmm;
-use crate::ui::{self, BtnKind, CircleSize, Textarea, TextareaState, cbk, cbk_copy, text};
+use crate::ui::{self, BtnKind, CircleAppearance, CircleSize, Textarea, TextareaState, cbk, cbk_copy, text};
+
+pub(super) const BACK_BUTTON_ID: &str = "transcript-back";
 
 /// `design:tools/detail` measurements.
 const META_COL: f32 = 98.;
@@ -34,23 +37,55 @@ const META_H: f32 = BODY_LINE + EDITOR_PAD_Y;
 const ACTION_TOP: f32 = (2. * EDITOR_PAD_Y + BODY_LINE - ACTION_COL) / 2.;
 const ACTION_H: f32 = ACTION_COL + ACTION_TOP;
 
-pub(super) fn view(page: &TranscriptionPage, c: &Ctx, window: &mut Window, cx: &mut Context<TranscriptionPage>) -> Div {
-    let p = &c.p;
+const HEADER_H: f32 = 36.;
+const SECTION_GAP: f32 = 18.;
+const REVIEW_H: f32 = 2. * HEADER_H + 2. * SECTION_GAP;
+
+pub(super) fn view(
+    page: &TranscriptionPage,
+    c: &Ctx,
+    pose: super::dock::Pose,
+    window: &mut Window,
+    cx: &mut Context<TranscriptionPage>,
+) -> Div {
     let Some(open) = &page.open else { return div() };
-    let id = open.summary.id;
-    let live = page.status.state.transcript_id() == Some(id);
-    let mut column = div().size_full().flex().flex_col().gap(px(18.));
-    // A live transcript has no title field and no delete: the dock holds its title while it records, and the
-    // header only says what is being written and offers the way back to the list.
-    column = if live {
-        column.child(live_head(open, page, c, cx))
-    } else {
-        column
-            .child(finished_head(page, c, cx))
-            .child(div().w_full().child(ui::text_input(p, &open.title, None)))
-            .child(meta_strip(open, c))
-    };
-    column.child(paragraph_card(open, page, c, window, cx))
+    let live = page.status.state.transcript_id() == Some(open.summary.id);
+    let review_height = REVIEW_H * pose.review;
+    let reveal = |bottom: f32| ((review_height - bottom) / SECTION_GAP).clamp(0., 1.);
+    let title = reveal(HEADER_H);
+    let meta = reveal(2. * HEADER_H + SECTION_GAP);
+    let header = if live { live_head(open, page, c, cx) } else { finished_head(page, c, cx) };
+    div()
+        .size_full()
+        .flex()
+        .flex_col()
+        .child(div().h(px(HEADER_H)).flex_none().flex().items_center().child(header))
+        .child(
+            div()
+                .relative()
+                .h(px(SECTION_GAP + review_height))
+                .flex_none()
+                .when(title > 0., |d| {
+                    d.child(div().absolute().top(px(SECTION_GAP)).w_full().opacity(title).child(ui::text_input(
+                        &c.p,
+                        &open.title,
+                        None,
+                    )))
+                })
+                .when(meta > 0., |d| {
+                    d.child(meta_strip(open, c).absolute().top(px(2. * SECTION_GAP + HEADER_H)).opacity(meta))
+                }),
+        )
+        .child(
+            div().relative().flex_1().min_h(px(0.)).child(
+                paragraph_card(open, page, c, pose.entry, window, cx)
+                    .absolute()
+                    .top_0()
+                    .left_0()
+                    .w_full()
+                    .h(relative(pose.entry)),
+            ),
+        )
 }
 
 /// The header of the transcript the session is writing: when it started, how much it has, and the way back.
@@ -65,7 +100,19 @@ fn live_head(open: &OpenTranscript, page: &TranscriptionPage, c: &Ctx, cx: &mut 
         .items_center()
         .justify_between()
         .gap(px(24.))
-        .child(ui::page_title(p, c.t(Tr::NavTranscription)))
+        .child(
+            div().flex().items_center().gap(px(12.)).child(back_to_list(c, cx)).child(
+                ui::page_title(
+                    p,
+                    c.t(if matches!(page.status.state, SessionState::Finishing { .. }) {
+                        Tr::TranscriptionFinishing
+                    } else {
+                        Tr::TranscriptionRecording
+                    }),
+                )
+                .line_height(px(HEADER_H)),
+            ),
+        )
         .child(
             div()
                 .flex()
@@ -77,43 +124,31 @@ fn live_head(open: &OpenTranscript, page: &TranscriptionPage, c: &Ctx, cx: &mut 
                     FontWeight::NORMAL,
                     p.muted,
                 ))
-                .child(super::list::badge(p, fmt::transcription_count(c.lang, &count.to_string())))
-                .child(ui::button(
-                    "transcript-list",
-                    p,
-                    &c.t(Tr::TranscriptionOverview),
-                    BtnKind::Secondary,
-                    Some(Ic::Clock),
-                    cbk(cx, |page, _, cx| page.close_detail(cx)),
-                )),
+                .child(super::list::badge(p, fmt::transcription_count(c.lang, &count.to_string()))),
         )
 }
 
 /// The header of a finished transcript: the way back, copy, and delete.
 fn finished_head(page: &TranscriptionPage, c: &Ctx, cx: &mut Context<TranscriptionPage>) -> Div {
     let p = &c.p;
-    div()
-        .w_full()
-        .flex()
-        .items_center()
-        .justify_between()
-        .gap(px(24.))
-        .child(ui::button(
-            "transcript-back",
-            p,
-            &c.t(Tr::TranscriptionBack),
-            BtnKind::Secondary,
-            Some(Ic::ArrowLeft),
-            cbk(cx, |page, _, cx| page.close_detail(cx)),
-        ))
-        .child(
-            div()
-                .flex()
-                .items_center()
-                .gap(px(10.))
-                .child(ui::copy_button("transcript-copy-all", p, cbk_copy(cx, |page, _, cx| page.copy_open(cx))))
-                .child(delete_button(page, c, cx)),
-        )
+    div().w_full().flex().items_center().justify_between().gap(px(24.)).child(back_to_list(c, cx)).child(
+        div()
+            .flex()
+            .items_center()
+            .gap(px(10.))
+            .child(ui::copy_button("transcript-copy-all", p, cbk_copy(cx, |page, _, cx| page.copy_open(cx))))
+            .child(delete_button(page, c, cx)),
+    )
+}
+
+fn back_to_list(c: &Ctx, cx: &mut Context<TranscriptionPage>) -> Stateful<Div> {
+    let id = ElementId::from(BACK_BUTTON_ID);
+    let label = c.t(Tr::TranscriptionBack);
+    ui::tip_label(id.clone(), label.clone());
+    ui::icon_button(id.clone(), &c.p, Ic::ArrowLeft, false, cbk(cx, |page, _, cx| page.close_detail(cx)))
+        .role(Role::Button)
+        .aria_label(label)
+        .child(ui::tip_above(&c.p, &id))
 }
 
 /// The finished transcript's one strip of facts: when it was, how long it ran, how much it holds.
@@ -148,24 +183,38 @@ fn meta_strip(open: &OpenTranscript, c: &Ctx) -> Div {
         )))
 }
 
-fn delete_button(page: &TranscriptionPage, c: &Ctx, cx: &mut Context<TranscriptionPage>) -> AnyElement {
+fn delete_button(page: &TranscriptionPage, c: &Ctx, cx: &mut Context<TranscriptionPage>) -> Stateful<Div> {
     let p = &c.p;
-    let label = c.t(if page.delete_armed { Tr::TranscriptionDeleteConfirm } else { Tr::TranscriptionDelete });
-    ui::button(
-        "transcript-delete",
-        p,
-        &label,
-        BtnKind::Danger,
-        Some(Ic::Trash),
-        cbk(cx, |page, _, cx| page.delete_open(cx)),
+    let id = "transcript-delete";
+    let delete = cbk(cx, |page, _, cx| page.delete_open(cx));
+    if page.delete_armed {
+        let label = c.t(Tr::TranscriptionDeleteConfirm);
+        return ui::button(id, p, &label, BtnKind::Danger, Some(Ic::Trash), delete)
+            .role(Role::Button)
+            .aria_label(label);
+    }
+    ui::circle_control(
+        id,
+        Ic::Trash,
+        CircleSize::Regular,
+        CircleAppearance {
+            background: Some(p.button_danger_bg),
+            foreground: p.button_danger_text,
+            border: Some(p.button_danger_border),
+            hover: Some(p.button_danger_hover),
+        },
     )
-    .into_any_element()
+    .cursor_pointer()
+    .on_click(ui::click_cb(delete))
+    .role(Role::Button)
+    .aria_label(c.t(Tr::TranscriptionDelete))
 }
 
 fn paragraph_card(
     open: &OpenTranscript,
     page: &TranscriptionPage,
     c: &Ctx,
+    entry: f32,
     window: &mut Window,
     cx: &mut Context<TranscriptionPage>,
 ) -> Div {
@@ -179,6 +228,7 @@ fn paragraph_card(
         .filter(|v| v.data.state != ParagraphState::Listening)
         .take(if live { page.status.closed } else { usize::MAX })
         .collect();
+    let visible = ((entry - 0.16) / 0.14).clamp(0., 1.);
     let inner = if rows.is_empty() {
         let empty = if live { Tr::TranscriptionListening } else { Tr::TranscriptionNothingYet };
         div().w_full().p(px(24.)).child(text(c.t(empty), 13., FontWeight::NORMAL, p.muted)).into_any_element()
@@ -187,15 +237,7 @@ fn paragraph_card(
         let mut list =
             div().id("transcript-detail").size_full().flex().flex_col().overflow_y_scroll().track_scroll(&page.scroll);
         for (i, v) in rows.iter().enumerate() {
-            list = list.child(paragraph_row(
-                c,
-                v,
-                open.summary.sources.both(),
-                open.summary.started_ts,
-                i == last,
-                window,
-                cx,
-            ));
+            list = list.child(paragraph_row(c, v, &open.summary, i == last, window, cx, &page.scroll));
         }
         list.into_any_element()
     };
@@ -207,27 +249,27 @@ fn paragraph_card(
         .flex_1()
         .min_h(px(0.))
         .overflow_hidden()
-        .child(div().relative().size_full().child(inner))
+        .child(div().relative().size_full().opacity(visible).child(inner))
         .when(top > 0.001, |card| card.child(edge_fade(Edge::Top, p.card, FADE, 0.).opacity(top)))
         .when(bottom > 0.001, |card| card.child(edge_fade(Edge::Bottom, p.card, FADE, 0.).opacity(bottom)))
 }
 
-/// `labelled` shows who spoke, for a session that recorded both sides.
+/// Show the speaker when the session recorded both sides.
 fn paragraph_row(
     c: &Ctx,
     v: &ParagraphView,
-    labelled: bool,
-    started_ts: i64,
+    summary: &dito_core::store::TranscriptSummary,
     last: bool,
     window: &Window,
     cx: &mut Context<TranscriptionPage>,
+    scroll: &ScrollHandle,
 ) -> Stateful<Div> {
     let p = &c.p;
     let key = ElementId::from(("transcript-paragraph-row", v.data.id as usize));
     let copy_id = ElementId::from(("transcript-paragraph-copy", v.data.id as usize));
     let paragraph_id = v.data.id;
     let hovered = ui::is_hovered(&key) || ui::is_hovered(&copy_id);
-    let at = hhmm(started_ts + v.data.start_ms as i64 / 1000, dito_platform::local_utc_offset_secs());
+    let at = hhmm(summary.started_ts + v.data.start_ms as i64 / 1000, dito_platform::local_utc_offset_secs());
     let mut meta = div()
         .w(px(META_COL))
         .flex_none()
@@ -237,7 +279,7 @@ fn paragraph_row(
         .items_center()
         .gap(px(10.))
         .child(div().w(px(TIME_COL)).flex_none().child(text(at, 12., FontWeight::NORMAL, p.muted)));
-    if labelled {
+    if summary.sources.both() {
         let (dot, ink) = if v.data.speaker == Speaker::Me { (p.primary, p.accent_text) } else { (p.muted, p.text) };
         meta = meta.child(
             div().flex().items_center().gap(px(6.)).child(div().size(px(6.)).rounded_full().bg(dot)).child(text(
@@ -285,10 +327,15 @@ fn paragraph_row(
         .items_start()
         .gap(px(4.))
         .on_hover(ui::hover_tracker(key.clone()));
-    if hovered {
-        row = row.child(ui::hover_fill(&key, Some(0.), p.sub));
-    }
-    row = row.child(meta).child(div().flex_1().min_w(px(0.)).child(body)).child(action);
+    let scroll = scroll.clone();
+    let color = p.sub;
+    row = row
+        .child(ui::tweened(ElementId::from((key, "row-fill")), f32::from(hovered), ui::HOVER_MS, move |opacity| {
+            row_fill(scroll.clone(), color.opacity(opacity))
+        }))
+        .child(meta)
+        .child(div().flex_1().min_w(px(0.)).child(body))
+        .child(action);
     if !last {
         row = row.border_b_1().border_color(p.border);
     }

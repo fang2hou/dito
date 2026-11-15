@@ -6,7 +6,10 @@ use gpui_kit::*;
 
 use super::Chrome;
 use crate::assets::Ic;
+use crate::state::AppState;
 use crate::theme::Palette;
+use crate::{settings, tools};
+use std::sync::Arc;
 
 pub(crate) trait NavPage: Copy + Eq + 'static {
     fn label(self) -> Tr;
@@ -26,11 +29,58 @@ pub(crate) trait NavHost: Sized + 'static {
 
     fn chrome(&self) -> &Chrome;
     fn nav_page(&self) -> Self::Page;
+    fn switch_destination(&self) -> WindowDestination;
     fn select_page(&mut self, page: Self::Page, cx: &mut Context<Self>);
     /// Color of the dot at the right end of the page's row (a live session), if there is one.
     fn nav_badge(&self, page: Self::Page, p: &Palette) -> Option<Hsla> {
         let _ = (page, p);
         None
+    }
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum WindowDestination {
+    Settings,
+    Tools,
+}
+
+impl WindowDestination {
+    pub(crate) fn label(self) -> Tr {
+        match self {
+            Self::Settings => Tr::NavSettings,
+            Self::Tools => Tr::NavTools,
+        }
+    }
+
+    pub(crate) fn icon(self) -> Ic {
+        match self {
+            Self::Settings => Ic::Sliders,
+            Self::Tools => Ic::Blocks,
+        }
+    }
+
+    pub(crate) fn switch(self, st: Arc<AppState>, source: &mut Window, cx: &mut App) {
+        let existing = match self {
+            Self::Settings => settings::bring_to_front(cx),
+            Self::Tools => tools::bring_to_front(cx),
+        };
+        if existing {
+            cx.activate(true);
+            return;
+        }
+        let opened = match self {
+            Self::Settings => {
+                settings::open(st, settings::Page::General, cx);
+                settings::is_open(cx)
+            }
+            Self::Tools => {
+                tools::open(st, cx);
+                tools::is_open(cx)
+            }
+        };
+        if opened {
+            source.remove_window();
+        }
     }
 }
 

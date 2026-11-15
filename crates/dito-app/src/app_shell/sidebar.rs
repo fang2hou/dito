@@ -48,6 +48,50 @@ pub(crate) fn sidebar<H: NavHost>(host: &H, c: &Ctx, cx: &mut Context<H>, rail: 
                 .child(contents),
         )
         .child(ui::drag_area("sidebar-drag").flex_1())
+        .child(window_switch(host, c, rail))
+}
+
+/// The cross-window row uses the sidebar's inactive row geometry and hover colors.
+fn window_switch<H: NavHost>(host: &H, c: &Ctx, rail: bool) -> Div {
+    let destination = host.switch_destination();
+    let st = host.chrome().st().clone();
+    let p = c.p;
+    let label = c.t(destination.label());
+    let id = ElementId::from("sidebar-window-switch");
+    let row = div()
+        .id(id.clone())
+        .h(px(NAV_H))
+        .flex_none()
+        .relative()
+        .flex()
+        .items_center()
+        .rounded(px(12.))
+        .cursor_pointer()
+        .role(Role::Button)
+        .aria_label(label.clone())
+        .on_hover(ui::hover_tracker(id.clone()))
+        .on_click(move |_, window, cx| {
+            let st = st.clone();
+            window.defer(cx, move |source, cx| destination.switch(st, source, cx));
+        })
+        .child(ui::hover_fill(&id, Some(12.), ui::hex_alpha(p.nav_on, 0.7)))
+        .child(ui::icon(destination.icon(), 18., p.muted));
+    if rail {
+        ui::tip_label(id.clone(), label);
+        div()
+            .w_full()
+            .flex_none()
+            .flex()
+            .justify_center()
+            .child(row.w(px(NAV_H)).justify_center().child(ui::tip_above(&p, &id)))
+    } else {
+        div().w_full().flex_none().child(row.w_full().px(px(14.)).gap(px(12.)).child(text(
+            label,
+            14.,
+            FontWeight::NORMAL,
+            p.muted,
+        )))
+    }
 }
 
 /// One tween fades the card in as a whole, so background and text arrive together. An invisible hit pill keeps the

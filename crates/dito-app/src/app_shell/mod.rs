@@ -8,5 +8,5 @@ mod sidebar;
 
 pub(crate) use chrome::Chrome;
 pub(crate) use health::overlay as health_overlay;
-pub(crate) use nav::{NavHost, NavPage, traffic_light_position};
+pub(crate) use nav::{NavHost, NavPage, WindowDestination, traffic_light_position};
 pub(crate) use sidebar::{rail_hover, sidebar};

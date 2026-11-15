@@ -232,6 +232,18 @@ pub fn circle_control(
     appearance: CircleAppearance,
 ) -> Stateful<Div> {
     let (_, glyph) = size.dimensions();
+    circle_control_with_glyph(id, ic, size, glyph, appearance)
+}
+
+/// A circle whose glyph runs at a size other than its `CircleSize` contract, as the recording dock's pause and
+/// stop circles do with 16 pt glyphs (`design:tools/recording`).
+pub fn circle_control_with_glyph(
+    id: impl Into<ElementId>,
+    ic: Ic,
+    size: CircleSize,
+    glyph: f32,
+    appearance: CircleAppearance,
+) -> Stateful<Div> {
     let foreground = appearance.foreground;
     circle_shell(id, size, appearance).child(icon(ic, glyph, foreground))
 }

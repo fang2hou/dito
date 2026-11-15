@@ -6,13 +6,13 @@ use dito_core::transcription::SessionState;
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
-use super::{TranscriptionPage, clock, date_time, open_row};
+use super::{TranscriptionPage, clock, date_time, open_row, row_fill};
 use crate::assets::Ic;
 use crate::settings::Ctx;
 use crate::theme::Palette;
 use crate::ui::{self, HOVER_MS, text};
 
-/// `design:tools/list` measurements.
+/// `design:tools/transcripts` measurements.
 const ROW_PAD_X: f32 = 22.;
 const ROW_PAD_Y: f32 = 15.;
 const ARROW_SHIFT: f32 = 2.;
@@ -29,7 +29,7 @@ pub(super) fn view(page: &mut TranscriptionPage, c: &Ctx, cx: &mut Context<Trans
     let mut list =
         div().id("transcript-list").size_full().flex().flex_col().overflow_y_scroll().track_scroll(&page.list_scroll);
     for (i, row) in rows.iter().enumerate() {
-        list = list.child(self_row(c, cx, row, live));
+        list = list.child(self_row(c, cx, row, live, &page.list_scroll));
         if i + 1 < rows.len() {
             list = list.child(div().w_full().h(px(1.)).flex_none().bg(p.border));
         }
@@ -57,7 +57,13 @@ fn order(list: &[TranscriptSummary], live: Option<i64>) -> Vec<TranscriptSummary
     rows
 }
 
-fn self_row(c: &Ctx, cx: &mut Context<TranscriptionPage>, row: &TranscriptSummary, live: Option<i64>) -> Stateful<Div> {
+fn self_row(
+    c: &Ctx,
+    cx: &mut Context<TranscriptionPage>,
+    row: &TranscriptSummary,
+    live: Option<i64>,
+    scroll: &ScrollHandle,
+) -> Stateful<Div> {
     let p = c.p;
     let id = row.id;
     let key = ElementId::from(("transcript-row", id as usize));
@@ -101,7 +107,9 @@ fn self_row(c: &Ctx, cx: &mut Context<TranscriptionPage>, row: &TranscriptSummar
         .gap(px(12.))
         .child(text(date_time(row.started_ts), 13., FontWeight::NORMAL, p.muted))
         .child(arrow);
-    let mut el = div()
+    let fill = if running { p.accent_soft } else { p.sub };
+    let scroll = scroll.clone();
+    div()
         .id(key.clone())
         .w_full()
         .flex_none()
@@ -113,16 +121,18 @@ fn self_row(c: &Ctx, cx: &mut Context<TranscriptionPage>, row: &TranscriptSummar
         .gap(px(16.))
         .cursor_pointer()
         .on_hover(ui::hover_tracker(key.clone()))
-        .on_click(open_row(cx, id));
-    el = if running {
-        el.bg(p.accent_soft).child(column).child(tail)
-    } else {
-        el.children([ui::hover_fill(&key, Some(0.), p.sub), column.into_any_element(), tail.into_any_element()])
-    };
-    el
+        .on_click(open_row(cx, id))
+        .child(ui::tweened(
+            ElementId::from((key, "row-fill")),
+            f32::from(running || hovered),
+            HOVER_MS,
+            move |opacity| row_fill(scroll.clone(), fill.opacity(opacity)),
+        ))
+        .child(column)
+        .child(tail)
 }
 
-/// The duration badge beside a title (`design:tools/list`).
+/// The duration badge beside a title (`design:tools/transcripts`).
 pub(super) fn badge(p: &Palette, label: String) -> Div {
     div()
         .h(px(20.))

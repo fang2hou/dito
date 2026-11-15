@@ -8,7 +8,7 @@ use gpui_kit::prelude::*;
 use gpui_kit::*;
 
 use super::transcription::TranscriptionPage;
-use crate::app_shell::{self, Chrome, NavHost, NavPage};
+use crate::app_shell::{self, Chrome, NavHost, NavPage, WindowDestination};
 use crate::assets::Ic;
 use crate::services;
 use crate::settings::Ctx;
@@ -110,6 +110,10 @@ impl NavHost for Tools {
 
     fn nav_page(&self) -> ToolsPage {
         ToolsPage::Transcription
+    }
+
+    fn switch_destination(&self) -> WindowDestination {
+        WindowDestination::Settings
     }
 
     fn select_page(&mut self, _page: ToolsPage, cx: &mut Context<Self>) {

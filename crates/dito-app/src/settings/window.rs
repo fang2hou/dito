@@ -55,7 +55,7 @@ pub fn open_vad_models(st: Arc<AppState>, cx: &mut App) {
 
 pub fn open(st: Arc<AppState>, page: Page, cx: &mut App) {
     let foreground = !st.opts.is_headless();
-    if !show_in_existing_window(page, foreground, cx) {
+    if !show_in_existing_window(Some(page), foreground, cx) {
         open_new_window(st.clone(), page, cx);
     }
     if foreground {
@@ -64,20 +64,28 @@ pub fn open(st: Arc<AppState>, page: Page, cx: &mut App) {
     }
 }
 
+pub(crate) fn bring_to_front(cx: &mut App) -> bool {
+    show_in_existing_window(None, true, cx)
+}
+
 /// `false` when there is none.
-fn show_in_existing_window(page: Page, foreground: bool, cx: &mut App) -> bool {
+fn show_in_existing_window(page: Option<Page>, foreground: bool, cx: &mut App) -> bool {
     let Some(h) = cx.try_global::<SettingsHandle>() else { return false };
     let (window, view) = (h.window, h.view.clone());
     // Navigating from inside the settings window (a button click): that window is mid-update and gpui rejects nested
     // window updates, so update the view directly. Notify re-renders the window, and a clicked window is by definition
     // already active. Calling window.update here would report "window not found" and open a duplicate window.
     if cx.active_window().is_some_and(|active| active.window_id() == window.window_id()) {
-        view.update(cx, |s, cx| s.set_page(page, cx));
+        if let Some(page) = page {
+            view.update(cx, |s, cx| s.set_page(page, cx));
+        }
         return true;
     }
     window
         .update(cx, |_, window, cx| {
-            view.update(cx, |s, cx| s.set_page(page, cx));
+            if let Some(page) = page {
+                view.update(cx, |s, cx| s.set_page(page, cx));
+            }
             if foreground {
                 window.activate_window();
             }

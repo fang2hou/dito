@@ -12,7 +12,7 @@ use crate::settings::Ctx;
 use crate::theme::Palette;
 use crate::ui::{self, BtnKind, cbk, text};
 
-/// `design:tools/readiness` measurements.
+/// `design:tools/transcripts` measurements.
 const GATE_W: f32 = 620.;
 const ROW_H: f32 = 92.;
 
