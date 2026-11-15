@@ -1,6 +1,7 @@
 //! UI copy, compiled from [`messages.toml`](./i18n/messages.toml) by `build.rs`:
 //! - Each dotted key becomes a `Tr` variant (`nav.settings` -> `Tr::NavSettings`) embedded at compile time.
-//! - Every entry requires non-empty `ja`, `en`, and `zh` strings; missing languages or placeholder drift fail the build.
+//! - Every entry requires non-empty strings for all `Lang::ALL` locales; missing languages or placeholder drift fail
+//!   the build.
 //! - Parameterized templates live under `fmt.` (`{name}` placeholders, literal braces doubled as `{{` / `}}`) and get
 //!   generated functions under [`fmt`]; plain entries render braces verbatim and reject bare placeholders.
 

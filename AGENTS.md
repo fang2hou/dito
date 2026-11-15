@@ -81,7 +81,7 @@ Ask first:
 | Conversation                            | Follows the user (Simplified Chinese for the owner) |
 | Code, comments, commits                 | English                                             |
 | Repo docs and design-file documentation | English                                             |
-| UI language                             | Japanese by default; English and 简体中文 selectable    |
+| UI language                             | Japanese by default; English, 简体中文, 繁體中文, 한국어, Монгол, and Français selectable |
 | Tone                                    | Plain, short, natural                               |
 
 Do not infer UI language from conversation language.

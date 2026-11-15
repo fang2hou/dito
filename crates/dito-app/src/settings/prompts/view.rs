@@ -11,7 +11,7 @@ impl PromptsPage {
     pub(super) fn view(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let c = Ctx::new(&self.st, cx);
         let p = c.p;
-        let langs = [Lang::Ja, Lang::En, Lang::Zh];
+        let langs = Lang::PROMPT_LANGUAGES;
         let language = ui::seg(
             "prompt-lang",
             &p,

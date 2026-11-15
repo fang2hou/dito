@@ -199,15 +199,13 @@ impl GeneralPage {
 
     fn display_language_select(&self, c: &Ctx, cx: &mut Context<Self>) -> Div {
         let st = self.st.clone();
+        let mut options = Vec::with_capacity(1 + Lang::ALL.len());
+        options.push(c.t(Tr::GeneralFollowSystem));
+        options.extend(Lang::ALL.into_iter().map(|l| SharedString::from(l.native_name())));
         ui::select(
             "ui-lang",
             &c.p,
-            &[
-                c.t(Tr::GeneralFollowSystem),
-                SharedString::from(Lang::Ja.native_name()),
-                SharedString::from(Lang::En.native_name()),
-                SharedString::from(Lang::Zh.native_name()),
-            ],
+            &options,
             DisplayLanguage::ALL.iter().position(|l| *l == self.st.cfg.get().general.display_language).unwrap_or(0),
             self.open == Some("ui-lang"),
             Some(240.),

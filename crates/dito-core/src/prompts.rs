@@ -97,10 +97,10 @@ struct DefaultPrompt {
 
 impl BuiltinAppRules {
     fn default_prompt(&self, lang: Lang) -> AppRules {
-        let text = match lang {
+        let text = match lang.prompt_language() {
             Lang::Ja => &self.ja,
-            Lang::En => &self.en,
             Lang::Zh => &self.zh,
+            _ => &self.en,
         };
         AppRules {
             instruction: text.instruction.into(),
@@ -299,18 +299,18 @@ impl Default for Prompts {
 
 impl Prompts {
     pub fn set(&self, lang: Lang) -> &PromptSet {
-        match lang {
+        match lang.prompt_language() {
             Lang::Ja => &self.ja,
-            Lang::En => &self.en,
             Lang::Zh => &self.zh,
+            _ => &self.en,
         }
     }
 
     pub fn set_mut(&mut self, lang: Lang) -> &mut PromptSet {
-        match lang {
+        match lang.prompt_language() {
             Lang::Ja => &mut self.ja,
-            Lang::En => &mut self.en,
             Lang::Zh => &mut self.zh,
+            _ => &mut self.en,
         }
     }
 
@@ -338,7 +338,7 @@ impl Prompts {
         {
             return false;
         }
-        for lang in Lang::ALL {
+        for lang in Lang::PROMPT_LANGUAGES {
             let copy = self.set(lang).app_rules(source).clone();
             self.set_mut(lang).application_defaults.insert(bundle_id.to_owned(), copy.clone());
             self.set_mut(lang).applications.insert(bundle_id.to_owned(), copy);
@@ -351,7 +351,7 @@ impl Prompts {
     /// from now on.
     pub fn remove_application(&mut self, bundle_id: &str) -> bool {
         let removed = self.applications.remove(bundle_id).is_some();
-        for lang in Lang::ALL {
+        for lang in Lang::PROMPT_LANGUAGES {
             self.set_mut(lang).applications.remove(bundle_id);
             self.set_mut(lang).application_defaults.remove(bundle_id);
         }
@@ -400,7 +400,7 @@ pub fn default_set(lang: Lang) -> PromptSet {
         instruction: instruction.into(),
         samples: samples.iter().map(|s| s.to_string()).collect(),
     };
-    match lang {
+    match lang.prompt_language() {
         Lang::Ja => PromptSet {
             base: "「えーと」「あの」「その」などの言いよどみを取り除く。\n句読点は「、」「。」を使う。\n複数の要点、手順、項目が含まれるときは、必ず箇条書きにして、一項目ごとに改行する。順序や手順があるものは「1.」「2.」「3.」の番号で、並列のものは「•」で書き始める。\n要点が一つだけのときや短い一言のときは、箇条書きにせず普通の文のままにする。".into(),
             general: sp(
@@ -411,7 +411,14 @@ pub fn default_set(lang: Lang) -> PromptSet {
             applications: BTreeMap::new(),
             application_defaults: BTreeMap::new(),
         },
-        Lang::En => PromptSet {
+        Lang::Zh => PromptSet {
+            base: "去掉“嗯”“呃”“那个”“就是说”等口头禅。\n使用中文全角标点。\n说话内容包含多个要点、步骤或事项时，整理成列表，每项单独一行：有先后顺序或步骤的用“1.”“2.”“3.”编号，并列关系的用“•”开头。\n只有一个要点或只是简短的一句话时，保持普通句子，不要硬拆成列表。".into(),
+            general: sp("自然易读，不要过于正式。", &[]),
+            builtins: builtin_defaults(Lang::Zh),
+            applications: BTreeMap::new(),
+            application_defaults: BTreeMap::new(),
+        },
+        _ => PromptSet {
             base: "Remove fillers such as \"um\", \"uh\" and \"you know\".\n\
                    Use standard punctuation and capitalization.\n\
                    When the transcript contains two or more points, steps or items, always break them into a list \
@@ -422,13 +429,6 @@ pub fn default_set(lang: Lang) -> PromptSet {
                 .into(),
             general: sp("Keep it natural and readable, not overly formal.", &[]),
             builtins: builtin_defaults(Lang::En),
-            applications: BTreeMap::new(),
-            application_defaults: BTreeMap::new(),
-        },
-        Lang::Zh => PromptSet {
-            base: "去掉“嗯”“呃”“那个”“就是说”等口头禅。\n使用中文全角标点。\n说话内容包含多个要点、步骤或事项时，整理成列表，每项单独一行：有先后顺序或步骤的用“1.”“2.”“3.”编号，并列关系的用“•”开头。\n只有一个要点或只是简短的一句话时，保持普通句子，不要硬拆成列表。".into(),
-            general: sp("自然易读，不要过于正式。", &[]),
-            builtins: builtin_defaults(Lang::Zh),
             applications: BTreeMap::new(),
             application_defaults: BTreeMap::new(),
         },

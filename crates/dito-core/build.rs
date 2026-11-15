@@ -10,13 +10,14 @@ use std::path::PathBuf;
 #[path = "src/i18n/template.rs"]
 mod template;
 
-const LANGS: [(&str, &str); 3] = [("ja", "Ja"), ("en", "En"), ("zh", "Zh")];
+const LANGS: [(&str, &str); 7] =
+    [("ja", "Ja"), ("en", "En"), ("zh", "Zh"), ("zh_hant", "ZhHant"), ("ko", "Ko"), ("mn", "Mn"), ("fr", "Fr")];
 
 const PARAMETERIZED: &str = "fmt.";
 
 struct Msg {
     id: String,
-    texts: [String; 3],
+    texts: [String; 7],
 }
 
 fn main() {
@@ -79,8 +80,8 @@ fn write_tr_impl(code: &mut String, variants: &[String]) {
     let _ = writeln!(code, "    pub fn text(self, lang: crate::i18n::Lang) -> &'static str {{");
     let _ = writeln!(code, "        let i = self as usize;");
     let _ = writeln!(code, "        match lang {{");
-    for (l, v) in LANGS {
-        let up = l.to_ascii_uppercase();
+    for (_l, v) in LANGS {
+        let up = v.to_ascii_uppercase();
         let _ = writeln!(code, "            crate::i18n::Lang::{v} => {up}[i],");
     }
     let _ = writeln!(code, "        }}");
@@ -166,7 +167,7 @@ fn parse_message(id: String, table: &toml::Table) -> Msg {
         assert!(!s.trim().is_empty(), "{id}: empty {l} value");
         texts.push(s.to_string());
     }
-    let texts: [String; 3] = texts.try_into().expect("one text per language");
+    let texts: [String; 7] = texts.try_into().expect("one text per language");
     if id.starts_with(PARAMETERIZED) {
         assert_same_placeholders(&id, &texts);
     } else {
@@ -179,7 +180,7 @@ fn parse_message(id: String, table: &toml::Table) -> Msg {
     Msg { id, texts }
 }
 
-fn assert_same_placeholders(id: &str, texts: &[String; 3]) {
+fn assert_same_placeholders(id: &str, texts: &[String; 7]) {
     let sets: Vec<Vec<String>> = texts.iter().zip(LANGS).map(|(t, (l, _))| placeholders(id, l, t)).collect();
     let mut reference = sets[0].clone();
     reference.sort();

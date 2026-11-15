@@ -256,7 +256,7 @@ fn copied_row(lang: Lang, scale: Scale, motion: Motion, w: f32, height: f32, out
             move |bounds, _, window, cx| {
                 let run = TextRun {
                     len: value.len(),
-                    font: font(if ui::is_cjk(&value) { ui::cjk_family() } else { "Outfit" }),
+                    font: font(ui::family_for(&value)),
                     color: hex("#FFF9EB").opacity(alpha),
                     background_color: None,
                     underline: None,

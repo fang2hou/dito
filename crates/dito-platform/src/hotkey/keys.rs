@@ -197,6 +197,7 @@ impl Modifier {
     pub(super) fn label(self, lang: Lang) -> String {
         let spec = self.spec();
         match spec.key {
+            Some((group, side)) if lang == Lang::Fr => format!("{} {}", group.symbol(), lang.tr(side.tr())),
             Some((group, side)) => format!("{} {}", lang.tr(side.tr()), group.symbol()),
             None => spec.id.to_string(),
         }

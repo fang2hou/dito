@@ -196,7 +196,10 @@ pub(super) fn translate_default(lang: Lang) -> String {
     let name = match lang {
         Lang::Ja => "Japanese",
         Lang::En => "English",
-        Lang::Zh => "Chinese",
+        Lang::Zh | Lang::ZhHant => "Chinese",
+        Lang::Ko => "Korean",
+        Lang::Mn => "Mongolian",
+        Lang::Fr => "French",
     };
     format!(
         "When the instruction names none, translate into {name} (the language type the user spoke the instruction in)."
