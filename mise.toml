@@ -34,6 +34,10 @@ run = ["scripts/quit.sh", "open target/bundle/Dito.app"]
 description = "Build the release bundle and install it to ~/Applications, creating the signing identity if needed"
 run = "scripts/install.sh"
 
+[tasks."release:dmg"]
+description = "Build the release bundle and pack it into a distributable DMG in target/dist"
+run = "scripts/dmg.sh"
+
 [tasks.check]
 description = "Format check and fast tests"
 run = "scripts/check.sh fast"

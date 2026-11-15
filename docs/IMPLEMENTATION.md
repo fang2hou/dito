@@ -39,7 +39,7 @@ Extra arguments reach the app: `mise run dev:mock -- --data-dir <empty dir>`.
 
 Cargo features of `dito-app`: `runtimes` (on-device inference, the only default; needs cmake and the Metal toolchain), `mock` (the in-process mock cloud behind `--mock`, so release bundles do not link the test server) and `screenshots` (`--screenshots`). A flag whose feature is not compiled in fails with a usage error.
 
-`mise run release` builds with `scripts/bundle.sh` (release profile with thin LTO and one codegen unit). `mise run release:install` runs `scripts/certs.sh` first (idempotent; the first run shows one macOS authorization prompt), refuses to install an ad-hoc signed build, quits any running Dito, replaces `~/Applications/Dito.app`, verifies the signature and opens the app.
+`mise run release` builds with `scripts/bundle.sh` (release profile with thin LTO and one codegen unit). `mise run release:install` runs `scripts/certs.sh` first (idempotent; the first run shows one macOS authorization prompt), refuses to install an ad-hoc signed build, quits any running Dito, replaces `~/Applications/Dito.app`, verifies the signature and opens the app. `mise run release:dmg` additionally packs the bundle and an `/Applications` symlink into `target/dist/Dito-v<version>-macos-<arch>.dmg` for distribution outside the App Store; it signs ad-hoc by default (set `CODESIGN_IDENTITY` to a Developer ID certificate to change that), so recipients clear Gatekeeper once via System Settings, Privacy & Security, Open Anyway.
 
 The Python benchmark harness has its own tasks: `mise run bench:sync`, `bench:test`, `bench:lint`, `bench:format`, and `mise run bench <args>` for `dito-bench` (see `bench/README.md`).
 
