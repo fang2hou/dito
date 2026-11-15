@@ -110,6 +110,8 @@ impl CopyRun {
 #[derive(Clone)]
 struct Look {
     id: ElementId,
+    /// The resting face: a button stands on its own surface, never on whatever is behind it.
+    surface: Hsla,
     primary: Hsla,
     on_primary: Hsla,
     text: Hsla,
@@ -122,7 +124,7 @@ impl Look {
     /// The circle's face is one shape: its border, fill and halo are drawn together, so the confirmation keeps the
     /// edge of the resting button instead of stacking a second circle over it.
     fn draw(&self, frame: CopyFrame) -> Div {
-        let Self { primary, on_primary, text, border, hover, glyph, .. } = *self;
+        let Self { surface, primary, on_primary, text, border, hover, glyph, .. } = *self;
         let fade = |color: Hsla, v: f32| Hsla { a: color.a * v, ..color };
         let mut face = div()
             .absolute()
@@ -132,10 +134,8 @@ impl Look {
             .justify_center()
             .rounded_full()
             .border_1()
-            .border_color(mix_rgb(border, primary, frame.invert));
-        if frame.invert > 0. {
-            face = face.bg(fade(primary, frame.invert));
-        }
+            .border_color(mix_rgb(border, primary, frame.invert))
+            .bg(mix_rgb(surface, primary, frame.invert));
         if frame.halo > 0. {
             let glow = |opacity: f32, blur: f32, spread: f32| BoxShadow {
                 color: fade(primary, opacity * frame.halo),
@@ -176,6 +176,7 @@ pub fn copy_button_with(id: impl Into<ElementId>, p: &Palette, size: CircleSize,
     let motion = Motion::system();
     let look = Look {
         id: id.clone(),
+        surface: p.input_bg,
         primary: p.primary,
         on_primary: p.on_primary,
         text: p.text,

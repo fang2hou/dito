@@ -567,7 +567,7 @@ impl WordbookPage {
         let delete = ElementId::from("wordbook-delete-selected");
         let (exit_button, delete_button) = if !selecting {
             let appearance = || ui::CircleAppearance {
-                background: None,
+                background: Some(p.input_bg),
                 foreground: p.text,
                 border: Some(p.border_strong),
                 hover: Some(p.seg),

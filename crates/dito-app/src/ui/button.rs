@@ -169,7 +169,12 @@ pub fn disabled_icon_button_with(id: impl Into<ElementId>, p: &Palette, ic: Ic, 
         id,
         ic,
         size,
-        CircleAppearance { background: None, foreground: p.text, border: Some(p.border_strong), hover: None },
+        CircleAppearance {
+            background: Some(p.input_bg),
+            foreground: p.text,
+            border: Some(p.border_strong),
+            hover: None,
+        },
     )
     .opacity(DISABLED_OPACITY)
 }
@@ -208,7 +213,8 @@ pub fn icon_button_with(
         ic,
         size,
         CircleAppearance {
-            background: active.then_some(p.seg),
+            // A button stands on its own surface, never showing the card or canvas behind it.
+            background: Some(if active { p.seg } else { p.input_bg }),
             foreground: p.text,
             border: Some(p.border_strong),
             hover: Some(p.seg),

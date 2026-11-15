@@ -37,9 +37,10 @@ const LANE_BELOW: f32 = 61.;
 const CONTROL_H: f32 = 36.;
 /// The controls keep this gap at every size, and the title field ends this far before them.
 const CONTROL_GAP: f32 = 8.;
-/// Pause and stop carry 16 pt glyphs; the source circles keep their 20 pt contract glyph.
-const CONTROL_GLYPH: f32 = 16.;
-const SOURCE_GLYPH: f32 = 20.;
+/// Every circle carries the 20 pt glyph of the 36 pt Icon Button contract; the labelled confirm pill takes the
+/// Regular Button's 16 pt icon.
+const CIRCLE_GLYPH: f32 = 20.;
+const PILL_GLYPH: f32 = 16.;
 /// The identity and the controls sit this far inside the panel's border, left and right.
 const ROW_INSET: f32 = 16.;
 const SHELL_BORDER: f32 = 2.;
@@ -142,7 +143,7 @@ impl Widths {
             preparing: 2. * STATUS_PAD + label(Tr::TranscriptionStarting) + SHELL_BORDER,
             finishing: 2. * STATUS_PAD + label(Tr::TranscriptionFinishing) + SHELL_BORDER,
             // The Danger button's 16 pt sides around the square, its 8 pt gap and the label.
-            confirm: 2. * 16. + CONTROL_GLYPH + 8. + label(Tr::TranscriptionStopConfirm),
+            confirm: 2. * 16. + PILL_GLYPH + 8. + label(Tr::TranscriptionStopConfirm),
             clock,
         }
     }
@@ -801,7 +802,7 @@ fn fold_pill(page: &TranscriptionPage, c: &Ctx, row: &Row, w: f32, start_w: f32,
     let pill_h = lerp(CAPSULE_H, CONTROL_H, f);
     let center_x = lerp(w / 2., row.centers[STOP], e);
     let center_y = row.top + CONTROL_H / 2.;
-    let glyph_top = (pill_h - CONTROL_GLYPH) / 2.;
+    let glyph_top = (pill_h - CIRCLE_GLYPH) / 2.;
     let plus_left = lerp(START_LEAD, (pill_w - START_ICON) / 2., f);
     div()
         .absolute()
@@ -840,9 +841,9 @@ fn fold_pill(page: &TranscriptionPage, c: &Ctx, row: &Row, w: f32, start_w: f32,
             START_ICON,
             p.on_primary,
         )))
-        .child(div().absolute().top(px(glyph_top)).left(px((pill_w - CONTROL_GLYPH) / 2.)).opacity(f).child(ui::icon(
+        .child(div().absolute().top(px(glyph_top)).left(px((pill_w - CIRCLE_GLYPH) / 2.)).opacity(f).child(ui::icon(
             Ic::Stop,
-            CONTROL_GLYPH,
+            CIRCLE_GLYPH,
             p.button_danger_text,
         )))
 }
@@ -940,24 +941,24 @@ fn ghost_look(p: &Palette, index: usize, sources: Sources) -> GhostLook {
     match index {
         AUDIO => {
             let (background, glyph, ink) = source_look(p, Source::System, sources.system);
-            GhostLook { background, border: p.border_strong, glyph, glyph_size: SOURCE_GLYPH, ink }
+            GhostLook { background, border: p.border_strong, glyph, glyph_size: CIRCLE_GLYPH, ink }
         }
         MIC => {
             let (background, glyph, ink) = source_look(p, Source::Mic, sources.microphone);
-            GhostLook { background, border: p.border_strong, glyph, glyph_size: SOURCE_GLYPH, ink }
+            GhostLook { background, border: p.border_strong, glyph, glyph_size: CIRCLE_GLYPH, ink }
         }
         PAUSE => GhostLook {
             background: p.input_bg,
             border: p.border_strong,
             glyph: Ic::Pause,
-            glyph_size: CONTROL_GLYPH,
+            glyph_size: CIRCLE_GLYPH,
             ink: p.text,
         },
         _ => GhostLook {
             background: p.button_danger_bg,
             border: p.button_danger_border,
             glyph: Ic::Stop,
-            glyph_size: CONTROL_GLYPH,
+            glyph_size: CIRCLE_GLYPH,
             ink: p.button_danger_text,
         },
     }
@@ -1106,14 +1107,15 @@ fn stop_control(
     if let Some(k) = band {
         pill = pill.child(band_layer(p, width, k));
     }
-    let glyph_top = (CONTROL_H - CONTROL_GLYPH) / 2. - 1.;
+    // The square eases from the circle's 20 pt glyph to the pill's 16 pt icon as the width opens.
+    let glyph = lerp(CIRCLE_GLYPH, PILL_GLYPH, arm);
     pill = pill
         .child(
             div()
                 .absolute()
-                .top(px(glyph_top))
-                .left(px(lerp((CONTROL_H - CONTROL_GLYPH) / 2., 16., arm) - 1.))
-                .child(ui::icon(Ic::Stop, CONTROL_GLYPH, p.button_danger_text)),
+                .top(px((CONTROL_H - glyph) / 2. - 1.))
+                .left(px(lerp((CONTROL_H - CIRCLE_GLYPH) / 2., 16., arm) - 1.))
+                .child(ui::icon(Ic::Stop, glyph, p.button_danger_text)),
         )
         .when(arm > 0.01, |pill| {
             // The label sits where the pill will put it and is revealed by the width, so it never rewraps.
@@ -1122,7 +1124,7 @@ fn stop_control(
                     .absolute()
                     .top_0()
                     .bottom_0()
-                    .left(px(16. + CONTROL_GLYPH + 8. - 1.))
+                    .left(px(16. + PILL_GLYPH + 8. - 1.))
                     .right_0()
                     .overflow_hidden()
                     .flex()
@@ -1210,7 +1212,7 @@ fn pause_control(c: &Ctx, cx: &mut Context<TranscriptionPage>, paused: bool, tip
             id.clone(),
             if paused { Ic::Play } else { Ic::Pause },
             CircleSize::Regular,
-            CONTROL_GLYPH,
+            CIRCLE_GLYPH,
             CircleAppearance {
                 background: Some(p.input_bg),
                 foreground: p.text,
@@ -1304,7 +1306,7 @@ fn source_toggle(
         id.clone(),
         glyph,
         CircleSize::Regular,
-        SOURCE_GLYPH,
+        CIRCLE_GLYPH,
         CircleAppearance {
             background: Some(background),
             foreground: ink,

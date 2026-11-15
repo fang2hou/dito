@@ -176,6 +176,11 @@ layer = "Tools Window Overview"
 board = "23.01"
 layer = "Transcripts"
 
+[tools.settings]
+board = "23.01"
+item = "23.01.6"
+layer = ""
+
 [tools.recording]
 board = "23.02"
 layer = "Recording"
