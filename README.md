@@ -37,10 +37,16 @@ Work in this repository. Read AGENTS.md at the repository root first and follow 
 
 Recordings stop after 5 minutes and are still processed.
 
-**From source**: needs macOS, [mise](https://mise.jdx.dev/), Xcode with its Metal Toolchain and cmake. Tool versions are pinned in `mise.toml`.
+**From source**: build and install Dito from the checkout:
 
 ```bash
-mise install
+bash scripts/install-local.sh
+```
+
+See [INSTALL.md](INSTALL.md) for first-time setup. For a development run with mock data using [mise](https://mise.jdx.dev/):
+
+```bash
+mise install rust
 mise run dev:mock
 ```
 

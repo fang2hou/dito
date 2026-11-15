@@ -47,8 +47,6 @@ jobs:
         uses: jdx/mise-action@v5
         with:
           install_args: rust
-      - name: Install the Metal toolchain
-        run: mise run setup:macos
       - name: Build the app bundle
         run: mise run bundle
       - name: Archive the app bundle

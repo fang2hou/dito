@@ -6,15 +6,15 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 if [[ -z ${DEVELOPER_DIR:-} ]]; then
-  selected_xcode="$(xcode-select -p 2>/dev/null || true)"
-  if [[ -x "$selected_xcode/usr/bin/xcodebuild" ]]; then
-    DEVELOPER_DIR="$selected_xcode"
-  else
-    DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+  DEVELOPER_DIR="$(xcode-select -p 2>/dev/null || true)"
+  full_xcode=/Applications/Xcode.app/Contents/Developer
+  if [[ ! -x "$DEVELOPER_DIR/usr/bin/actool" && -x "$full_xcode/usr/bin/actool" ]]; then
+    DEVELOPER_DIR="$full_xcode"
   fi
 fi
 export DEVELOPER_DIR
 icon=assets/icon/Dito.icon
+actool="$DEVELOPER_DIR/usr/bin/actool"
 ictool="$(dirname "$DEVELOPER_DIR")/Applications/Icon Composer.app/Contents/Executables/ictool"
 
 compile_glass() {
@@ -39,15 +39,18 @@ compile_icon() (
   work="$(mktemp -d)"
   trap 'rm -rf "$work"' EXIT
   mkdir -p "$work/glass" "$out"
-  if compile_glass "$work/glass" "$work/icon.plist" >"$work/actool.log" 2>&1 && [[ -s "$work/glass/Assets.car" ]]; then
+  if [[ -x "$actool" ]] && compile_glass "$work/glass" "$work/icon.plist" >"$work/actool.log" 2>&1 &&
+    [[ -s "$work/glass/Assets.car" ]]; then
     if [[ ! -s "$work/glass/Dito.icns" ]]; then
       compile_flat "$work"
       cp "$work/Dito.icns" "$work/glass/Dito.icns"
     fi
     cp "$work/glass/Assets.car" "$work/glass/Dito.icns" "$out/"
   else
-    echo "warning: the selected Xcode could not compile Dito's layered icon; using a flat icon from assets/icon/AppIcon-1024.png instead (install the latest Xcode for the Liquid Glass icon)" >&2
-    cat "$work/actool.log" >&2
+    echo "Using the flat app icon (the layered icon requires a compatible Xcode)." >&2
+    if [[ -s "$work/actool.log" ]]; then
+      cat "$work/actool.log" >&2
+    fi
     compile_flat "$work"
     cp "$work/Dito.icns" "$out/"
     # a stale Assets.car would bring the layered icon back
@@ -64,7 +67,6 @@ case "${1:-}" in
     # artwork or the selected actool changed (actool takes ~5s; dev-runner.sh calls this on every cargo run).
     out="${2:?usage: icon.sh compile-cached <resources-dir>}"
     cache=target/icon-cache
-    actool="$DEVELOPER_DIR/usr/bin/actool"
     source_sum="$(find "$icon" assets/icon/AppIcon-1024.png -type f -exec shasum {} + | sort | shasum | awk '{print $1}')"
     sum="$source_sum-$(/usr/bin/stat -f '%m%z' "$actool" 2>/dev/null || echo no-actool)"
     if [[ "$(cat "$cache/.stamp" 2>/dev/null)" != "$sum" || ! -e "$cache/Dito.icns" ]]; then

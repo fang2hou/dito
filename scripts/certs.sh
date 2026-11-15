@@ -24,7 +24,12 @@ has_valid() { security find-identity -v -p codesigning "$keychain" | grep -q "\"
 has_pair() { security find-identity "$keychain" | grep -q "\"$identity\""; }
 
 if has_valid; then
-  echo "identity \"$identity\" already present and trusted for code signing"
+  case "${DITO_INSTALL_LANGUAGE:-en}" in
+    ja) printf 'コード署名用の ID「%s」は設定済みで、信頼されています。\n' "$identity" ;;
+    zh) printf '代码签名身份「%s」已存在并受信任。\n' "$identity" ;;
+    ko) printf "코드 서명 ID ‘%s’가 이미 설정되어 있으며 신뢰되고 있습니다.\n" "$identity" ;;
+    *) printf 'identity "%s" already present and trusted for code signing\n' "$identity" ;;
+  esac
   exit 0
 fi
 
