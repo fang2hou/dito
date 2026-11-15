@@ -5,7 +5,7 @@
 //! paragraph and the words still being heard) and every paragraph it closes, and publishes both together: a closed
 //! paragraph is stored before the status update that drops it from [`TranscriptionStatus::live`], and that update
 //! also bumps the revision and counts it in [`TranscriptionStatus::closed`]. The store can run ahead of the status
-//! a view last received, so a view shows only the first `closed` closed paragraphs of the session: each word is then
+//! a view last received, so a view shows only the first `closed` closed paragraphs of the transcript: each word is then
 //! in exactly one place.
 
 use std::collections::VecDeque;
@@ -89,14 +89,20 @@ pub struct TranscriptionStatus {
     /// The paragraph still being heard, per speaker. Never read from the store: stored paragraphs that are still
     /// listening exist only so a crash keeps their words.
     pub live: Vec<LiveText>,
-    /// How many paragraphs of the running session have closed, as of `live`. Paragraphs close in the order they
-    /// started.
+    /// How many paragraphs of the running session's transcript have closed, as of `live`, counting those a resumed
+    /// transcript already held. Paragraphs close in the order they started.
     pub closed: usize,
 }
 
 enum Cmd {
-    Start { sources: Sources },
-    SetSources { sources: Sources },
+    /// `resume` names a finished transcript the session appends to instead of starting a new one.
+    Start {
+        sources: Sources,
+        resume: Option<i64>,
+    },
+    SetSources {
+        sources: Sources,
+    },
     TogglePause,
     Stop,
 }
@@ -110,7 +116,13 @@ pub struct TranscriptionHandle {
 impl TranscriptionHandle {
     /// Ignored unless idle.
     pub fn start(&self, sources: Sources) {
-        let _ = self.tx.send(Cmd::Start { sources });
+        let _ = self.tx.send(Cmd::Start { sources, resume: None });
+    }
+
+    /// Records another session into the finished transcript `id`: its paragraphs follow the earlier ones on the
+    /// meeting's own clock. Ignored unless idle; a transcript that is gone or still recording fails the start.
+    pub fn resume(&self, id: i64, sources: Sources) {
+        let _ = self.tx.send(Cmd::Start { sources, resume: Some(id) });
     }
 
     /// The session finishes the utterances it already heard before it ends.
@@ -162,7 +174,7 @@ async fn actor(deps: Arc<TranscriptionDeps>, mut rx: mpsc::UnboundedReceiver<Cmd
     let mut running: Option<Running> = None;
     while let Some(cmd) = rx.recv().await {
         match cmd {
-            Cmd::Start { sources } => {
+            Cmd::Start { sources, resume } => {
                 if status.borrow().state != SessionState::Idle {
                     continue;
                 }
@@ -174,7 +186,7 @@ async fn actor(deps: Arc<TranscriptionDeps>, mut rx: mpsc::UnboundedReceiver<Cmd
                     s.state = SessionState::Starting;
                     s.error = None;
                 });
-                tokio::spawn(run(deps.clone(), sources, stop, status.clone(), source_rx, paused));
+                tokio::spawn(run(deps.clone(), sources, resume, stop, status.clone(), source_rx, paused));
             }
             Cmd::SetSources { sources } => {
                 if let Some(running) = running.as_ref()
@@ -219,12 +231,13 @@ async fn actor(deps: Arc<TranscriptionDeps>, mut rx: mpsc::UnboundedReceiver<Cmd
 async fn run(
     deps: Arc<TranscriptionDeps>,
     sources: Sources,
+    resume: Option<i64>,
     stop: CancellationToken,
     status: Status,
     source_rx: watch::Receiver<Sources>,
     paused: Arc<AtomicBool>,
 ) {
-    let result = record(&deps, sources, &stop, &status, source_rx, &paused).await;
+    let result = record(&deps, sources, resume, &stop, &status, source_rx, &paused).await;
     if let Err(e) = &result {
         tracing::warn!("transcription failed: {e}");
     }
@@ -318,6 +331,7 @@ fn open_source(
 async fn record(
     deps: &TranscriptionDeps,
     sources: Sources,
+    resume: Option<i64>,
     stop: &CancellationToken,
     status: &Status,
     mut source_rx: watch::Receiver<Sources>,
@@ -359,13 +373,25 @@ async fn record(
     // Kept open until the session stops: the threads alone would close `heard_rx` before the user is done.
     let mut heard = Some(heard_tx);
 
-    let started_ts = now_ts();
-    let id = deps.store.create_transcript(started_ts, sources).map_err(|e| e.to_string())?;
+    let session_ts = now_ts();
+    // A resumed transcript keeps its start, so the new paragraphs are timed from it and land after the old ones.
+    let (id, started_ts, held, earlier) = match resume {
+        Some(id) => {
+            let reopened = deps
+                .store
+                .reopen_transcript(id, sources)
+                .map_err(|e| e.to_string())?
+                .ok_or_else(|| format!("transcript {id} cannot be resumed"))?;
+            (id, reopened.started_ts, reopened.sources, reopened.paragraphs)
+        }
+        None => (deps.store.create_transcript(session_ts, sources).map_err(|e| e.to_string())?, session_ts, sources, 0),
+    };
+    let offset_ms = (session_ts - started_ts).max(0) as u64 * 1000;
     status.send_modify(|s| {
-        s.state = SessionState::Recording { id, started_ts, sources, recorded_ms: 0, segment_start: Some(started_ts) };
+        s.state = SessionState::Recording { id, started_ts, sources, recorded_ms: 0, segment_start: Some(session_ts) };
         s.revision += 1;
         s.live.clear();
-        s.closed = 0;
+        s.closed = earlier;
     });
 
     let (job_tx, job_rx) = mpsc::unbounded_channel::<Job>();
@@ -374,24 +400,25 @@ async fn record(
     let recognizer = tokio::spawn(recognizer.run(job_rx, text_tx));
     let (polish_tx, polish_rx) = mpsc::unbounded_channel::<Closed>();
     // Read per paragraph: the user may turn the second source on or off while the session runs.
-    let labelled = Arc::new(AtomicBool::new(sources.both()));
+    let labelled = Arc::new(AtomicBool::new(held.both()));
     let polish_task =
         tokio::spawn(polish_loop(deps.store.clone(), polisher, terms, labelled.clone(), polish_rx, status.clone()));
     let mut session = Session {
         store: &deps.store,
         id,
+        offset_ms,
         status,
         polish_tx,
         paragraphs: Paragrapher::default(),
         open_id: None,
         hearing: Hearing::default(),
         published: Vec::new(),
-        closed: 0,
+        closed: earlier,
     };
     let mut inputs = Some(opened);
     let mut current = sources;
-    // Every source recorded in the session, kept in the store so the transcript shows what it holds.
-    let mut union = sources;
+    // Every source the transcript holds, kept in the store so it shows what it holds.
+    let mut union = held;
     // `None` once every source has ended: the recognizer then finishes what it has and closes `text_rx`.
     let mut jobs = Some(job_tx);
     let mut sources_open = true;
@@ -514,13 +541,16 @@ async fn record(
     for source in taps {
         let _ = tokio::task::spawn_blocking(move || source.thread.join()).await;
     }
-    deps.store.end_transcript(id, now_ts()).map_err(|e| e.to_string())?;
+    deps.store.end_transcript(id, session_ts, now_ts()).map_err(|e| e.to_string())?;
     Ok(())
 }
 
 struct Session<'a> {
     store: &'a Store,
     id: i64,
+    /// Where this session's clock starts on the transcript's: zero for a new transcript, the time since the meeting
+    /// began for a resumed one. Stored and published times carry it; the session's own bookkeeping does not.
+    offset_ms: u64,
     status: &'a Status,
     polish_tx: mpsc::UnboundedSender<Closed>,
     paragraphs: Paragrapher,
@@ -581,7 +611,10 @@ impl Session<'_> {
 
     /// One status update carries the live text and, when `stored`, the revision that makes views re-read the store.
     fn publish(&mut self, stored: bool) {
-        let live = self.hearing.view(self.paragraphs.open());
+        let mut live = self.hearing.view(self.paragraphs.open());
+        for text in &mut live {
+            text.start_ms += self.offset_ms;
+        }
         if !stored && live == self.published {
             return;
         }
@@ -598,9 +631,10 @@ impl Session<'_> {
 
     /// Writes the paragraph to the open row, or to a new row when none is open.
     fn store_open(&mut self, p: &Paragraph) {
+        let (start_ms, end_ms) = (p.start_ms + self.offset_ms, p.end_ms + self.offset_ms);
         let stored = match self.open_id {
-            Some(id) => self.store.extend_paragraph(id, p.start_ms, p.end_ms, &p.text).map(|()| id),
-            None => self.store.add_paragraph(self.id, p.speaker, p.start_ms, p.end_ms, &p.text),
+            Some(id) => self.store.extend_paragraph(id, start_ms, end_ms, &p.text).map(|()| id),
+            None => self.store.add_paragraph(self.id, p.speaker, start_ms, end_ms, &p.text),
         };
         self.open_id = stored.inspect_err(|e| tracing::warn!("could not store a paragraph: {e}")).ok();
     }
@@ -891,6 +925,40 @@ mod tests {
             assert_eq!(p.raw, "えーと決済の件です");
             assert!(!p.text.contains("えーと"), "polished: {}", p.text);
         }
+    }
+
+    #[tokio::test]
+    async fn a_resumed_session_appends_to_the_same_transcript_on_its_clock() {
+        let store = Arc::new(Store::open_in_memory().unwrap());
+        let started = now_ts() - 600;
+        let id = store.create_transcript(started, Sources::default()).unwrap();
+        let first = store.add_paragraph(id, Speaker::Others, 0, 1_000, "最初の会議です").unwrap();
+        store.finish_paragraph(first, "最初の会議です。", None).unwrap();
+        store.end_transcript(id, started, started + 300).unwrap();
+        let handle = spawn(TranscriptionDeps {
+            audio: ScriptedAudio::new(vec![(AudioSource::Microphone, speech(0.8))]),
+            detectors: Arc::new(EnergyDetectors),
+            engines: Arc::new(FixedEngines::new(
+                Arc::new(MockTranscriber::new("続きの話です")),
+                Arc::new(MockTextModel::default()),
+            )),
+            config: config(),
+            store: store.clone(),
+        });
+
+        handle.resume(id, Sources { system: false, microphone: true });
+        let recording = wait_until(&handle, |s| matches!(s.state, SessionState::Recording { .. })).await;
+        assert_eq!(recording.state.transcript_id(), Some(id), "no new transcript is created");
+        assert_eq!(recording.closed, 1, "the earlier paragraph counts as closed, so a view keeps showing it");
+        let t = record_once(&handle, &store).await;
+        assert_eq!(store.list_transcripts().unwrap().len(), 1);
+        assert_eq!(t.paragraphs[0].id, first);
+        let appended = &t.paragraphs[1..];
+        assert!(!appended.is_empty());
+        assert!(appended.iter().all(|p| p.start_ms >= 590_000), "timed from the meeting's start: {appended:?}");
+        assert_eq!(t.summary.sources, Sources { system: true, microphone: true });
+        assert!(t.summary.ended_ts.is_some());
+        assert!(t.summary.length_ms.is_some_and(|ms| ms < 400_000), "the gap is not counted: {:?}", t.summary);
     }
 
     /// Starts nothing itself: waits for the session the caller started, stops it and returns what it stored.

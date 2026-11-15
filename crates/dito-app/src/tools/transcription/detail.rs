@@ -37,9 +37,10 @@ const TEXTAREA_PAD_X: f32 = 10.;
 const TEXTAREA_PAD_Y: f32 = 8.;
 /// The textarea wraps this far short of its text area (gpui-base's `RIGHT_MARGIN`).
 const EDITOR_WRAP_MARGIN: f32 = 10.;
-/// The meta column and the hover copy button hang from the first text line, which starts `EDITOR_PAD_Y` below the row.
-const META_TOP: f32 = EDITOR_PAD_Y;
-const META_H: f32 = BODY_LINE + EDITOR_PAD_Y;
+/// The time and the speaker share the body's line box and sit on the first text line's baseline, which is
+/// `EDITOR_PAD_Y` below the row; the hover copy button centers on that line.
+const TIME_SIZE: f32 = 12.;
+const SPEAKER_SIZE: f32 = 13.;
 const ACTION_TOP: f32 = (2. * EDITOR_PAD_Y + BODY_LINE - ACTION_COL) / 2.;
 const ACTION_H: f32 = ACTION_COL + ACTION_TOP;
 
@@ -79,7 +80,12 @@ pub(super) fn view(
                     )))
                 })
                 .when(meta > 0., |d| {
-                    d.child(meta_strip(open, c).absolute().top(px(2. * SECTION_GAP + HEADER_H)).opacity(meta))
+                    d.child(
+                        meta_strip(open, c, page.status.state.elapsed_ms())
+                            .absolute()
+                            .top(px(2. * SECTION_GAP + HEADER_H))
+                            .opacity(meta),
+                    )
                 }),
         )
         .child(
@@ -168,12 +174,14 @@ fn back_to_list(c: &Ctx, cx: &mut Context<TranscriptionPage>) -> Stateful<Div> {
 }
 
 /// The finished transcript's one strip of facts: when it was, how long it ran, how much it holds.
-fn meta_strip(open: &OpenTranscript, c: &Ctx) -> Div {
+fn meta_strip(open: &OpenTranscript, c: &Ctx, session_ms: u64) -> Div {
     let p = &c.p;
     let count = fmt::transcription_count(c.lang, &open.paragraphs.len().to_string());
-    let length = match open.summary.ended_ts {
-        Some(end) => clock((end - open.summary.started_ts).max(0) as u64 * 1000),
-        None => clock((crate::timefmt::now() - open.summary.started_ts).max(0) as u64 * 1000),
+    let length = match (open.summary.ended_ts, open.summary.length_ms) {
+        (Some(_), Some(length)) => clock(length),
+        (Some(end), None) => clock((end - open.summary.started_ts).max(0) as u64 * 1000),
+        // While it records, the earlier sessions' length plus the one running now.
+        (None, earlier) => clock(earlier.unwrap_or(0) + session_ms),
     };
     div()
         .w_full()
@@ -284,7 +292,7 @@ fn paragraph_card(
         .child(ui::overlay_thumb("transcript-detail-thumb", p, ui::is_hovered(&area), extent, 0.))
 }
 
-/// Show the speaker when the session recorded both sides.
+/// Every row names its speaker: with one source it is that source's speaker throughout.
 fn paragraph_row(
     c: &Ctx,
     v: &ParagraphView,
@@ -302,26 +310,33 @@ fn paragraph_row(
     let paragraph_id = v.data.id;
     let hovered = ui::is_hovered(&key) || ui::is_hovered(&copy_id);
     let at = hhmm(summary.started_ts + v.data.start_ms as i64 / 1000, dito_platform::local_utc_offset_secs());
-    let mut meta = div()
+    let speaker = c.t(speaker_label(v.data.speaker));
+    // Each piece moves down by how much higher its own baseline sits in the line box than the body's does.
+    let baseline = EDITOR_PAD_Y + ui::baseline_in_line(&speaker, BODY_SIZE, FontWeight::NORMAL, BODY_LINE);
+    let drop = |s: &str, size: f32, weight: FontWeight| baseline - ui::baseline_in_line(s, size, weight, BODY_LINE);
+    let (dot, ink) = if v.data.speaker == Speaker::Me { (p.primary, p.accent_text) } else { (p.muted, p.text) };
+    let meta = div()
         .w(px(META_COL))
         .flex_none()
-        .h(px(META_H))
-        .pt(px(META_TOP))
         .flex()
-        .items_center()
+        .items_start()
         .gap(px(10.))
-        .child(div().w(px(TIME_COL)).flex_none().child(text(at, 12., FontWeight::NORMAL, p.muted)));
-    if summary.sources.both() {
-        let (dot, ink) = if v.data.speaker == Speaker::Me { (p.primary, p.accent_text) } else { (p.muted, p.text) };
-        meta = meta.child(
-            div().flex().items_center().gap(px(6.)).child(div().size(px(6.)).rounded_full().bg(dot)).child(text(
-                c.t(speaker_label(v.data.speaker)),
-                13.,
-                FontWeight::SEMIBOLD,
-                ink,
-            )),
+        .child(
+            div()
+                .w(px(TIME_COL))
+                .flex_none()
+                .mt(px(drop(&at, TIME_SIZE, FontWeight::NORMAL)))
+                .child(text(at.clone(), TIME_SIZE, FontWeight::NORMAL, p.muted).line_height(px(BODY_LINE))),
+        )
+        .child(
+            div()
+                .mt(px(drop(&speaker, SPEAKER_SIZE, FontWeight::SEMIBOLD)))
+                .flex()
+                .items_center()
+                .gap(px(6.))
+                .child(div().size(px(6.)).rounded_full().bg(dot))
+                .child(text(speaker, SPEAKER_SIZE, FontWeight::SEMIBOLD, ink).line_height(px(BODY_LINE))),
         );
-    }
     let body = match &v.editor {
         Some(editor) => {
             let mut column = div().flex().flex_col().gap(px(5.)).child(paragraph_editor(p, editor, window, cx));

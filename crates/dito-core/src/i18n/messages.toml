@@ -575,6 +575,7 @@ prompts.remove_confirm = { ja = "削除する", en = "Delete", zh = "删除" }
 
 transcription.start = { ja = "新しい会議", en = "New meeting", zh = "新会议" }
 transcription.stop = { ja = "停止", en = "Stop", zh = "停止" }
+transcription.continue = { ja = "録音を再開", en = "Continue recording", zh = "继续录音" }
 transcription.starting = { ja = "準備中", en = "Getting ready", zh = "正在准备" }
 transcription.finishing = { ja = "整形中", en = "Polishing", zh = "正在润色" }
 transcription.recording = { ja = "録音中", en = "Recording", zh = "正在录音" }

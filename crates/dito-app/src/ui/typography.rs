@@ -64,6 +64,19 @@ pub fn text_width(s: &str, size: f32, weight: FontWeight) -> f32 {
     })
 }
 
+/// How far below the top of a `line_height` box the renderer puts the baseline of `s`. Boxes centered on each other
+/// do not line up text in different faces or sizes; offsetting each by the difference of these does.
+pub fn baseline_in_line(s: &str, size: f32, weight: FontWeight, line_height: f32) -> f32 {
+    TEXT_SYSTEM.with(|t| match t.borrow().as_ref() {
+        Some(ts) => {
+            let mut f = font(family_for(s));
+            f.weight = weight;
+            f32::from(ts.baseline_offset(ts.resolve_font(&f), px(size), px(line_height)))
+        }
+        None => (line_height - size) / 2. + size * 0.8,
+    })
+}
+
 /// For windows that fit their text, where the height follows the line count.
 pub fn text_lines(s: &str, family: impl Into<SharedString>, size: f32, weight: FontWeight, width: f32) -> usize {
     TEXT_SYSTEM.with(|t| match t.borrow().as_ref() {

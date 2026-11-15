@@ -15,10 +15,10 @@ use crate::ui::{self, CircleAppearance, CircleSize, InputEvent, TextareaState, c
 /// Turning automatic titles off clips and fades the prompt area while the dialog resizes (`design:tools/settings`).
 const PROMPT_MS: u64 = 180;
 /// Taller than the prompt area ever is, so the clip only bites while it closes.
-const PROMPT_MAX_H: f32 = 260.;
+const PROMPT_MAX_H: f32 = 340.;
 const CONTENT_GAP: f32 = 16.;
-/// The prompt editor shows three lines at least, like the design, and grows to six before it scrolls.
-const PROMPT_ROWS: (usize, usize) = (3, 6);
+/// The prompt editor starts at five lines and grows to eight before it scrolls (`design:tools/settings`).
+const PROMPT_ROWS: (usize, usize) = (5, 8);
 
 pub(super) struct ModuleSettings {
     pub(super) open: bool,

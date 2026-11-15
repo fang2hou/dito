@@ -116,6 +116,8 @@ pub struct TranscriptionPage {
     /// Held while a session runs: the window is usually behind the meeting app then, and a napped app would
     /// draw the live lanes and the dock at a crawl.
     nap: Option<dito_platform::system::NapGuard>,
+    /// The clock as the session stopped, held while it finishes.
+    last_elapsed_ms: u64,
     /// Esc folds the armed stop pill back, from anywhere in the window.
     _escape: Subscription,
     /// Lets the screenshot harness pose the tool past the readiness gate on any machine.
@@ -215,6 +217,7 @@ impl TranscriptionPage {
             dock: dock::DockAnim::new(),
             dock_width: Rc::new(Cell::new(None)),
             dock_lanes: None,
+            last_elapsed_ms: 0,
             _escape: escape,
             nap: None,
             #[cfg(feature = "screenshots")]
@@ -343,6 +346,9 @@ impl TranscriptionPage {
 
     fn on_status(&mut self, status: TranscriptionStatus, window: &mut Window, cx: &mut Context<Self>) {
         let (before, after) = (self.status.state.transcript_id(), status.state.transcript_id());
+        if matches!(self.status.state, SessionState::Recording { .. }) {
+            self.last_elapsed_ms = self.status.state.elapsed_ms();
+        }
         let changed = status.revision != self.status.revision;
         self.status = status;
         if matches!(self.status.state, SessionState::Idle) {
@@ -493,6 +499,16 @@ impl TranscriptionPage {
     }
 
     fn start(&mut self, cx: &mut Context<Self>) {
+        self.begin(None, cx);
+    }
+
+    /// Records another session into the open transcript, which the tray offers only while it is resumable.
+    fn resume_open(&mut self, cx: &mut Context<Self>) {
+        let Some(id) = self.open.as_ref().map(|open| open.summary.id) else { return };
+        self.begin(Some(id), cx);
+    }
+
+    fn begin(&mut self, resume: Option<i64>, cx: &mut Context<Self>) {
         self.dismissed = None;
         self.perms = Perms::read();
         if !self.perms.ready() {
@@ -511,7 +527,19 @@ impl TranscriptionPage {
             cx.notify();
             return;
         }
-        self.st.transcription.start(self.st.cfg.get().transcription.sources());
+        let sources = self.st.cfg.get().transcription.sources();
+        match resume {
+            Some(id) => self.st.transcription.resume(id, sources),
+            None => self.st.transcription.start(sources),
+        }
+    }
+
+    /// The open transcript may take another session now: the page is idle on its detail and its last session
+    /// ended within the resume window.
+    fn open_resumable(&self) -> bool {
+        self.view == View::Detail
+            && matches!(self.status.state, SessionState::Idle | SessionState::Starting)
+            && self.open.as_ref().is_some_and(|open| open.summary.resumable(now()))
     }
 
     fn delete_open(&mut self, cx: &mut Context<Self>) {
@@ -567,13 +595,7 @@ impl TranscriptionPage {
     fn session_elapsed_ms(&self) -> Option<u64> {
         match self.status.state {
             SessionState::Recording { .. } => Some(self.status.state.elapsed_ms()),
-            SessionState::Finishing { id } => self
-                .open
-                .as_ref()
-                .filter(|open| open.summary.id == id)
-                .map(|open| open.summary.started_ts)
-                .or_else(|| self.list.iter().find(|row| row.id == id).map(|row| row.started_ts))
-                .map(|started| (now() - started).max(0) as u64 * 1000),
+            SessionState::Finishing { .. } => Some(self.last_elapsed_ms),
             _ => None,
         }
     }

@@ -78,6 +78,11 @@ pub async fn tools_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
         tools_page_shot(cx, dir, &format!("tools-{}.png", theme_tag(appearance))).await;
         on_tools_window(cx, |_, cx, view| view.update(cx, |t, cx| t.pose_transcription_settings(true, cx)));
         tools_page_shot(cx, dir, &format!("tools-settings-{}.png", theme_tag(appearance))).await;
+        for (language, name) in [(DisplayLanguage::En, "en"), (DisplayLanguage::Zh, "zh")] {
+            services::save_config(st, |c| c.general.display_language = language);
+            tools_page_shot(cx, dir, &format!("tools-settings-{name}-{}.png", theme_tag(appearance))).await;
+        }
+        services::save_config(st, |c| c.general.display_language = DisplayLanguage::Ja);
         on_tools_window(cx, |_, cx, view| view.update(cx, |t, cx| t.pose_transcription_settings(false, cx)));
         on_tools_window(cx, |w, cx, view| view.update(cx, |t, cx| t.preview_transcript(w, cx)));
         tools_page_shot(cx, dir, &format!("tools-transcription-{}.png", theme_tag(appearance))).await;

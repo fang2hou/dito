@@ -2,9 +2,17 @@ use serde::{Deserialize, Serialize};
 
 use crate::store::Sources;
 
-/// The default instruction for a generated meeting title: one emoji, so a generated title reads as generated, then
-/// about ten characters. It is shown and edited in the transcription settings, so it is user data, not a prompt rule.
-pub const DEFAULT_TITLE_TEMPLATE: &str = "会議の内容に合う絵文字を1つ選び、半角スペースのあとに10文字前後のタイトルを続けてください。\n例：📋 リリース計画の確認";
+/// The default instruction for a generated meeting title (`design:tools/settings`): one emoji, so a generated title
+/// reads as generated, then a short title in the meeting's own language. It is in English for every interface
+/// language, with an example per language, because the meeting decides the title's language, not the interface. It is
+/// shown and edited in the transcription settings, so it is user data, not a prompt rule.
+pub const DEFAULT_TITLE_TEMPLATE: &str = "Write a short title that captures the main topic.
+Use the main language spoken in the meeting.
+Start with one relevant emoji followed by a space.
+Format examples
+📋 Release plan review
+📋 确认发布计划
+📋 リリース計画の確認";
 
 /// What a transcription session records, and how it names a meeting left untitled. At least one source is on; a file
 /// with both off records the Mac's audio.

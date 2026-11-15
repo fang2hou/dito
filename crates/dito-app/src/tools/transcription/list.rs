@@ -266,8 +266,8 @@ fn row_view(
                 p.danger_text,
             )),
         );
-    } else if let Some(end) = row.ended_ts {
-        head = head.child(badge(&p, clock((end - row.started_ts).max(0) as u64 * 1000)));
+    } else if let Some(length) = row.length_ms.filter(|_| row.ended_ts.is_some()) {
+        head = head.child(badge(&p, clock(length)));
     }
     let mut column = div().flex_1().min_w(px(0.)).flex().flex_col().gap(px(4.)).child(head);
     if !row.preview.is_empty() {

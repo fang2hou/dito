@@ -9,7 +9,7 @@ use crate::prompts::{AppTarget, default_set};
 
 /// Version of the persisted shape that this build reads and writes. Raise it together with appending one function to
 /// `MIGRATIONS`, and never edit or renumber a shipped migration: files in the field have already passed through it.
-pub const SCHEMA_VERSION: u32 = 9;
+pub const SCHEMA_VERSION: u32 = 10;
 
 const VERSION_KEY: &str = "schema_version";
 
@@ -25,7 +25,12 @@ const MIGRATIONS: [fn(&mut Table); SCHEMA_VERSION as usize] = [
     text_model_table,
     tools_shortcut,
     transcription_titles,
+    english_title_template,
 ];
+
+/// The title instruction version 9 shipped as its default, kept here because the migrations that wrote it and
+/// replace it must not change with the current default.
+const JAPANESE_TITLE_TEMPLATE: &str = "会議の内容に合う絵文字を1つ選び、半角スペースのあとに10文字前後のタイトルを続けてください。\n例：📋 リリース計画の確認";
 
 /// Either way the file must stay as it is.
 #[derive(Debug, PartialEq)]
@@ -302,13 +307,37 @@ fn tools_shortcut(table: &mut Table) {
 fn transcription_titles(table: &mut Table) {
     let Some(transcription) = table.get_mut("transcription").and_then(Value::as_table_mut) else { return };
     transcription.entry("auto_title").or_insert(true.into());
-    transcription.entry("title_template").or_insert(super::DEFAULT_TITLE_TEMPLATE.into());
+    transcription.entry("title_template").or_insert(JAPANESE_TITLE_TEMPLATE.into());
+}
+
+/// 9 to 10: the default title instruction becomes the English one that names the meeting in its own language. A file
+/// still holding the old default takes the new one; an instruction the user edited stays as it is.
+fn english_title_template(table: &mut Table) {
+    let Some(transcription) = table.get_mut("transcription").and_then(Value::as_table_mut) else { return };
+    if transcription.get("title_template").and_then(Value::as_str) == Some(JAPANESE_TITLE_TEMPLATE) {
+        transcription.insert("title_template".into(), super::DEFAULT_TITLE_TEMPLATE.into());
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::config::{CloudAsrConfigurations, Config};
+
+    #[test]
+    fn version_nine_moves_only_the_old_default_title_instruction_to_the_english_one() {
+        let template = |value: &str| {
+            let mut table = Table::new();
+            table.insert(VERSION_KEY.into(), 9.into());
+            let mut transcription = Table::new();
+            transcription.insert("title_template".into(), value.into());
+            table.insert("transcription".into(), transcription.into());
+            assert_eq!(upgrade(&mut table), Ok(9));
+            table["transcription"]["title_template"].as_str().unwrap().to_owned()
+        };
+        assert_eq!(template(JAPANESE_TITLE_TEMPLATE), crate::config::DEFAULT_TITLE_TEMPLATE);
+        assert_eq!(template("自分の書き方"), "自分の書き方", "an edited instruction is kept");
+    }
 
     #[test]
     fn version_eight_writes_out_generated_titles_and_keeps_the_sources() {
