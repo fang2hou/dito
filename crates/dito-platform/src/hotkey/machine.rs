@@ -24,6 +24,8 @@ pub enum Action {
     /// The same, from the command shortcut to the dictation shortcut, when the dictation shortcut is the command
     /// shortcut plus modifiers. It ends with [`Action::ShortcutUp`].
     CommandToShortcut,
+    /// The Tools shortcut fired once. It has no up event: it opens a window, it does not hold anything.
+    ToolsPressed,
     /// Another key was pressed right after a lone modifier went down: it was a typing chord, not a press.
     ChordAbort,
     Escape,
@@ -98,9 +100,32 @@ impl Trigger {
     }
 }
 
+/// The Tools shortcut opens a window, so it fires once and holds nothing. A combo fires on its key down; a lone
+/// modifier fires when it is released as a tap.
+#[derive(Debug)]
+struct ToolsTrigger {
+    shortcut: Shortcut,
+    /// A combo key is down: its repeats and its key up are ours too.
+    held: bool,
+    /// A modifier press is still a tap: nothing has been typed during it.
+    armed: bool,
+}
+
+impl ToolsTrigger {
+    fn new(shortcut: Shortcut) -> Self {
+        Self { shortcut, held: false, armed: false }
+    }
+
+    fn release(&mut self) {
+        self.held = false;
+        self.armed = false;
+    }
+}
+
 pub struct Machine {
     main: Trigger,
     command: Option<Trigger>,
+    tools: Option<ToolsTrigger>,
     capturing: bool,
     capture_candidate: Option<(Modifier, Mods)>,
     capture_dirty: bool,
@@ -116,6 +141,7 @@ impl Machine {
         Self {
             main: Trigger::new(shortcut),
             command: None,
+            tools: None,
             capturing: false,
             capture_candidate: None,
             capture_dirty: false,
@@ -129,11 +155,22 @@ impl Machine {
         if let Some(command) = self.command.as_mut().filter(|c| c.shortcut == s) {
             command.release();
         }
+        if let Some(tools) = self.tools.as_mut().filter(|t| t.shortcut == s) {
+            tools.release();
+        }
     }
 
     /// `None` turns the command shortcut off. The same shortcut as the main one is ignored: the main one wins.
     pub fn set_command_shortcut(&mut self, s: Option<Shortcut>) {
         self.command = s.map(Trigger::new);
+        if let Some(tools) = self.tools.as_mut().filter(|t| Some(t.shortcut) == s) {
+            tools.release();
+        }
+    }
+
+    /// `None` turns the Tools shortcut off. It fires on its own, so it never touches the dictation or command press.
+    pub fn set_tools_shortcut(&mut self, s: Option<Shortcut>) {
+        self.tools = s.map(ToolsTrigger::new);
     }
 
     pub fn begin_capture(&mut self) {
@@ -153,6 +190,16 @@ impl Machine {
 
     fn command_is_distinct(&self) -> bool {
         self.command.as_ref().is_some_and(|c| c.shortcut != self.main.shortcut)
+    }
+
+    /// The Tools shortcut is inert while it is the dictation or the command shortcut's key: those win.
+    fn tools_mut(&mut self) -> Option<&mut ToolsTrigger> {
+        let shortcut = self.tools.as_ref()?.shortcut;
+        let taken = shortcut == self.main.shortcut || self.command.as_ref().is_some_and(|c| c.shortcut == shortcut);
+        if taken {
+            return None;
+        }
+        self.tools.as_mut()
     }
 
     fn trigger_mut(&mut self, slot: Slot) -> Option<&mut Trigger> {
@@ -217,6 +264,15 @@ impl Machine {
                         out.actions.push(slot.up());
                     }
                 }
+                // The Tools combo fired on its way down; its key up only stops the repeats.
+                if let Some(t) = self.tools_mut()
+                    && let Shortcut::Combo { key, .. } = t.shortcut
+                    && keycode == key
+                    && t.held
+                {
+                    t.held = false;
+                    out.swallow = true;
+                }
             }
         }
         out
@@ -244,10 +300,33 @@ impl Machine {
                 out.actions.push(slot.up());
             }
         }
+        // A Tools modifier press fires when it ends, and only if nothing was typed meanwhile: it has no down event and
+        // never swallows, so the modifier keeps working as one.
+        let tools_last = |t: &ToolsTrigger| match t.shortcut {
+            Shortcut::Modifier { m, mods } => m.is_down(flags) && held.without(m).contains(mods),
+            Shortcut::Combo { .. } => true,
+        };
+        if let Some(t) = self.tools_mut()
+            && t.armed
+            && !tools_last(t)
+        {
+            t.armed = false;
+            out.actions.push(Action::ToolsPressed);
+        }
         // Only a key press starts a trigger. Lifting Shift from Shift+Right ⌘ while Right ⌘ stays down must not start
         // the plain Right ⌘ shortcut.
         if !Modifier::from_keycode(keycode).is_some_and(|m| m.is_down(flags)) {
             return;
+        }
+        let tools_starts = |t: &ToolsTrigger| match t.shortcut {
+            Shortcut::Modifier { m, mods } => m.is_down(flags) && held.without(m) == mods,
+            Shortcut::Combo { .. } => false,
+        };
+        if let Some(t) = self.tools_mut()
+            && !t.armed
+            && tools_starts(t)
+        {
+            t.armed = true;
         }
         for slot in SLOTS {
             let blocked = self.other_held(slot);
@@ -271,6 +350,10 @@ impl Machine {
     }
 
     fn feed_key_down(&mut self, keycode: u16, flags: u64, repeat: bool, now: Instant, out: &mut Output) {
+        // A key pressed during a Tools modifier press makes it typing, not a tap.
+        if let Some(t) = self.tools_mut() {
+            t.armed = false;
+        }
         let mut matched = false;
         for slot in SLOTS {
             let blocked = self.other_held(slot);
@@ -288,6 +371,20 @@ impl Machine {
             }
         }
         if matched {
+            return;
+        }
+        // A combo fires on its key down and stops there: repeats are swallowed without a second press, and the key
+        // stays ours until it comes up.
+        if let Some(t) = self.tools_mut()
+            && let Shortcut::Combo { mods, key } = t.shortcut
+            && keycode == key
+            && Mods::from_flags(flags) == mods
+        {
+            out.swallow = true;
+            if !repeat && !t.held {
+                t.held = true;
+                out.actions.push(Action::ToolsPressed);
+            }
             return;
         }
         for slot in SLOTS {
@@ -349,7 +446,7 @@ impl Machine {
 mod tests {
     use dito_core::i18n::Lang;
 
-    use super::super::keys::{F_ALT, F_CMD, F_CTRL, F_SHIFT, L_CTRL, L_SHIFT, R_ALT, R_CMD};
+    use super::super::keys::{F_ALT, F_CMD, F_CTRL, F_SHIFT, L_ALT, L_CTRL, L_SHIFT, R_ALT, R_CMD};
     use super::*;
 
     fn t0() -> Instant {
@@ -813,5 +910,63 @@ mod tests {
         m.feed(flags_change(Modifier::RightCommand, true), now);
         let key = RawEvent::KeyDown { keycode: 14, flags: R_CMD | F_CMD, repeat: false };
         assert_eq!(m.feed(key, now + Duration::from_millis(500)).actions, []);
+    }
+
+    fn three(main: &str, command: &str, tools: &str) -> Machine {
+        let mut m = two(main, command);
+        m.set_tools_shortcut(Some(Shortcut::parse(tools).unwrap()));
+        m
+    }
+
+    #[test]
+    fn the_tools_combo_fires_once_on_its_key_down_and_swallows_its_key() {
+        let mut m = three("RightOption", "RightCommand", "Control+Option+Space");
+        let now = t0();
+        let down = |flags, repeat| RawEvent::KeyDown { keycode: 49, flags, repeat };
+        assert_eq!(m.feed(down(F_CTRL, false), now).actions, [], "missing Option");
+        let out = m.feed(down(F_CTRL | F_ALT, false), now);
+        assert_eq!((out.actions, out.swallow), (vec![Action::ToolsPressed], true));
+        let repeat = m.feed(down(F_CTRL | F_ALT, true), now);
+        assert_eq!((repeat.actions, repeat.swallow), (vec![], true), "auto-repeat neither fires nor leaks");
+        let up = m.feed(RawEvent::KeyUp { keycode: 49, flags: F_CTRL | F_ALT }, now);
+        assert_eq!((up.actions, up.swallow), (vec![], true), "the key up is ours and fires nothing");
+        assert_eq!(m.feed(down(F_CTRL | F_ALT, false), now).actions, [Action::ToolsPressed], "a new press fires again");
+    }
+
+    #[test]
+    fn a_tools_modifier_fires_on_release_and_not_when_a_key_joined_it() {
+        let mut m = three("RightOption", "RightCommand", "LeftOption");
+        let now = t0();
+        let down = m.feed(flags_change(Modifier::LeftOption, true), now);
+        assert_eq!((down.actions, down.swallow), (vec![], false), "no down event, and nothing swallowed");
+        assert_eq!(m.feed(flags_change(Modifier::LeftOption, false), now).actions, [Action::ToolsPressed]);
+
+        // A key during the press makes it typing: the release fires nothing.
+        m.feed(flags_change(Modifier::LeftOption, true), now);
+        let key = RawEvent::KeyDown { keycode: 14, flags: L_ALT | F_ALT, repeat: false };
+        m.feed(key, now + Duration::from_millis(100));
+        let up = m.feed(flags_change(Modifier::LeftOption, false), now + Duration::from_millis(150));
+        assert_eq!((up.actions, up.swallow), (vec![], false), "a typing chord is not a Tools press");
+    }
+
+    #[test]
+    fn a_tools_shortcut_that_is_the_dictation_or_command_one_never_fires() {
+        let now = t0();
+        let mut m = three("RightOption", "RightCommand", "RightOption");
+        assert_eq!(m.feed(flags_change(Modifier::RightOption, true), now).actions, [Action::ShortcutDown]);
+        assert_eq!(m.feed(flags_change(Modifier::RightOption, false), now).actions, [Action::ShortcutUp]);
+
+        let mut m = three("Fn", "RightCommand", "RightCommand");
+        assert_eq!(m.feed(flags_change(Modifier::RightCommand, true), now).actions, [Action::CommandDown]);
+        assert_eq!(m.feed(flags_change(Modifier::RightCommand, false), now).actions, [Action::CommandUp]);
+
+        let mut m = three("Control+Option+Space", "RightCommand", "Control+Option+Space");
+        let down = RawEvent::KeyDown { keycode: 49, flags: F_CTRL | F_ALT, repeat: false };
+        assert_eq!(m.feed(down, now).actions, [Action::ShortcutDown], "the dictation combo keeps its press");
+
+        // Given a shortcut of its own, the same machine fires again.
+        m.set_tools_shortcut(Some(Shortcut::parse("LeftOption").unwrap()));
+        assert_eq!(m.feed(flags_change(Modifier::LeftOption, true), now).actions, []);
+        assert_eq!(m.feed(flags_change(Modifier::LeftOption, false), now).actions, [Action::ToolsPressed]);
     }
 }

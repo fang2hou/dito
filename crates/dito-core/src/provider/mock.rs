@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 
-use super::{AsrRequest, PolishRequest, Polisher, Router, Transcriber, Transcript};
+use super::{AsrRequest, Router, TextModel, TextRequest, Transcriber, Transcript};
 use crate::error::{ErrorKind, ProviderError, ProviderResult};
 use crate::intent::{Decision, Intent};
 
@@ -52,6 +52,82 @@ impl Transcriber for MockTranscriber {
         match next.unwrap_or_else(|| Ok(self.fallback.clone())) {
             Ok(text) => Ok(Transcript { text, language: None }),
             Err(kind) => Err(ProviderError::new(kind, "scripted failure")),
+        }
+    }
+}
+
+pub struct MockTextModel {
+    script: Mutex<VecDeque<Reply>>,
+    delay: Duration,
+    calls: AtomicUsize,
+}
+
+impl Default for MockTextModel {
+    fn default() -> Self {
+        Self { script: Mutex::default(), delay: Duration::ZERO, calls: AtomicUsize::new(0) }
+    }
+}
+
+const FILLERS: &[&str] = &["えーと", "えっと", "あの", "その", "まあ", "um", "uh", "嗯", "那个"];
+
+/// Takes the user turn of a polish request: the data of a command tool, or a dictation transcript, fenced or not.
+pub fn rule_polish(text: &str) -> String {
+    let mut out = crate::command::turn_data(text).unwrap_or_else(|| crate::prompts::unfenced(text).to_string());
+    for f in FILLERS {
+        out = out.replace(f, "");
+    }
+    let out = out.split_whitespace().collect::<Vec<_>>().join(" ");
+    let out = out.trim_matches(|c: char| c == ',' || c == '、' || c.is_whitespace()).to_string();
+    let is_cjk = out.chars().any(|c| ('\u{3040}'..='\u{9fff}').contains(&c));
+    match (out.chars().last(), is_cjk) {
+        (None, _) => out,
+        (Some('。' | '.' | '！' | '？' | '!' | '?'), _) => out,
+        (_, true) => format!("{out}。"),
+        (_, false) => format!("{out}."),
+    }
+}
+
+/// What a mock engine answers to any text model request: the name-shaped words of a word finder passage, one per
+/// line, or the rule-polished text of everything else.
+pub fn rule_reply(system: &str, user: &str) -> String {
+    if !crate::word_finder::is_request(system) {
+        return rule_polish(user);
+    }
+    let terms: Vec<&str> = crate::prompts::unfenced(user)
+        .split(|c: char| !(c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.')))
+        .map(|word| word.trim_matches(['-', '_', '.']))
+        .filter(|word| word.len() > 1 && crate::word_finder::is_name_shaped(word))
+        .collect();
+    if terms.is_empty() { "NONE".into() } else { terms.join("\n") }
+}
+
+impl MockTextModel {
+    pub fn with_delay(mut self, d: Duration) -> Self {
+        self.delay = d;
+        self
+    }
+
+    pub fn script(self, replies: impl IntoIterator<Item = Reply>) -> Self {
+        self.script.lock().expect("script mutex poisoned").extend(replies);
+        self
+    }
+
+    pub fn calls(&self) -> usize {
+        self.calls.load(Ordering::SeqCst)
+    }
+}
+
+#[async_trait]
+impl TextModel for MockTextModel {
+    async fn polish(&self, req: &TextRequest<'_>) -> ProviderResult<String> {
+        self.calls.fetch_add(1, Ordering::SeqCst);
+        if !self.delay.is_zero() {
+            tokio::time::sleep(self.delay).await;
+        }
+        match self.script.lock().expect("script mutex poisoned").pop_front() {
+            Some(Ok(text)) => Ok(text),
+            Some(Err(kind)) => Err(ProviderError::new(kind, "scripted failure")),
+            None => Ok(rule_reply(req.system, req.text)),
         }
     }
 }
@@ -107,68 +183,6 @@ impl Transcriber for ToneTranscriber {
         let chars = text.chars().count();
         let heard = ((secs / spoken).min(1.) * chars as f32).ceil() as usize;
         Ok(Transcript { text: text.chars().take(heard).collect(), language: None })
-    }
-}
-
-pub struct MockPolisher {
-    script: Mutex<VecDeque<Reply>>,
-    delay: Duration,
-    calls: AtomicUsize,
-}
-
-impl Default for MockPolisher {
-    fn default() -> Self {
-        Self { script: Mutex::default(), delay: Duration::ZERO, calls: AtomicUsize::new(0) }
-    }
-}
-
-const FILLERS: &[&str] = &["えーと", "えっと", "あの", "その", "まあ", "um", "uh", "嗯", "那个"];
-
-/// Takes the user turn of a polish request: the data of a command tool, or a dictation transcript, fenced or not.
-pub fn rule_polish(text: &str) -> String {
-    let mut out = crate::command::turn_data(text).unwrap_or_else(|| crate::prompts::unfenced(text).to_string());
-    for f in FILLERS {
-        out = out.replace(f, "");
-    }
-    let out = out.split_whitespace().collect::<Vec<_>>().join(" ");
-    let out = out.trim_matches(|c: char| c == ',' || c == '、' || c.is_whitespace()).to_string();
-    let is_cjk = out.chars().any(|c| ('\u{3040}'..='\u{9fff}').contains(&c));
-    match (out.chars().last(), is_cjk) {
-        (None, _) => out,
-        (Some('。' | '.' | '！' | '？' | '!' | '?'), _) => out,
-        (_, true) => format!("{out}。"),
-        (_, false) => format!("{out}."),
-    }
-}
-
-impl MockPolisher {
-    pub fn with_delay(mut self, d: Duration) -> Self {
-        self.delay = d;
-        self
-    }
-
-    pub fn script(self, replies: impl IntoIterator<Item = Reply>) -> Self {
-        self.script.lock().expect("script mutex poisoned").extend(replies);
-        self
-    }
-
-    pub fn calls(&self) -> usize {
-        self.calls.load(Ordering::SeqCst)
-    }
-}
-
-#[async_trait]
-impl Polisher for MockPolisher {
-    async fn polish(&self, req: &PolishRequest<'_>) -> ProviderResult<String> {
-        self.calls.fetch_add(1, Ordering::SeqCst);
-        if !self.delay.is_zero() {
-            tokio::time::sleep(self.delay).await;
-        }
-        match self.script.lock().expect("script mutex poisoned").pop_front() {
-            Some(Ok(text)) => Ok(text),
-            Some(Err(kind)) => Err(ProviderError::new(kind, "scripted failure")),
-            None => Ok(rule_polish(req.text)),
-        }
     }
 }
 

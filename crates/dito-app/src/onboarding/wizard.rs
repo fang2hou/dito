@@ -25,7 +25,7 @@ mod watchers;
 use connection::{connection_fields, starting_cloud_asr};
 pub(super) use prepare::PreparePhase;
 
-pub(super) const PERMS: [Permission; 2] = [Permission::Microphone, Permission::Accessibility];
+pub(super) const PERMS: [Permission; 3] = [Permission::Microphone, Permission::Accessibility, Permission::SystemAudio];
 
 pub struct Onboarding {
     pub(super) st: Arc<AppState>,
@@ -40,7 +40,7 @@ pub struct Onboarding {
     pub(super) test: TestState,
     /// Generation of the connection-test request whose result may still land.
     pub(super) reqs: ui::Requests,
-    pub(super) perms: [Status; 2],
+    pub(super) perms: [Status; 3],
     pub(super) capturing: bool,
     pub(super) seen: [bool; 3],
     pub(super) started_at: i64,
@@ -180,7 +180,7 @@ impl Onboarding {
                 services::save_config(&self.st, |c| {
                     c.asr.source = src;
                     if self.local {
-                        c.polish.engine.source = Source::Local;
+                        c.text_model.source = Source::Local;
                     }
                 });
             }
@@ -224,7 +224,7 @@ impl Onboarding {
     pub(super) fn can_next(&self, _cx: &App) -> bool {
         let cfg = self.st.cfg.get();
         let models_installed =
-            [&cfg.asr.local_model, &cfg.polish.engine.local_model].iter().all(|id| self.st.models.is_installed(id));
+            [&cfg.asr.local_model, &cfg.text_model.local_model].iter().all(|id| self.st.models.is_installed(id));
         can_continue(self.step, self.local, models_installed, matches!(self.test, TestState::Ok(_)), self.tried_ok)
     }
 }

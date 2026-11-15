@@ -11,16 +11,17 @@ use dito_core::store::HistoryFilter;
 use gpui_kit::*;
 
 use super::capture::{
-    page_shot, refresh_settings_window, render, render_settings_window, resize_settings_window, save, theme_tag,
-    wait_for_frame,
+    close_window, page_shot, refresh_settings_window, render, render_settings_window, resize_settings_window,
+    resize_tools_window, save, theme_tag, tools_page_shot, wait_for_frame,
 };
-use super::input::{click, drag_to, hover, on_settings_window, press, redraw, release};
+use super::input::{click, drag_to, hover, on_settings_window, on_tools_window, press, redraw, release};
 use super::verify;
 use crate::hotkeys::{CaptureState, ShortcutTarget};
 use crate::services;
 use crate::settings::asr_editor::EditorPreview;
 use crate::settings::{self, Page, Settings};
 use crate::state::AppState;
+use crate::tools;
 use crate::ui::{self, ScopeHandle};
 
 fn open_page(st: &Arc<AppState>, page: Page, cx: &mut AsyncApp) {
@@ -53,24 +54,56 @@ pub async fn page_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     }
 }
 
-/// An open transcript, in both appearances.
-pub async fn transcript_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
+fn open_tools(st: &Arc<AppState>, width: f32, height: f32, cx: &mut AsyncApp) {
+    cx.update(|cx| {
+        tools::open(st.clone(), cx);
+        resize_tools_window(cx, width, height);
+        assert!(tools::shell_motion(cx).is_some(), "tools shell scope");
+        assert!(tools::page_motion(cx).is_some(), "transcription page scope");
+    });
+}
+
+/// The Tools window in both appearances, in Japanese like the design: the readiness gate as this machine sees it, then
+/// past the gate the transcript list, an entry open, the entry live, and the compact rail.
+pub async fn tools_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
+    let original = st.cfg.get();
     for appearance in [Appearance::Light, Appearance::Dark] {
-        services::save_config(st, |c| c.general.appearance = appearance);
-        open_page_sized(st, Page::Transcription, 1120., 900., cx);
-        on_settings_window(cx, |w, cx, _| {
-            if let Some((_, view)) = settings::handle(cx) {
-                view.update(cx, |s, cx| s.preview_transcript(w, cx));
-            }
+        services::save_config(st, |c| {
+            c.general.appearance = appearance;
+            c.general.display_language = DisplayLanguage::Ja;
         });
-        page_shot(cx, dir, &format!("transcript-{}.png", theme_tag(appearance))).await;
-        on_settings_window(cx, |w, cx, _| {
-            if let Some((_, view)) = settings::handle(cx) {
-                view.update(cx, |s, cx| s.preview_live_transcript(crate::dev::seed::LIVE_TAIL, w, cx));
-            }
+        open_tools(st, 1120., 680., cx);
+        tools_page_shot(cx, dir, &format!("tools-readiness-{}.png", theme_tag(appearance))).await;
+        on_tools_window(cx, |_, cx, view| view.update(cx, |t, cx| t.assume_transcription_ready(true, cx)));
+        tools_page_shot(cx, dir, &format!("tools-{}.png", theme_tag(appearance))).await;
+        on_tools_window(cx, |_, cx, view| view.update(cx, |t, cx| t.pose_transcription_settings(true, cx)));
+        tools_page_shot(cx, dir, &format!("tools-settings-{}.png", theme_tag(appearance))).await;
+        for (language, name) in [(DisplayLanguage::En, "en"), (DisplayLanguage::Zh, "zh")] {
+            services::save_config(st, |c| c.general.display_language = language);
+            tools_page_shot(cx, dir, &format!("tools-settings-{name}-{}.png", theme_tag(appearance))).await;
+        }
+        services::save_config(st, |c| c.general.display_language = DisplayLanguage::Ja);
+        on_tools_window(cx, |_, cx, view| view.update(cx, |t, cx| t.pose_transcription_settings(false, cx)));
+        on_tools_window(cx, |w, cx, view| view.update(cx, |t, cx| t.preview_transcript(w, cx)));
+        tools_page_shot(cx, dir, &format!("tools-transcription-{}.png", theme_tag(appearance))).await;
+        on_tools_window(cx, |w, cx, view| view.update(cx, |t, cx| t.pose_transcription_paragraph_focus(w, cx)));
+        tools_page_shot(cx, dir, &format!("tools-transcription-edit-{}.png", theme_tag(appearance))).await;
+        on_tools_window(cx, |w, cx, view| {
+            view.update(cx, |t, cx| t.preview_live_transcript(crate::dev::seed::LIVE_TAIL, w, cx));
         });
-        page_shot(cx, dir, &format!("transcript-live-{}.png", theme_tag(appearance))).await;
+        tools_page_shot(cx, dir, &format!("tools-transcription-live-{}.png", theme_tag(appearance))).await;
+        // Under the collapse width the sidebar folds into the icon rail on its own.
+        open_tools(st, 900., 680., cx);
+        tools_page_shot(cx, dir, &format!("tools-rail-{}.png", theme_tag(appearance))).await;
+        // The next appearance starts from a fresh window, back on the list behind the gate.
+        if let Some((window, _)) = cx.update(|cx| tools::handle(cx)) {
+            close_window(cx, window);
+        }
     }
+    services::save_config(st, |c| {
+        c.general.appearance = original.general.appearance;
+        c.general.display_language = original.general.display_language;
+    });
 }
 
 pub async fn prompt_motion_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
@@ -229,8 +262,8 @@ pub async fn status_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
                     c.general.display_language = DisplayLanguage::Ja;
                     c.asr.source = Source::Local;
                     c.polish.enabled = case != "disabled";
-                    c.polish.engine.source = if case == "local" { Source::Local } else { Source::Provider };
-                    let configurations = c.polish.engine.polish_configurations_mut(c.general.lang());
+                    c.text_model.source = if case == "local" { Source::Local } else { Source::Provider };
+                    let configurations = c.text_model.text_configurations_mut(c.general.lang());
                     configurations.select("compat");
                     let compat = configurations.active_mut().expect("the templates include a compat configuration");
                     *compat.target.address_mut() =
@@ -359,7 +392,7 @@ pub async fn extra_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     health_dot_hover_shots(dir, cx, &shell).await;
     services::save_config(st, |c| {
         c.asr.source = original.asr.source;
-        c.polish.engine.source = original.polish.engine.source;
+        c.text_model.source = original.text_model.source;
     });
 }
 
@@ -368,7 +401,7 @@ async fn non_default_page_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncAp
     services::save_config(st, |c| {
         c.general.appearance = appearance;
         c.asr.source = Source::Local;
-        c.polish.engine.source = Source::Local;
+        c.text_model.source = Source::Local;
     });
     open_page(st, Page::Models, cx);
     page_shot(cx, dir, &format!("models-local-{tag}.png")).await;
@@ -406,7 +439,7 @@ async fn general_hover_shots(dir: &Path, cx: &mut AsyncApp, shell: &ScopeHandle,
 }
 
 async fn models_hover_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
-    services::save_config(st, |c| c.polish.engine.source = Source::Provider);
+    services::save_config(st, |c| c.text_model.source = Source::Provider);
     let models = cx
         .update(|cx| {
             settings::open(st.clone(), Page::Models, cx);
@@ -416,7 +449,7 @@ async fn models_hover_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     cx.update(|cx| {
         let (window, view) = settings::handle(cx).expect("settings window");
         let _ = window.update(cx, |_, window, cx| {
-            view.update(cx, |s, cx| s.preview_models(Role::Polish, None, window, cx));
+            view.update(cx, |s, cx| s.preview_models(Role::Text, None, window, cx));
         });
     });
     ui::force_hover(
@@ -462,13 +495,13 @@ const fn model_case(
 
 const MODEL_CASES: [ModelCase; 12] = [
     model_case("local-asr", Role::Asr, true, 0, None),
-    model_case("local-polish", Role::Polish, true, 0, None),
+    model_case("local-polish", Role::Text, true, 0, None),
     model_case("funasr", Role::Asr, false, 0, None),
     model_case("qwen-asr", Role::Asr, false, 1, None),
     model_case("openrouter", Role::Asr, false, 2, None),
-    model_case("azure", Role::Polish, false, 0, None),
-    model_case("bedrock", Role::Polish, false, 1, None),
-    model_case("compatible", Role::Polish, false, 2, None),
+    model_case("azure", Role::Text, false, 0, None),
+    model_case("bedrock", Role::Text, false, 1, None),
+    model_case("compatible", Role::Text, false, 2, None),
     model_case("editor", Role::Asr, false, 1, Some(EditorPreview::Valid)),
     model_case("editor-end", Role::Asr, false, 1, Some(EditorPreview::End)),
     model_case("editor-error", Role::Asr, false, 1, Some(EditorPreview::Invalid)),
@@ -519,11 +552,8 @@ fn apply_model_case(st: &AppState, appearance: Appearance, case: &ModelCase) {
         c.general.display_language = DisplayLanguage::Ja;
         c.general.appearance = appearance;
         c.asr.source = if case.local { Source::Local } else { Source::Provider };
-        c.polish.engine.source = c.asr.source;
-        c.polish
-            .engine
-            .polish_configurations_mut(c.general.lang())
-            .select(["azure", "bedrock", "compat"][case.template]);
+        c.text_model.source = c.asr.source;
+        c.text_model.text_configurations_mut(c.general.lang()).select(["azure", "bedrock", "compat"][case.template]);
         let mut configurations = CloudAsrConfigurations::default();
         configurations.select(["funasr", "qwen_asr", "openrouter"][case.template]);
         for configuration in &mut configurations.items {
@@ -655,7 +685,7 @@ pub async fn health_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
                     c.general.display_language = language;
                     c.asr.source = case.source;
                     c.polish.enabled = case.polish_enabled;
-                    c.polish.engine.source = case.source;
+                    c.text_model.source = case.source;
                 });
                 let name = health_case_name(language_tag, appearance, case);
                 health_card_shot(st, dir, cx, &shell, case, &name).await;
@@ -668,7 +698,7 @@ pub async fn health_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
         c.general.display_language = original.general.display_language;
         c.asr.source = original.asr.source;
         c.polish.enabled = original.polish.enabled;
-        c.polish.engine.source = original.polish.engine.source;
+        c.text_model.source = original.text_model.source;
     });
 }
 

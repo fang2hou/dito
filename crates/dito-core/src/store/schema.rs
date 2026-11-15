@@ -65,6 +65,9 @@ pub(super) const MIGRATIONS: &[&str] = &[
        error TEXT
      );
      CREATE INDEX IF NOT EXISTS transcript_paragraphs_order ON transcript_paragraphs(transcript_id, start_ms);",
+    // 6: the time a transcript has recorded across its sessions, without the gaps between them. Nullable: a
+    // transcript from before it ran one session, so its span from start to end is its length.
+    "ALTER TABLE transcripts ADD COLUMN recorded_ms INTEGER;",
 ];
 
 pub(super) const SCHEMA_VERSION: u32 = MIGRATIONS.len() as u32;

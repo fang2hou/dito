@@ -41,6 +41,16 @@ pub struct Palette {
     pub success: Hsla,
     pub success_text: Hsla,
     pub success_soft: Hsla,
+    /// The plate of a completed requirement row: a green tint on the card that keeps its text readable in both
+    /// themes, unlike `success_soft` which is a solid chip in the dark palette.
+    pub success_row: Hsla,
+    /// macOS microphone orange, used by the microphone source toggle and its tinted surfaces.
+    pub orange: Hsla,
+    /// The quiet and the readable text step of the microphone orange, from the same color collection.
+    #[allow(dead_code, reason = "the color collection's microphone pair, for mic surfaces shared with Status")]
+    pub orange_soft: Hsla,
+    #[allow(dead_code, reason = "the color collection's microphone pair, for mic surfaces shared with Status")]
+    pub orange_text: Hsla,
     /// Muted chips in both themes: failures keep the loud solid red, these stay quiet.
     pub warning_text: Hsla,
     pub warning_soft: Hsla,
@@ -70,6 +80,8 @@ pub struct Palette {
     pub button_danger_border: Hsla,
     pub button_danger_text: Hsla,
     pub button_danger_hover: Hsla,
+    /// The ring that flashes around the armed stop pill (`button/danger_halo`).
+    pub button_danger_halo: Hsla,
     pub select_hover: Hsla,
     pub select_hover_border: Hsla,
     pub segment_hover: Hsla,
@@ -127,6 +139,10 @@ impl Palette {
             success: hex("#28A788"),
             success_text: hex("#28A788"),
             success_soft: hex("#EBF6F3"),
+            success_row: hex("#EBF6F3"),
+            orange: hex("#E87B2E"),
+            orange_soft: hex("#FDF1E7"),
+            orange_text: hex("#C25E16"),
             warning_text: hex("#8F6A1E"),
             warning_soft: hex("#F9EFD8"),
             blue_text: hex("#4674A8"),
@@ -150,6 +166,7 @@ impl Palette {
             button_danger_border: hex("#D99588"),
             button_danger_text: hex("#A44232"),
             button_danger_hover: hex("#A4423224"),
+            button_danger_halo: hex("#D995888C"),
             select_hover: hex("#EBE8E18C"),
             select_hover_border: hex("#6A645580"),
             segment_hover: hex("#FFFFFF8C"),
@@ -203,6 +220,10 @@ impl Palette {
             success: hex("#28A788"),
             success_text: hex("#FFFFFF"),
             success_soft: hex("#28A788"),
+            success_row: hex("#394842"),
+            orange: hex("#E87B2E"),
+            orange_soft: hex("#5C4330"),
+            orange_text: hex("#FFB37B"),
             warning_text: hex("#E5C268"),
             warning_soft: hex("#5B5340"),
             blue_text: hex("#A9C6E4"),
@@ -226,6 +247,7 @@ impl Palette {
             button_danger_border: hex("#A76C5C"),
             button_danger_text: hex("#FFBAA7"),
             button_danger_hover: hex("#FFBAA738"),
+            button_danger_halo: hex("#FFBAA759"),
             select_hover: hex("#38352F8C"),
             select_hover_border: hex("#C2BDB280"),
             segment_hover: hex("#5A564B8C"),
@@ -386,7 +408,7 @@ pub fn hud_command_dots(p: &Palette) -> [[f32; 3]; 3] {
 
 /// The processing label's brightest band in a command run.
 pub fn hud_command_shoulder(p: &Palette) -> Hsla {
-    hud_color(p, "#444139", "#CFE2F5")
+    hud_color(p, "#706C61", "#CFE2F5")
 }
 
 pub fn palette(setting: Appearance, cx: &App) -> Palette {

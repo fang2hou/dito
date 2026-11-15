@@ -23,7 +23,7 @@ pub enum ConfirmStyle {
     CompactDestructive,
 }
 
-/// Cancel is also what Escape does. `focus` owns the keyboard while the dialog is open; the caller focuses it when it
+/// Cancel is also what Escape does. Without `confirm` the dialog has that one answer. `focus` owns the keyboard while the dialog is open; the caller focuses it when it
 /// opens the dialog.
 #[allow(clippy::too_many_arguments)]
 pub fn confirm_dialog(
@@ -34,7 +34,25 @@ pub fn confirm_dialog(
     title: impl Into<SharedString>,
     content: Vec<AnyElement>,
     cancel: DialogAnswer,
-    confirm: DialogAnswer,
+    confirm: Option<DialogAnswer>,
+    style: ConfirmStyle,
+) -> AnyElement {
+    let header = text(title, 20., FontWeight::BOLD, p.text).into_any_element();
+    confirm_dialog_with_header(window, p, id, focus, header, content, cancel, confirm, style)
+}
+
+/// [`confirm_dialog`] with the caller's first row in place of a plain title, for a title that shares its row with a
+/// control.
+#[allow(clippy::too_many_arguments)]
+pub fn confirm_dialog_with_header(
+    window: &Window,
+    p: &Palette,
+    id: &'static str,
+    focus: &FocusHandle,
+    header: AnyElement,
+    content: Vec<AnyElement>,
+    cancel: DialogAnswer,
+    confirm: Option<DialogAnswer>,
     style: ConfirmStyle,
 ) -> AnyElement {
     let (width, padding, action_gap, confirm_kind) = match style {
@@ -53,7 +71,7 @@ pub fn confirm_dialog(
         .flex()
         .flex_col()
         .gap(px(16.))
-        .child(text(title, 20., FontWeight::BOLD, p.text))
+        .child(header)
         .children(content)
         .child(
             div()
@@ -62,7 +80,9 @@ pub fn confirm_dialog(
                 .justify_end()
                 .gap(px(action_gap))
                 .child(answer(p, ElementId::from((ElementId::from(id), "cancel")), BtnKind::Secondary, cancel))
-                .child(answer(p, ElementId::from((ElementId::from(id), "confirm")), confirm_kind, confirm)),
+                .children(confirm.map(|confirm| {
+                    answer(p, ElementId::from((ElementId::from(id), "confirm")), confirm_kind, confirm)
+                })),
         );
     modal_layer(id, focus)
         .on_key_down(move |event: &KeyDownEvent, window, cx| {
@@ -96,4 +116,48 @@ fn answer(p: &Palette, id: ElementId, kind: BtnKind, answer: DialogAnswer) -> St
             on_click(window, cx);
         }),
     )
+}
+
+/// The tool settings dialog of `design:components` (11.03.14): a centered 480 pt dialog with the tool's title, a ghost
+/// close button and the tool's own settings. Every change saves as it is made, so closing is the only answer; the
+/// close button and Escape both call `on_close`.
+pub fn tool_settings_dialog(
+    window: &Window,
+    p: &Palette,
+    id: &'static str,
+    focus: &FocusHandle,
+    title: impl Into<SharedString>,
+    content: AnyElement,
+    on_close: Cb,
+) -> AnyElement {
+    let escape = on_close.clone();
+    let header = div()
+        .w_full()
+        .flex()
+        .items_center()
+        .gap(px(12.))
+        .child(div().flex_1().min_w(px(0.)).child(text(title, 20., FontWeight::BOLD, p.text)))
+        .child(super::button::close_button(ElementId::from((ElementId::from(id), "close")), p, on_close));
+    let body = div()
+        .w(px(480.))
+        .max_w(window.viewport_size().width - px(48.))
+        .p(px(28.))
+        .rounded(px(20.))
+        .border_1()
+        .border_color(p.border_strong)
+        .bg(p.card)
+        .flex()
+        .flex_col()
+        .gap(px(16.))
+        .child(header)
+        .child(content);
+    modal_layer(id, focus)
+        .on_key_down(move |event: &KeyDownEvent, window, cx| {
+            if event.keystroke.key == "escape" {
+                escape(window, cx);
+                cx.stop_propagation();
+            }
+        })
+        .child(body)
+        .into_any_element()
 }

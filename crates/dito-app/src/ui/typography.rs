@@ -11,7 +11,7 @@ pub fn is_cjk(s: &str) -> bool {
 
 static LANGUAGE: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
 
-/// Language-dependent typography reads it: the CJK typeface and letter-spacing (see [`tracking_for`]).
+/// Language-dependent typography reads it: the CJK typeface (see [`cjk_family`]).
 pub fn set_ui_language(lang: dito_core::i18n::Lang) {
     LANGUAGE.store(
         dito_core::i18n::Lang::ALL.iter().position(|l| *l == lang).unwrap_or(0) as u8,
@@ -25,13 +25,6 @@ pub fn ui_language() -> dito_core::i18n::Lang {
 
 pub fn cjk_family() -> &'static str {
     if ui_language() == dito_core::i18n::Lang::Zh { "IBM Plex Sans SC" } else { "M PLUS 1p" }
-}
-
-/// In em. Wide tracking is a Japanese/Chinese reading aid; Latin text keeps its natural spacing, so it is zero for
-/// English and for any string without CJK glyphs. Put every language-specific typographic difference here, so screens
-/// never branch on the language themselves.
-pub fn tracking_for(s: &str, cjk_em: f32) -> f32 {
-    if ui_language() != dito_core::i18n::Lang::En && is_cjk(s) { cjk_em } else { 0. }
 }
 
 pub fn family_for(s: &str) -> &'static str {
@@ -71,6 +64,19 @@ pub fn text_width(s: &str, size: f32, weight: FontWeight) -> f32 {
     })
 }
 
+/// How far below the top of a `line_height` box the renderer puts the baseline of `s`. Boxes centered on each other
+/// do not line up text in different faces or sizes; offsetting each by the difference of these does.
+pub fn baseline_in_line(s: &str, size: f32, weight: FontWeight, line_height: f32) -> f32 {
+    TEXT_SYSTEM.with(|t| match t.borrow().as_ref() {
+        Some(ts) => {
+            let mut f = font(family_for(s));
+            f.weight = weight;
+            f32::from(ts.baseline_offset(ts.resolve_font(&f), px(size), px(line_height)))
+        }
+        None => (line_height - size) / 2. + size * 0.8,
+    })
+}
+
 /// For windows that fit their text, where the height follows the line count.
 pub fn text_lines(s: &str, family: impl Into<SharedString>, size: f32, weight: FontWeight, width: f32) -> usize {
     TEXT_SYSTEM.with(|t| match t.borrow().as_ref() {
@@ -92,28 +98,13 @@ pub fn text_lines(s: &str, family: impl Into<SharedString>, size: f32, weight: F
     })
 }
 
-pub fn text_tracked_width(s: &str, size: f32, weight: FontWeight, cjk_em: f32) -> f32 {
-    let em = tracking_for(s, cjk_em);
-    if em == 0. {
-        return text_width(s, size, weight);
-    }
-    s.chars().map(|ch| text_width(&ch.to_string(), size, weight)).sum::<f32>()
-        + s.chars().count().saturating_sub(1) as f32 * size * em
+/// One line as tall as its type: for labels a control centers itself.
+pub fn label(s: &str, size: f32, weight: FontWeight, color: Hsla) -> Div {
+    text(s.to_string(), size, weight, color).line_height(relative(1.))
 }
 
-pub fn text_tracked(s: &str, size: f32, weight: FontWeight, color: Hsla, cjk_em: f32) -> Div {
-    let em = tracking_for(s, cjk_em);
-    if em == 0. {
-        return text(s.to_string(), size, weight, color).line_height(relative(1.));
-    }
-    let mut d = div().flex_none().flex().items_baseline().gap(px(size * em));
-    for ch in s.chars() {
-        d = d.child(text(ch.to_string(), size, weight, color).line_height(relative(1.)).flex_none());
-    }
-    d
-}
-
-/// GPUI has no letter-spacing: every glyph is its own flex item followed by `tracking` em.
+/// Only the wordmark is letter-spaced (`design/README.md`, tracking). GPUI has no letter-spacing: every glyph is its
+/// own flex item followed by `tracking` em.
 pub fn tracked(s: &str, size: f32, weight: FontWeight, color: Hsla, tracking: f32) -> Div {
     let mut row = div().flex().items_end();
     for ch in s.chars() {
@@ -125,23 +116,4 @@ pub fn tracked(s: &str, size: f32, weight: FontWeight, color: Hsla, tracking: f3
 
 pub fn muted12(p: &Palette, s: impl Into<SharedString>) -> Div {
     text(s, 12., FontWeight::NORMAL, p.muted)
-}
-
-#[cfg(test)]
-mod tests {
-    use dito_core::i18n::Lang;
-
-    use super::{set_ui_language, tracking_for};
-
-    #[test]
-    fn english_text_keeps_natural_letter_spacing() {
-        set_ui_language(Lang::En);
-        assert_eq!(tracking_for("Transcribing", 0.08), 0.);
-        assert_eq!(tracking_for("認識中", 0.08), 0.);
-        set_ui_language(Lang::Ja);
-        assert_eq!(tracking_for("認識中", 0.08), 0.08);
-        assert_eq!(tracking_for("Slack", 0.08), 0., "no CJK glyphs, no tracking");
-        set_ui_language(Lang::Zh);
-        assert_eq!(tracking_for("認識中", 0.08), 0.08);
-    }
 }

@@ -8,7 +8,7 @@ use dito_local::catalog::ModelSpec;
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
-use super::page::ModelsPage;
+use super::page::{ModelsPage, Tab};
 use crate::assets::Ic;
 use crate::settings::Ctx;
 use crate::state::AppState;
@@ -19,7 +19,7 @@ impl ModelsPage {
         &self,
         c: &Ctx,
         cx: &mut Context<Self>,
-        role: Role,
+        tab: Tab,
         spec: &ModelSpec,
         selected: bool,
     ) -> Div {
@@ -27,7 +27,11 @@ impl ModelsPage {
             this.menu = None;
             cx.notify();
         });
-        let runtime = self.engine_command_items(c, cx, role, &spec.id, selected);
+        let runtime = match tab {
+            Tab::Role(role) => self.engine_command_items(c, cx, role, &spec.id, selected),
+            // The detector has no engine to start: each audio source builds one from the file.
+            Tab::Vad => Vec::new(),
+        };
         let mut files = self.file_command_items(c, &spec.id);
         let removal = files.split_off(2);
         files.swap(0, 1);

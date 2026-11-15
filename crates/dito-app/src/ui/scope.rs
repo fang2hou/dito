@@ -26,6 +26,10 @@ pub(super) struct Registry {
     /// Per animated value: (from, to, start, key).
     pub(super) tweens: HashMap<ElementId, (f32, f32, Instant, usize)>,
     pub(super) hovered: HashMap<ElementId, bool>,
+    /// The build that last drew each hover-tracked element. A control that a build no longer draws (a closed
+    /// dialog, a hidden button) never hears the pointer leave, so its hover is forgotten after that build.
+    pub(super) hover_seen: HashMap<ElementId, u64>,
+    pub(super) build: u64,
     pub(super) plates: HashMap<ElementId, PlateMotion>,
     /// The latest confirmation of each copy button.
     pub(super) copies: HashMap<ElementId, CopyRun>,
@@ -48,6 +52,8 @@ impl Registry {
         Self {
             tweens: HashMap::new(),
             hovered: HashMap::new(),
+            hover_seen: HashMap::new(),
+            build: 0,
             plates: HashMap::new(),
             copies: HashMap::new(),
             flips: HashMap::new(),
@@ -161,6 +167,29 @@ pub fn with_motion_scope<R>(scope: ScopeHandle, f: impl FnOnce() -> R) -> R {
     f()
 }
 
+/// A view's full build under its scope. Hover remembered for controls this build did not draw is dropped, so a
+/// control that comes back (a reopened dialog, a reshown button) starts un-hovered and GPUI reports the real pointer.
+/// Use it for the top-level render of a view; nested regions keep [`with_motion_scope`].
+pub fn render_with_scope<R>(scope: ScopeHandle, f: impl FnOnce() -> R) -> R {
+    let registry = scope.registry();
+    if let Some(reg) = &registry {
+        reg.borrow_mut().build += 1;
+    }
+    let out = with_motion_scope(scope, f);
+    if let Some(reg) = registry {
+        let mut reg = reg.borrow_mut();
+        let build = reg.build;
+        let stale: Vec<ElementId> =
+            reg.hovered.keys().filter(|id| reg.hover_seen.get(*id) != Some(&build)).cloned().collect();
+        for id in stale {
+            reg.hovered.remove(&id);
+            reg.tweens.remove(&ElementId::from((id, "hover-fill")));
+        }
+        reg.hover_seen.retain(|_, seen| *seen == build);
+    }
+    out
+}
+
 pub(super) fn ambient_registry() -> Option<Rc<RefCell<Registry>>> {
     motion_scope().registry()
 }
@@ -173,6 +202,20 @@ mod tests {
     use crate::ui::hover::{is_hovered, is_hovered_in, reset_hover};
     use crate::ui::plate::plate_state;
     use crate::ui::tween::{count_flips, tween_to_at};
+
+    #[test]
+    fn a_control_a_build_stops_drawing_comes_back_unhovered() {
+        let scope = MotionScope::new();
+        let id = ElementId::from("dialog-close");
+        super::render_with_scope(scope.handle(), || {
+            let track = crate::ui::hover::hover_tracker(id.clone());
+            drop(track);
+        });
+        scope.handle().registry().unwrap().borrow_mut().hovered.insert(id.clone(), true);
+        assert!(is_hovered_in(&scope.handle(), &id), "hovered while drawn");
+        super::render_with_scope(scope.handle(), || {});
+        assert!(!is_hovered_in(&scope.handle(), &id), "a build without the control forgets its hover");
+    }
 
     #[test]
     fn two_live_scopes_isolate_the_same_id_in_every_registry() {

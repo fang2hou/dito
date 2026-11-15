@@ -29,6 +29,11 @@ pub fn reset_hover_in(scope: ScopeHandle, id: &ElementId) {
 pub fn hover_tracker(id: ElementId) -> impl Fn(&bool, &mut Window, &mut App) + 'static {
     // Captured at build time: hover events fire outside the render that scoped the element.
     let (scope, key) = (scope::motion_scope(), id);
+    if let Some(reg) = scope.registry() {
+        let mut reg = reg.borrow_mut();
+        let build = reg.build;
+        reg.hover_seen.insert(key.clone(), build);
+    }
     move |over, window, _| {
         let Some(reg) = scope.registry() else { return };
         let changed = reg.borrow_mut().hovered.insert(key.clone(), *over).unwrap_or(false) != *over;

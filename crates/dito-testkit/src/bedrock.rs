@@ -33,7 +33,7 @@ pub(crate) async fn converse(
     if let Some(code) = b.fail_status {
         return service_error(code);
     }
-    let text = mock::rule_polish(&user.unwrap_or_default());
+    let text = mock::rule_reply(body["system"][0]["text"].as_str().unwrap_or_default(), &user.unwrap_or_default());
     Json(json!({
         "output": { "message": { "role": "assistant", "content": [{ "text": text }] } },
         "stopReason": "end_turn",

@@ -1,7 +1,7 @@
 //! Shots compared with `design:settings/cloud-models/configurations`, `design:settings/cloud-models/failed-test`,
 //! `design:settings/cloud-models/add-from-template`, `design:settings/cloud-models/delete-configuration` and
 //! `design:settings/cloud-models/tile-row`.
-//! Opt-in: `DITO_SHOTS_ONLY=polishform`, with `--mock --data-dir <dir>` so the settings file is known. Run with
+//! Opt-in: `DITO_SHOTS_ONLY=textmodelform`, with `--mock --data-dir <dir>` so the settings file is known. Run with
 //! `--lang en` to see that the stand-in names follow the display language, not the system's.
 
 use std::path::Path;
@@ -9,11 +9,11 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use dito_core::config::{
-    Appearance, CloudPolishConfiguration, CloudPolishConfigurations, CloudPolishTemplate, ConfigStore, DisplayLanguage,
-    LocalPolishParams, Source,
+    Appearance, CloudTextConfiguration, CloudTextConfigurations, CloudTextTemplate, ConfigStore, DisplayLanguage,
+    LocalTextParams, Source,
 };
 use dito_core::i18n::{Lang, Tr};
-use dito_core::secrets::{Role, polish_account};
+use dito_core::secrets::{Role, text_account};
 use gpui_kit::*;
 
 use super::capture::{page_shot, resize_settings_window, theme_tag};
@@ -93,14 +93,14 @@ fn moved(ids: &[String], from: usize, to: usize) -> Vec<String> {
     order
 }
 
-fn active(st: &AppState) -> CloudPolishConfiguration {
+fn active(st: &AppState) -> CloudTextConfiguration {
     let cfg = st.cfg.get();
-    cfg.polish.engine.polish_configurations(cfg.general.lang()).active().cloned().expect("one is selected")
+    cfg.text_model.text_configurations(cfg.general.lang()).active().cloned().expect("one is selected")
 }
 
-fn saved(st: &AppState) -> CloudPolishConfigurations {
+fn saved(st: &AppState) -> CloudTextConfigurations {
     let cfg = st.cfg.get();
-    cfg.polish.engine.polish_configurations(cfg.general.lang()).into_owned()
+    cfg.text_model.text_configurations(cfg.general.lang()).into_owned()
 }
 
 fn ids(st: &AppState) -> Vec<String> {
@@ -108,7 +108,7 @@ fn ids(st: &AppState) -> Vec<String> {
 }
 
 fn key_of(st: &AppState, id: &str) -> Option<String> {
-    st.secrets.get(&polish_account(id))
+    st.secrets.get(&text_account(id))
 }
 
 fn shot_name(name: &str, language: &str, tag: &str) -> String {
@@ -117,8 +117,8 @@ fn shot_name(name: &str, language: &str, tag: &str) -> String {
 
 /// The configurations of `design:settings/cloud-models/configurations`, in its order. `four` adds one that makes the
 /// row overflow.
-fn staged(four: bool) -> CloudPolishConfigurations {
-    let mut list = CloudPolishConfigurations::new(Lang::Ja);
+fn staged(four: bool) -> CloudTextConfigurations {
+    let mut list = CloudTextConfigurations::new(Lang::Ja);
     for (id, name, address, model, temperature) in [
         ("compat", "ふだん使い", "https://openrouter.ai/api/v1/chat/completions", "openai/gpt-4o-mini", Some(0.2)),
         ("azure", "高精度", "https://dito-prod-japaneast.openai.azure.com/", "gpt-6.1-terra", None),
@@ -132,7 +132,7 @@ fn staged(four: bool) -> CloudPolishConfigurations {
     }
     list.move_to("compat", 0);
     if four {
-        let id = list.add_from_template(CloudPolishTemplate::Compat, "長文用");
+        let id = list.add_from_template(CloudTextTemplate::Compat, "長文用");
         *list.get_mut(&id).expect("just added").target.model_mut() = "openai/gpt-4.1-mini".into();
     }
     list.select("compat");
@@ -210,29 +210,29 @@ impl Rig<'_> {
         &mut self,
         appearance: Appearance,
         language: DisplayLanguage,
-        list: Option<CloudPolishConfigurations>,
+        list: Option<CloudTextConfigurations>,
         size: (f32, f32),
     ) {
         for config in &saved(self.st).items {
             self.st.secrets.delete(&config.account()).expect("isolated mock credentials");
         }
         for (id, key) in [("compat", "sk-demo-0123456789abcdef"), ("azure", "azure-demo-key-0123456789")] {
-            self.st.secrets.set(&polish_account(id), key).expect("isolated mock credentials");
+            self.st.secrets.set(&text_account(id), key).expect("isolated mock credentials");
         }
         self.st.factory.invalidate_engines();
         services::save_config(self.st, |c| {
             c.general.appearance = appearance;
             c.general.display_language = language;
-            c.polish.engine.source = Source::Provider;
-            c.polish.engine.local_params.clear();
-            c.polish.engine.cloud_polish = list;
+            c.text_model.source = Source::Provider;
+            c.text_model.local_params.clear();
+            c.text_model.cloud_text = list;
         });
         self.cx.update(|cx| {
             settings::open(self.st.clone(), Page::Models, cx);
             resize_settings_window(cx, size.0, size.1);
         });
         on_settings_window(self.cx, |window, cx, view| {
-            view.update(cx, |s, cx| s.preview_models(Role::Polish, None, window, cx));
+            view.update(cx, |s, cx| s.preview_models(Role::Text, None, window, cx));
             redraw(window, cx);
         });
         self.wait(300).await;
@@ -472,15 +472,15 @@ async fn save_failure(rig: &mut Rig<'_>) {
     assert!(rig.probe().save_failed);
     std::fs::remove_dir(&blocker).expect("unblock the settings file");
     rig.step("source", "local", "");
-    assert_eq!(st.cfg.get().polish.engine.source, Source::Local, "the switch was saved");
+    assert_eq!(st.cfg.get().text_model.source, Source::Local, "the switch was saved");
     assert!(!rig.probe().save_failed, "a switch that works takes down the banner of an earlier failed save");
     std::fs::create_dir_all(&blocker).expect("block again");
     rig.step("source", "cloud", "");
-    assert_eq!(st.cfg.get().polish.engine.source, Source::Local, "a switch that cannot be saved changes nothing");
+    assert_eq!(st.cfg.get().text_model.source, Source::Local, "a switch that cannot be saved changes nothing");
     assert!(rig.probe().save_failed, "and raises the banner");
     std::fs::remove_dir(&blocker).expect("unblock the settings file");
     rig.step("source", "cloud", "");
-    assert_eq!(st.cfg.get().polish.engine.source, Source::Provider);
+    assert_eq!(st.cfg.get().text_model.source, Source::Provider);
     assert!(!rig.probe().save_failed);
     rig.type_cloud("name", "ふだん使い");
     println!("verified: a failed save shows the banner; Close and the next good save clear it, from any control");
@@ -489,7 +489,7 @@ async fn save_failure(rig: &mut Rig<'_>) {
 async fn adding_and_reordering(rig: &mut Rig<'_>) {
     let st = rig.st.clone();
     let start = ids(&st);
-    for (index, template) in CloudPolishTemplate::ALL.iter().enumerate() {
+    for (index, template) in CloudTextTemplate::ALL.iter().enumerate() {
         let before = ids(&st);
         rig.add_through_menu(index).await;
         let id = rig.assert_added(&before);
@@ -544,7 +544,7 @@ async fn adding_and_reordering(rig: &mut Rig<'_>) {
     assert_eq!(saved(&st).selected, after[middle], "a click after a drag still selects");
 
     let on_disk = ConfigStore::open(st.cfg.path()).expect("the settings file reads back").get();
-    assert_eq!(on_disk.polish.engine.cloud_polish, st.cfg.get().polish.engine.cloud_polish);
+    assert_eq!(on_disk.text_model.cloud_text, st.cfg.get().text_model.cloud_text);
     println!(
         "verified: adding from each template, duplicating without the key, reordering, the scroll to the new tile"
     );
@@ -601,61 +601,58 @@ async fn key_after_delete(rig: &mut Rig<'_>) {
 
 async fn local_parameters(rig: &mut Rig<'_>) {
     let st = rig.st.clone();
-    services::save_config(&st, |c| c.polish.engine.source = Source::Local);
+    services::save_config(&st, |c| c.text_model.source = Source::Local);
     on_settings_window(rig.cx, |window, cx, view| {
-        view.update(cx, |s, cx| s.preview_models(Role::Polish, None, window, cx));
+        view.update(cx, |s, cx| s.preview_models(Role::Text, None, window, cx));
         redraw(window, cx);
     });
     rig.step("local-states", "", "");
-    let model = st.cfg.get().polish.engine.local_model.clone();
+    let model = st.cfg.get().text_model.local_model.clone();
     rig.type_local("temperature", "0.3");
     rig.type_local("top_p", "0.9");
     rig.type_local("top_k", "abc");
     rig.type_local("max_tokens", "0");
-    let saved = st.cfg.get().polish.engine.local_params_for(&model);
-    assert_eq!(saved, LocalPolishParams { temperature: Some(0.3), top_p: Some(0.9), top_k: None, max_tokens: None });
+    let saved = st.cfg.get().text_model.local_params_for(&model);
+    assert_eq!(saved, LocalTextParams { temperature: Some(0.3), top_p: Some(0.9), top_k: None, max_tokens: None });
     assert_eq!(rig.probe().local_invalid, ["top_k", "max_tokens"], "the local fields flag what does not parse");
     rig.shot("polish-local-invalid-light.png").await;
 
     rig.type_local("top_k", "40");
     rig.type_local("max_tokens", "");
     rig.type_local("temperature", "-1");
-    let saved = st.cfg.get().polish.engine.local_params_for(&model);
-    assert_eq!(
-        saved,
-        LocalPolishParams { temperature: Some(0.3), top_p: Some(0.9), top_k: Some(40), max_tokens: None }
-    );
+    let saved = st.cfg.get().text_model.local_params_for(&model);
+    assert_eq!(saved, LocalTextParams { temperature: Some(0.3), top_p: Some(0.9), top_k: Some(40), max_tokens: None });
     rig.type_local("temperature", "0.3");
     rig.shot("polish-local-light.png").await;
 
-    let other = rig.probe().local_models.into_iter().find(|id| *id != model).expect("a second polish model");
-    services::save_config(&st, |c| c.polish.engine.local_model = other.clone());
+    let other = rig.probe().local_models.into_iter().find(|id| *id != model).expect("a second text model");
+    services::save_config(&st, |c| c.text_model.local_model = other.clone());
     rig.draw();
     let state = rig.probe();
     assert_eq!(state.local_shown.as_deref(), Some(other.as_str()));
     assert!(["temperature", "top_p", "top_k", "max_tokens"].iter().all(|field| state.local_text(field).is_empty()));
-    assert_eq!(st.cfg.get().polish.engine.local_params_for(&model).top_k, Some(40));
-    services::save_config(&st, |c| c.polish.engine.local_model = model.clone());
+    assert_eq!(st.cfg.get().text_model.local_params_for(&model).top_k, Some(40));
+    services::save_config(&st, |c| c.text_model.local_model = model.clone());
     rig.draw();
     assert_eq!(rig.probe().local_text("top_k"), "40", "coming back shows what was saved for that model");
     for field in ["temperature", "top_p", "top_k"] {
         rig.type_local(field, "");
     }
-    assert!(st.cfg.get().polish.engine.local_params.is_empty(), "parameters that set nothing are not kept");
+    assert!(st.cfg.get().text_model.local_params.is_empty(), "parameters that set nothing are not kept");
     rig.type_local("temperature", "0.3");
 
     let blocker = st.cfg.path().with_extension("toml.tmp");
     std::fs::create_dir_all(&blocker).expect("block the settings file's temporary name");
     rig.step("use-model", &other, "");
-    assert_eq!(st.cfg.get().polish.engine.local_model, model, "a selection that cannot be saved changes nothing");
+    assert_eq!(st.cfg.get().text_model.local_model, model, "a selection that cannot be saved changes nothing");
     assert!(rig.probe().save_failed, "and raises the banner");
     std::fs::remove_dir(&blocker).expect("unblock the settings file");
     rig.step("use-model", &other, "");
-    assert_eq!(st.cfg.get().polish.engine.local_model, other, "the selection was saved");
+    assert_eq!(st.cfg.get().text_model.local_model, other, "the selection was saved");
     assert!(!rig.probe().save_failed, "a selection that works takes the banner down");
     rig.step("use-model", &model, "");
-    assert_eq!(st.cfg.get().polish.engine.local_model, model);
-    services::save_config(&st, |c| c.polish.engine.source = Source::Provider);
+    assert_eq!(st.cfg.get().text_model.local_model, model);
+    services::save_config(&st, |c| c.text_model.source = Source::Provider);
     println!("verified: local parameters are saved per model, follow the model in use and flag what does not parse");
 }
 
@@ -686,11 +683,11 @@ async fn stand_ins(rig: &mut Rig<'_>, appearance: Appearance) {
     assert_eq!(names, ["Azure OpenAI", "Amazon Bedrock", "OpenAI 互換 API"]);
 }
 
-pub async fn polish_form_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
+pub async fn text_model_form_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     let original = st.cfg.get();
     // The mock server's address is the one its azure configuration starts with.
     let server = {
-        let list = original.polish.engine.polish_configurations(original.general.lang());
+        let list = original.text_model.text_configurations(original.general.lang());
         list.get("azure").map(|azure| azure.target.address().to_owned()).expect("the polish form shots need --mock")
     };
     let mut rig = Rig { st, dir, cx };

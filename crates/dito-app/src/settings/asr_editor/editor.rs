@@ -55,6 +55,7 @@ pub struct AsrEditor {
     help: bool,
     dialog: bool,
     help_scroll: ScrollHandle,
+    page_scroll: ScrollHandle,
     motion: ui::MotionScope,
 }
 
@@ -90,6 +91,7 @@ impl AsrEditor {
             help: false,
             dialog: false,
             help_scroll: ScrollHandle::new(),
+            page_scroll: ScrollHandle::new(),
             motion: ui::MotionScope::new(),
         };
         editor.sync(window, cx);
@@ -127,6 +129,12 @@ impl AsrEditor {
         }
         cx.emit(Changed);
         cx.notify();
+    }
+
+    /// The scroll area around the form tracks this handle, so the source editor can hand it the scrolling it cannot
+    /// use (`design:settings/cloud-models/compact-window`).
+    pub fn page_scroll(&self) -> &ScrollHandle {
+        &self.page_scroll
     }
 
     fn draft(&self) -> &Draft {
@@ -181,6 +189,7 @@ impl AsrEditor {
                 .language("json")
                 .folding(false)
                 .scroll_beyond_last_line(Some(0))
+                .scroll_bounce(false)
                 .default_value(text.clone())
         });
         let owner = configuration.id.clone();
@@ -425,7 +434,7 @@ impl AsrEditor {
 impl Render for AsrEditor {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let scope = self.motion.handle();
-        ui::with_motion_scope(scope, || {
+        ui::render_with_scope(scope, || {
             if self.dialog {
                 self.modal(window, cx).into_any_element()
             } else {

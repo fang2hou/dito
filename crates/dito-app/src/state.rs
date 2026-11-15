@@ -177,8 +177,8 @@ fn start_mock_server(
     cfg.update(|c| {
         let fresh = dito_core::config::Config::dev_azure();
         c.asr = fresh.asr;
-        c.polish.engine = fresh.polish.engine;
-        if let Some(azure) = c.polish.engine.polish_configurations_mut(c.general.lang()).active_mut() {
+        c.text_model = fresh.text_model;
+        if let Some(azure) = c.text_model.text_configurations_mut(c.general.lang()).active_mut() {
             *azure.target.address_mut() = server.url.clone();
         }
         c.onboarded = true;

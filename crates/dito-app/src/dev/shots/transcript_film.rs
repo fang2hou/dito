@@ -10,21 +10,22 @@ use std::time::{Duration, Instant};
 use dito_core::config::Appearance;
 use dito_core::controller::RecorderError;
 use dito_core::factory::FixedEngines;
-use dito_core::provider::mock::{MockPolisher, ToneTranscriber, tone};
+use dito_core::provider::mock::{MockTextModel, ToneTranscriber, tone};
 use dito_core::transcription::{
     self, AudioSource, ChunkSink, EnergyDetectors, LiveAudio, LiveInput, SessionState, Sources, TranscriptionDeps,
 };
 use gpui_kit::*;
 
-use super::capture::{render_settings_window, resize_settings_window, save};
-use super::input::on_settings_window;
+use super::capture::{render_tools_window, resize_tools_window, save};
+use super::input::on_tools_window;
 use crate::services;
-use crate::settings::{self, Page};
 use crate::state::AppState;
+use crate::tools;
 
 const FRAME: Duration = Duration::from_millis(250);
-/// After the script ends: long enough for the last paragraph to close by silence and be polished.
-const TAIL: Duration = Duration::from_secs(6);
+/// The dock morphs are filmed at display rate: the start, the stop press and the stop itself.
+const DENSE_FRAME: Duration = Duration::from_millis(16);
+const DENSE_FOR: Duration = Duration::from_millis(2_500);
 
 /// Plays the script like a system audio tap: 100 ms blocks in real time, and nothing at all once it is over.
 struct Talk(Vec<f32>);
@@ -60,10 +61,12 @@ impl LiveAudio for Talk {
 }
 
 pub async fn run(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
+    // A hidden app is napped, which throttles its foreground tasks far below the frame rate being filmed.
+    let _nap = dito_platform::system::NapGuard::new("transcript-film");
     services::save_config(st, |c| c.general.appearance = Appearance::Light);
     cx.update(|cx| {
-        settings::open(st.clone(), Page::Transcription, cx);
-        resize_settings_window(cx, 1120., 720.);
+        tools::open(st.clone(), cx);
+        resize_tools_window(cx, 1120., 720.);
     });
     let mut audio = vec![0.0; 8_000];
     let mut lines = Vec::new();
@@ -81,16 +84,17 @@ pub async fn run(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
             detectors: Arc::new(EnergyDetectors),
             engines: Arc::new(FixedEngines::new(
                 Arc::new(asr),
-                Arc::new(MockPolisher::default().with_delay(Duration::from_millis(2_500))),
+                Arc::new(MockTextModel::default().with_delay(Duration::from_millis(2_500))),
             )),
             config: st.cfg.clone(),
             store: st.store.clone(),
         })
     };
-    on_settings_window(cx, |w, cx, view| {
+    on_tools_window(cx, |w, cx, view| {
         let handle = handle.clone();
-        view.update(cx, |s, cx| s.follow_transcription(handle, w, cx));
+        view.update(cx, |t, cx| t.follow_transcription(handle, w, cx));
     });
+    on_tools_window(cx, |_, app, view| view.update(app, |t, cx| t.pose_transcription_start_pressed(cx)));
     handle.start(Sources { system: true, microphone: false });
 
     // Encoding on this thread would stall the page between frames.
@@ -103,15 +107,39 @@ pub async fn run(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     });
     let start = Instant::now();
     let mut stopped = false;
-    for n in 0.. {
-        let due = FRAME * n;
-        cx.background_executor().timer(due.saturating_sub(start.elapsed())).await;
-        if !stopped && start.elapsed() >= length + TAIL {
-            handle.stop();
-            stopped = true;
+    let (pause_at, resume_at) = (length.mul_f32(0.3), length.mul_f32(0.5));
+    let (arm_at, stop_at) = (length.mul_f32(0.7), length.mul_f32(0.85));
+    let mut events = [(pause_at, "pause"), (resume_at, "resume"), (arm_at, "arm"), (stop_at, "stop")];
+    let mut due = Duration::ZERO;
+    loop {
+        let wait = due.saturating_sub(start.elapsed());
+        if !wait.is_zero() {
+            cx.background_executor().timer(wait).await;
         }
-        if let Some(Ok(image)) = render_settings_window(cx) {
-            let state = match handle.status().state {
+        let now = start.elapsed();
+        let dense = [Duration::ZERO, arm_at, stop_at].iter().any(|at| now >= *at && now < *at + DENSE_FOR);
+        due = now + if dense { DENSE_FRAME } else { FRAME };
+        for (at, what) in events.iter_mut() {
+            if matches!(*what, "pause" | "resume") && start.elapsed() >= *at {
+                handle.toggle_pause();
+                *what = "";
+            } else if *what == "arm" && start.elapsed() >= *at {
+                on_tools_window(cx, |_, app, view| view.update(app, |t, cx| t.pose_transcription_stop_armed(cx)));
+                *what = "";
+            } else if *what == "stop" && start.elapsed() >= *at {
+                handle.stop();
+                stopped = true;
+                *what = "";
+            }
+        }
+        // Dense frames leave the foreground no gap to deliver the session in, so the page takes it here, as its
+        // subscription would.
+        let status = handle.status();
+        on_tools_window(cx, |w, app, view| view.update(app, |t, cx| t.sync_transcription(status, w, cx)));
+        if let Some(Ok(image)) = render_tools_window(cx) {
+            let status = handle.status();
+            let state = match status.state {
+                SessionState::Recording { segment_start: None, .. } => "paused",
                 SessionState::Recording { .. } => "rec",
                 SessionState::Finishing { .. } => "fin",
                 SessionState::Idle => "idle",

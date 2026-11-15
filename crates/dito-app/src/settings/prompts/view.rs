@@ -285,10 +285,10 @@ impl PromptsPage {
                 div()
                     .w_full()
                     .flex()
-                    .items_center()
+                    .items_start()
                     .gap(px(10.))
-                    .child(div().flex_1().min_w(px(0.)).child(ui::text_input(&p, sample, None)))
-                    .child(ui::bare_icon_button(
+                    .child(div().flex_1().min_w(px(0.)).child(example_field(&p, sample, window, cx)))
+                    .child(div().h(px(EXAMPLE_LINE_H)).flex_none().flex().items_center().child(ui::bare_icon_button(
                         SharedString::from(format!("rm-sample-{i}")),
                         &p,
                         Ic::X,
@@ -299,7 +299,7 @@ impl PromptsPage {
                                 cx.notify();
                             }
                         }),
-                    )),
+                    ))),
             );
         }
         card
@@ -416,6 +416,25 @@ impl PromptsPage {
                     ),
             )
     }
+}
+
+/// Height of a writing example with one line; the remove button is centered on it and stays there as the field grows.
+const EXAMPLE_LINE_H: f32 = 42.;
+
+fn example_field(p: &Palette, ent: &Entity<TextareaState>, window: &Window, cx: &App) -> Div {
+    let focused = ent.read(cx).focus_handle(cx).contains_focused(window, cx);
+    let style = ui::TextAreaStyle {
+        bg: p.input_bg,
+        edge: None,
+        radius: 12.,
+        text_size: 13.,
+        line_height: 20.,
+        pad: [12., 10., 12., 10.],
+        fill: false,
+        reserve_bottom: 0.,
+    };
+    let body = div().w_full().rounded(px(12.)).child(ui::text_area(ent, style));
+    ui::with_ring(body, ("example", ent.entity_id().as_u64() as usize), focused, 12., p.border_strong, p.accent)
 }
 
 fn prompt_editor(p: &Palette, ent: &Entity<TextareaState>, window: &Window, cx: &App, height: f32) -> Div {

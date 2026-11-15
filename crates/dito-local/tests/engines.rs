@@ -6,12 +6,12 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::Duration;
 
 use dito_core::audio::AudioClip;
-use dito_core::config::{ConfigStore, LocalPolishParams};
+use dito_core::config::{ConfigStore, LocalTextParams};
 use dito_core::error::ErrorKind;
 use dito_core::factory::LocalBackend;
 use dito_core::health::EngineStatus;
 use dito_core::intent::{Intent, Reading, Request};
-use dito_core::provider::{AsrRequest, Example, PolishRequest};
+use dito_core::provider::{AsrRequest, Example, TextRequest};
 use dito_local::catalog::{FileSpec, ModelFormat, ModelKind, ModelSpec, Sampling};
 use dito_local::{
     AsrOutput, AsrRuntime, LlmRuntime, LocalEngines, ModelManager, NoRuntime, RuntimeError, RuntimeLoader,
@@ -19,8 +19,7 @@ use dito_local::{
 
 const RECOMMENDED: Sampling = Sampling { temperature: 0.2, top_p: Some(0.9), top_k: None, max_tokens: None };
 
-const NO_PARAMS: LocalPolishParams =
-    LocalPolishParams { temperature: None, top_p: None, top_k: None, max_tokens: None };
+const NO_PARAMS: LocalTextParams = LocalTextParams { temperature: None, top_p: None, top_k: None, max_tokens: None };
 
 struct Fake {
     loads: AtomicUsize,
@@ -73,16 +72,18 @@ fn installed_manager() -> (ModelManager, tempfile::TempDir) {
         name: id.into(),
         kind,
         files: vec![FileSpec { name: "f".into(), url: String::new(), size: 3, sha256: None }],
+        parameters_m: 1,
+        quantization: dito_local::catalog::Quantization::Q8_0,
         memory_mb: 1,
         format: match kind {
             ModelKind::Asr => ModelFormat::SenseVoice { model: "f", tokens: "f" },
-            ModelKind::Polish => ModelFormat::Chat { model: "f", disable_thinking: false, sampling: RECOMMENDED },
+            ModelKind::Text => ModelFormat::Chat { model: "f", disable_thinking: false, sampling: RECOMMENDED },
             ModelKind::Vad => ModelFormat::SileroVad { model: "f" },
         },
         language_focus: None,
     };
     let mgr = ModelManager::with_catalog(
-        vec![mk("asr", ModelKind::Asr), mk("llm", ModelKind::Polish), mk("missing", ModelKind::Asr)],
+        vec![mk("asr", ModelKind::Asr), mk("llm", ModelKind::Text), mk("missing", ModelKind::Asr)],
         cfg,
     );
     for id in ["asr", "llm"] {
@@ -110,8 +111,8 @@ async fn loads_lazily_once_and_runs_inference_off_the_async_thread() {
     assert_eq!(fake.loads.load(Ordering::SeqCst), 1, "second call reuses the loaded runtime");
     assert_eq!(eng.status("asr"), EngineStatus::Running);
 
-    let p = eng.polisher("llm", &NO_PARAMS).await.unwrap();
-    assert_eq!(p.polish(&PolishRequest { system: "s", examples: &[], text: "hi" }).await.unwrap(), "HI");
+    let p = eng.text_model("llm", &NO_PARAMS).await.unwrap();
+    assert_eq!(p.polish(&TextRequest { system: "s", examples: &[], text: "hi" }).await.unwrap(), "HI");
 }
 
 struct Reader;
@@ -170,22 +171,26 @@ impl RuntimeLoader for ProbeLoader {
 }
 
 #[tokio::test]
-async fn a_polisher_samples_with_the_recommendation_under_the_parameters_of_its_model() {
+async fn a_text_model_samples_with_the_recommendation_under_the_parameters_of_its_model() {
     let (manager, _dir) = installed_manager();
     let seen = Arc::new(std::sync::Mutex::new(None));
     let engine = LocalEngines::new(manager, Arc::new(ProbeLoader(seen.clone())));
-    let request = PolishRequest { system: "s", examples: &[], text: "hi" };
+    let request = TextRequest { system: "s", examples: &[], text: "hi" };
 
-    engine.polisher("llm", &NO_PARAMS).await.unwrap().polish(&request).await.unwrap();
+    engine.text_model("llm", &NO_PARAMS).await.unwrap().polish(&request).await.unwrap();
     assert_eq!(*seen.lock().unwrap(), Some(RECOMMENDED), "nothing set: the catalog's recommendation");
 
-    let params = LocalPolishParams { temperature: Some(0.7), top_k: Some(40), max_tokens: Some(64), ..NO_PARAMS };
-    engine.polisher("llm", &params).await.unwrap().polish(&request).await.unwrap();
+    let params = LocalTextParams { temperature: Some(0.7), top_k: Some(40), max_tokens: Some(64), ..NO_PARAMS };
+    engine.text_model("llm", &params).await.unwrap().polish(&request).await.unwrap();
     let expected = Sampling { temperature: 0.7, top_p: Some(0.9), top_k: Some(40), max_tokens: Some(64) };
     assert_eq!(*seen.lock().unwrap(), Some(expected), "what is set wins, what is not keeps its recommendation");
 
-    engine.polisher("llm", &NO_PARAMS).await.unwrap().polish(&request).await.unwrap();
-    assert_eq!(*seen.lock().unwrap(), Some(RECOMMENDED), "parameters belong to one polisher, not to the loaded model");
+    engine.text_model("llm", &NO_PARAMS).await.unwrap().polish(&request).await.unwrap();
+    assert_eq!(
+        *seen.lock().unwrap(),
+        Some(RECOMMENDED),
+        "parameters belong to one text_model, not to the loaded model"
+    );
 }
 
 #[tokio::test]
@@ -359,9 +364,9 @@ async fn abort_and_expect_stop<T>(call: tokio::task::JoinHandle<T>, events: &std
 async fn dropping_a_polish_call_raises_the_stop_flag_for_the_runtime() {
     let (events, observed) = std::sync::mpsc::channel();
     let (engine, _dir) = engine_with(Spinning(events));
-    let polisher = engine.polisher("llm", &NO_PARAMS).await.unwrap();
+    let text_model = engine.text_model("llm", &NO_PARAMS).await.unwrap();
     let call =
-        tokio::spawn(async move { polisher.polish(&PolishRequest { system: "s", examples: &[], text: "hi" }).await });
+        tokio::spawn(async move { text_model.polish(&TextRequest { system: "s", examples: &[], text: "hi" }).await });
     abort_and_expect_stop(call, &observed).await;
 }
 
@@ -392,8 +397,8 @@ impl LlmRuntime for CutOff {
 #[tokio::test]
 async fn output_cut_off_at_the_token_limit_is_a_bad_response_not_a_result() {
     let (engine, _dir) = engine_with(CutOff);
-    let polisher = engine.polisher("llm", &NO_PARAMS).await.unwrap();
-    let polished = polisher.polish(&PolishRequest { system: "s", examples: &[], text: "hi" }).await;
+    let text_model = engine.text_model("llm", &NO_PARAMS).await.unwrap();
+    let polished = text_model.polish(&TextRequest { system: "s", examples: &[], text: "hi" }).await;
     assert_eq!(polished.err().unwrap().kind, ErrorKind::BadResponse);
 
     let clip = AudioClip::new(vec![0.1; 1600]);

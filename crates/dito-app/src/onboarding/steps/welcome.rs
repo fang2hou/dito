@@ -28,12 +28,11 @@ pub(in crate::onboarding) fn page(_w: &Onboarding, c: &Ctx, cx: &mut Context<Onb
     let p = &c.p;
     let tagline = c.t(Tr::OnboardingTagline);
     let cjk = ui::is_cjk(&tagline);
-    let tagline = div().h(px(WELCOME_TAG_H)).flex().items_center().whitespace_nowrap().child(ui::text_tracked(
+    let tagline = div().h(px(WELCOME_TAG_H)).flex().items_center().whitespace_nowrap().child(ui::label(
         &tagline,
         if cjk { 19. } else { 18. },
         FontWeight::NORMAL,
         p.muted,
-        0.08,
     ));
     let button = ui::button_with(
         "wizard-start",

@@ -1,3 +1,4 @@
+mod app_shell;
 mod assets;
 mod dev;
 mod dock;
@@ -16,6 +17,7 @@ mod startup_failure;
 mod state;
 mod theme;
 mod timefmt;
+mod tools;
 mod ui;
 
 use anyhow::Result;

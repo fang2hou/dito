@@ -8,6 +8,7 @@ use image::{Rgba, RgbaImage};
 use super::input::redraw;
 use crate::hud::{HUD_SCALE, HudView, WIN_H, WIN_PAD, WIN_W};
 use crate::settings;
+use crate::tools;
 use crate::ui::{self, Root};
 
 const FRAME_RATE: f32 = 30.;
@@ -47,9 +48,23 @@ pub fn render_settings_window(cx: &mut AsyncApp) -> Option<Result<RgbaImage, Str
     })
 }
 
+pub fn render_tools_window(cx: &mut AsyncApp) -> Option<Result<RgbaImage, String>> {
+    cx.update(|cx| {
+        let (window, _) = tools::handle(cx)?;
+        Some(paint_to_image(window.into(), cx))
+    })
+}
+
 pub async fn page_shot(cx: &mut AsyncApp, dir: &Path, name: &str) {
     cx.background_executor().timer(Duration::from_millis(700)).await;
     if let Some(Ok(img)) = render_settings_window(cx) {
+        save(dir, name, img);
+    }
+}
+
+pub async fn tools_page_shot(cx: &mut AsyncApp, dir: &Path, name: &str) {
+    cx.background_executor().timer(Duration::from_millis(700)).await;
+    if let Some(Ok(img)) = render_tools_window(cx) {
         save(dir, name, img);
     }
 }
@@ -105,6 +120,12 @@ pub fn hud_view(cx: &mut AsyncApp, window: WindowHandle<Root>) -> Option<Entity<
 
 pub fn resize_settings_window(cx: &mut App, width: f32, height: f32) {
     if let Some((window, _)) = settings::handle(cx) {
+        let _ = window.update(cx, |_, w, _| w.resize(size(px(width), px(height))));
+    }
+}
+
+pub fn resize_tools_window(cx: &mut App, width: f32, height: f32) {
+    if let Some((window, _)) = tools::handle(cx) {
         let _ = window.update(cx, |_, w, _| w.resize(size(px(width), px(height))));
     }
 }

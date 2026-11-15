@@ -90,6 +90,28 @@ pub fn tweened_at<E: IntoElement + 'static>(
         .into_any_element()
 }
 
+/// [`tweened`] that hands `build` the linear progress from the drawn value to the target, for callers that shape
+/// the motion themselves (a spring, a lead and a trail).
+pub fn tweened_linear<E: IntoElement + 'static>(
+    id: ElementId,
+    target: f32,
+    ms: u64,
+    build: impl Fn(f32) -> E + 'static,
+) -> AnyElement {
+    let scope = scope::motion_scope();
+    let dur = Duration::from_millis(ms);
+    let (from, to, active, key) = tween_to_at(&scope, &id, target, dur);
+    let render = move |v: f32| scope::with_motion_scope(scope.clone(), || build(v));
+    if !active {
+        return render(to).into_any_element();
+    }
+    render(from)
+        .with_animation((id, SharedString::from(format!("linear-{key}"))), Animation::new(dur), move |_, t| {
+            render(from + (to - from) * t)
+        })
+        .into_any_element()
+}
+
 /// Under Reduce Motion it is a plain ease without overshoot.
 pub fn spring(t: f32, motion: Motion) -> f32 {
     let t = t.clamp(0., 1.);

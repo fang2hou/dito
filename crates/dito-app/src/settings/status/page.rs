@@ -23,6 +23,7 @@ pub struct StatusPage {
     pub(super) checks: [TestState; 2],
     pub(super) microphone_allowed: bool,
     pub(super) accessibility_allowed: bool,
+    pub(super) system_audio: Status,
     pub(super) usage: UsageMeter,
     /// Lives only while the page is on screen: dropping it stops the permission and usage readings.
     refresh: Option<Task<()>>,
@@ -47,7 +48,7 @@ impl Render for StatusPage {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         // Own scope: after a page switch the controls mount statically instead of sliding to values remembered from an
         // earlier visit.
-        ui::with_motion_scope(self.motion.handle(), || self.view(window, cx))
+        ui::render_with_scope(self.motion.handle(), || self.view(window, cx))
     }
 }
 
@@ -60,6 +61,8 @@ impl StatusPage {
             checks: [TestState::Idle, TestState::Idle],
             microphone_allowed: true,
             accessibility_allowed: true,
+            // The first reading lands before the page is shown; until then, report no problem.
+            system_audio: Status::Granted,
             usage: UsageMeter::default(),
             refresh: None,
             log_watch: None,
@@ -115,6 +118,7 @@ impl StatusPage {
         self.microphone_allowed =
             self.st.capture.is_none() || permissions::status(Permission::Microphone) == Status::Granted;
         self.accessibility_allowed = permissions::status(Permission::Accessibility) == Status::Granted;
+        self.system_audio = permissions::status(Permission::SystemAudio);
         self.usage.sample(&self.st);
     }
 
@@ -123,8 +127,8 @@ impl StatusPage {
         if cfg.asr.source == Source::Provider {
             self.run_check(Role::Asr, cx);
         }
-        if cfg.polish.enabled && cfg.polish.engine.source == Source::Provider {
-            self.run_check(Role::Polish, cx);
+        if cfg.polish.enabled && cfg.text_model.source == Source::Provider {
+            self.run_check(Role::Text, cx);
         }
     }
 
@@ -156,7 +160,7 @@ impl StatusPage {
         let c = Ctx::new(&self.st, cx);
         let p = c.p;
         let steps = self.steps(&c);
-        let ready = steps.iter().all(|step| step.dot != Dot::Attention);
+        let ready = steps.iter().all(|step| !step.blocks_dictation || step.dot != Dot::Attention);
         settings::page(
             p,
             "status",
@@ -225,7 +229,7 @@ impl StatusPage {
         )
     }
 
-    fn flow(&self, c: &Ctx, cx: &mut Context<Self>, steps: [Step; 5]) -> Div {
+    fn flow(&self, c: &Ctx, cx: &mut Context<Self>, steps: [Step; 6]) -> Div {
         let mut card = ui::card(&c.p);
         for (index, step) in steps.into_iter().enumerate() {
             if index > 0 {

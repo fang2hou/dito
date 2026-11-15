@@ -11,7 +11,7 @@ Before changing something an ADR covers, read it. When a request conflicts with 
 | [0003](0003-never-lose-speech.md) | Never lose what the user said |
 | [0004](0004-hud-out-of-the-way.md) | The HUD never takes focus and never gets in the way |
 | [0005](0005-reliable-delivery.md) | Reliable insertion beats simple insertion |
-| [0006](0006-minimal-permissions.md) | Only Microphone and Accessibility |
+| [0006](0006-minimal-permissions.md) | Microphone, Accessibility and System Audio Recording |
 | [0007](0007-declarative-cloud-asr.md) | Cloud speech vendors through a declarative config |
 | [0008](0008-data-stays-local.md) | User data and secrets stay on the Mac |
 | [0009](0009-portable-core.md) | The core is independent of UI and macOS; one actor owns the dictation |

@@ -12,7 +12,8 @@ The **JA**, **EN**, and **ZH** columns give the canonical UI terms (`—` when a
 | Clip | The audio of one recording, 16 kHz mono | — | — | — | `AudioClip`, `Recorder` | recording (as a noun for the audio), sample |
 | ASR | Speech recognition, as a stage and as a model kind | 音声認識 | Speech recognition | 语音识别 | `Transcriber`, `AsrRequest`, `asr_*` | STT, recognizer (except sherpa-onnx's native `Recognizer`) |
 | Transcribe | Turning a clip into its raw transcript (`Output::raw`) | 認識 | Transcribe | 识别 | `Transcriber::transcribe`, `PipelinePhase::Transcribing`, `HudState::Transcribing` | recognize, recognized text |
-| Polish | Cleaning up and formatting a transcript with a language model | 文章整形（整形） | Polish | 文本润色（润色） | `Polisher`, `PolishRequest`, `PolishJob` | rewrite, refine, clean up |
+| Polish | Cleaning up and formatting a transcript with the text model | 文章整形（整形） | Polish | 文本润色（润色） | `PolishJob`, `pipeline::polish_text`, `polish.enabled` | rewrite, refine, clean up |
+| Text model | The language model that polishes dictation, runs the command tools and finds words for the wordbook; local or a cloud configuration | テキストモデル（テキスト） | Text model (Text) | 文本模型（文本） | `TextModel`, `TextRequest`, `Config::text_model`, `ModelKind::Text`, `Role::Text` | polish model, polisher, LLM, AI model (Keychain accounts keep their shipped `polish.` prefix) |
 | Pipeline | Transcribe, then polish, for one clip; excludes recording and insertion | — | — | — | `pipeline::run`, `PipelineJob`, `PipelinePhase` | |
 | Insertion | Putting the final text into the focused app by key input or paste | 入力 | Input | 输入 | `Sink`, `InsertMethod`, `Delivery` | typing-in, output |
 | Delivery | The outcome of an insertion: inserted, copied to the clipboard, or failed | — | — | — | `Delivery` | |
@@ -20,6 +21,7 @@ The **JA**, **EN**, and **ZH** columns give the canonical UI terms (`—` when a
 | App rules | Polish instructions and optional writing examples layered on top of the common rules for one app target | アプリ別のルール | App rules | 应用规则 | `AppRules`, `BuiltinAppRules`, `PromptSet::app_rules` | style, app style, profile, preset, app settings |
 | App target | Which app rules apply: fallback (`Other`), built in (`Slack`, `Teams`, `Herdr`), or a user-configured app | 対象のアプリ（その他） | Application (Other) | 目标应用（其他） | `AppTarget` | style, profile (persisted SQLite `style` column and `disabled_builtin_styles` TOML key keep their shipped spelling) |
 | Wordbook | Words the user wants spelled as written, passed to ASR as hotwords and optionally to polish | 単語帳 | Wordbook | 单词本 | `Store::words`, `PipelineJob::wordbook`, `wordbook_for_polish` | dictionary, glossary (this file), vocabulary (except the `reference_vocabulary` prompt tag) |
+| Word finder | Offers terms for the wordbook from pasted text, a chosen file, or the reply of another AI to a copied prompt | 解析して追加 | Analyze and add | 解析并添加 | `word_finder::find_words`, `read_source`, `read_reply`, `Candidate` | auto learning, extraction, import (that adds a word list as it is) |
 | Hotword | A wordbook word as ASR receives it | ホットワード | Hotword | 热词 | `AsrRequest::hotwords`, `is_hotword_echo` | vocabulary, keyword |
 | Speech language | The spoken language passed to ASR and used to pick polish rules (`ja`, `en`, `zh`, or `Auto`), named as the language as a whole rather than a script or regional variant | 優先言語（日本語, 英語, 中国語; HUD: 日, En, 中） | Preferred language (Japanese, English, Chinese; HUD: 日, En, 中) | 优先语言（日语, 英语, 中文; HUD: 日, En, 中） | `PreferredLanguage`, `Lang::name` | script or regional variants in speech/HUD/prompt pickers |
 | History | Stored dictation runs with their audio, and command runs with their instruction, decision, tool, source text, result, outcome, and step times | 履歴 | History | 历史 | `HistoryEntry`, `HistoryKind`, `CommandDetails` | log (the debug log is `dito_trace`, see [DEBUGGING.md](DEBUGGING.md)) |
@@ -31,8 +33,8 @@ The **JA**, **EN**, and **ZH** columns give the canonical UI terms (`—` when a
 | Source | Where a stage runs: on the Mac (`Local`) or over HTTP (`Provider`) | ローカル, クラウド | Local, Cloud | 本地, 云端 | `config::Source` | mode, backend, "provider" in UI copy |
 | Engine | The active implementation built from the settings for one stage | エンジン | Engine | 引擎 | `Engines`, `EngineFactory`, `EngineConfig` | |
 | Provider | A cloud service that serves a stage | — | — | — | `provider/`, `ProviderError`, `ProviderResult` | vendor, remote |
-| Configuration | One saved cloud setup (name, request or endpoint, model), selected from a row of tiles | 設定 | Configuration | 配置 | `CloudAsrConfiguration`, `CloudPolishConfiguration` | profile, preset, connection |
-| Template | A bundled starting point for a cloud configuration | テンプレート | Template | 模板 | `CloudAsrTemplate`, `CloudPolishTemplate`, `design/asr-templates/` | preset |
+| Configuration | One saved cloud setup (name, request or endpoint, model), selected from a row of tiles | 設定 | Configuration | 配置 | `CloudAsrConfiguration`, `CloudTextConfiguration` | profile, preset, connection |
+| Template | A bundled starting point for a cloud configuration | テンプレート | Template | 模板 | `CloudAsrTemplate`, `CloudTextTemplate`, `design/asr-templates/` | preset |
 | Profile | An AWS shared-config profile | AWS プロファイル | AWS profile | AWS 配置文件 | `aws_profiles` | any other use (`config/migrate.rs` retains the retired `cloud_asr.profiles` key) |
 | Model | Downloadable local weights or a remote model identifier | モデル | Model | 模型 | `ModelSpec`, `ModelState`, `ModelManager` | |
 | Runtime | A native inference library behind `dito-local` | — | — | — | `Runtime`, `AsrRuntime`, `LlmRuntime`, `dito-runtimes` | engine, backend |
@@ -66,6 +68,9 @@ How a command is decided is in [INTENT_ROUTING.md](INTENT_ROUTING.md); how it is
 | Display language | The UI locale of menus, settings, and the HUD, shown as a self-name including script variant (such as Simplified or Traditional Chinese) | 表示言語（日本語, English, 简体中文） | Display language (日本語, English, 简体中文) | 界面语言（日本語, English, 简体中文） | `DisplayLanguage`, `Lang::native_name` | conflating UI script variants with speech language |
 | HUD | The floating capsule that shows live dictation and command state | HUD | HUD | HUD | `hud/`, `HudState`, `HudView` | overlay, toast |
 | HUD state | For dictation: hidden, listening, transcribing, polishing, inserted, copied, error; command adds thinking, working, its windows, and replaced | — | — | — | `HudState` | |
+| Tools window | The standalone workspace window outside Settings that hosts Dito's interactive tools (meeting transcription first, future tools alongside it in the `ツール` sidebar) | ツールウィンドウ（メニュー: ツールを開く） | Tools window (menu: Open Tools) | 工具窗口（菜单: 打开工具） | `tools/` | feature window, transcription window |
+| Transcription | Continuous live transcription of desktop audio, the microphone, or both into an editable meeting entry inside the Tools window | 書き起こし | Transcription | 转写 | `transcription/` | meeting mode, live dictation |
+| Speech detection | The on-device voice activity detector model role (`Silero VAD`) that cuts live streams into utterances | 発話検出 | Speech detection | 发话检测 | `ModelKind::Vad`, `VoiceDetector` | speaker detection, diarization |
 | Tile | The horizontal card control representing one saved cloud configuration | — | — | — | `ConfigTile`, `config_tiles/` | card (cards are grouped containers) |
 | Page | One screen of the settings window | — | — | — | `settings/*` | tab |
 | Motion scope | The owner of animation state for one view | — | — | — | `MotionScope` | |

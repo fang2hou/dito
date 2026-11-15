@@ -132,7 +132,7 @@ impl Render for GeneralPage {
         // Own scope: after a page switch the controls mount statically instead of sliding to values remembered from an
         // earlier visit.
         self.fading.set(false);
-        ui::with_motion_scope(self.motion.handle(), || {
+        ui::render_with_scope(self.motion.handle(), || {
             let page = self.view(cx).into_any_element();
             if self.fading.get() {
                 window.request_animation_frame();

@@ -2,13 +2,13 @@
 //! `design:settings/cloud-models/configurations`, `design:settings/cloud-models/add-from-template`,
 //! `design:settings/cloud-models/delete-configuration`, `design:settings/cloud-models/tile-row`).
 
-use dito_core::config::{CloudPolishConfigurations, CloudPolishTemplate};
+use dito_core::config::{CloudTextConfigurations, CloudTextTemplate};
 use dito_core::i18n::{Lang, Tr};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
 use super::page::{ModalChanged, ModelsPage};
-use super::polish_field_rules::CloudPolishField;
+use super::text_field_rules::CloudTextField;
 use crate::services;
 use crate::settings::Ctx;
 use crate::settings::configuration_panel::{
@@ -16,7 +16,7 @@ use crate::settings::configuration_panel::{
 };
 use crate::ui::{self, TestState, cbk};
 
-pub(super) fn cloud_polish_config_tiles(configurations: &CloudPolishConfigurations, lang: Lang) -> Vec<ui::ConfigTile> {
+pub(super) fn cloud_text_config_tiles(configurations: &CloudTextConfigurations, lang: Lang) -> Vec<ui::ConfigTile> {
     configurations
         .items
         .iter()
@@ -34,7 +34,7 @@ pub(super) fn cloud_polish_config_tiles(configurations: &CloudPolishConfiguratio
 
 impl ConfigurationHost for ModelsPage {
     fn panel(&mut self) -> &mut ConfigurationPanel {
-        &mut self.cloud_polish.tiles
+        &mut self.cloud_text.tiles
     }
 
     fn dialog_changed(&mut self, cx: &mut Context<Self>) {
@@ -44,62 +44,62 @@ impl ConfigurationHost for ModelsPage {
 }
 
 impl ModelsPage {
-    pub(super) fn cloud_polish_tile_row(&self, c: &Ctx, cx: &mut Context<Self>) -> AnyElement {
+    pub(super) fn cloud_text_tile_row(&self, c: &Ctx, cx: &mut Context<Self>) -> AnyElement {
         let cfg = self.st.cfg.get();
-        let tiles = cloud_polish_config_tiles(&cfg.polish.engine.polish_configurations(c.lang), c.lang);
-        self.cloud_polish.tiles.tile_row(
+        let tiles = cloud_text_config_tiles(&cfg.text_model.text_configurations(c.lang), c.lang);
+        self.cloud_text.tiles.tile_row(
             "cloud-polish-tiles",
             c,
             cx,
             tiles,
             RowActions {
-                select: |this, id, _, cx| this.select_cloud_polish(id, cx),
-                move_to: |this, id, to, _, cx| this.move_cloud_polish(id, to, cx),
-                duplicate: Self::duplicate_cloud_polish,
-                templates: Self::cloud_polish_templates,
+                select: |this, id, _, cx| this.select_cloud_text(id, cx),
+                move_to: |this, id, to, _, cx| this.move_cloud_text(id, to, cx),
+                duplicate: Self::duplicate_cloud_text,
+                templates: Self::cloud_text_templates,
             },
         )
     }
 
-    fn cloud_polish_templates(c: &Ctx, cx: &mut Context<Self>) -> Vec<ui::AddEntry> {
-        CloudPolishTemplate::ALL
+    fn cloud_text_templates(c: &Ctx, cx: &mut Context<Self>) -> Vec<ui::AddEntry> {
+        CloudTextTemplate::ALL
             .iter()
             .map(|&template| ui::AddEntry {
                 label: c.t(template.label()),
                 on_click: cbk(cx, move |this: &mut Self, window, cx| {
-                    this.add_cloud_polish_from_template(template, window, cx)
+                    this.add_cloud_text_from_template(template, window, cx)
                 }),
             })
             .collect()
     }
 
     /// The form follows the selection when the page is drawn.
-    fn select_cloud_polish(&mut self, id: &str, cx: &mut Context<Self>) {
-        if self.cloud_polish.form.shown() == Some(id) {
+    fn select_cloud_text(&mut self, id: &str, cx: &mut Context<Self>) {
+        if self.cloud_text.form.shown() == Some(id) {
             return;
         }
         let saved = services::try_save_config(&self.st, |cfg| {
             let lang = cfg.general.lang();
-            cfg.polish.engine.polish_configurations_mut(lang).select(id);
+            cfg.text_model.text_configurations_mut(lang).select(id);
         });
         self.note_save(saved.is_ok());
-        self.cloud_polish.test = TestState::Idle;
+        self.cloud_text.test = TestState::Idle;
         cx.notify();
     }
 
-    fn move_cloud_polish(&mut self, id: &str, to: usize, cx: &mut Context<Self>) {
+    fn move_cloud_text(&mut self, id: &str, to: usize, cx: &mut Context<Self>) {
         let saved = services::try_save_config(&self.st, |cfg| {
             let lang = cfg.general.lang();
-            cfg.polish.engine.polish_configurations_mut(lang).move_to(id, to);
+            cfg.text_model.text_configurations_mut(lang).move_to(id, to);
         });
         self.note_save(saved.is_ok());
         cx.notify();
     }
 
     /// Named in the display language.
-    fn add_cloud_polish_from_template(
+    fn add_cloud_text_from_template(
         &mut self,
-        template: CloudPolishTemplate,
+        template: CloudTextTemplate,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -107,84 +107,84 @@ impl ModelsPage {
         let mut added = None;
         let saved = services::try_save_config(&self.st, |cfg| {
             let lang = cfg.general.lang();
-            added = Some(cfg.polish.engine.polish_configurations_mut(lang).add_from_template(template, name));
+            added = Some(cfg.text_model.text_configurations_mut(lang).add_from_template(template, name));
         });
         self.note_save(saved.is_ok());
         match added.filter(|_| saved.is_ok()) {
-            Some(id) => self.cloud_polish_added(&id, window, cx),
+            Some(id) => self.cloud_text_added(&id, window, cx),
             None => cx.notify(),
         }
     }
 
     /// The copy does not get the key.
-    fn duplicate_cloud_polish(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let Some(source) = self.cloud_polish.form.shown().map(str::to_owned) else { return };
+    fn duplicate_cloud_text(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(source) = self.cloud_text.form.shown().map(str::to_owned) else { return };
         let name = new_configuration_name(self.st.cfg.get().general.lang());
         let mut copy = None;
         let saved = services::try_save_config(&self.st, |cfg| {
             let lang = cfg.general.lang();
-            copy = cfg.polish.engine.polish_configurations_mut(lang).duplicate(&source, name);
+            copy = cfg.text_model.text_configurations_mut(lang).duplicate(&source, name);
         });
         self.note_save(saved.is_ok());
         match copy.filter(|_| saved.is_ok()) {
-            Some(id) => self.cloud_polish_added(&id, window, cx),
+            Some(id) => self.cloud_text_added(&id, window, cx),
             None => cx.notify(),
         }
     }
 
-    fn cloud_polish_added(&mut self, id: &str, window: &mut Window, cx: &mut Context<Self>) {
-        self.cloud_polish.test = TestState::Idle;
+    fn cloud_text_added(&mut self, id: &str, window: &mut Window, cx: &mut Context<Self>) {
+        self.cloud_text.test = TestState::Idle;
         let lang = self.st.cfg.get().general.lang();
-        self.follow_polish_settings(lang, window, cx);
-        self.cloud_polish.tiles.added(id, &self.cloud_polish.form[CloudPolishField::Name], window, cx);
+        self.follow_text_model_settings(lang, window, cx);
+        self.cloud_text.tiles.added(id, &self.cloud_text.form[CloudTextField::Name], window, cx);
         cx.notify();
     }
 
     /// The last configuration cannot be deleted.
-    pub(super) fn ask_delete_cloud_polish(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    pub(super) fn ask_delete_cloud_text(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let cfg = self.st.cfg.get();
-        let configurations = cfg.polish.engine.polish_configurations(cfg.general.lang());
+        let configurations = cfg.text_model.text_configurations(cfg.general.lang());
         let Some(active) = configurations.active().filter(|_| configurations.items.len() > 1) else { return };
         let deletion = Deletion { id: active.id.clone(), name: active.name.clone() };
         ConfigurationPanel::ask_delete(self, deletion, window, cx);
     }
 
     /// The configuration and its Keychain key go together.
-    pub(super) fn delete_cloud_polish(&mut self, id: &str, _window: &mut Window, cx: &mut Context<Self>) {
-        let removed = self.st.cfg.remove_cloud_polish_configuration(id, &*self.st.secrets);
+    pub(super) fn delete_cloud_text(&mut self, id: &str, _window: &mut Window, cx: &mut Context<Self>) {
+        let removed = self.st.cfg.remove_cloud_text_configuration(id, &*self.st.secrets);
         if let Err(error) = &removed {
             tracing::warn!("could not delete a cloud polish configuration: {error:#}");
         }
         // An engine built from the deleted configuration must not keep its key.
         self.st.factory.invalidate_engines();
         self.note_save(removed.is_ok());
-        self.cloud_polish.test = TestState::Idle;
+        self.cloud_text.test = TestState::Idle;
         cx.notify();
     }
 
     /// `design:settings/cloud-models/delete-configuration`.
-    pub(super) fn cloud_polish_delete_dialog(&self, window: &Window, cx: &mut Context<Self>) -> Option<AnyElement> {
-        self.cloud_polish.tiles.deleting()?;
+    pub(super) fn cloud_text_delete_dialog(&self, window: &Window, cx: &mut Context<Self>) -> Option<AnyElement> {
+        self.cloud_text.tiles.deleting()?;
         let c = Ctx::new(&self.st, cx);
-        self.cloud_polish.tiles.delete_dialog(window, &c, cx, Self::delete_cloud_polish)
+        self.cloud_text.tiles.delete_dialog(window, &c, cx, Self::delete_cloud_text)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use dito_core::config::CloudPolishConfigurations;
+    use dito_core::config::CloudTextConfigurations;
     use dito_core::i18n::{Lang, Tr};
 
-    use super::{CloudPolishField, cloud_polish_config_tiles};
+    use super::{CloudTextField, cloud_text_config_tiles};
 
     #[test]
     fn the_tile_feed_follows_the_name_and_model_as_they_are_typed() {
-        let mut list = CloudPolishConfigurations::new(Lang::En);
+        let mut list = CloudTextConfigurations::new(Lang::En);
         list.select("compat");
         let compat = list.get_mut("compat").unwrap();
-        assert!(CloudPolishField::Name.apply(compat, "Fast"));
-        assert!(CloudPolishField::Model.apply(compat, "gpt-x"));
-        let feed: Vec<_> = cloud_polish_config_tiles(&list, Lang::En)
+        assert!(CloudTextField::Name.apply(compat, "Fast"));
+        assert!(CloudTextField::Model.apply(compat, "gpt-x"));
+        let feed: Vec<_> = cloud_text_config_tiles(&list, Lang::En)
             .into_iter()
             .map(|t| (t.id.to_string(), t.name.to_string(), t.detail.to_string(), t.selected))
             .collect();
@@ -202,9 +202,9 @@ mod tests {
 
     #[test]
     fn a_model_of_blanks_counts_as_none() {
-        let mut list = CloudPolishConfigurations::new(Lang::Ja);
-        assert!(CloudPolishField::Model.apply(list.get_mut("azure").unwrap(), "   "));
-        let feed = cloud_polish_config_tiles(&list, Lang::Ja);
+        let mut list = CloudTextConfigurations::new(Lang::Ja);
+        assert!(CloudTextField::Model.apply(list.get_mut("azure").unwrap(), "   "));
+        let feed = cloud_text_config_tiles(&list, Lang::Ja);
         assert_eq!(feed[0].detail.to_string(), Lang::Ja.tr(Tr::ModelsNoModel));
     }
 }

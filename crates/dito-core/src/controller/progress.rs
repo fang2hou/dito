@@ -49,7 +49,7 @@ fn engine_key(engine: &EngineConfig, asr: bool) -> u64 {
                 ("configuration", active).hash(&mut key);
             } else {
                 // A new model or other parameters start a new estimate; the name does not.
-                let active = engine.active_polish().map(|c| (c.id.clone(), format!("{:?}{:?}", c.target, c.params)));
+                let active = engine.active_text().map(|c| (c.id.clone(), format!("{:?}{:?}", c.target, c.params)));
                 ("configuration", active).hash(&mut key);
             }
         }
@@ -161,7 +161,7 @@ mod tests {
     fn step_times_belong_to_the_engine_that_ran_and_survive_a_failed_polish() {
         let engine = |model: &str| EngineConfig {
             cloud_asr: None,
-            cloud_polish: None,
+            cloud_text: None,
             source: Source::Local,
             local_model: model.into(),
             local_params: Default::default(),

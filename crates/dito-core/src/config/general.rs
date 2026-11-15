@@ -7,6 +7,7 @@ use super::hud::DEFAULT_HUD_OFFSET;
 use crate::i18n::{self, Lang, Tr};
 
 pub const DEFAULT_SHORTCUT: &str = "RightCommand";
+pub const DEFAULT_TOOLS_SHORTCUT: &str = "Control+Option+T";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
@@ -104,6 +105,8 @@ pub struct General {
     /// Starts command mode; the same id format as `shortcut`. Empty means unset: the platform layer then derives it
     /// from `shortcut` (Shift plus the dictation shortcut), so it follows when `shortcut` changes.
     pub command_shortcut: String,
+    /// Opens the Tools window; the same id format as `shortcut`. Empty means no Tools shortcut.
+    pub tools_shortcut: String,
     /// On: a command's result waits in a window for a click instead of replacing the selection at once.
     pub confirm_before_replace: bool,
     pub record_mode: RecordMode,
@@ -115,7 +118,8 @@ pub struct General {
     pub preferred_language: PreferredLanguage,
     pub hud_languages: Vec<PreferredLanguage>,
     pub launch_at_login: bool,
-    /// Off: no Dock icon while the app runs in the background. It still appears while a window is open.
+    /// Off by default: no Dock icon while the app runs in the background, only the menu bar icon. It still appears
+    /// while a window is open.
     pub show_dock_icon: bool,
     pub appearance: Appearance,
     /// Follows the OS independently of the settings window.
@@ -152,6 +156,7 @@ impl Default for General {
         Self {
             shortcut: DEFAULT_SHORTCUT.into(),
             command_shortcut: String::new(),
+            tools_shortcut: DEFAULT_TOOLS_SHORTCUT.into(),
             confirm_before_replace: false,
             record_mode: RecordMode::Toggle,
             insert_method: InsertMethod::KeyInput,
@@ -161,7 +166,7 @@ impl Default for General {
             preferred_language: PreferredLanguage::Auto,
             hud_languages: PreferredLanguage::ALL.to_vec(),
             launch_at_login: true,
-            show_dock_icon: true,
+            show_dock_icon: false,
             appearance: Appearance::System,
             hud_appearance: Appearance::Dark,
             hud_position: HudPosition::Centered,
@@ -191,6 +196,17 @@ mod tests {
         assert_eq!(fresh.command_shortcut, "");
         let saved: General = toml::from_str(&toml::to_string(&General::default()).unwrap()).unwrap();
         assert_eq!(saved, General::default(), "an unset shortcut survives a save");
+    }
+
+    #[test]
+    fn the_tools_shortcut_starts_at_its_default_and_an_empty_id_turns_it_off() {
+        assert_eq!(General::default().tools_shortcut, "Control+Option+T");
+        let fresh: General = toml::from_str("shortcut = 'Fn'").unwrap();
+        assert_eq!(fresh.tools_shortcut, "Control+Option+T", "a config without the field gets the default");
+        let off: General = toml::from_str("tools_shortcut = ''").unwrap();
+        assert_eq!(off.tools_shortcut, "", "an empty id is a deliberate off");
+        let saved: General = toml::from_str(&toml::to_string(&off).unwrap()).unwrap();
+        assert_eq!(saved.tools_shortcut, "", "an empty id survives a save");
     }
 
     #[test]

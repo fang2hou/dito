@@ -9,14 +9,28 @@ use crate::prompts::{AppTarget, default_set};
 
 /// Version of the persisted shape that this build reads and writes. Raise it together with appending one function to
 /// `MIGRATIONS`, and never edit or renumber a shipped migration: files in the field have already passed through it.
-pub const SCHEMA_VERSION: u32 = 6;
+pub const SCHEMA_VERSION: u32 = 10;
 
 const VERSION_KEY: &str = "schema_version";
 
 /// `MIGRATIONS[n]` upgrades a table from version `n` to version `n + 1`. The array length is tied to `SCHEMA_VERSION`,
 /// so the compiler rejects a version bump that comes without its migration.
-const MIGRATIONS: [fn(&mut Table); SCHEMA_VERSION as usize] =
-    [herdr_defaults, asr_profile_ids, cloud_configurations, wordbook_setting, prompt_scaffold, command_settings];
+const MIGRATIONS: [fn(&mut Table); SCHEMA_VERSION as usize] = [
+    herdr_defaults,
+    asr_profile_ids,
+    cloud_configurations,
+    wordbook_setting,
+    prompt_scaffold,
+    command_settings,
+    text_model_table,
+    tools_shortcut,
+    transcription_titles,
+    english_title_template,
+];
+
+/// The title instruction version 9 shipped as its default, kept here because the migrations that wrote it and
+/// replace it must not change with the current default.
+const JAPANESE_TITLE_TEMPLATE: &str = "会議の内容に合う絵文字を1つ選び、半角スペースのあとに10文字前後のタイトルを続けてください。\n例：📋 リリース計画の確認";
 
 /// Either way the file must stay as it is.
 #[derive(Debug, PartialEq)]
@@ -265,10 +279,121 @@ fn command_settings(table: &mut Table) {
     general.entry("confirm_before_replace").or_insert(false.into());
 }
 
+/// 6 to 7: the model that polishes also runs commands and finds words, so its settings leave `polish` for a table of
+/// their own, `text_model`, and its cloud list `cloud_polish` becomes `cloud_text`. `polish` keeps `enabled`, the
+/// switch of the polishing step. Keychain accounts keep their `polish.` prefix, so saved keys stay where they are.
+fn text_model_table(table: &mut Table) {
+    let Some(polish) = table.get_mut("polish").and_then(Value::as_table_mut) else { return };
+    let mut model = Table::new();
+    for key in polish.keys().filter(|key| *key != "enabled").cloned().collect::<Vec<_>>() {
+        if let Some(value) = polish.remove(&key) {
+            model.insert(if key == "cloud_polish" { "cloud_text".into() } else { key }, value);
+        }
+    }
+    if !model.is_empty() {
+        table.insert("text_model".into(), model.into());
+    }
+}
+
+/// 7 to 8: the Tools window gains a shortcut of its own, written with its default so a build that does not know the
+/// key refuses the file instead of dropping it on its next save. A file without `general` takes the typed default.
+fn tools_shortcut(table: &mut Table) {
+    let Some(general) = table.get_mut("general").and_then(Value::as_table_mut) else { return };
+    general.entry("tools_shortcut").or_insert("Control+Option+T".into());
+}
+
+/// 8 to 9: transcription gains generated titles, written out with their defaults (on, with the default instruction)
+/// so an older build refuses the file instead of dropping them. A file without `transcription` takes the defaults.
+fn transcription_titles(table: &mut Table) {
+    let Some(transcription) = table.get_mut("transcription").and_then(Value::as_table_mut) else { return };
+    transcription.entry("auto_title").or_insert(true.into());
+    transcription.entry("title_template").or_insert(JAPANESE_TITLE_TEMPLATE.into());
+}
+
+/// 9 to 10: the default title instruction becomes the English one that names the meeting in its own language. A file
+/// still holding the old default takes the new one; an instruction the user edited stays as it is.
+fn english_title_template(table: &mut Table) {
+    let Some(transcription) = table.get_mut("transcription").and_then(Value::as_table_mut) else { return };
+    if transcription.get("title_template").and_then(Value::as_str) == Some(JAPANESE_TITLE_TEMPLATE) {
+        transcription.insert("title_template".into(), super::DEFAULT_TITLE_TEMPLATE.into());
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::config::{CloudAsrConfigurations, Config};
+
+    #[test]
+    fn version_nine_moves_only_the_old_default_title_instruction_to_the_english_one() {
+        let template = |value: &str| {
+            let mut table = Table::new();
+            table.insert(VERSION_KEY.into(), 9.into());
+            let mut transcription = Table::new();
+            transcription.insert("title_template".into(), value.into());
+            table.insert("transcription".into(), transcription.into());
+            assert_eq!(upgrade(&mut table), Ok(9));
+            table["transcription"]["title_template"].as_str().unwrap().to_owned()
+        };
+        assert_eq!(template(JAPANESE_TITLE_TEMPLATE), crate::config::DEFAULT_TITLE_TEMPLATE);
+        assert_eq!(template("自分の書き方"), "自分の書き方", "an edited instruction is kept");
+    }
+
+    #[test]
+    fn version_eight_writes_out_generated_titles_and_keeps_the_sources() {
+        let mut legacy = parse("schema_version = 8\n[transcription]\nmicrophone = false\n");
+        assert_eq!(upgrade(&mut legacy), Ok(8));
+        assert_eq!(legacy["transcription"]["auto_title"].as_bool(), Some(true));
+        assert_eq!(legacy["transcription"]["title_template"].as_str(), Some(crate::config::DEFAULT_TITLE_TEMPLATE));
+        let migrated: Config = legacy.try_into().unwrap();
+        assert!(!migrated.transcription.microphone, "the rest of the table is untouched");
+
+        let mut without = parse("schema_version = 8\nonboarded = true\n");
+        assert_eq!(upgrade(&mut without), Ok(8));
+        assert!(without.get("transcription").is_none(), "a file without the table takes the typed defaults");
+        assert!(without.try_into::<Config>().unwrap().transcription.auto_title);
+    }
+
+    #[test]
+    fn version_seven_gains_the_tools_shortcut_written_out_with_its_default() {
+        let general = |text: &str| {
+            let mut legacy = parse(text);
+            assert_eq!(upgrade(&mut legacy), Ok(7));
+            (legacy["general"]["tools_shortcut"].as_str().unwrap().to_owned(), legacy)
+        };
+        let (written, legacy) = general("schema_version = 7\n[general]\nshortcut = 'Fn'\n");
+        assert_eq!(written, "Control+Option+T", "written out, so an older build refuses the file");
+        let migrated: Config = legacy.try_into().unwrap();
+        assert_eq!(migrated.general.tools_shortcut, "Control+Option+T");
+        assert_eq!(migrated.general.shortcut, "Fn", "the rest of the table is untouched");
+
+        let (saved, _) = general("schema_version = 7\n[general]\ntools_shortcut = 'Control+Shift+Key20'\n");
+        assert_eq!(saved, "Control+Shift+Key20", "a saved value stays");
+
+        let mut without = parse("schema_version = 7\nonboarded = true\n");
+        assert_eq!(upgrade(&mut without), Ok(7));
+        assert!(without.get("general").is_none(), "a file without the table takes the typed defaults");
+        assert_eq!(without.try_into::<Config>().unwrap().general.tools_shortcut, "Control+Option+T");
+    }
+
+    #[test]
+    fn version_six_moves_the_model_out_of_polish_and_keeps_the_switch() {
+        let mut legacy = parse(
+            "schema_version = 6\n[polish]\nenabled = false\nsource = \"provider\"\nlocal_model = \"my-model\"\n\
+             [polish.local_params.my-model]\ntop_k = 7\n\
+             [polish.cloud_polish]\nselected = \"compat\"\n\
+             [[polish.cloud_polish.items]]\nid = \"compat\"\nname = \"Mine\"\ntemplate = \"compat\"\n\
+             base_url = \"http://localhost:1\"\nmodel = \"m\"",
+        );
+        assert_eq!(upgrade(&mut legacy), Ok(6));
+        let config: Config = legacy.try_into().unwrap();
+        assert!(!config.polish.enabled);
+        assert_eq!(config.text_model.source, crate::config::Source::Provider);
+        assert_eq!(config.text_model.local_model, "my-model");
+        assert_eq!(config.text_model.local_params_for("my-model").top_k, Some(7));
+        let saved = config.text_model.cloud_text.expect("the saved cloud list");
+        assert_eq!(saved.active().map(|active| active.name.as_str()), Some("Mine"));
+    }
     use crate::prompts::AppRules;
 
     fn parse(text: &str) -> Table {
@@ -425,7 +550,7 @@ config = '{"connection":{"model":"m3"},"version":1}'
         let mut legacy = parse(V2_SPEECH);
         let before = [
             ("asr", legacy["asr"]["cloud_asr"]["profiles"].clone()),
-            ("polish", legacy["polish"]["cloud_asr"]["profiles"].clone()),
+            ("text_model", legacy["polish"]["cloud_asr"]["profiles"].clone()),
         ];
         assert_eq!(upgrade(&mut legacy), Ok(2));
         assert_eq!(legacy["onboarded"].as_bool(), Some(true), "unrelated settings are untouched");
@@ -435,7 +560,7 @@ config = '{"connection":{"model":"m3"},"version":1}'
             assert_eq!(cloud["items"], entries, "{section}: the same entries, each request JSON byte for byte");
         }
         assert_eq!(legacy["asr"]["cloud_asr"]["selected"].as_str(), Some("qwen_asr-3c9e"));
-        assert_eq!(legacy["polish"]["cloud_asr"]["selected"].as_str(), Some("openrouter"));
+        assert_eq!(legacy["text_model"]["cloud_asr"]["selected"].as_str(), Some("openrouter"));
 
         let config: Config = legacy.clone().try_into().unwrap();
         let speech = config.asr.cloud_asr.as_ref().unwrap();
@@ -445,7 +570,7 @@ config = '{"connection":{"model":"m3"},"version":1}'
         assert!(speech.active().unwrap().config["language_map"]["auto"].is_null(), "a null survives");
         let saved: Table = toml::to_string(&config).unwrap().parse().unwrap();
         assert_eq!(saved["asr"]["cloud_asr"]["items"], legacy["asr"]["cloud_asr"]["items"]);
-        assert_eq!(saved["polish"]["cloud_asr"]["items"], legacy["polish"]["cloud_asr"]["items"]);
+        assert_eq!(saved["text_model"]["cloud_asr"]["items"], legacy["text_model"]["cloud_asr"]["items"]);
     }
 
     #[test]
@@ -519,12 +644,12 @@ reasoning_effort = ""
         assert_eq!(legacy[VERSION_KEY].as_integer(), Some(i64::from(SCHEMA_VERSION)));
         assert_eq!(legacy["onboarded"].as_bool(), Some(true), "unrelated settings are untouched");
         assert_eq!(legacy["general"]["shortcut"].as_str(), Some("LeftOption"));
-        assert_eq!(legacy["polish"]["source"].as_str(), Some("provider"));
+        assert_eq!(legacy["text_model"]["source"].as_str(), Some("provider"));
         assert_eq!(legacy["asr"]["local_model"].as_str(), Some("sensevoice-small"));
         assert!(legacy["asr"].get("provider").is_none(), "speech never read the provider forms");
-        assert!(legacy["polish"].get("provider").is_none());
+        assert!(legacy["text_model"].get("provider").is_none());
 
-        let cloud = &legacy["polish"]["cloud_polish"];
+        let cloud = &legacy["text_model"]["cloud_text"];
         assert_eq!(cloud["selected"].as_str(), Some("bedrock"), "the old kind stays selected");
         let items = cloud["items"].as_array().unwrap();
         let identities: Vec<_> =
@@ -544,18 +669,18 @@ reasoning_effort = ""
         }
 
         let config: Config = legacy.try_into().unwrap();
-        let configurations = config.polish.engine.polish_configurations(config.general.lang());
+        let configurations = config.text_model.text_configurations(config.general.lang());
         let target = |id: &str| configurations.get(id).unwrap().target.clone();
         assert_eq!(
             target("azure"),
-            crate::config::CloudPolishTarget::Azure {
+            crate::config::CloudTextTarget::Azure {
                 endpoint: "https://dito.openai.azure.com/".into(),
                 deployment: "gpt-6.1-terra".into()
             }
         );
         assert_eq!(
             target("bedrock"),
-            crate::config::CloudPolishTarget::Bedrock {
+            crate::config::CloudTextTarget::Bedrock {
                 profile: "work".into(),
                 region: "us-east-1".into(),
                 model_id: "anthropic.claude-sonnet-4-5".into()
@@ -563,12 +688,12 @@ reasoning_effort = ""
         );
         assert_eq!(
             target("compat"),
-            crate::config::CloudPolishTarget::Compat {
+            crate::config::CloudTextTarget::Compat {
                 base_url: "https://router.example/v1".into(),
                 model: "vendor/model".into()
             }
         );
-        assert_eq!(config.polish.engine.label(), "bedrock:anthropic.claude-sonnet-4-5", "history labels do not change");
+        assert_eq!(config.text_model.label(), "bedrock:anthropic.claude-sonnet-4-5", "history labels do not change");
     }
 
     #[test]
@@ -599,7 +724,7 @@ reasoning_effort = "low"
         );
         assert_eq!(upgrade(&mut legacy), Ok(2));
         let config: Config = legacy.try_into().unwrap();
-        assert_eq!(config.polish.engine.cloud_polish, Some(crate::config::CloudPolishConfigurations::new(Lang::Ja)));
+        assert_eq!(config.text_model.cloud_text, Some(crate::config::CloudTextConfigurations::new(Lang::Ja)));
     }
 
     #[test]
@@ -607,7 +732,7 @@ reasoning_effort = "low"
         let names = |general: &str| -> String {
             let mut table = parse(&format!("schema_version = 2\n{general}\n[polish.provider]\n"));
             upgrade(&mut table).unwrap();
-            table["polish"]["cloud_polish"]["items"][2]["name"].as_str().unwrap().to_owned()
+            table["text_model"]["cloud_text"]["items"][2]["name"].as_str().unwrap().to_owned()
         };
         assert_eq!(names("[general]\ndisplay_language = 'ja'"), "OpenAI 互換 API");
         assert_eq!(names("[general]\ndisplay_language = 'en'"), "OpenAI-compatible API");
@@ -621,11 +746,11 @@ reasoning_effort = "low"
             let mut table = parse(&format!("schema_version = 2\n{provider}\n"));
             upgrade(&mut table).unwrap();
             let config: Config = table.try_into().unwrap();
-            assert_eq!(config.polish.engine.cloud_polish.unwrap().selected, "azure", "{provider}");
+            assert_eq!(config.text_model.cloud_text.unwrap().selected, "azure", "{provider}");
         }
         let mut without = parse("schema_version = 2\n[polish]\nenabled = false\n");
         upgrade(&mut without).unwrap();
-        assert!(without["polish"].get("cloud_polish").is_none(), "nothing saved, so the templates stand in");
+        assert!(without.get("text_model").is_none(), "nothing saved, so the templates stand in");
     }
 
     #[test]

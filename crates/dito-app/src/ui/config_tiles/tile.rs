@@ -26,8 +26,7 @@ pub(super) fn tile(p: &Palette, id: ElementId, spec: &ConfigTile, hover: bool) -
         .px(px(16.))
         .flex()
         .items_center()
-        .justify_between()
-        .gap(px(8.))
+        .gap(px(12.))
         .rounded(px(14.))
         .cursor_pointer()
         .bg(if on { p.accent_soft } else { p.card })
@@ -41,5 +40,5 @@ pub(super) fn tile(p: &Palette, id: ElementId, spec: &ConfigTile, hover: bool) -
 }
 
 fn line(s: SharedString, size: f32, weight: FontWeight, color: Hsla, line_height: f32) -> Div {
-    text(s, size, weight, color).h(px(21.)).line_height(px(line_height)).truncate()
+    text(s, size, weight, color).h(px(line_height)).line_height(px(line_height)).truncate()
 }

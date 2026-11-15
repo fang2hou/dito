@@ -57,6 +57,33 @@ pub struct TranscriptSummary {
     pub sources: Sources,
     /// The first paragraph's text, for the list.
     pub preview: String,
+    /// How long the finished sessions ran, without the gaps between them; `None` until the first one ends.
+    pub length_ms: Option<u64>,
+}
+
+/// A finished meeting stays open to a new session for this long after its last one ended.
+pub const RESUME_WINDOW_SECS: i64 = 3 * 3600;
+
+impl TranscriptSummary {
+    /// Whether a new session may still be appended at the unix second `now`: the meeting has ended, less than
+    /// [`RESUME_WINDOW_SECS`] ago.
+    pub fn resumable(&self, now: i64) -> bool {
+        self.ended_ts.is_some_and(|end| now - end < RESUME_WINDOW_SECS)
+    }
+
+    /// The unix second this meeting stops being resumable, while it still is.
+    pub fn resumable_until(&self) -> Option<i64> {
+        self.ended_ts.map(|end| end + RESUME_WINDOW_SECS)
+    }
+}
+
+/// What a resumed session continues from: when the meeting began, which places its new paragraphs after the old
+/// ones on the same clock, the sources it already holds, and how many paragraphs it already has.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Reopened {
+    pub started_ts: i64,
+    pub sources: Sources,
+    pub paragraphs: usize,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -81,7 +108,8 @@ pub struct Transcript {
 
 const SELECT_SUMMARY: &str = "SELECT t.id, t.started_ts, t.ended_ts, t.title, t.with_mic, t.with_system,
        COALESCE((SELECT p.text FROM transcript_paragraphs p WHERE p.transcript_id = t.id
-                 ORDER BY p.start_ms, p.id LIMIT 1), '')
+                 ORDER BY p.start_ms, p.id LIMIT 1), ''),
+       COALESCE(t.recorded_ms, (t.ended_ts - t.started_ts) * 1000)
      FROM transcripts t";
 
 fn row_to_summary(r: &rusqlite::Row<'_>) -> rusqlite::Result<TranscriptSummary> {
@@ -92,6 +120,7 @@ fn row_to_summary(r: &rusqlite::Row<'_>) -> rusqlite::Result<TranscriptSummary> 
         title: r.get(3)?,
         sources: Sources { microphone: r.get::<_, i64>(4)? != 0, system: r.get::<_, i64>(5)? != 0 },
         preview: r.get(6)?,
+        length_ms: r.get::<_, Option<i64>>(7)?.map(|ms| ms.max(0) as u64),
     })
 }
 
@@ -105,9 +134,44 @@ impl Store {
         Ok(c.last_insert_rowid())
     }
 
-    pub fn end_transcript(&self, id: i64, ended_ts: i64) -> Result<()> {
-        self.conn().execute("UPDATE transcripts SET ended_ts = ?2 WHERE id = ?1", params![id, ended_ts])?;
+    /// Ends a session that began at `session_ts`, adding its span to the time the transcript has recorded.
+    pub fn end_transcript(&self, id: i64, session_ts: i64, ended_ts: i64) -> Result<()> {
+        self.conn().execute(
+            "UPDATE transcripts SET ended_ts = ?2, recorded_ms = COALESCE(recorded_ms, 0) + ?3 WHERE id = ?1",
+            params![id, ended_ts, (ended_ts - session_ts).max(0) * 1000],
+        )?;
         Ok(())
+    }
+
+    /// Opens a finished transcript for another session: it reads as recording again, keeps the length its earlier
+    /// sessions ran, and adds `sources` to the ones it holds. `None` when it is gone or still recording.
+    pub fn reopen_transcript(&self, id: i64, sources: Sources) -> Result<Option<Reopened>> {
+        let mut c = self.conn();
+        let tx = c.transaction()?;
+        let changed = tx.execute(
+            "UPDATE transcripts SET recorded_ms = COALESCE(recorded_ms, (ended_ts - started_ts) * 1000),
+                    ended_ts = NULL, with_mic = with_mic OR ?2, with_system = with_system OR ?3
+             WHERE id = ?1 AND ended_ts IS NOT NULL",
+            params![id, sources.microphone, sources.system],
+        )?;
+        if changed == 0 {
+            return Ok(None);
+        }
+        let reopened = tx.query_row(
+            "SELECT started_ts, with_mic, with_system,
+                    (SELECT COUNT(*) FROM transcript_paragraphs WHERE transcript_id = ?1)
+             FROM transcripts WHERE id = ?1",
+            [id],
+            |r| {
+                Ok(Reopened {
+                    started_ts: r.get(0)?,
+                    sources: Sources { microphone: r.get::<_, i64>(1)? != 0, system: r.get::<_, i64>(2)? != 0 },
+                    paragraphs: r.get::<_, i64>(3)? as usize,
+                })
+            },
+        )?;
+        tx.commit()?;
+        Ok(Some(reopened))
     }
 
     /// A session cut short by a crash or quit is closed, and its unfinished paragraphs keep their recognized words.
@@ -155,6 +219,15 @@ impl Store {
 
     pub fn set_transcript_title(&self, id: i64, title: &str) -> Result<()> {
         self.conn().execute("UPDATE transcripts SET title = ?2 WHERE id = ?1", params![id, title])?;
+        Ok(())
+    }
+
+    /// The sources a session recorded, which may have been turned on and off while it ran.
+    pub fn set_transcript_sources(&self, id: i64, sources: Sources) -> Result<()> {
+        self.conn().execute(
+            "UPDATE transcripts SET with_mic = ?2, with_system = ?3 WHERE id = ?1",
+            params![id, sources.microphone, sources.system],
+        )?;
         Ok(())
     }
 
@@ -250,6 +323,7 @@ mod tests {
         assert_eq!(t.paragraphs[1].state, ParagraphState::Listening);
 
         s.edit_paragraph(late, "editing a listening paragraph is ignored").unwrap();
+        assert_eq!(t.summary.length_ms, None, "a recording transcript has no length yet");
         s.recover_transcripts(9_000).unwrap();
         let t = s.get_transcript(id).unwrap().unwrap();
         assert_eq!(t.summary.ended_ts, Some(9_000));
@@ -259,5 +333,30 @@ mod tests {
         s.delete_transcript(id).unwrap();
         assert!(s.get_transcript(id).unwrap().is_none());
         assert!(s.list_transcripts().unwrap().is_empty());
+    }
+
+    #[test]
+    fn a_resumed_transcript_counts_only_the_time_its_sessions_ran() {
+        let s = Store::open_in_memory().unwrap();
+        let id = s.create_transcript(1_000, Sources::default()).unwrap();
+        s.end_transcript(id, 1_000, 1_600).unwrap();
+        assert_eq!(s.get_transcript(id).unwrap().unwrap().summary.length_ms, Some(600_000));
+
+        let mic = Sources { system: false, microphone: true };
+        let reopened = s.reopen_transcript(id, mic).unwrap().unwrap();
+        assert_eq!(
+            reopened,
+            Reopened { started_ts: 1_000, sources: Sources { system: true, microphone: true }, paragraphs: 0 }
+        );
+        assert!(s.reopen_transcript(id, mic).unwrap().is_none(), "a recording transcript is not reopened twice");
+        let summary = s.get_transcript(id).unwrap().unwrap().summary;
+        assert_eq!(summary.ended_ts, None);
+        assert_eq!(summary.length_ms, Some(600_000), "the earlier session keeps its length while recording");
+
+        s.end_transcript(id, 5_000, 5_300).unwrap();
+        let summary = s.get_transcript(id).unwrap().unwrap().summary;
+        assert_eq!(summary.length_ms, Some(900_000), "the hour between the sessions is not counted");
+        assert!(summary.resumable(5_300 + RESUME_WINDOW_SECS - 1));
+        assert!(!summary.resumable(5_300 + RESUME_WINDOW_SECS));
     }
 }

@@ -7,6 +7,7 @@ use dito_platform::system;
 use gpui_kit::*;
 
 use super::page::GeneralPage;
+use crate::hotkeys::ShortcutTarget;
 use crate::hud::{self, StylePreview};
 use crate::services;
 use crate::settings::Ctx;
@@ -22,6 +23,13 @@ impl GeneralPage {
             &p,
             c.t(Tr::GeneralSystem),
             vec![
+                ui::row_described(
+                    &p,
+                    c.t(Tr::GeneralToolsShortcut),
+                    c.t(Tr::GeneralToolsShortcutHint),
+                    self.shortcut_field(c, cx, ShortcutTarget::Tools),
+                    false,
+                ),
                 ui::row_described(
                     &p,
                     c.t(Tr::GeneralLaunchAtLogin),

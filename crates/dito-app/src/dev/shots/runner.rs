@@ -5,7 +5,7 @@ use std::time::Duration;
 use gpui_kit::*;
 
 use super::input::redraw;
-use super::{demo, hud, onboarding, pages, polish_form, startup, tile_row, wordbook};
+use super::{demo, hud, onboarding, pages, startup, text_model_form, tile_row, wordbook};
 use crate::settings::{self, Page};
 use crate::state::{AppGlobal, AppState};
 
@@ -80,8 +80,8 @@ async fn render_app_shots(st: &Arc<AppState>, dir: &Path, groups: &Groups, cx: &
     if groups.selects("prompts") {
         pages::prompt_shots(st, dir, cx).await;
     }
-    if groups.selects("transcription") {
-        pages::transcript_shots(st, dir, cx).await;
+    if groups.runs_by_default("tools") {
+        pages::tools_shots(st, dir, cx).await;
     }
     if groups.selects("transcriptfilm") {
         super::transcript_film::run(st, dir, cx).await;
@@ -109,8 +109,8 @@ async fn render_app_shots(st: &Arc<AppState>, dir: &Path, groups: &Groups, cx: &
     if groups.selects("models") {
         pages::model_shots(st, dir, cx).await;
     }
-    if groups.selects("polishform") {
-        polish_form::polish_form_shots(st, dir, cx).await;
+    if groups.selects("textmodelform") {
+        text_model_form::text_model_form_shots(st, dir, cx).await;
     }
     if groups.runs_by_default("extra") {
         pages::extra_shots(st, dir, cx).await;

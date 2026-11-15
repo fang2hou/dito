@@ -6,7 +6,7 @@ Run, inspect and diagnose Dito locally. Setup and commands are in [IMPLEMENTATIO
 
 - Humans: `mise run dev:mock` runs the whole app against a mock cloud and a synthetic microphone.
 - Agents and automated runs: always `--mock --log-sink`. `--mock` alone types into the frontmost app.
-- Never use a bare `target/debug/dito` for permission or insertion work; use `mise run dev`, which signs and launches `DitoDev.app`.
+- Never use a bare `target/debug/dito` for permission or insertion work; use `mise run dev`, which signs and launches `DitoDev.app`. Every run has its own copy of that wrapper, so several dev instances can run at once and closing one leaves the others open.
 
 ## Flags, data and logs
 
@@ -48,7 +48,7 @@ Every line of a run carries `run=<id>` (`d` for a dictation, `c` for a command, 
 - the speech recognition request and its transcript, with timings;
 - the router request (the instruction) and the full decision: every intent's probability, the confidence, whether the gate passed and the rewrite operation;
 - which tool was chosen and why (confident, chosen by the user, polish button) and the window that asks for text, a choice or a confirmation, with the user's answer;
-- the full system prompt and user message sent to the polisher for every tool and for a dictation polish, the model's output and how long each step took;
+- the full system prompt and user message sent to the text model for every tool and for a dictation polish, the model's output and how long each step took;
 - how the result was delivered, and the history row that was queued;
 - model load and unload, and model downloads (start, progress in steps of ten percent, finish or failure), which belong to a model and carry `model=<id>` instead of a run id.
 

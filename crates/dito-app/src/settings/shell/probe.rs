@@ -16,7 +16,7 @@ impl Settings {
     }
 
     pub fn health_hover_probe(&self) -> (Option<Bounds<Pixels>>, bool) {
-        (self.health_dot_bounds.get(), Self::health_hovered(&self.motion.handle()))
+        (self.chrome.health_dot_bounds(), self.chrome.health_hovered())
     }
 
     pub fn set_hud_appearance(&self, appearance: Appearance, cx: &mut App) {
@@ -37,26 +37,6 @@ impl Settings {
 
     pub fn preview_prompts(&self, case: &str, window: &mut Window, cx: &mut Context<Self>) {
         self.prompts.update(cx, |p, cx| p.preview(case, window, cx));
-    }
-
-    /// Opens the newest transcript as if it were still being recorded.
-    pub fn preview_live_transcript(&self, tail: [&str; 3], window: &mut Window, cx: &mut Context<Self>) {
-        self.transcription.update(cx, |t, cx| t.preview_live(tail, window, cx));
-    }
-
-    /// The transcription page follows this session instead of the app's own.
-    pub fn follow_transcription(
-        &self,
-        handle: dito_core::transcription::TranscriptionHandle,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        self.transcription.update(cx, |t, cx| t.follow(handle, window, cx));
-    }
-
-    /// Opens the newest transcript, as a click on its row does.
-    pub fn preview_transcript(&self, window: &mut Window, cx: &mut Context<Self>) {
-        self.transcription.update(cx, |t, cx| t.open_newest(window, cx));
     }
 
     pub fn probe_wordbook(&self, case: &str, arg: &str, window: &mut Window, cx: &mut Context<Self>) {

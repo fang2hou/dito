@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use dito_core::config::{InsertMethod, MusicMuteMode, RecordMode};
 use dito_core::i18n::Tr;
-use dito_platform::hotkey::{Shortcut, command_shortcut};
+use dito_platform::hotkey::{Shortcut, command_shortcut, tools_shortcut};
 use gpui_kit::*;
 
 use super::page::GeneralPage;
@@ -187,21 +187,28 @@ impl GeneralPage {
         ))
     }
 
-    fn shortcut_field(&self, c: &Ctx, cx: &mut Context<Self>, target: ShortcutTarget) -> Div {
+    pub(super) fn shortcut_field(&self, c: &Ctx, cx: &mut Context<Self>, target: ShortcutTarget) -> Div {
         let p = &c.p;
         let waiting = self.capture.is_waiting_for(target);
         let field = if waiting { self.capturing_field(c, target) } else { self.idle_field(c, cx, target) };
-        let (hint, shown, hint_id) = match (target, self.capture) {
-            (ShortcutTarget::Dictation, CaptureState::Refused(ShortcutTarget::Dictation)) => {
-                (Tr::GeneralShortcutSameAsCommand, true, "shortcut-hint")
+        let (hint, shown) = match self.capture {
+            CaptureState::Refused { target: refused, conflicting } if refused == target => {
+                (shortcut_taken_message(conflicting), true)
             }
-            (ShortcutTarget::Command, CaptureState::Refused(ShortcutTarget::Command)) => {
-                (Tr::GeneralShortcutSameAsDictation, true, "command-shortcut-hint")
+            _ => {
+                let hint = match target {
+                    ShortcutTarget::Dictation => Tr::GeneralPressEscToCancel,
+                    ShortcutTarget::Command | ShortcutTarget::Tools => Tr::GeneralShortcutTakenHint,
+                };
+                (hint, waiting)
             }
-            (ShortcutTarget::Dictation, _) => (Tr::GeneralPressEscToCancel, waiting, "shortcut-hint"),
-            (ShortcutTarget::Command, _) => (Tr::GeneralShortcutTakenHint, waiting, "command-shortcut-hint"),
         };
         let hint = c.t(hint);
+        let hint_id = match target {
+            ShortcutTarget::Dictation => "shortcut-hint",
+            ShortcutTarget::Command => "command-shortcut-hint",
+            ShortcutTarget::Tools => "tools-shortcut-hint",
+        };
         // Static positioned box: an animated one re-lays out against the wrong ancestor. The symmetric box (non-zero
         // insets) centres the bubble without measuring the text, and the top offset clears the field. Deferred, so
         // following rows' separators cannot paint over the bubble.
@@ -223,6 +230,7 @@ impl GeneralPage {
             .id(match target {
                 ShortcutTarget::Dictation => "shortcut-recording",
                 ShortcutTarget::Command => "command-shortcut-recording",
+                ShortcutTarget::Tools => "tools-shortcut-recording",
             })
             .w(px(190.))
             .h(px(ui::CONTROL_H))
@@ -257,6 +265,12 @@ impl GeneralPage {
                     .map_or_else(|| c.t(Tr::GeneralOff).to_string(), |s| dito_platform::keymap::label(&s, c.lang));
                 ("command-shortcut-field", label)
             }
+            ShortcutTarget::Tools => {
+                let general = self.st.cfg.get().general.clone();
+                let label = tools_shortcut(&general.tools_shortcut)
+                    .map_or_else(|| c.t(Tr::GeneralOff).to_string(), |s| dito_platform::keymap::label(&s, c.lang));
+                ("tools-shortcut-field", label)
+            }
         };
         div()
             .id(id)
@@ -273,5 +287,14 @@ impl GeneralPage {
             .on_click(cx.listener(move |this, _, _, _| this.st.hotkeys.begin_capture(target)))
             .child(text(label, 15., FontWeight::BOLD, p.text).line_height(relative(1.)))
             .into_any_element()
+    }
+}
+
+/// The bubble that says which shortcut a refused combination already belongs to.
+fn shortcut_taken_message(taken: ShortcutTarget) -> Tr {
+    match taken {
+        ShortcutTarget::Dictation => Tr::GeneralShortcutSameAsDictation,
+        ShortcutTarget::Command => Tr::GeneralShortcutSameAsCommand,
+        ShortcutTarget::Tools => Tr::GeneralShortcutSameAsTools,
     }
 }

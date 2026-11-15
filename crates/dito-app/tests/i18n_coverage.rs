@@ -14,11 +14,9 @@ const EXEMPT: &[(&str, &str)] = &[
     // The text the command HUD shots show in the answer, confirm and typing windows (user content).
     ("dev/shots/hud.rs", "*"),
     // Configuration names the polish form shots type into the form (user content, not UI copy).
-    ("dev/shots/polish_form.rs", "*"),
+    ("dev/shots/text_model_form.rs", "*"),
     // List separator chosen per language in code (the ideographic comma, only for Japanese).
     ("settings/models/page.rs", "、"),
-    // Test fixture inside #[cfg(test)] (letter-spacing assertions).
-    ("ui/typography.rs", "認識中"),
 ];
 
 fn src_dir() -> PathBuf {

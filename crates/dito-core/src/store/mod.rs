@@ -18,7 +18,9 @@ pub use activity::{Period, civil, heat_quartiles, heat_step, local_day, month_sp
 pub use model::*;
 use rows::{SELECT_HISTORY, row_to_entry};
 use schema::{SCHEMA_VERSION, encode, migrate, user_version};
-pub use transcripts::{ParagraphState, Sources, Speaker, Transcript, TranscriptParagraph, TranscriptSummary};
+pub use transcripts::{
+    ParagraphState, RESUME_WINDOW_SECS, Reopened, Sources, Speaker, Transcript, TranscriptParagraph, TranscriptSummary,
+};
 
 pub struct Store {
     conn: Mutex<Connection>,

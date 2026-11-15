@@ -28,17 +28,19 @@ pub(super) enum SourceEvent {
     Dropped { speaker: Speaker, seq: u64 },
 }
 
-/// Runs on the source's own thread until the audio stream ends, then flushes the speech in progress.
+/// Runs on the source's own thread until the audio stream ends, then flushes the speech in progress. `first_seq`
+/// starts the utterance numbers, so a source reopened in the same session never reuses one.
 pub(super) fn detect(
     mut detector: Box<dyn VoiceDetector>,
     chunks: std_mpsc::Receiver<(Instant, Vec<f32>)>,
     speaker: Speaker,
     session_start: Instant,
+    first_seq: u64,
     speaking: &AtomicBool,
     tx: &mpsc::UnboundedSender<SourceEvent>,
 ) {
     let mut timeline = Timeline::new(session_start.elapsed().as_millis() as u64);
-    let mut growing = Growing::default();
+    let mut growing = Growing { next_seq: first_seq, ..Growing::default() };
     let emit = |detector: &mut dyn VoiceDetector, timeline: &Timeline, growing: &mut Growing| {
         let mut ended = false;
         while let Some(speech) = detector.pop() {

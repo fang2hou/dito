@@ -3,7 +3,7 @@
 
 use std::ops::{RangeBounds, RangeFrom, RangeInclusive};
 
-use dito_core::config::{CloudPolishConfiguration, LocalPolishParams};
+use dito_core::config::{CloudTextConfiguration, LocalTextParams};
 use serde_json::{Map, Value};
 
 #[derive(Debug, PartialEq)]
@@ -68,7 +68,7 @@ pub(super) fn show_extra(extra: &Map<String, Value>) -> String {
 
 /// One per place in the form, not one per template: the template only decides the labels and the placeholders.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum CloudPolishField {
+pub(super) enum CloudTextField {
     Name,
     Address,
     Model,
@@ -81,8 +81,8 @@ pub(super) enum CloudPolishField {
     Extra,
 }
 
-impl CloudPolishField {
-    pub(super) const ALL: [CloudPolishField; 9] = [
+impl CloudTextField {
+    pub(super) const ALL: [CloudTextField; 9] = [
         Self::Name,
         Self::Address,
         Self::Model,
@@ -110,7 +110,7 @@ impl CloudPolishField {
     }
 
     /// What the form shows of this setting of `config`. The key is not part of it.
-    pub(super) fn show(self, config: &CloudPolishConfiguration) -> String {
+    pub(super) fn show(self, config: &CloudTextConfiguration) -> String {
         match self {
             Self::Name => config.name.clone(),
             Self::Address => config.target.address().to_owned(),
@@ -126,7 +126,7 @@ impl CloudPolishField {
 
     /// `false` when it is not [accepted](Self::accepts), and then `config` is as it was. The key lives in the Keychain,
     /// so there is nothing to put.
-    pub(super) fn apply(self, config: &mut CloudPolishConfiguration, text: &str) -> bool {
+    pub(super) fn apply(self, config: &mut CloudTextConfiguration, text: &str) -> bool {
         if !self.accepts(text) {
             return false;
         }
@@ -147,15 +147,15 @@ impl CloudPolishField {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum LocalPolishField {
+pub(super) enum LocalTextField {
     Temperature,
     TopP,
     TopK,
     MaxTokens,
 }
 
-impl LocalPolishField {
-    pub(super) const ALL: [LocalPolishField; 4] = [Self::Temperature, Self::TopP, Self::TopK, Self::MaxTokens];
+impl LocalTextField {
+    pub(super) const ALL: [LocalTextField; 4] = [Self::Temperature, Self::TopP, Self::TopK, Self::MaxTokens];
 
     pub(super) fn invalid(self, text: &str) -> bool {
         match self {
@@ -165,7 +165,7 @@ impl LocalPolishField {
         }
     }
 
-    pub(super) fn show(self, params: &LocalPolishParams) -> String {
+    pub(super) fn show(self, params: &LocalTextParams) -> String {
         match self {
             Self::Temperature => show_number(params.temperature),
             Self::TopP => show_number(params.top_p),
@@ -175,7 +175,7 @@ impl LocalPolishField {
     }
 
     /// Put `text` into `params`. `false` when it does not parse, and then `params` is as it was.
-    pub(super) fn apply(self, params: &mut LocalPolishParams, text: &str) -> bool {
+    pub(super) fn apply(self, params: &mut LocalTextParams, text: &str) -> bool {
         if self.invalid(text) {
             return false;
         }
@@ -189,18 +189,18 @@ impl LocalPolishField {
     }
 }
 
-pub(super) fn settled_cloud_polish_name<'a>(typed: &'a str, saved: &'a str) -> &'a str {
+pub(super) fn settled_cloud_text_name<'a>(typed: &'a str, saved: &'a str) -> &'a str {
     if typed.trim().is_empty() { saved } else { typed }
 }
 
 #[cfg(test)]
 mod tests {
-    use dito_core::config::{CloudPolishTemplate, ReasoningEffort};
+    use dito_core::config::{CloudTextTemplate, ReasoningEffort};
 
     use super::*;
 
-    fn configuration() -> CloudPolishConfiguration {
-        CloudPolishTemplate::Compat.configuration("compat", "Mine")
+    fn configuration() -> CloudTextConfiguration {
+        CloudTextTemplate::Compat.configuration("compat", "Mine")
     }
 
     #[test]
@@ -259,26 +259,26 @@ mod tests {
     #[test]
     fn an_invalid_text_is_not_saved_and_the_last_valid_value_stays() {
         let mut config = configuration();
-        assert!(CloudPolishField::Temperature.apply(&mut config, "0.3"));
+        assert!(CloudTextField::Temperature.apply(&mut config, "0.3"));
         assert_eq!(config.params.temperature, Some(0.3));
-        assert!(!CloudPolishField::Temperature.apply(&mut config, "abc"));
-        assert!(!CloudPolishField::Temperature.apply(&mut config, "-0.5"));
+        assert!(!CloudTextField::Temperature.apply(&mut config, "abc"));
+        assert!(!CloudTextField::Temperature.apply(&mut config, "-0.5"));
         assert_eq!(config.params.temperature, Some(0.3), "the last valid value stays in use");
-        assert!(CloudPolishField::Temperature.invalid("abc") && CloudPolishField::Temperature.invalid("-0.5"));
+        assert!(CloudTextField::Temperature.invalid("abc") && CloudTextField::Temperature.invalid("-0.5"));
 
-        assert!(CloudPolishField::TopP.apply(&mut config, "0.9"));
-        assert!(!CloudPolishField::TopP.apply(&mut config, "1.5"));
-        assert!(!CloudPolishField::TopP.apply(&mut config, "-0.1"));
+        assert!(CloudTextField::TopP.apply(&mut config, "0.9"));
+        assert!(!CloudTextField::TopP.apply(&mut config, "1.5"));
+        assert!(!CloudTextField::TopP.apply(&mut config, "-0.1"));
         assert_eq!(config.params.top_p, Some(0.9));
 
-        assert!(CloudPolishField::MaxTokens.apply(&mut config, "512"));
-        assert!(!CloudPolishField::MaxTokens.apply(&mut config, "0"));
-        assert!(!CloudPolishField::MaxTokens.apply(&mut config, "1.5"));
+        assert!(CloudTextField::MaxTokens.apply(&mut config, "512"));
+        assert!(!CloudTextField::MaxTokens.apply(&mut config, "0"));
+        assert!(!CloudTextField::MaxTokens.apply(&mut config, "1.5"));
         assert_eq!(config.params.max_tokens, Some(512));
 
-        assert!(CloudPolishField::Extra.apply(&mut config, r#"{"seed": 42}"#));
-        assert!(!CloudPolishField::Extra.apply(&mut config, "[1]"));
-        assert!(!CloudPolishField::Extra.apply(&mut config, r#"{"seed":"#));
+        assert!(CloudTextField::Extra.apply(&mut config, r#"{"seed": 42}"#));
+        assert!(!CloudTextField::Extra.apply(&mut config, "[1]"));
+        assert!(!CloudTextField::Extra.apply(&mut config, r#"{"seed":"#));
         assert_eq!(config.params.extra["seed"], 42, "the last valid object stays in use");
     }
 
@@ -286,7 +286,7 @@ mod tests {
     fn a_number_that_is_still_a_number_while_typing_is_saved() {
         let mut config = configuration();
         for (typed, saved) in [("0", Some(0.)), ("0.", Some(0.)), ("0.7", Some(0.7))] {
-            assert!(CloudPolishField::TopP.apply(&mut config, typed), "{typed:?}");
+            assert!(CloudTextField::TopP.apply(&mut config, typed), "{typed:?}");
             assert_eq!(config.params.top_p, saved, "{typed:?}");
         }
     }
@@ -294,17 +294,17 @@ mod tests {
     #[test]
     fn an_empty_field_clears_the_value() {
         let mut config = configuration();
-        for field in [CloudPolishField::Temperature, CloudPolishField::TopP, CloudPolishField::MaxTokens] {
+        for field in [CloudTextField::Temperature, CloudTextField::TopP, CloudTextField::MaxTokens] {
             assert!(field.apply(&mut config, "1"));
         }
-        assert!(CloudPolishField::Extra.apply(&mut config, r#"{"a": 1}"#));
-        assert!(CloudPolishField::Effort.apply(&mut config, "high"));
+        assert!(CloudTextField::Extra.apply(&mut config, r#"{"a": 1}"#));
+        assert!(CloudTextField::Effort.apply(&mut config, "high"));
         for field in [
-            CloudPolishField::Temperature,
-            CloudPolishField::TopP,
-            CloudPolishField::MaxTokens,
-            CloudPolishField::Extra,
-            CloudPolishField::Effort,
+            CloudTextField::Temperature,
+            CloudTextField::TopP,
+            CloudTextField::MaxTokens,
+            CloudTextField::Extra,
+            CloudTextField::Effort,
         ] {
             assert!(field.apply(&mut config, ""), "{field:?}");
         }
@@ -312,44 +312,44 @@ mod tests {
         assert_eq!((params.temperature, params.top_p, params.max_tokens), (None, None, None));
         assert!(params.extra.is_empty());
         assert_eq!(params.reasoning_effort.as_str(), "", "an empty effort is unset");
-        assert!(CloudPolishField::Extra.apply(&mut configuration(), "  "), "blank is empty too");
+        assert!(CloudTextField::Extra.apply(&mut configuration(), "  "), "blank is empty too");
     }
 
     #[test]
     fn the_effort_is_free_text_and_the_known_values_keep_their_names() {
         let mut config = configuration();
-        assert!(CloudPolishField::Effort.apply(&mut config, " high "));
+        assert!(CloudTextField::Effort.apply(&mut config, " high "));
         assert_eq!(config.params.reasoning_effort, ReasoningEffort::High);
-        assert!(CloudPolishField::Effort.apply(&mut config, "xhigh"));
+        assert!(CloudTextField::Effort.apply(&mut config, "xhigh"));
         assert_eq!(config.params.reasoning_effort.as_str(), "xhigh");
-        assert!(!CloudPolishField::Effort.invalid("anything at all"));
+        assert!(!CloudTextField::Effort.invalid("anything at all"));
     }
 
     #[test]
     fn the_name_saves_as_typed_but_never_blank() {
         let mut config = configuration();
-        assert!(CloudPolishField::Name.apply(&mut config, "Fast model"));
+        assert!(CloudTextField::Name.apply(&mut config, "Fast model"));
         assert_eq!(config.name, "Fast model");
-        assert!(CloudPolishField::Name.apply(&mut config, "Fast model "), "as typed, trailing space included");
+        assert!(CloudTextField::Name.apply(&mut config, "Fast model "), "as typed, trailing space included");
         assert_eq!(config.name, "Fast model ");
         for blank in ["", "   "] {
-            assert!(!CloudPolishField::Name.apply(&mut config, blank));
-            assert!(!CloudPolishField::Name.invalid(blank), "a blank name is not shown as wrong, it returns on blur");
+            assert!(!CloudTextField::Name.apply(&mut config, blank));
+            assert!(!CloudTextField::Name.invalid(blank), "a blank name is not shown as wrong, it returns on blur");
         }
         assert_eq!(config.name, "Fast model ", "the last saved name stays");
-        assert_eq!(settled_cloud_polish_name("", &config.name), "Fast model ");
-        assert_eq!(settled_cloud_polish_name("  ", &config.name), "Fast model ");
-        assert_eq!(settled_cloud_polish_name("Other", &config.name), "Other");
+        assert_eq!(settled_cloud_text_name("", &config.name), "Fast model ");
+        assert_eq!(settled_cloud_text_name("  ", &config.name), "Fast model ");
+        assert_eq!(settled_cloud_text_name("Other", &config.name), "Other");
     }
 
     #[test]
     fn address_and_model_save_as_typed_into_the_field_of_the_template() {
-        for template in CloudPolishTemplate::ALL {
+        for template in CloudTextTemplate::ALL {
             let mut config = template.configuration("x", "X");
-            assert!(CloudPolishField::Address.apply(&mut config, "typed address"));
-            assert!(CloudPolishField::Model.apply(&mut config, "typed model"));
+            assert!(CloudTextField::Address.apply(&mut config, "typed address"));
+            assert!(CloudTextField::Model.apply(&mut config, "typed model"));
             assert_eq!((config.target.address(), config.target.model()), ("typed address", "typed model"));
-            assert!(CloudPolishField::Model.apply(&mut config, ""), "empty is a value here");
+            assert!(CloudTextField::Model.apply(&mut config, ""), "empty is a value here");
             assert_eq!(config.target.model(), "");
         }
     }
@@ -358,50 +358,50 @@ mod tests {
     fn what_the_form_shows_reads_back_as_the_same_setting() {
         let mut config = configuration();
         for (field, text) in [
-            (CloudPolishField::Temperature, "0.2"),
-            (CloudPolishField::TopP, "0.95"),
-            (CloudPolishField::MaxTokens, "2048"),
-            (CloudPolishField::Effort, "low"),
-            (CloudPolishField::Extra, r#"{"seed":42,"stop":null}"#),
+            (CloudTextField::Temperature, "0.2"),
+            (CloudTextField::TopP, "0.95"),
+            (CloudTextField::MaxTokens, "2048"),
+            (CloudTextField::Effort, "low"),
+            (CloudTextField::Extra, r#"{"seed":42,"stop":null}"#),
         ] {
             assert!(field.apply(&mut config, text));
             assert_eq!(field.show(&config), text, "{field:?}");
         }
         let mut copy = configuration();
-        for field in CloudPolishField::ALL {
+        for field in CloudTextField::ALL {
             assert!(field.apply(&mut copy, &field.show(&config)), "{field:?}");
         }
         assert_eq!(copy.params, config.params);
-        assert_eq!(CloudPolishField::Key.show(&config), "", "the key is not in the configuration");
+        assert_eq!(CloudTextField::Key.show(&config), "", "the key is not in the configuration");
     }
 
     #[test]
     fn local_parameters_follow_the_same_rules() {
-        let mut params = LocalPolishParams::default();
-        assert!(LocalPolishField::Temperature.apply(&mut params, "0.3"));
-        assert!(LocalPolishField::TopP.apply(&mut params, "0.9"));
-        assert!(LocalPolishField::TopK.apply(&mut params, "40"));
-        assert!(LocalPolishField::MaxTokens.apply(&mut params, "512"));
+        let mut params = LocalTextParams::default();
+        assert!(LocalTextField::Temperature.apply(&mut params, "0.3"));
+        assert!(LocalTextField::TopP.apply(&mut params, "0.9"));
+        assert!(LocalTextField::TopK.apply(&mut params, "40"));
+        assert!(LocalTextField::MaxTokens.apply(&mut params, "512"));
         assert_eq!(
             params,
-            LocalPolishParams { temperature: Some(0.3), top_p: Some(0.9), top_k: Some(40), max_tokens: Some(512) }
+            LocalTextParams { temperature: Some(0.3), top_p: Some(0.9), top_k: Some(40), max_tokens: Some(512) }
         );
 
-        assert!(!LocalPolishField::TopK.apply(&mut params, "0"));
-        assert!(!LocalPolishField::TopK.apply(&mut params, "4.5"));
-        assert!(!LocalPolishField::Temperature.apply(&mut params, "warm"));
-        assert!(!LocalPolishField::Temperature.apply(&mut params, "-1"));
-        assert!(!LocalPolishField::TopP.apply(&mut params, "1.1"));
-        assert!(!LocalPolishField::TopP.apply(&mut params, "-0.2"));
+        assert!(!LocalTextField::TopK.apply(&mut params, "0"));
+        assert!(!LocalTextField::TopK.apply(&mut params, "4.5"));
+        assert!(!LocalTextField::Temperature.apply(&mut params, "warm"));
+        assert!(!LocalTextField::Temperature.apply(&mut params, "-1"));
+        assert!(!LocalTextField::TopP.apply(&mut params, "1.1"));
+        assert!(!LocalTextField::TopP.apply(&mut params, "-0.2"));
         assert_eq!(params.top_k, Some(40), "the last valid value stays");
         assert_eq!((params.temperature, params.top_p), (Some(0.3), Some(0.9)));
-        assert!(LocalPolishField::TopK.invalid("0") && !LocalPolishField::TopK.invalid(""));
-        assert!(LocalPolishField::TopP.invalid("1.5") && !LocalPolishField::TopP.invalid("1"));
-        assert!(LocalPolishField::Temperature.invalid("-1") && !LocalPolishField::Temperature.invalid("3"));
+        assert!(LocalTextField::TopK.invalid("0") && !LocalTextField::TopK.invalid(""));
+        assert!(LocalTextField::TopP.invalid("1.5") && !LocalTextField::TopP.invalid("1"));
+        assert!(LocalTextField::Temperature.invalid("-1") && !LocalTextField::Temperature.invalid("3"));
 
-        for field in LocalPolishField::ALL {
+        for field in LocalTextField::ALL {
             assert!(field.apply(&mut params, ""));
         }
-        assert_eq!(params, LocalPolishParams::default(), "empty fields use the recommended values again");
+        assert_eq!(params, LocalTextParams::default(), "empty fields use the recommended values again");
     }
 }

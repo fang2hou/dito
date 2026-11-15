@@ -23,7 +23,7 @@ flowchart LR
     Shortcut[dito-platform: shortcut machine] --> Controller[dito-core: controller actor]
     Controller --> Recorder[Recorder: dito-audio] --> Clip[(AudioClip)]
     Clip --> Pipeline[pipeline::run]
-    Pipeline --> Transcribe[Transcriber] --> Polish[Polisher]
+    Pipeline --> Transcribe[Transcriber] --> Polish[TextModel]
     Transcribe -. local .-> Local[dito-local + dito-runtimes]
     Transcribe -. provider .-> Cloud[dito-core provider]
     Polish -. local .-> Local
@@ -45,7 +45,7 @@ flowchart LR
     Capture --> Record[Recorder] --> Recapture[SelectionSource again when the recording ends] --> Transcribe[Transcriber: the instruction]
     Typed[instruction field] --> Route
     Transcribe --> Route[Router: intent decision]
-    Route -- confident --> Tool[command tool: Polisher with the tool's prompt]
+    Route -- confident --> Tool[command tool: TextModel with the tool's prompt]
     Route -- unsure --> Choose[HUD: choice window] --> Tool
     Tool --> Replace[CapturedSelection::replace]
     Tool --> Confirm[HUD: confirm window] --> Replace

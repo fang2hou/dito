@@ -138,7 +138,8 @@ async fn main() {
     let cfg = Arc::new(ConfigStore::open(dir.join("config.toml")).unwrap());
     let mut copied = (*app_config.get()).clone();
     copied.models_dir = models_dir.or(copied.models_dir).or_else(|| Some(default_data_dir().join("models")));
-    copied.polish.engine.source = Source::Local;
+    copied.text_model.source = Source::Local;
+    copied.polish.enabled = true;
     cfg.update(|c| *c = copied).unwrap();
 
     let models = ModelManager::new(cfg.clone());
