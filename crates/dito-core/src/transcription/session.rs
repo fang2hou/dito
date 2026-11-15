@@ -25,7 +25,9 @@ use super::source::{SourceEvent, detect};
 use super::{AudioSource, LiveAudio, LiveInput, Sources, Speaker, VoiceDetectors};
 use crate::config::ConfigStore;
 use crate::factory::Engines;
+use crate::i18n::Lang;
 use crate::pipeline::polish_wordbook;
+use crate::prompts::fence;
 use crate::provider::{TextModel, TextRequest};
 use crate::store::Store;
 
@@ -328,7 +330,6 @@ async fn record(
         Err(e) => Some(Err(e.to_string())),
     };
     let titler = polisher.as_ref().and_then(|p| p.as_ref().ok().cloned()).filter(|_| cfg.transcription.auto_title);
-    let title_instruction = cfg.transcription.title_instruction().to_owned();
     let words = deps.store.words(None).unwrap_or_default();
     let terms = polish_wordbook(&cfg, &words).to_vec();
     let mut wanted = Vec::new();
@@ -507,7 +508,8 @@ async fn record(
     drop(session);
     let _ = polish_task.await;
     if let Some(model) = titler {
-        name_untitled(&deps.store, model.as_ref(), &title_instruction, id, status).await;
+        let system = title_system_prompt(cfg.transcription.title_instruction(), cfg.general.lang());
+        name_untitled(&deps.store, model.as_ref(), &system, id, status).await;
     }
     for source in taps {
         let _ = tokio::task::spawn_blocking(move || source.thread.join()).await;
@@ -622,12 +624,23 @@ const TITLE_INPUT_CHARS: usize = 3_000;
 const TITLE_MAX_CHARS: usize = 40;
 /// Naming never holds the end of a session for long.
 const TITLE_TIMEOUT: Duration = Duration::from_secs(15);
-/// Appended to the user's instruction, which says what the title is; this only fixes the shape of the reply.
-const TITLE_RULES: &str = "Reply with the title only, on one line, without quotes or a final period.";
+
+fn title_system_prompt(instruction: &str, ui_lang: Lang) -> String {
+    let name = ui_lang.name(Lang::En);
+    let code = ui_lang.code();
+    format!(
+        "Write a title for the meeting transcript enclosed between the === lines. \
+         Infer the main language spoken in the meeting from the transcript and use that language for the title. \
+         The app interface language is {name} ({code}) and is provided as context only. \
+         Use the title instructions for style and format while keeping the meeting's language. \
+         Reply with the title only, on one line, without quotes or a final period.\n\n\
+         Title instructions\n{instruction}"
+    )
+}
 
 /// Names a meeting the user left untitled. Any failure leaves it untitled, and a title the user typed while the model
 /// was writing is never replaced.
-async fn name_untitled(store: &Store, model: &dyn TextModel, instruction: &str, id: i64, status: &Status) {
+async fn name_untitled(store: &Store, model: &dyn TextModel, system: &str, id: i64, status: &Status) {
     let untitled = || matches!(store.get_transcript(id), Ok(Some(t)) if t.summary.title.trim().is_empty());
     let Ok(Some(transcript)) = store.get_transcript(id) else { return };
     if !transcript.summary.title.trim().is_empty() {
@@ -637,8 +650,8 @@ async fn name_untitled(store: &Store, model: &dyn TextModel, instruction: &str, 
     if input.is_empty() {
         return;
     }
-    let system = format!("{instruction}\n\n{TITLE_RULES}");
-    let request = TextRequest { system: &system, examples: &[], text: &input };
+    let user = fence(&input);
+    let request = TextRequest { system, examples: &[], text: &user };
     let reply = match tokio::time::timeout(TITLE_TIMEOUT, model.polish(&request)).await {
         Ok(Ok(reply)) => reply,
         Ok(Err(e)) => return tracing::warn!("could not name transcript {id}: {e}"),
@@ -735,6 +748,14 @@ mod tests {
         assert_eq!(clean_title("「📋 リリース計画の確認」\n説明です"), Some("📋 リリース計画の確認".into()));
         assert_eq!(clean_title("\n  \"週次定例\".\n"), Some("週次定例".into()));
         assert_eq!(clean_title("   \n"), None);
+    }
+
+    #[test]
+    fn title_prompt_uses_the_interface_language_as_context_and_keeps_the_custom_instruction() {
+        let prompt = title_system_prompt("Start with an emoji.", Lang::Ja);
+        assert!(prompt.contains("Infer the main language spoken in the meeting"));
+        assert!(prompt.contains("Japanese (ja) and is provided as context only"));
+        assert!(prompt.ends_with("Start with an emoji."));
     }
 
     #[tokio::test]

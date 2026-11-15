@@ -238,7 +238,7 @@ impl Settings {
             // Last child: the rail's floating reveal paints above the page content.
             .when(rail, |el| el.child(app_shell::rail_hover(self, &c, cx)))
             // Painted last so the health card floats above the page content, not under it.
-            .child(app_shell::health_overlay(&self.chrome, &c))
+            .child(app_shell::health_overlay(&self.chrome, &c, window))
             .children(prompt_overlay)
             .children(models_overlay)
             .children(wordbook_overlay)
