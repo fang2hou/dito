@@ -68,19 +68,15 @@ impl WindowDestination {
             cx.activate(true);
             return;
         }
-        let opened = match self {
-            Self::Settings => {
-                settings::open(st, settings::Page::General, cx);
-                settings::is_open(cx)
-            }
-            Self::Tools => {
-                tools::open(st, cx);
-                tools::is_open(cx)
-            }
-        };
-        if opened {
-            source.remove_window();
-        }
+        // Tear this window down before the destination takes key focus: gpui drops it at the end
+        // of this update, detaching the native delegate, so events for the removed window cannot
+        // arrive afterwards and log "window not found". The destination opens on a later turn,
+        // after that teardown.
+        source.remove_window();
+        cx.defer(move |cx| match self {
+            Self::Settings => settings::open(st, settings::Page::General, cx),
+            Self::Tools => tools::open(st, cx),
+        });
     }
 }
 
