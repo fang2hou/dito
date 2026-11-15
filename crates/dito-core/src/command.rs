@@ -11,9 +11,9 @@ mod tools;
 use crate::error::ProviderResult;
 use crate::i18n::Lang;
 use crate::intent::{Intent, RewriteOp};
-use crate::pipeline::{PolishJob, call_polisher, polish_text};
+use crate::pipeline::{PolishJob, call_text_model, polish_text};
 use crate::prompts::{AppTarget, PolishPrompt, Prompts, detect_lang};
-use crate::provider::{PolishRequest, Polisher};
+use crate::provider::{TextModel, TextRequest};
 use crate::surrounding::Surrounding;
 
 pub use prompt::turn_data;
@@ -89,16 +89,16 @@ impl Tool {
         })
     }
 
-    pub async fn run(&self, polisher: &dyn Polisher, ctx: ToolContext<'_>) -> ProviderResult<String> {
+    pub async fn run(&self, text_model: &dyn TextModel, ctx: ToolContext<'_>) -> ProviderResult<String> {
         match self.prepare(ctx.surrounding) {
             Prepared::Polish { text } => {
                 let lang = detect_lang(text);
                 let job = PolishJob { prompts: ctx.prompts, target: ctx.target, text, wordbook: ctx.wordbook, lang };
-                polish_text(polisher, job).await
+                polish_text(text_model, job).await
             }
             Prepared::Tool(prompt) => {
-                let request = PolishRequest { system: &prompt.system, examples: prompt.examples, text: &prompt.user };
-                call_polisher(polisher, self.name(), &request).await
+                let request = TextRequest { system: &prompt.system, examples: prompt.examples, text: &prompt.user };
+                call_text_model(text_model, self.name(), &request).await
             }
         }
     }

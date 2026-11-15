@@ -98,7 +98,7 @@ impl StatusPage {
             self.shortcut_step(c, &cfg),
             self.microphone_step(c, &cfg),
             self.engine_step(c, Role::Asr, &cfg.asr, times.transcription_secs(&cfg.asr)),
-            self.polish_step(c, &cfg, times.polishing_secs(&cfg.polish.engine)),
+            self.polish_step(c, &cfg, times.polishing_secs(&cfg.text_model)),
             self.insert_step(c, &cfg),
         ]
     }
@@ -150,7 +150,7 @@ impl StatusPage {
 
     fn polish_step(&self, c: &Ctx, cfg: &Config, recent_secs: Option<f32>) -> Step {
         if cfg.polish.enabled {
-            return self.engine_step(c, Role::Polish, &cfg.polish.engine, recent_secs);
+            return self.engine_step(c, Role::Text, &cfg.text_model, recent_secs);
         }
         Step {
             dot: Dot::Off,
@@ -161,7 +161,7 @@ impl StatusPage {
     fn engine_step(&self, c: &Ctx, role: Role, engine: &EngineConfig, recent_secs: Option<f32>) -> Step {
         let (id, title) = match role {
             Role::Asr => ("recognition", Tr::ModelsDictation),
-            Role::Polish => ("polish", Tr::ModelsPolish),
+            Role::Text => ("polish", Tr::ModelsPolish),
         };
         let local = engine.source == Source::Local;
         let name = if local { self.local_model_name(&engine.local_model) } else { cloud_model_name(c, role, engine) };
@@ -322,7 +322,7 @@ fn value_text(value: SharedString, color: Hsla) -> Div {
 /// The model id the configuration sends, or the configuration's name when it has none.
 fn cloud_model_name(c: &Ctx, role: Role, engine: &EngineConfig) -> String {
     let asr = role::cloud_asr_configurations(role, engine);
-    let polish = engine.polish_configurations(c.lang);
+    let polish = engine.text_configurations(c.lang);
     let (model, name) = match asr.as_deref() {
         Some(asr) => (
             asr.active().and_then(|active| active.config["connection"]["model"].as_str()).unwrap_or(""),

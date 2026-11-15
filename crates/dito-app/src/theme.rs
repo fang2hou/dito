@@ -386,7 +386,7 @@ pub fn hud_command_dots(p: &Palette) -> [[f32; 3]; 3] {
 
 /// The processing label's brightest band in a command run.
 pub fn hud_command_shoulder(p: &Palette) -> Hsla {
-    hud_color(p, "#444139", "#CFE2F5")
+    hud_color(p, "#706C61", "#CFE2F5")
 }
 
 pub fn palette(setting: Appearance, cx: &App) -> Palette {

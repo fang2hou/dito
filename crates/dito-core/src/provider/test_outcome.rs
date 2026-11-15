@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use serde::{Deserialize, Serialize};
 
-use super::{AsrRequest, PolishRequest, Polisher, Transcriber};
+use super::{AsrRequest, TextModel, TextRequest, Transcriber};
 use crate::audio::AudioClip;
 use crate::error::{ErrorKind, ProviderError, ProviderResult};
 
@@ -38,9 +38,8 @@ pub async fn test_transcriber_with_language(t: &dyn Transcriber, language: Optio
     TestOutcome::from_result(started, r)
 }
 
-pub async fn test_polisher(p: &dyn Polisher) -> TestOutcome {
+pub async fn test_text_model(p: &dyn TextModel) -> TestOutcome {
     let started = Instant::now();
-    let r =
-        p.polish(&PolishRequest { system: "Reply with the user's text unchanged.", examples: &[], text: "ok" }).await;
+    let r = p.polish(&TextRequest { system: "Reply with the user's text unchanged.", examples: &[], text: "ok" }).await;
     TestOutcome::from_result(started, r.map(|_| ()))
 }

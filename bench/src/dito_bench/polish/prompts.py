@@ -34,7 +34,7 @@ VOCABULARY_HEADER = (
 )
 OUTPUTS = (
     "#Outputs#\n"
-    "Only the cleaned text, in the language type of the transcript. No explanation, no quotation marks around it, no tags, no markdown."
+    'Only the cleaned text, in the language type of the transcript. No explanation, no quotation marks around it, no tags, no markdown headings, bold or code blocks. Plain list lines ("1." or "•") are allowed when the style asks for a list.'
 )
 
 # Demonstration turns sent before the transcript: (said, written), one per language type.
@@ -56,17 +56,17 @@ EXAMPLES: tuple[tuple[str, str], ...] = (
 # The user's layers from dito's default prompt sets: shared rules plus the "general" and "slack" styles.
 PROMPTS: dict[str, dict[str, str]] = {
     "ja": {
-        "base": "「えーと」「あの」「その」などの言いよどみを取り除く。\n句読点は「、」「。」を使う。",
+        "base": "「えーと」「あの」「その」などの言いよどみを取り除く。\n句読点は「、」「。」を使う。\n複数の要点、手順、項目が含まれるときは、必ず箇条書きにして、一項目ごとに改行する。順序や手順があるものは「1.」「2.」「3.」の番号で、並列のものは「•」で書き始める。\n要点が一つだけのときや短い一言のときは、箇条書きにせず普通の文のままにする。",
         "general": "意味を変えずに、読みやすい自然な文章に整える。\n言い回しは必要以上に丁寧にせず、話したときの調子を残す。",
         "slack": "Slack に投稿する文章として整える。\n効率的で、簡潔に、わかりやすく。結論を先に書き、一文は短くする。\nあいさつや前置きは省く。",
     },
     "zh": {
-        "base": "去掉“嗯”“呃”“那个”“就是说”等口头禅。\n使用中文全角标点。",
+        "base": "去掉“嗯”“呃”“那个”“就是说”等口头禅。\n使用中文全角标点。\n说话内容包含多个要点、步骤或事项时，整理成列表，每项单独一行：有先后顺序或步骤的用“1.”“2.”“3.”编号，并列关系的用“•”开头。\n只有一个要点或只是简短的一句话时，保持普通句子，不要硬拆成列表。",
         "general": "自然易读，不要过于正式。",
         "slack": "整理成适合发在 Slack 的消息：高效、简洁、清楚，先说结论，句子要短，省略寒暄。",
     },
     "en": {
-        "base": 'Remove fillers such as "um", "uh" and "you know".\nUse standard punctuation and capitalization.',
+        "base": 'Remove fillers such as "um", "uh" and "you know".\nUse standard punctuation and capitalization.\nWhen the transcript contains two or more points, steps or items, always break them into a list with one item per line, even when they were spoken as one sentence: number them "1.", "2.", "3." when they are a sequence or steps, and start each with "•" when they are parallel. Keep the sentence that introduces the list.\nKeep a single point or a short remark as plain sentences; do not force it into a list.',
         "general": "Keep it natural and readable, not overly formal.",
         "slack": "Write it as a Slack message. Be efficient, concise and clear. Lead with the conclusion and keep sentences short. Skip greetings.",
     },

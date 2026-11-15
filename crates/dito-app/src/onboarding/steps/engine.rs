@@ -18,7 +18,7 @@ pub(super) fn page(w: &Onboarding, c: &Ctx, cx: &mut Context<Onboarding>) -> Ste
             Ic::Download,
             dito_core::i18n::fmt::needs_download_about(
                 c.lang,
-                &ui::fmt_bytes(w.models_bytes(&[&cfg.asr.local_model, &cfg.polish.engine.local_model])),
+                &ui::fmt_bytes(w.models_bytes(&[&cfg.asr.local_model, &cfg.text_model.local_model])),
             )
             .into(),
         ),

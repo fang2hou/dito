@@ -9,8 +9,8 @@
 #   - TCC prompts are only attributed to LaunchServices-launched apps; a shell-exec'd
 #     binary is attributed to its parent terminal instead, which suppresses the prompt
 #     (and "open System Settings" alike).
-# The wrapper shares the bundle id and signing identity with scripts/bundle.sh builds,
-# so TCC grants are shared with release runs. stdout/stderr are captured to a file via
+# The wrapper is signed with the dev bundle id (com.fang2hou.dito-dev), so its TCC grants are
+# its own and never mix with the installed app's. stdout/stderr are captured to a file via
 # `open --stdout` and tailed back, so `--log-sink` output still reaches the caller.
 set -euo pipefail
 
@@ -23,7 +23,14 @@ bundle_id=com.fang2hou.dito-dev
 have_identity() { security find-identity -v -p codesigning | grep -q "\"$identity\""; }
 
 if [[ "$(basename "$bin")" == dito ]]; then
-  app="$(dirname "$bin")/../bundle/DitoDev.app"
+  # A wrapper per run, named by this runner's pid: a second instance must not rewrite the bundle a running one
+  # executes. TCC keys its grants on the bundle id and the signature, not the path, so they still hold.
+  bundles="$(dirname "$bin")/../bundle"
+  for stale in "$bundles"/dev-*; do
+    [[ -d "$stale" ]] || continue
+    kill -0 "${stale##*/dev-}" 2>/dev/null || rm -rf "$stale"
+  done
+  app="$bundles/dev-$$/DitoDev.app"
   mkdir -p "$app/Contents/MacOS"
   cp "$bin" "$app/Contents/MacOS/dito"
   # Liquid Glass icon, same pipeline as bundle.sh (cached; see docs/IMPLEMENTATION.md, Engineering Traps).
@@ -74,9 +81,14 @@ PLIST
   log="$(mktemp -t dito-dev)"
   tail -F "$log" 2>/dev/null &
   tail_pid=$!
+  # Stops the instance this run started and no other: besides `tail`, it is the one process that holds this run's
+  # log open (as its stdout). Matching by name would also stop the instances of other runs and other worktrees.
   cleanup() {
-    pkill -f "DitoDev.app/Contents/MacOS/dito" 2>/dev/null || true
+    for pid in $(lsof -t "$log" 2>/dev/null); do
+      [[ "$pid" == "$tail_pid" ]] || kill "$pid" 2>/dev/null || true
+    done
     kill "$tail_pid" 2>/dev/null || true
+    rm -rf "$(dirname "$app")" "$log"
   }
   trap cleanup TERM INT EXIT
   # LaunchServices starts the app with a clean environment, so the log filter is handed over explicitly.

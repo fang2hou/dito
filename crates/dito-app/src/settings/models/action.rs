@@ -42,16 +42,6 @@ pub(super) fn model_action(
 pub(super) fn in_use_status(id: impl Into<ElementId>, p: &Palette, label: SharedString) -> Stateful<Div> {
     let id = id.into();
     ui::tip_label(id.clone(), label);
-    ui::circle_control(
-        id.clone(),
-        Ic::Check,
-        ui::CircleSize::Regular,
-        ui::CircleAppearance {
-            background: Some(p.primary),
-            foreground: p.on_primary,
-            border: Some(p.primary),
-            hover: None,
-        },
-    )
-    .child(ui::tip_above(p, &id))
+    ui::status_disc(id.clone(), Ic::Check, ui::CircleSize::Regular, p.primary, p.on_primary)
+        .child(ui::tip_above(p, &id))
 }

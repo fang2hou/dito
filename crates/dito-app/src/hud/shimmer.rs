@@ -21,7 +21,7 @@ fn sweep_at(t: f32, total: f32) -> f32 {
 /// The label of a capsule that waits for the user: the processing label at rest, with no sweep.
 pub(super) fn static_label(s: &str, scale: Scale, p: &Palette) -> Div {
     let size = scale.tx(12.);
-    ui::text_tracked(s, size, FontWeight::NORMAL, theme::hud_color(p, "#444139", "#F7F5F0"), 0.08)
+    ui::label(s, size, FontWeight::NORMAL, theme::hud_color(p, "#444139", "#F7F5F0"))
 }
 
 /// The capsule centers the row; nothing is measured or given a computed width, so every language centers exactly at
@@ -30,27 +30,19 @@ pub(super) fn static_label(s: &str, scale: Scale, p: &Palette) -> Div {
 pub(super) fn shimmer_label(s: &str, t: f32, scale: Scale, p: &Palette, motion: Motion, command: bool) -> Div {
     let px = |v: f32| scale.px(v);
     let size = scale.tx(12.);
-    let track = size * ui::tracking_for(s, 0.08);
-    let base = theme::hud_color(p, "#6A6455", "#C2BDB2");
-    let hot = theme::hud_color(p, "#24221D", "#FFFFFF");
-    let shoulder = if command { theme::hud_command_shoulder(p) } else { theme::hud_color(p, "#444139", "#FFECBD") };
-    let chars: Vec<char> = s.chars().collect();
+    let base = theme::hud_color(p, "#8A867B", "#C2BDB2");
+    let hot = theme::hud_color(p, "#575247", "#FFFFFF");
+    let shoulder = if command { theme::hud_command_shoulder(p) } else { theme::hud_color(p, "#706C61", "#FFECBD") };
     // Only the crest's travel math needs a width; layout never uses it.
-    // text_width already returns scaled pixels: do not scale the measurements a second time.
-    let ws: Vec<f32> = chars.iter().map(|c| ui::text_width(&c.to_string(), size, FontWeight::NORMAL)).collect();
-    let total = ws.iter().sum::<f32>() + track * chars.len().saturating_sub(1) as f32;
+    // text_width already returns scaled pixels: do not scale the measurement a second time.
+    let total = ui::text_width(s, size, FontWeight::NORMAL);
+    // One plain text run whose width is the run itself, never a measurement.
     let row = |color: Hsla| {
-        let mut r = div().flex().items_center().gap(gpui_kit::px(track)).h(px(19.));
-        if track == 0. {
-            // No tracking: one plain text run whose width is the run itself, never a measurement.
-            r = r.child(text(s.to_string(), size, FontWeight::NORMAL, color).line_height(relative(1.6)));
-        } else {
-            for c in &chars {
-                r = r
-                    .child(text(c.to_string(), size, FontWeight::NORMAL, color).line_height(relative(1.6)).flex_none());
-            }
-        }
-        r
+        div()
+            .flex()
+            .items_center()
+            .h(px(19.))
+            .child(text(s.to_string(), size, FontWeight::NORMAL, color).line_height(relative(1.6)))
     };
     // Clamped to the label so a partially arrived or leaving band shows only the part that overlaps the glyphs.
     let band = |from: f32, to: f32, color: Hsla| {

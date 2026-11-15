@@ -327,10 +327,10 @@ impl PromptsPage {
             c.t(title),
             content,
             ui::DialogAnswer { label: c.t(Tr::AsrEditorCancel), on_click: Some(close) },
-            ui::DialogAnswer {
+            Some(ui::DialogAnswer {
                 label: c.t(confirm_label),
                 on_click: (dialog != Dialog::Add || self.picked_app.is_some()).then_some(confirm),
-            },
+            }),
             ui::ConfirmStyle::Standard,
         ))
     }

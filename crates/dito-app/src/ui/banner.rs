@@ -42,7 +42,7 @@ pub fn banner(p: &Palette, message: impl Into<SharedString>, action: Option<Bann
                 .items_center()
                 .gap(px(12.))
                 .child(icon(Ic::Alert, 18., icon_color))
-                .child(text(message, 13., FontWeight::MEDIUM, fg)),
+                .child(text(message, 13., FontWeight::MEDIUM, fg).flex_1().min_w(px(0.))),
         );
     if let Some(BannerAction { id, label, on_click }) = action {
         strip = strip.child(button(id, p, &label, BtnKind::Secondary, None, on_click));

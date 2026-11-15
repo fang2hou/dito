@@ -4,8 +4,8 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    CloudAsrConfigurations, EngineConfig, General, PolishConfig, ReasoningEffort, SCHEMA_VERSION, Source,
-    TranscriptionSettings,
+    CloudAsrConfigurations, DEFAULT_TEXT_LOCAL, EngineConfig, General, PolishConfig, ReasoningEffort, SCHEMA_VERSION,
+    Source, TranscriptionSettings,
 };
 use crate::prompts::Prompts;
 
@@ -17,6 +17,7 @@ pub struct Config {
     pub general: General,
     pub asr: EngineConfig,
     pub polish: PolishConfig,
+    pub text_model: EngineConfig,
     pub prompts: Prompts,
     pub wordbook_for_polish: bool,
     pub onboarded: bool,
@@ -31,6 +32,7 @@ impl Default for Config {
             general: General::default(),
             asr: EngineConfig::default(),
             polish: PolishConfig::default(),
+            text_model: EngineConfig::with_local(DEFAULT_TEXT_LOCAL),
             prompts: Prompts::default(),
             wordbook_for_polish: false,
             onboarded: false,
@@ -47,8 +49,8 @@ impl Config {
         let mut c = Self::default();
         c.asr.source = Source::Provider;
         c.asr.cloud_asr = Some(CloudAsrConfigurations::default());
-        c.polish.engine.source = Source::Provider;
-        let configurations = c.polish.engine.polish_configurations_mut(c.general.lang());
+        c.text_model.source = Source::Provider;
+        let configurations = c.text_model.text_configurations_mut(c.general.lang());
         configurations.select("azure");
         let azure = configurations.active_mut().expect("the templates include an azure configuration");
         *azure.target.model_mut() = "gpt-6.1-terra".into();
@@ -61,14 +63,14 @@ impl Config {
         if self.asr.source == Source::Local {
             ids.insert(self.asr.local_model.clone());
         }
-        if self.polish.enabled && self.polish.engine.source == Source::Local {
-            ids.insert(self.polish.engine.local_model.clone());
+        if self.polish.enabled && self.text_model.source == Source::Local {
+            ids.insert(self.text_model.local_model.clone());
         }
         ids
     }
 
     pub fn engine_labels(&self) -> super::EngineLabels {
-        let polish = self.polish.enabled.then(|| self.polish.engine.label());
+        let polish = self.polish.enabled.then(|| self.text_model.label());
         super::EngineLabels { asr: Some(self.asr.label()), polish }
     }
 }
@@ -86,6 +88,6 @@ mod tests {
         c.asr.source = Source::Provider;
         assert!(c.local_models_in_use().is_empty());
         c.polish.enabled = true;
-        assert_eq!(c.local_models_in_use(), BTreeSet::from([c.polish.engine.local_model.clone()]));
+        assert_eq!(c.local_models_in_use(), BTreeSet::from([c.text_model.local_model.clone()]));
     }
 }

@@ -6,16 +6,16 @@ use serde_json::{Map, Value};
 use super::ReasoningEffort;
 use super::list::{Entry, List};
 use crate::i18n::{Lang, Tr};
-use crate::secrets::polish_account;
+use crate::secrets::text_account;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum CloudPolishTemplate {
+pub enum CloudTextTemplate {
     Compat,
     Azure,
     Bedrock,
 }
 
-impl CloudPolishTemplate {
+impl CloudTextTemplate {
     /// Add-menu order.
     pub const ALL: [Self; 3] = [Self::Compat, Self::Azure, Self::Bedrock];
 
@@ -36,11 +36,11 @@ impl CloudPolishTemplate {
         }
     }
 
-    fn target(self) -> CloudPolishTarget {
+    fn target(self) -> CloudTextTarget {
         match self {
-            Self::Compat => CloudPolishTarget::Compat { base_url: String::new(), model: String::new() },
-            Self::Azure => CloudPolishTarget::Azure { endpoint: String::new(), deployment: String::new() },
-            Self::Bedrock => CloudPolishTarget::Bedrock {
+            Self::Compat => CloudTextTarget::Compat { base_url: String::new(), model: String::new() },
+            Self::Azure => CloudTextTarget::Azure { endpoint: String::new(), deployment: String::new() },
+            Self::Bedrock => CloudTextTarget::Bedrock {
                 profile: String::new(),
                 region: "ap-northeast-1".into(),
                 model_id: String::new(),
@@ -48,26 +48,26 @@ impl CloudPolishTemplate {
         }
     }
 
-    fn params(self) -> CloudPolishParams {
+    fn params(self) -> CloudTextParams {
         match self {
-            Self::Compat | Self::Azure => CloudPolishParams::default(),
-            Self::Bedrock => CloudPolishParams {
+            Self::Compat | Self::Azure => CloudTextParams::default(),
+            Self::Bedrock => CloudTextParams {
                 temperature: Some(0.2),
                 max_tokens: Some(2048),
                 reasoning_effort: ReasoningEffort::Custom(String::new()),
-                ..CloudPolishParams::default()
+                ..CloudTextParams::default()
             },
         }
     }
 
-    pub fn configuration(self, id: &str, name: &str) -> CloudPolishConfiguration {
-        CloudPolishConfiguration { id: id.into(), name: name.into(), target: self.target(), params: self.params() }
+    pub fn configuration(self, id: &str, name: &str) -> CloudTextConfiguration {
+        CloudTextConfiguration { id: id.into(), name: name.into(), target: self.target(), params: self.params() }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "template", rename_all = "snake_case")]
-pub enum CloudPolishTarget {
+pub enum CloudTextTarget {
     Azure {
         #[serde(default)]
         endpoint: String,
@@ -90,12 +90,12 @@ pub enum CloudPolishTarget {
     },
 }
 
-impl CloudPolishTarget {
-    pub fn template(&self) -> CloudPolishTemplate {
+impl CloudTextTarget {
+    pub fn template(&self) -> CloudTextTemplate {
         match self {
-            Self::Azure { .. } => CloudPolishTemplate::Azure,
-            Self::Bedrock { .. } => CloudPolishTemplate::Bedrock,
-            Self::Compat { .. } => CloudPolishTemplate::Compat,
+            Self::Azure { .. } => CloudTextTemplate::Azure,
+            Self::Bedrock { .. } => CloudTextTemplate::Bedrock,
+            Self::Compat { .. } => CloudTextTemplate::Compat,
         }
     }
 
@@ -135,7 +135,7 @@ impl CloudPolishTarget {
 /// What a request sends beyond the prompt. A parameter that is not set is left out of the request.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 #[serde(default)]
-pub struct CloudPolishParams {
+pub struct CloudTextParams {
     pub temperature: Option<f32>,
     pub top_p: Option<f32>,
     pub max_tokens: Option<u32>,
@@ -147,19 +147,19 @@ pub struct CloudPolishParams {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct CloudPolishConfiguration {
+pub struct CloudTextConfiguration {
     /// Stable; also the suffix of the Keychain account.
     pub id: String,
     pub name: String,
     #[serde(flatten)]
-    pub target: CloudPolishTarget,
+    pub target: CloudTextTarget,
     #[serde(default)]
-    pub params: CloudPolishParams,
+    pub params: CloudTextParams,
 }
 
-impl CloudPolishConfiguration {
+impl CloudTextConfiguration {
     pub fn account(&self) -> String {
-        polish_account(&self.id)
+        text_account(&self.id)
     }
 
     /// Persisted in history as `<template>:<model>`.
@@ -168,7 +168,7 @@ impl CloudPolishConfiguration {
     }
 }
 
-impl Entry for CloudPolishConfiguration {
+impl Entry for CloudTextConfiguration {
     fn id(&self) -> &str {
         &self.id
     }
@@ -179,19 +179,19 @@ impl Entry for CloudPolishConfiguration {
 }
 
 /// The templates a fresh list starts from; the first is in use.
-const STARTING: [CloudPolishTemplate; 3] =
-    [CloudPolishTemplate::Azure, CloudPolishTemplate::Bedrock, CloudPolishTemplate::Compat];
+const STARTING: [CloudTextTemplate; 3] =
+    [CloudTextTemplate::Azure, CloudTextTemplate::Bedrock, CloudTextTemplate::Compat];
 
 /// The cloud polish configurations and the one in use. Only `new` makes a list with content: its names depend on the
 /// language the UI is shown in, which a default has no way to know.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 #[serde(default)]
-pub struct CloudPolishConfigurations {
+pub struct CloudTextConfigurations {
     pub selected: String,
-    pub items: Vec<CloudPolishConfiguration>,
+    pub items: Vec<CloudTextConfiguration>,
 }
 
-impl CloudPolishConfigurations {
+impl CloudTextConfigurations {
     /// The three templates as configurations, named after their templates in `lang`. Their ids are the ones the
     /// migration from version 2 gives the old forms, so a fresh list and a migrated one use the same Keychain accounts.
     pub fn new(lang: Lang) -> Self {
@@ -202,28 +202,28 @@ impl CloudPolishConfigurations {
 
     /// The configuration in use while no list is saved, as `new` makes it but without a name, since no request reads
     /// one.
-    pub(super) fn stand_in_active() -> CloudPolishConfiguration {
+    pub(super) fn stand_in_active() -> CloudTextConfiguration {
         let template = STARTING[0];
         template.configuration(template.id(), "")
     }
 
-    fn list(&mut self) -> List<'_, CloudPolishConfiguration> {
+    fn list(&mut self) -> List<'_, CloudTextConfiguration> {
         List::new(&mut self.selected, &mut self.items)
     }
 
-    pub fn get(&self, id: &str) -> Option<&CloudPolishConfiguration> {
+    pub fn get(&self, id: &str) -> Option<&CloudTextConfiguration> {
         self.items.iter().find(|item| item.id == id)
     }
 
-    pub fn get_mut(&mut self, id: &str) -> Option<&mut CloudPolishConfiguration> {
+    pub fn get_mut(&mut self, id: &str) -> Option<&mut CloudTextConfiguration> {
         self.items.iter_mut().find(|item| item.id == id)
     }
 
-    pub fn active(&self) -> Option<&CloudPolishConfiguration> {
+    pub fn active(&self) -> Option<&CloudTextConfiguration> {
         self.get(&self.selected)
     }
 
-    pub fn active_mut(&mut self) -> Option<&mut CloudPolishConfiguration> {
+    pub fn active_mut(&mut self) -> Option<&mut CloudTextConfiguration> {
         let selected = &self.selected;
         self.items.iter_mut().find(|item| item.id == *selected)
     }
@@ -232,7 +232,7 @@ impl CloudPolishConfigurations {
         self.list().select(id)
     }
 
-    pub fn add_from_template(&mut self, template: CloudPolishTemplate, name: &str) -> String {
+    pub fn add_from_template(&mut self, template: CloudTextTemplate, name: &str) -> String {
         let id = self.list().fresh_id(template.id());
         self.list().push(template.configuration(&id, name));
         id
@@ -248,9 +248,9 @@ impl CloudPolishConfigurations {
         Some(id)
     }
 
-    /// The key stays under `account()`: `ConfigStore::remove_cloud_polish_configuration` deletes it only once the list
+    /// The key stays under `account()`: `ConfigStore::remove_cloud_text_configuration` deletes it only once the list
     /// is saved. The last configuration is never removed (`None`).
-    pub fn remove(&mut self, id: &str) -> Option<CloudPolishConfiguration> {
+    pub fn remove(&mut self, id: &str) -> Option<CloudTextConfiguration> {
         self.list().remove(id)
     }
 
@@ -283,7 +283,7 @@ mod tests {
     use super::*;
     use crate::config::list::contract::{Editable, check_editing};
 
-    impl Editable for CloudPolishConfigurations {
+    impl Editable for CloudTextConfigurations {
         fn ids(&self) -> Vec<String> {
             self.items.iter().map(|item| item.id.clone()).collect()
         }
@@ -294,41 +294,41 @@ mod tests {
             self.get(id).map(|item| item.name.clone())
         }
         fn select(&mut self, id: &str) -> bool {
-            CloudPolishConfigurations::select(self, id)
+            CloudTextConfigurations::select(self, id)
         }
         fn add(&mut self, name: &str) -> String {
-            self.add_from_template(CloudPolishTemplate::Azure, name)
+            self.add_from_template(CloudTextTemplate::Azure, name)
         }
         fn duplicate(&mut self, id: &str, name: &str) -> Option<String> {
-            CloudPolishConfigurations::duplicate(self, id, name)
+            CloudTextConfigurations::duplicate(self, id, name)
         }
         fn remove(&mut self, id: &str) -> bool {
-            CloudPolishConfigurations::remove(self, id).is_some()
+            CloudTextConfigurations::remove(self, id).is_some()
         }
         fn move_to(&mut self, id: &str, index: usize) -> bool {
-            CloudPolishConfigurations::move_to(self, id, index)
+            CloudTextConfigurations::move_to(self, id, index)
         }
         fn rename(&mut self, id: &str, name: &str) -> bool {
-            CloudPolishConfigurations::rename(self, id, name)
+            CloudTextConfigurations::rename(self, id, name)
         }
     }
 
     #[test]
     fn the_editing_api_behaves_as_documented() {
-        check_editing(&mut CloudPolishConfigurations::new(Lang::Ja));
+        check_editing(&mut CloudTextConfigurations::new(Lang::Ja));
     }
 
     #[test]
     fn a_fresh_list_is_the_three_templates_named_in_the_language() {
-        let ja = CloudPolishConfigurations::new(Lang::Ja);
+        let ja = CloudTextConfigurations::new(Lang::Ja);
         let identities: Vec<_> = ja.items.iter().map(|c| (c.id.as_str(), c.name.as_str())).collect();
         assert_eq!(
             identities,
             [("azure", "Azure OpenAI"), ("bedrock", "Amazon Bedrock"), ("compat", "OpenAI 互換 API")]
         );
         assert_eq!(ja.selected, "azure");
-        assert_eq!(CloudPolishConfigurations::new(Lang::En).items[2].name, "OpenAI-compatible API");
-        assert_eq!(CloudPolishConfigurations::new(Lang::Zh).items[2].name, "OpenAI 兼容 API");
+        assert_eq!(CloudTextConfigurations::new(Lang::En).items[2].name, "OpenAI-compatible API");
+        assert_eq!(CloudTextConfigurations::new(Lang::Zh).items[2].name, "OpenAI 兼容 API");
 
         let bedrock = ja.get("bedrock").unwrap();
         assert_eq!(bedrock.target.address(), "ap-northeast-1");
@@ -338,28 +338,28 @@ mod tests {
         for plain in [ja.get("azure").unwrap(), ja.get("compat").unwrap()] {
             assert_eq!(plain.target.address(), "");
             assert_eq!(plain.target.model(), "");
-            let CloudPolishParams { temperature, top_p, max_tokens, extra, .. } = &plain.params;
+            let CloudTextParams { temperature, top_p, max_tokens, extra, .. } = &plain.params;
             assert!(temperature.is_none() && top_p.is_none() && max_tokens.is_none() && extra.is_empty());
         }
     }
 
     #[test]
     fn templates_make_configurations_of_their_own_kind_with_account_and_label() {
-        for template in CloudPolishTemplate::ALL {
+        for template in CloudTextTemplate::ALL {
             let made = template.configuration("x-1", "Name");
             assert_eq!(made.target.template(), template);
             assert_eq!(made.account(), "polish.x-1");
             let saved = toml::Table::try_from(&made).unwrap();
             assert_eq!(saved["template"].as_str(), Some(template.id()), "the saved tag is the template id");
         }
-        let mut azure = CloudPolishTemplate::Azure.configuration("a", "A");
+        let mut azure = CloudTextTemplate::Azure.configuration("a", "A");
         *azure.target.model_mut() = "gpt-x".into();
         assert_eq!(azure.label(), "azure:gpt-x");
     }
 
     #[test]
     fn duplicating_copies_the_content_under_a_new_account() {
-        let mut list = CloudPolishConfigurations::new(Lang::En);
+        let mut list = CloudTextConfigurations::new(Lang::En);
         let source = list.get_mut("bedrock").unwrap();
         *source.target.model_mut() = "model-x".into();
         source.params.top_p = Some(0.9);
@@ -372,7 +372,7 @@ mod tests {
 
     #[test]
     fn configurations_survive_toml_with_their_parameters_and_extra_fields() {
-        let mut list = CloudPolishConfigurations::new(Lang::Ja);
+        let mut list = CloudTextConfigurations::new(Lang::Ja);
         let compat = list.get_mut("compat").unwrap();
         compat.params.temperature = Some(0.2);
         compat.params.top_p = Some(0.95);
@@ -382,14 +382,14 @@ mod tests {
 
         #[derive(Serialize, Deserialize)]
         struct Holder {
-            cloud_polish: CloudPolishConfigurations,
+            cloud_text: CloudTextConfigurations,
         }
-        let text = toml::to_string_pretty(&Holder { cloud_polish: list.clone() }).unwrap();
+        let text = toml::to_string_pretty(&Holder { cloud_text: list.clone() }).unwrap();
         assert!(text.contains("temperature = 0.2\n"), "an f32 is written as the number it was typed as:\n{text}");
         assert!(text.contains("top_p = 0.95\n"), "{text}");
         assert!(text.contains("max_tokens = 512\n"), "{text}");
         assert_eq!(text.matches("top_p").count(), 1, "a parameter that is not set is not written:\n{text}");
-        assert_eq!(toml::from_str::<Holder>(&text).unwrap().cloud_polish, list);
+        assert_eq!(toml::from_str::<Holder>(&text).unwrap().cloud_text, list);
 
         let saved = toml::Table::try_from(&list).unwrap();
         let extra = saved["items"][2]["params"]["extra"].as_str().expect("extra is saved as a JSON string");
@@ -400,7 +400,7 @@ mod tests {
     #[test]
     fn extra_must_be_a_json_object_and_an_absent_one_is_empty() {
         let load = |extra: &str| {
-            toml::from_str::<CloudPolishConfiguration>(&format!(
+            toml::from_str::<CloudTextConfiguration>(&format!(
                 "id = 'x'\nname = 'X'\ntemplate = 'compat'\n[params]\nextra = '{extra}'\n"
             ))
         };
@@ -408,8 +408,8 @@ mod tests {
         for bad in ["[1]", "5", "not json", ""] {
             assert!(load(bad).is_err(), "{bad:?}");
         }
-        let minimal: CloudPolishConfiguration = toml::from_str("id = 'x'\nname = 'X'\ntemplate = 'azure'\n").unwrap();
-        assert_eq!(minimal.target, CloudPolishTarget::Azure { endpoint: String::new(), deployment: String::new() });
-        assert_eq!(minimal.params, CloudPolishParams::default());
+        let minimal: CloudTextConfiguration = toml::from_str("id = 'x'\nname = 'X'\ntemplate = 'azure'\n").unwrap();
+        assert_eq!(minimal.target, CloudTextTarget::Azure { endpoint: String::new(), deployment: String::new() });
+        assert_eq!(minimal.params, CloudTextParams::default());
     }
 }

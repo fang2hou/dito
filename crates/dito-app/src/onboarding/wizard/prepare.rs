@@ -17,7 +17,7 @@ pub(in crate::onboarding) enum PreparePhase {
 impl Onboarding {
     pub(in crate::onboarding) fn local_ids(&self) -> [String; 2] {
         let cfg = self.st.cfg.get();
-        [cfg.asr.local_model.clone(), cfg.polish.engine.local_model.clone()]
+        [cfg.asr.local_model.clone(), cfg.text_model.local_model.clone()]
     }
 
     pub(in crate::onboarding) fn prepare_phase(&self) -> PreparePhase {
@@ -51,7 +51,7 @@ impl Onboarding {
         ids.iter().filter_map(|id| self.st.models.spec(id)).flat_map(|s| s.files.iter().map(|f| f.size)).sum()
     }
 
-    /// Choose the local ASR and polish models. It only changes the choice: the download waits for the Start preparing
+    /// Choose the local ASR and text models. It only changes the choice: the download waits for the Start preparing
     /// button, and the choice is locked while a download runs.
     pub(in crate::onboarding) fn pick_tier(&mut self, i: usize, cx: &mut Context<Self>) {
         if self.prepare_phase() == PreparePhase::Downloading {
@@ -60,7 +60,7 @@ impl Onboarding {
         let t = &steps::TIERS[i];
         services::save_config(&self.st, |c| {
             c.asr.local_model = t.asr.to_string();
-            c.polish.engine.local_model = t.polish.to_string();
+            c.text_model.local_model = t.polish.to_string();
         });
         cx.notify();
     }

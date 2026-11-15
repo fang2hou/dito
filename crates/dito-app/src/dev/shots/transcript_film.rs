@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 use dito_core::config::Appearance;
 use dito_core::controller::RecorderError;
 use dito_core::factory::FixedEngines;
-use dito_core::provider::mock::{MockPolisher, ToneTranscriber, tone};
+use dito_core::provider::mock::{MockTextModel, ToneTranscriber, tone};
 use dito_core::transcription::{
     self, AudioSource, ChunkSink, EnergyDetectors, LiveAudio, LiveInput, SessionState, Sources, TranscriptionDeps,
 };
@@ -81,7 +81,7 @@ pub async fn run(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
             detectors: Arc::new(EnergyDetectors),
             engines: Arc::new(FixedEngines::new(
                 Arc::new(asr),
-                Arc::new(MockPolisher::default().with_delay(Duration::from_millis(2_500))),
+                Arc::new(MockTextModel::default().with_delay(Duration::from_millis(2_500))),
             )),
             config: st.cfg.clone(),
             store: st.store.clone(),

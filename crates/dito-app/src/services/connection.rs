@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use dito_core::error::ErrorKind;
 use dito_core::pipeline::{self, PolishJob};
-use dito_core::provider::{TestOutcome, test_polisher, test_transcriber_with_language};
+use dito_core::provider::{TestOutcome, test_text_model, test_transcriber_with_language};
 use dito_core::secrets::Role;
 
 use crate::state::AppState;
@@ -13,7 +13,7 @@ pub async fn test_connection(st: Arc<AppState>, role: Role) -> TestOutcome {
     let cfg = st.cfg.get();
     let engine = match role {
         Role::Asr => &cfg.asr,
-        Role::Polish => &cfg.polish.engine,
+        Role::Text => &cfg.text_model,
     };
     let language = cfg.general.preferred_language.code();
     let st2 = st.clone();
@@ -24,8 +24,8 @@ pub async fn test_connection(st: Arc<AppState>, role: Role) -> TestOutcome {
                 Ok(t) => test_transcriber_with_language(t.as_ref(), language).await,
                 Err(e) => TestOutcome::Failed { kind: e.kind, message: e.message },
             },
-            Role::Polish => match st2.factory.polisher_for(&engine).await {
-                Ok(p) => test_polisher(p.as_ref()).await,
+            Role::Text => match st2.factory.text_model_for(&engine).await {
+                Ok(p) => test_text_model(p.as_ref()).await,
                 Err(e) => TestOutcome::Failed { kind: e.kind, message: e.message },
             },
         }
@@ -63,10 +63,10 @@ pub async fn try_polish(
     st.rt
         .spawn(async move {
             let cfg = st2.cfg.get();
-            let polisher = st2.factory.polisher_for(&cfg.polish.engine).await.map_err(|e| e.to_string())?;
+            let text_model = st2.factory.text_model_for(&cfg.text_model).await.map_err(|e| e.to_string())?;
             let polish_job = PolishJob { prompts: &prompts, target, text: &text, wordbook: &[], lang };
             let started = std::time::Instant::now();
-            let out = pipeline::polish_text(polisher.as_ref(), polish_job).await.map_err(|e| e.to_string())?;
+            let out = pipeline::polish_text(text_model.as_ref(), polish_job).await.map_err(|e| e.to_string())?;
             Ok((out, started.elapsed().as_millis() as u64))
         })
         .await

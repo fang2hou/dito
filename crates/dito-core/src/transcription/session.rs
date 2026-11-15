@@ -26,7 +26,7 @@ use super::{AudioSource, LiveAudio, Sources, Speaker, VoiceDetectors};
 use crate::config::ConfigStore;
 use crate::factory::Engines;
 use crate::pipeline::polish_wordbook;
-use crate::provider::{PolishRequest, Polisher};
+use crate::provider::{TextModel, TextRequest};
 use crate::store::Store;
 
 const IDLE_TICK: Duration = Duration::from_millis(250);
@@ -188,7 +188,7 @@ async fn record(
 ) -> Result<(), String> {
     let cfg = deps.config.get();
     let asr = deps.engines.transcriber(&cfg).await.map_err(|e| e.to_string())?;
-    let polisher = match deps.engines.polisher(&cfg).await {
+    let polisher = match deps.engines.text_model(&cfg).await {
         Ok(p) => p.map(Ok),
         Err(e) => Some(Err(e.to_string())),
     };
@@ -437,7 +437,7 @@ impl Session<'_> {
 
 async fn polish_loop(
     store: Arc<Store>,
-    polisher: Option<Result<Arc<dyn Polisher>, String>>,
+    polisher: Option<Result<Arc<dyn TextModel>, String>>,
     terms: Vec<String>,
     labelled: bool,
     mut rx: mpsc::UnboundedReceiver<Closed>,
@@ -452,7 +452,7 @@ async fn polish_loop(
             Some(Err(e)) => (p.text.clone(), Some(e.clone())),
             Some(Ok(polisher)) => {
                 let system = system_prompt(&p.text, context.make_contiguous(), labelled, &terms);
-                match polisher.polish(&PolishRequest { system: &system, examples: &[], text: &p.text }).await {
+                match polisher.polish(&TextRequest { system: &system, examples: &[], text: &p.text }).await {
                     Ok(out) if !out.trim().is_empty() => (out.trim().to_string(), None),
                     Ok(_) => (p.text.clone(), None),
                     Err(e) => (p.text.clone(), Some(e.to_string())),
@@ -478,7 +478,7 @@ mod tests {
     use super::*;
     use crate::controller::RecorderError;
     use crate::factory::FixedEngines;
-    use crate::provider::mock::{MockPolisher, MockTranscriber};
+    use crate::provider::mock::{MockTextModel, MockTranscriber};
     use crate::store::{ParagraphState, Speaker};
     use crate::transcription::{ChunkSink, EnergyDetectors, LiveInput};
 
@@ -533,7 +533,7 @@ mod tests {
             detectors: Arc::new(EnergyDetectors),
             engines: Arc::new(FixedEngines::new(
                 Arc::new(MockTranscriber::new("えーと決済の件です")),
-                Arc::new(MockPolisher::default()),
+                Arc::new(MockTextModel::default()),
             )),
             config,
             store: store.clone(),
@@ -582,7 +582,7 @@ mod tests {
             detectors: Arc::new(EnergyDetectors),
             engines: Arc::new(FixedEngines::new(
                 Arc::new(asr),
-                Arc::new(MockPolisher::default().with_delay(Duration::from_millis(20))),
+                Arc::new(MockTextModel::default().with_delay(Duration::from_millis(20))),
             )),
             config: config(),
             store: store.clone(),

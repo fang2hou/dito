@@ -37,7 +37,7 @@ impl Health {
         Self {
             asr: status(cfg.asr.source, &cfg.asr.local_model),
             polish: if cfg.polish.enabled {
-                status(cfg.polish.engine.source, &cfg.polish.engine.local_model)
+                status(cfg.text_model.source, &cfg.text_model.local_model)
             } else {
                 EngineStatus::Remote
             },
@@ -52,7 +52,7 @@ impl Health {
         if self.asr.is_problem() {
             Some(&cfg.asr.local_model)
         } else if self.polish.is_problem() {
-            Some(&cfg.polish.engine.local_model)
+            Some(&cfg.text_model.local_model)
         } else {
             None
         }
@@ -72,11 +72,11 @@ mod tests {
         ) -> crate::error::ProviderResult<std::sync::Arc<dyn crate::provider::Transcriber>> {
             unimplemented!()
         }
-        async fn polisher(
+        async fn text_model(
             &self,
             _: &str,
-            _: &crate::config::LocalPolishParams,
-        ) -> crate::error::ProviderResult<std::sync::Arc<dyn crate::provider::Polisher>> {
+            _: &crate::config::LocalTextParams,
+        ) -> crate::error::ProviderResult<std::sync::Arc<dyn crate::provider::TextModel>> {
             unimplemented!()
         }
         async fn router(&self, _: &str) -> crate::error::ProviderResult<std::sync::Arc<dyn crate::provider::Router>> {
@@ -100,7 +100,7 @@ mod tests {
         let mut cfg = Config::dev_azure();
         cfg.asr.source = Source::Provider;
         cfg.polish.enabled = false;
-        cfg.polish.engine.source = Source::Local;
+        cfg.text_model.source = Source::Local;
         assert!(Health::compute(&cfg, Some(&Stub(EngineStatus::Stopped))).is_ok());
     }
 }

@@ -35,7 +35,7 @@ impl Reading {
     /// A cloud model runs elsewhere and a stopped one holds nothing, so neither has a row.
     fn take(st: &AppState) -> Self {
         let cfg = st.cfg.get();
-        let roles = [(Role::Asr, &cfg.asr, true), (Role::Polish, &cfg.polish.engine, cfg.polish.enabled)];
+        let roles = [(Role::Asr, &cfg.asr, true), (Role::Text, &cfg.text_model, cfg.polish.enabled)];
         let models = roles
             .into_iter()
             .filter(|(_, engine, enabled)| *enabled && engine.source == Source::Local)
@@ -140,7 +140,7 @@ impl UsageMeter {
         for (role, name, line) in &table.models {
             let detail = match role {
                 Role::Asr => Tr::StatusUsageAsrModel,
-                Role::Polish => Tr::StatusUsagePolishModel,
+                Role::Text => Tr::StatusUsageTextModel,
             };
             card = card.child(divider()).child(row(name.clone().into(), Some(c.t(detail)), line));
         }

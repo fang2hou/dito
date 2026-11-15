@@ -2368,6 +2368,7 @@ dependencies = [
  "aws-smithy-types",
  "base64 0.22.1",
  "directories",
+ "quick-xml",
  "reqwest",
  "rusqlite",
  "serde",
@@ -2379,6 +2380,7 @@ dependencies = [
  "tokio-util",
  "toml 0.9.12+spec-1.1.0",
  "tracing",
+ "zip",
 ]
 
 [[package]]
@@ -2434,6 +2436,7 @@ dependencies = [
  "sherpa-onnx-sys",
  "tokio",
  "tracing",
+ "transcribe-cpp",
 ]
 
 [[package]]
@@ -9507,6 +9510,27 @@ dependencies = [
  "tracing",
  "tracing-core",
  "tracing-log",
+]
+
+[[package]]
+name = "transcribe-cpp"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6cf6687b4c73890aea4515632afb1586d48998f22f38e02e3cfbcd7d1543cd4a"
+dependencies = [
+ "log",
+ "thiserror 2.0.21",
+ "transcribe-cpp-sys",
+]
+
+[[package]]
+name = "transcribe-cpp-sys"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "32f94fb1e9a3033101bbd500d02993cfc95e315f24417038fd42f1fd80e1059a"
+dependencies = [
+ "cmake",
+ "serde_json",
 ]
 
 [[package]]

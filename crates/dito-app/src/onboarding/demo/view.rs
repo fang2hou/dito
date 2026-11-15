@@ -14,37 +14,6 @@ use crate::ui::{self, Motion, text};
 use super::clock::{Clock, Layer, Tick, frozen};
 use super::timeline::{HudAt, INSERT_FADE_S, KEY_SCALE, Scene};
 
-/// Every glyph box is exactly as wide as its advance: gpui rounds the width of a run of text up to whole pixels (an
-/// 11 px glyph measures 11.000001 and takes 12), which `ui::text_tracked` lets pile up into about 9% extra spacing on
-/// top of the tracking. The design's widths are the plain advance plus the gap.
-fn glyphs(s: &str, size: f32, weight: FontWeight, color: Hsla, gap: f32) -> Div {
-    let mut row = div().flex().items_center().gap(px(gap));
-    for ch in s.chars() {
-        let advance = ui::text_width(&ch.to_string(), size, weight);
-        row = row.child(text(ch.to_string(), size, weight, color).line_height(relative(1.)).w(px(advance)).flex_none());
-    }
-    row
-}
-
-/// Like [`ui::text_tracked`], but see [`glyphs`] for the widths.
-fn spaced(s: &str, size: f32, weight: FontWeight, color: Hsla, cjk_em: f32) -> Div {
-    let em = ui::tracking_for(s, cjk_em);
-    if em == 0. {
-        text(s.to_string(), size, weight, color).line_height(relative(1.))
-    } else {
-        glyphs(s, size, weight, color, size * em)
-    }
-}
-
-fn spaced_width(s: &str, size: f32, weight: FontWeight, cjk_em: f32) -> f32 {
-    let em = ui::tracking_for(s, cjk_em);
-    if em == 0. {
-        return ui::text_width(s, size, weight);
-    }
-    let advances: f32 = s.chars().map(|c| ui::text_width(&c.to_string(), size, weight)).sum();
-    advances + size * em * s.chars().count().saturating_sub(1) as f32
-}
-
 fn line_box(content: Div, h: f32) -> Div {
     div().h(px(h)).flex().items_center().whitespace_nowrap().child(content)
 }
@@ -89,9 +58,9 @@ fn key_column(p: &Palette, lang: Lang, key: &str, mode: RecordMode, scene: &Scen
         .flex_col()
         .items_center()
         .gap(px(10.))
-        .child(line_box(spaced(lang.tr(Tr::DemoKey), 11., FontWeight::MEDIUM, p.muted, 0.08), 16.))
+        .child(line_box(ui::label(lang.tr(Tr::DemoKey), 11., FontWeight::MEDIUM, p.muted), 16.))
         .child(div().w(px(slot_w)).h(px(52.)).flex_none().flex().items_center().justify_center().child(face))
-        .child(line_box(spaced(state, 11., FontWeight::NORMAL, color, 0.05), 16.))
+        .child(line_box(ui::label(state, 11., FontWeight::NORMAL, color), 16.))
 }
 
 /// The slot the capsule lives in, as tall as the key column's keycap row, so the rows underneath line up.
@@ -149,7 +118,7 @@ fn hud_slot(p: &Palette, lang: Lang, hud: Option<&HudAt>, still: bool) -> Div {
 }
 
 fn hud_footer(p: &Palette, hud_palette: &Palette, lang: Lang, mode: RecordMode) -> Div {
-    let label = |s: &str| line_box(spaced(s, 11., FontWeight::NORMAL, p.muted, 0.05), 16.);
+    let label = |s: &str| line_box(ui::label(s, 11., FontWeight::NORMAL, p.muted), 16.);
     let row = div().h(px(23.)).flex().items_center().gap(px(6.));
     match mode {
         RecordMode::Toggle => row
@@ -171,7 +140,7 @@ fn hud_column(p: &Palette, hud_palette: &Palette, lang: Lang, mode: RecordMode, 
         .flex_col()
         .items_center()
         .gap(px(10.))
-        .child(line_box(glyphs("HUD", 11., FontWeight::MEDIUM, p.muted, 11. * 0.08), 14.))
+        .child(line_box(ui::label("HUD", 11., FontWeight::MEDIUM, p.muted), 14.))
         .child(hud_slot(hud_palette, lang, scene.hud.as_ref(), still))
         .child(hud_footer(p, hud_palette, lang, mode))
 }
@@ -187,7 +156,7 @@ fn chip_labels(mode: RecordMode) -> [Tr; 4] {
 /// color.
 fn chip(p: &Palette, n: usize, label: &str, lit: f32) -> Div {
     // Every chip is as wide as its label at the heavy weight, so lighting one never moves the row.
-    let w = (5. + 18. + 6. + spaced_width(label, 12., FontWeight::BOLD, 0.04) + 12. + 2.).ceil();
+    let w = (5. + 18. + 6. + ui::text_width(label, 12., FontWeight::BOLD) + 12. + 2.).ceil();
     let weight = if lit > 0.5 { FontWeight::BOLD } else { FontWeight::MEDIUM };
     let idle_disc = Hsla { a: 0.1, ..p.text };
     let lit_disc = Hsla { a: 0.2, ..p.bg };
@@ -217,7 +186,7 @@ fn chip(p: &Palette, n: usize, label: &str, lit: f32) -> Div {
                 .justify_center()
                 .child(text(n.to_string(), 10., FontWeight::BOLD, ink).line_height(relative(1.))),
         )
-        .child(spaced(label, 12., weight, ink, 0.04))
+        .child(ui::label(label, 12., weight, ink))
 }
 
 /// Long, thin and quiet: the order of the chips, not an action.
@@ -290,7 +259,7 @@ pub struct UsageDemo {
 /// `key_label` is the user's shortcut on the keycap (for example `right ⌥`). The demo is as wide as its container and
 /// 186 pt high at design size.
 pub fn usage_demo(p: &Palette, lang: Lang, mode: RecordMode, key_label: impl Into<SharedString>) -> impl IntoElement {
-    // The typography helpers (tracking, CJK typeface) read the UI language: keep it the demo's.
+    // The typography helpers (CJK typeface) read the UI language: keep it the demo's.
     ui::set_ui_language(lang);
     UsageDemo { p: *p, lang, mode, key: key_label.into() }
 }

@@ -41,7 +41,7 @@ pub fn page(
     title: SharedString,
     actions: Option<AnyElement>,
     body: impl IntoElement,
-) -> impl IntoElement {
+) -> Stateful<Div> {
     page_scroll(p, id, title, actions, body, None)
 }
 
@@ -53,7 +53,7 @@ pub fn page_scroll(
     actions: Option<AnyElement>,
     body: impl IntoElement,
     scroll: Option<&ScrollHandle>,
-) -> impl IntoElement {
+) -> Stateful<Div> {
     div()
         .id(id)
         .size_full()

@@ -33,7 +33,11 @@ impl AsrEditor {
             let body = div().w_full().flex_1().min_h(px(0.)).flex().flex_col().gap(px(14.));
             (
                 shell.h(px(height)).py(px(pad_v)).gap(px(14.)),
-                body.id("onboarding-asr-editor").overflow_y_scroll().child(self.inline(window, cx)).into_any_element(),
+                body.id("onboarding-asr-editor")
+                    .overflow_y_scroll()
+                    .track_scroll(&self.page_scroll)
+                    .child(self.inline(window, cx))
+                    .into_any_element(),
                 div(),
             )
         };

@@ -1,7 +1,7 @@
 //! Persisted settings.
 
 mod cloud_asr;
-mod cloud_polish;
+mod cloud_text;
 mod data_dir;
 mod engine;
 mod error;
@@ -15,13 +15,13 @@ mod store;
 mod transcription;
 
 pub use cloud_asr::{CloudAsrConfiguration, CloudAsrConfigurations, CloudAsrTemplate};
-pub use cloud_polish::{
-    CloudPolishConfiguration, CloudPolishConfigurations, CloudPolishParams, CloudPolishTarget, CloudPolishTemplate,
+pub use cloud_text::{
+    CloudTextConfiguration, CloudTextConfigurations, CloudTextParams, CloudTextTarget, CloudTextTemplate,
 };
 pub use data_dir::default_data_dir;
 pub use engine::{
-    DEFAULT_ASR_LOCAL, DEFAULT_POLISH_LOCAL, EngineConfig, EngineLabels, LocalPolishParams, PolishConfig,
-    ReasoningEffort, Source,
+    DEFAULT_ASR_LOCAL, DEFAULT_TEXT_LOCAL, EngineConfig, EngineLabels, LocalTextParams, PolishConfig, ReasoningEffort,
+    Source,
 };
 pub use error::ConfigError;
 pub use general::{

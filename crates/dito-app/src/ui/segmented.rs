@@ -9,7 +9,7 @@ use super::primitives::{hud_icon, mix, mix_rgb};
 use super::scope::{ScopeHandle, motion_scope};
 use super::tooltip::{tip_above, tip_label};
 use super::tween::tweened_at;
-use super::typography::{text_tracked, text_tracked_width};
+use super::typography::{self, text_width};
 use crate::{assets::HudIc, theme::Palette};
 
 const SEG_PAD: f32 = 3.;
@@ -45,7 +45,7 @@ impl SegLayout {
             .map(|o| {
                 o.width.unwrap_or_else(|| match &o.content {
                     SegContent::Text(label) => {
-                        let width = |weight| text_tracked_width(label, style.label, weight, 0.05);
+                        let width = |weight| text_width(label, style.label, weight);
                         width(FontWeight::MEDIUM).max(width(FontWeight::NORMAL)).ceil() + 2. * style.cell_pad
                     }
                     SegContent::Icon(_) => style.label + 2. * style.cell_pad,
@@ -195,7 +195,7 @@ fn labels_layer(layout: &SegLayout, labels: &[SegLabel], paint: &LabelPaint, a: 
             tweened_at(paint.scope.clone(), hover_id, if label.hovered { 1. } else { 0. }, HOVER_MS, move |hv| {
                 let ink = mix(mix(muted, hover_label, hv), text_c, cover);
                 match &content {
-                    SegContent::Text(label) => text_tracked(label, size, weight, ink, 0.05).into_any_element(),
+                    SegContent::Text(label) => typography::label(label, size, weight, ink).into_any_element(),
                     SegContent::Icon(icon) => hud_icon(*icon, size, ink).into_any_element(),
                 }
             });

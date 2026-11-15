@@ -2,7 +2,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
 
-use dito_core::config::{CloudPolishConfiguration, CloudPolishTarget, EngineConfig, Source};
+use dito_core::config::{CloudTextConfiguration, CloudTextTarget, EngineConfig, Source};
 use dito_core::factory::LocalBackend;
 use dito_core::i18n::{Lang, Tr};
 use dito_core::provider::configured_asr::CloudAsrConfigurations;
@@ -12,9 +12,9 @@ use dito_local::{ModelState, Snapshot};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
-use super::cloud_polish_form::CloudPolishForm;
-use super::local_polish_form::LocalPolishForm;
-use super::polish_field_rules::{CloudPolishField, LocalPolishField, settled_cloud_polish_name};
+use super::cloud_text_form::CloudTextForm;
+use super::local_text_form::LocalTextForm;
+use super::text_field_rules::{CloudTextField, LocalTextField, settled_cloud_text_name};
 use crate::assets::Ic;
 use crate::services;
 use crate::settings::asr_editor::{self, AsrEditor};
@@ -25,8 +25,8 @@ use crate::ui::{self, BtnKind, Cb, InputEvent, TestState, cbk, cbk_idx, text};
 
 pub struct ModalChanged;
 
-pub(super) struct CloudPolishPanel {
-    pub(super) form: CloudPolishForm,
+pub(super) struct CloudTextPanel {
+    pub(super) form: CloudTextForm,
     pub(super) tiles: ConfigurationPanel,
     pub(super) test: TestState,
     pub(super) test_requests: ui::Requests,
@@ -34,17 +34,17 @@ pub(super) struct CloudPolishPanel {
     pub(super) test_config: Option<EngineConfig>,
 }
 
-impl CloudPolishPanel {
+impl CloudTextPanel {
     /// Shows nothing yet: the first draw puts the configuration in use into the inputs.
     pub(super) fn new(window: &mut Window, cx: &mut Context<ModelsPage>) -> Self {
-        let form = CloudPolishForm::new(window, cx);
-        for field in CloudPolishField::ALL {
+        let form = CloudTextForm::new(window, cx);
+        for field in CloudTextField::ALL {
             cx.subscribe_in(
                 &form[field],
                 window,
                 move |this: &mut ModelsPage, _, ev: &InputEvent, window, cx| match ev {
-                    InputEvent::Change => this.cloud_polish_edited(field, cx),
-                    InputEvent::Blur if field == CloudPolishField::Name => this.settle_cloud_polish_name(window, cx),
+                    InputEvent::Change => this.cloud_text_edited(field, cx),
+                    InputEvent::Blur if field == CloudTextField::Name => this.settle_cloud_text_name(window, cx),
                     _ => {}
                 },
             )
@@ -66,8 +66,8 @@ pub struct ModelsPage {
     pub(super) tab: Role,
     pub(super) menu: Option<String>,
     pub(super) select: Option<&'static str>,
-    pub(super) cloud_polish: CloudPolishPanel,
-    pub(super) local_polish: LocalPolishForm,
+    pub(super) cloud_text: CloudTextPanel,
+    pub(super) local_text: LocalTextForm,
     /// The last save on this page failed: the banner above the card says so until it is closed or a save works. The
     /// cloud speech editor reports its saves here too.
     pub(super) save_failed: bool,
@@ -86,12 +86,12 @@ impl ModelsPage {
         ui::notify_on_change(st.models.subscribe(), cx);
         Self::poll_engine_state(cx);
 
-        let cloud_polish = CloudPolishPanel::new(window, cx);
-        let local_polish = LocalPolishForm::new(window, cx);
-        for field in LocalPolishField::ALL {
-            cx.subscribe_in(&local_polish[field], window, move |this: &mut Self, _, ev: &InputEvent, _, cx| {
+        let cloud_text = CloudTextPanel::new(window, cx);
+        let local_text = LocalTextForm::new(window, cx);
+        for field in LocalTextField::ALL {
+            cx.subscribe_in(&local_text[field], window, move |this: &mut Self, _, ev: &InputEvent, _, cx| {
                 if matches!(ev, InputEvent::Change) {
-                    this.local_polish_edited(field, cx);
+                    this.local_text_edited(field, cx);
                 }
             })
             .detach();
@@ -99,8 +99,8 @@ impl ModelsPage {
         // A saved AWS profile stays in the list even when the AWS files no longer name it.
         let mut aws_profiles = services::aws_profiles();
         let cfg = st.cfg.get();
-        for configuration in &cfg.polish.engine.polish_configurations(cfg.general.lang()).items {
-            if let CloudPolishTarget::Bedrock { profile, .. } = &configuration.target
+        for configuration in &cfg.text_model.text_configurations(cfg.general.lang()).items {
+            if let CloudTextTarget::Bedrock { profile, .. } = &configuration.target
                 && !profile.is_empty()
                 && !aws_profiles.contains(profile)
             {
@@ -115,8 +115,8 @@ impl ModelsPage {
             tab: Role::Asr,
             menu: None,
             select: None,
-            cloud_polish,
-            local_polish,
+            cloud_text,
+            local_text,
             save_failed: false,
             aws_profiles,
             last_status: String::new(),
@@ -131,7 +131,7 @@ impl ModelsPage {
             loop {
                 cx.background_executor().timer(Duration::from_millis(800)).await;
                 let alive = this.update(cx, |t, cx| {
-                    t.reset_stale_cloud_polish_test(cx);
+                    t.reset_stale_cloud_text_test(cx);
                     let now = t.status_key();
                     if now != t.last_status {
                         t.last_status = now;
@@ -146,11 +146,11 @@ impl ModelsPage {
         .detach();
     }
 
-    fn reset_stale_cloud_polish_test(&mut self, cx: &mut Context<Self>) {
+    fn reset_stale_cloud_text_test(&mut self, cx: &mut Context<Self>) {
         let cfg = self.st.cfg.get();
-        if self.cloud_polish.test_config.as_ref().is_some_and(|engine| engine != &cfg.polish.engine) {
-            self.cloud_polish.test = TestState::Idle;
-            self.cloud_polish.test_config = None;
+        if self.cloud_text.test_config.as_ref().is_some_and(|engine| engine != &cfg.text_model) {
+            self.cloud_text.test = TestState::Idle;
+            self.cloud_text.test_config = None;
             cx.notify();
         }
     }
@@ -171,14 +171,14 @@ impl ModelsPage {
     }
 
     pub(in crate::settings) fn overlay(&mut self, window: &mut Window, cx: &mut Context<Self>) -> Option<AnyElement> {
-        self.cloud_polish_delete_dialog(window, cx)
+        self.cloud_text_delete_dialog(window, cx)
             .or_else(|| self.editor.update(cx, |editor, cx| editor.overlay(window, cx)))
     }
 
     fn status_key(&self) -> String {
         let cfg = self.st.cfg.get();
         let mut k = String::new();
-        for id in [&cfg.asr.local_model, &cfg.polish.engine.local_model] {
+        for id in [&cfg.asr.local_model, &cfg.text_model.local_model] {
             k.push_str(&format!("{:?}|", self.st.local.status(id)));
         }
         k
@@ -191,23 +191,19 @@ impl ModelsPage {
 
     /// The key goes into the Keychain account of the configuration the form shows, the rest into the settings. Text the
     /// setting cannot take is not saved, so the last valid value stays in use.
-    pub(super) fn cloud_polish_edited(&mut self, field: CloudPolishField, cx: &mut Context<Self>) {
-        let Some(id) = self.cloud_polish.form.shown().map(str::to_owned) else { return };
-        let text = self.cloud_polish.form.text(field, cx);
+    pub(super) fn cloud_text_edited(&mut self, field: CloudTextField, cx: &mut Context<Self>) {
+        let Some(id) = self.cloud_text.form.shown().map(str::to_owned) else { return };
+        let text = self.cloud_text.form.text(field, cx);
         if !field.accepts(&text) {
             cx.notify();
             return;
         }
-        let saved = if field == CloudPolishField::Key {
+        let saved = if field == CloudTextField::Key {
             // The form shows a deleted configuration until the page is drawn again: a key is not stored for one that
             // is gone, whose account no configuration would ever use again.
             let cfg = self.st.cfg.get();
-            let Some(account) = cfg
-                .polish
-                .engine
-                .polish_configurations(cfg.general.lang())
-                .get(&id)
-                .map(CloudPolishConfiguration::account)
+            let Some(account) =
+                cfg.text_model.text_configurations(cfg.general.lang()).get(&id).map(CloudTextConfiguration::account)
             else {
                 return;
             };
@@ -215,39 +211,39 @@ impl ModelsPage {
         } else {
             services::try_save_config(&self.st, |cfg| {
                 let lang = cfg.general.lang();
-                if let Some(config) = cfg.polish.engine.polish_configurations_mut(lang).get_mut(&id) {
+                if let Some(config) = cfg.text_model.text_configurations_mut(lang).get_mut(&id) {
                     field.apply(config, &text);
                 }
             })
             .is_ok()
         };
         self.note_save(saved);
-        self.cloud_polish.test = TestState::Idle;
+        self.cloud_text.test = TestState::Idle;
         cx.notify();
     }
 
     /// A name that was emptied goes back to the last saved one.
-    fn settle_cloud_polish_name(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let Some(id) = self.cloud_polish.form.shown().map(str::to_owned) else { return };
-        let typed = self.cloud_polish.form.text(CloudPolishField::Name, cx);
+    fn settle_cloud_text_name(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(id) = self.cloud_text.form.shown().map(str::to_owned) else { return };
+        let typed = self.cloud_text.form.text(CloudTextField::Name, cx);
         let cfg = self.st.cfg.get();
-        let configurations = cfg.polish.engine.polish_configurations(cfg.general.lang());
+        let configurations = cfg.text_model.text_configurations(cfg.general.lang());
         let Some(saved) = configurations.get(&id).map(|config| config.name.as_str()) else { return };
-        let settled = settled_cloud_polish_name(&typed, saved);
+        let settled = settled_cloud_text_name(&typed, saved);
         if settled != typed {
-            self.cloud_polish.form.set_name(settled.to_owned(), window, cx);
+            self.cloud_text.form.set_name(settled.to_owned(), window, cx);
         }
     }
 
-    fn local_polish_edited(&mut self, field: LocalPolishField, cx: &mut Context<Self>) {
-        let Some(model) = self.local_polish.shown().map(str::to_owned) else { return };
-        let text = self.local_polish.text(field, cx);
+    fn local_text_edited(&mut self, field: LocalTextField, cx: &mut Context<Self>) {
+        let Some(model) = self.local_text.shown().map(str::to_owned) else { return };
+        let text = self.local_text.text(field, cx);
         if field.invalid(&text) {
             cx.notify();
             return;
         }
         let saved = services::try_save_config(&self.st, |cfg| {
-            let engine = &mut cfg.polish.engine;
+            let engine = &mut cfg.text_model;
             let mut params = engine.local_params_for(&model);
             field.apply(&mut params, &text);
             engine.set_local_params(&model, params);
@@ -258,17 +254,17 @@ impl ModelsPage {
 
     /// They follow a selection however it was made, and the text typed into them is the only other way their content
     /// changes.
-    pub(super) fn follow_polish_settings(&mut self, lang: Lang, window: &mut Window, cx: &mut Context<Self>) {
+    pub(super) fn follow_text_model_settings(&mut self, lang: Lang, window: &mut Window, cx: &mut Context<Self>) {
         let cfg = self.st.cfg.get();
         let secrets = self.st.secrets.clone();
-        let configurations = cfg.polish.engine.polish_configurations(lang);
-        let before = self.cloud_polish.form.shown().map(str::to_owned);
-        self.cloud_polish.form.follow(configurations.active(), lang, &*secrets, window, cx);
-        if let Some(shown) = self.cloud_polish.form.shown().filter(|shown| before.as_deref() != Some(shown)) {
-            self.cloud_polish.tiles.reveal(shown);
+        let configurations = cfg.text_model.text_configurations(lang);
+        let before = self.cloud_text.form.shown().map(str::to_owned);
+        self.cloud_text.form.follow(configurations.active(), lang, &*secrets, window, cx);
+        if let Some(shown) = self.cloud_text.form.shown().filter(|shown| before.as_deref() != Some(shown)) {
+            self.cloud_text.tiles.reveal(shown);
         }
-        let model = &cfg.polish.engine.local_model;
-        self.local_polish.follow(model, &cfg.polish.engine.local_params_for(model), lang, window, cx);
+        let model = &cfg.text_model.local_model;
+        self.local_text.follow(model, &cfg.text_model.local_params_for(model), lang, window, cx);
     }
 
     /// `false` when the save failed: the model in use stays as it was, and so does everything that would have followed
@@ -290,8 +286,8 @@ impl ModelsPage {
                     Role::Asr => {
                         cfg.asr.cloud_asr.get_or_insert_with(CloudAsrConfigurations::default);
                     }
-                    Role::Polish => {
-                        cfg.polish.engine.polish_configurations_mut(lang);
+                    Role::Text => {
+                        cfg.text_model.text_configurations_mut(lang);
                     }
                 }
             }
@@ -300,26 +296,26 @@ impl ModelsPage {
         cx.notify();
     }
 
-    pub(super) fn run_cloud_polish_test(&mut self, cx: &mut Context<Self>) {
-        if self.cloud_polish.test == TestState::Running {
+    pub(super) fn run_cloud_text_test(&mut self, cx: &mut Context<Self>) {
+        if self.cloud_text.test == TestState::Running {
             return;
         }
-        let tested_engine = self.st.cfg.get().polish.engine.clone();
-        self.cloud_polish.test_config = Some(tested_engine.clone());
-        let request = self.cloud_polish.test_requests.begin();
-        self.cloud_polish.test = TestState::Running;
+        let tested_engine = self.st.cfg.get().text_model.clone();
+        self.cloud_text.test_config = Some(tested_engine.clone());
+        let request = self.cloud_text.test_requests.begin();
+        self.cloud_text.test = TestState::Running;
         cx.notify();
         let st = self.st.clone();
         cx.spawn(async move |this, cx| {
-            let outcome = services::test_connection(st, Role::Polish).await;
+            let outcome = services::test_connection(st, Role::Text).await;
             let _ = this.update(cx, |t, cx| {
-                if !t.cloud_polish.test_requests.is_current(request)
-                    || t.st.cfg.get().polish.engine != tested_engine
-                    || t.cloud_polish.test != TestState::Running
+                if !t.cloud_text.test_requests.is_current(request)
+                    || t.st.cfg.get().text_model != tested_engine
+                    || t.cloud_text.test != TestState::Running
                 {
                     return;
                 }
-                t.cloud_polish.test = outcome.into();
+                t.cloud_text.test = outcome.into();
                 cx.notify();
             });
         })
@@ -337,7 +333,7 @@ impl ModelsPage {
 impl ModelsPage {
     pub(in crate::settings) fn reset_motion(&mut self, cx: &mut Context<Self>) {
         self.motion.reset();
-        self.cloud_polish.tiles.reset();
+        self.cloud_text.tiles.reset();
         self.editor.update(cx, |editor, _| editor.reset_motion());
     }
 }
@@ -354,7 +350,7 @@ impl ModelsPage {
     fn view(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let c = Ctx::new(&self.st, cx);
         let p = c.p;
-        self.follow_polish_settings(c.lang, window, cx);
+        self.follow_text_model_settings(c.lang, window, cx);
         let role = self.tab;
         let engine = role::engine(&self.st.cfg.get(), role).clone();
         let is_local = engine.source == Source::Local;
@@ -367,7 +363,7 @@ impl ModelsPage {
         } else if role == Role::Asr {
             card = card.child(self.editor.clone());
         } else {
-            card = card.child(self.cloud_polish_tile_row(&c, cx)).child(self.cloud_polish_view(&c, cx));
+            card = card.child(self.cloud_text_tile_row(&c, cx)).child(self.cloud_text_view(&c, cx));
         }
 
         let actions = is_local.then(|| {
@@ -393,21 +389,24 @@ impl ModelsPage {
                 ui::dismiss_tips(&tips);
                 window.refresh();
             })
-            .child(page(
-                p,
-                "models",
-                c.t(Tr::NavModels),
-                actions,
-                div()
-                    .w_full()
-                    .flex()
-                    .flex_col()
-                    .gap(px(24.))
-                    .child(div().flex().child(self.role_tabs(&c, cx)))
-                    .children(self.save_banner(&c, cx))
-                    .child(card)
-                    .children(sections),
-            ))
+            .child(
+                page(
+                    p,
+                    "models",
+                    c.t(Tr::NavModels),
+                    actions,
+                    div()
+                        .w_full()
+                        .flex()
+                        .flex_col()
+                        .gap(px(24.))
+                        .child(div().flex().child(self.role_tabs(&c, cx)))
+                        .children(self.save_banner(&c, cx))
+                        .child(card)
+                        .children(sections),
+                )
+                .track_scroll(self.editor.read(cx).page_scroll()),
+            )
     }
 
     fn save_banner(&self, c: &Ctx, cx: &mut Context<Self>) -> Option<Div> {
@@ -429,14 +428,14 @@ impl ModelsPage {
         ui::seg(
             "models-tab",
             &c.p,
-            &[c.t(Tr::ModelsDictation), c.t(Tr::ModelsPolishShort)],
+            &[c.t(Tr::ModelsDictation), c.t(Tr::ModelsTextModelShort)],
             role::index(self.tab),
             cbk_idx(cx, |this: &mut Self, i, _, cx| {
                 ui::dismiss_tips(&this.motion.handle());
-                this.tab = if i == 0 { Role::Asr } else { Role::Polish };
+                this.tab = if i == 0 { Role::Asr } else { Role::Text };
                 this.menu = None;
                 this.select = None;
-                this.cloud_polish.tiles.close_menu();
+                this.cloud_text.tiles.close_menu();
                 cx.notify();
             }),
         )
@@ -446,7 +445,7 @@ impl ModelsPage {
         let p = &c.p;
         let (title, desc) = match role {
             Role::Asr => (c.t(Tr::ModelsDictation), c.t(Tr::ModelsDictationDesc)),
-            Role::Polish => (c.t(Tr::ModelsPolishShort), c.t(Tr::ModelsPolishDesc)),
+            Role::Text => (c.t(Tr::ModelsTextModel), c.t(Tr::ModelsTextModelDesc)),
         };
         let source_seg = ui::seg(
             ("source", role::index(role)),
@@ -475,7 +474,7 @@ impl ModelsPage {
     }
 
     fn local_models(&self, c: &Ctx, cx: &mut Context<Self>, role: Role, mut card: Div) -> Div {
-        let kind = if role == Role::Asr { ModelKind::Asr } else { ModelKind::Polish };
+        let kind = if role == Role::Asr { ModelKind::Asr } else { ModelKind::Text };
         let snap = self.st.models.subscribe().borrow().clone();
         #[cfg(feature = "screenshots")]
         let snap = self.preview_snapshot.clone().unwrap_or(snap);
@@ -487,8 +486,8 @@ impl ModelsPage {
             list = list.child(self.model_row(c, cx, role, spec, &snap));
         }
         card = card.child(list);
-        if role == Role::Polish {
-            card = card.child(self.local_polish_parameters(c, cx));
+        if role == Role::Text {
+            card = card.child(self.local_text_parameters(c, cx));
         }
         card
     }

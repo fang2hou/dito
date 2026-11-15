@@ -212,11 +212,12 @@ errors.generic = { ja = "うまくいきませんでした", en = "Something wen
 
 models.state = { ja = "モデルの状態", en = "Model status", zh = "模型状态" }
 models.polish = { ja = "文章整形", en = "Polish", zh = "文本润色" }
-models.polish_short = { ja = "整形", en = "Polish", zh = "润色" }
+models.text_model = { ja = "テキストモデル", en = "Text model", zh = "文本模型" }
+models.text_model_short = { ja = "テキスト", en = "Text", zh = "文本" }
 models.polish_off = { ja = "整形は無効", en = "Polish is off", zh = "润色未启用" }
 models.dictation = { ja = "音声認識", en = "Speech recognition", zh = "语音识别" }
 models.dictation_desc = { ja = "音声をテキストに変換します。", en = "Converts speech to text.", zh = "将语音转换为文字。" }
-models.polish_desc = { ja = "フィラーの除去や句読点を整え、プロンプトを適用します。", en = "Removes fillers, fixes punctuation, and applies your prompt.", zh = "去除口头禅、整理标点，并应用你的提示词。" }
+models.text_model_desc = { ja = "整形、コマンド、単語の解析に使うモデルです。", en = "The model for polishing, commands and finding words.", zh = "用于润色、命令和单词解析的模型。" }
 models.local = { ja = "ローカル", en = "Local", zh = "本地" }
 models.provider = { ja = "クラウド", en = "Cloud", zh = "云端" }
 models.azure_openai = { ja = "Azure OpenAI", en = "Azure OpenAI", zh = "Azure OpenAI" }
@@ -282,7 +283,7 @@ wordbook.export = { ja = "エクスポート", en = "Export", zh = "导出" }
 wordbook.same_spelling = { ja = "整形でも同じ表記を使う", en = "Use the same spelling when polishing", zh = "润色时也使用相同写法" }
 wordbook.no_words_yet = { ja = "まだ単語がありません", en = "No words yet", zh = "还没有单词" }
 wordbook.words_passed_to_asr = { ja = "登録した単語は音声認識に渡されます。", en = "Added words are passed to speech recognition.", zh = "添加的单词会传给语音识别。" }
-wordbook.words_sent_to_polish = { ja = "整形モデルにも単語を渡し、表記をそろえます。", en = "Also sends your words to the polish model to keep spelling consistent.", zh = "同时把单词传给润色模型，统一写法。" }
+wordbook.words_sent_to_polish = { ja = "整形のときにも単語を渡し、表記をそろえます。", en = "Also sends your words when polishing to keep spelling consistent.", zh = "润色时也传入单词，统一写法。" }
 wordbook.add_failed = { ja = "単語を追加できませんでした。", en = "Could not add the word.", zh = "无法添加单词。" }
 wordbook.delete_failed = { ja = "単語を削除できませんでした。", en = "Could not delete the selected words.", zh = "无法删除所选单词。" }
 wordbook.exit_selection = { ja = "選択を終了", en = "Exit selection", zh = "退出选择" }
@@ -292,6 +293,37 @@ fmt.wordbook_selected = { ja = "{count} 件を選択中", en = "{count} selected
 fmt.wordbook_delete_title = { ja = "{count} 件の単語を削除しますか？", en = "Delete selected words ({count})?", zh = "要删除选中的 {count} 个单词吗？" }
 wordbook.import_failed = { ja = "インポートできませんでした。ファイルの内容を確認してください。", en = "Could not import. Check the file's contents.", zh = "导入失败，请检查文件内容。" }
 wordbook.export_failed = { ja = "エクスポートできませんでした。保存先を確認してください。", en = "Could not export. Check the destination.", zh = "导出失败，请检查保存位置。" }
+wordbook.find_words = { ja = "解析して追加", en = "Analyze and add", zh = "解析并添加" }
+wordbook.find_seg_text = { ja = "テキスト", en = "Text", zh = "文字" }
+wordbook.find_seg_file = { ja = "ファイル", en = "File", zh = "文件" }
+wordbook.find_seg_ai = { ja = "ほかの AI", en = "Other AI", zh = "其他 AI" }
+wordbook.find_title_text = { ja = "テキストから単語を解析", en = "Find words in text", zh = "从文字里解析单词" }
+wordbook.find_title_file = { ja = "ファイルから単語を解析", en = "Find words in a file", zh = "从文件里解析单词" }
+wordbook.find_title_ai = { ja = "ほかの AI で単語を解析", en = "Find words with another AI", zh = "用其他 AI 解析单词" }
+wordbook.find_desc_text = { ja = "貼り付けたテキストを解析し、単語帳に入れる候補を挙げます。", en = "Analyzes pasted text and suggests candidate words for your wordbook.", zh = "解析粘贴的文字，找出可加入单词本的候选词。" }
+wordbook.find_desc_file = { ja = "ファイルを解析し、単語帳に入れる候補を挙げます。", en = "Analyzes a file and suggests candidate words for your wordbook.", zh = "解析文件，找出可加入单词本的候选词。" }
+wordbook.find_desc_ai = { ja = "PDF や画像はほかの AI に読んでもらい、その回答から候補を挙げます。", en = "Have another AI read PDFs or images, then get candidate words from its reply.", zh = "让其他 AI 读取 PDF 或图片，再从它的回答里找出候选词。" }
+wordbook.find_text_hint = { ja = "ここにテキストを貼り付け", en = "Paste text here", zh = "在此粘贴文字" }
+wordbook.find_choose_file = { ja = "ファイルを選ぶ", en = "Choose file", zh = "选择文件" }
+wordbook.find_file_types = { ja = "Markdown、テキスト、Word、PowerPoint のファイルに対応しています。", en = "Markdown, plain text, Word, and PowerPoint files.", zh = "支持 Markdown、纯文本、Word、PowerPoint 文件。" }
+fmt.wordbook_find_consent = { ja = "クラウドのモデル（{model}）で解析します。内容がこのモデルに送信されることに同意します。", en = "Uses the cloud model ({model}) for analysis. I understand the content will be sent to this model.", zh = "使用云端模型（{model}）解析。我了解内容会发送给该模型。" }
+wordbook.find_run = { ja = "解析する", en = "Analyze", zh = "解析" }
+wordbook.find_running = { ja = "解析しています", en = "Analyzing", zh = "正在解析" }
+wordbook.find_stop = { ja = "中止", en = "Stop", zh = "中止" }
+wordbook.find_ai_step1 = { ja = "1. プロンプトをコピーして、ファイルと一緒に AI に渡す", en = "1. Copy the prompt and send it to an AI with your files", zh = "1. 复制提示词，连同文件发给 AI" }
+wordbook.find_ai_copy = { ja = "プロンプトをコピー", en = "Copy prompt", zh = "复制提示词" }
+wordbook.find_ai_step2 = { ja = "2. AI の回答を貼り付ける", en = "2. Paste the AI's reply", zh = "2. 粘贴 AI 的回答" }
+wordbook.find_ai_hint = { ja = "ここに AI の回答を貼り付け", en = "Paste the AI's reply here", zh = "在此粘贴 AI 的回答" }
+wordbook.find_ai_show = { ja = "候補を表示", en = "Show candidates", zh = "查看候选词" }
+wordbook.find_reply_unreadable = { ja = "AI の回答を読み取れませんでした。回答のコードブロックをそのまま貼り付けてください。", en = "Could not read the AI's reply. Paste the code block from the reply as is.", zh = "无法读取 AI 的回答。请把回答里的代码块原样粘贴过来。" }
+wordbook.find_reply_wrong_shape = { ja = "Dito の形式と合いません。プロンプトをコピーし直して、もう一度 AI に送ってください。", en = "The reply isn't in Dito's format. Copy the prompt again and resend it to the AI.", zh = "回答不符合 Dito 的格式。请重新复制提示词，再发给 AI 一次。" }
+wordbook.find_none = { ja = "新しく追加できる単語はありませんでした。", en = "No new words to add.", zh = "没有可新添的单词。" }
+wordbook.find_file_failed = { ja = "ファイルを読み取れませんでした。対応している形式か確認してください。", en = "Could not read the file. Make sure it's in a supported format.", zh = "无法读取文件。请确认文件格式受支持。" }
+wordbook.find_failed = { ja = "解析できませんでした。モデルの設定を確認してください。", en = "Could not analyze. Check your model settings.", zh = "解析失败。请检查模型设置。" }
+fmt.wordbook_find_found = { ja = "候補が {count} 件見つかりました", en = "{count} candidates found", zh = "找到 {count} 个候选词" }
+wordbook.find_choose = { ja = "単語帳に追加する単語を選んでください。", en = "Select the words to add to your wordbook.", zh = "请选择要加入单词本的单词。" }
+fmt.wordbook_find_skipped = { ja = "形式に合わない {count} 件は除きました。", en = "Skipped {count} items in the wrong format.", zh = "已跳过 {count} 条格式不符的内容。" }
+fmt.wordbook_find_add = { ja = "{count} 件を追加", en = "Add {count}", zh = "添加 {count} 个" }
 wordbook.no_hotword_support = { ja = "現在のモデルはホットワードに対応していません。対応する音声認識モデルを選ぶと有効になります。", en = "The current model does not support hotwords. Select a speech recognition model that supports them to use this feature.", zh = "当前模型不支持热词，选择支持热词的语音识别模型后即可生效。" }
 
 prompts.base = { ja = "共通ルール", en = "Common rules", zh = "通用规则" }
@@ -351,7 +383,7 @@ status.insert_blocked = { ja = "アクセシビリティの許可が必要です
 status.usage_title = { ja = "この Mac での使用量", en = "Usage on this Mac", zh = "在这台 Mac 上的占用" }
 status.usage_app = { ja = "アプリ本体", en = "The app itself", zh = "应用本身" }
 status.usage_asr_model = { ja = "音声認識モデル（ローカル）", en = "Speech recognition model (local)", zh = "语音识别模型（本地）" }
-status.usage_polish_model = { ja = "文章整形モデル（ローカル）", en = "Polish model (local)", zh = "润色模型（本地）" }
+status.usage_text_model = { ja = "テキストモデル（ローカル）", en = "Text model (local)", zh = "文本模型（本地）" }
 status.usage_total = { ja = "合計", en = "Total", zh = "合计" }
 status.log_title = { ja = "ログ", en = "Log", zh = "日志" }
 status.log_detail = { ja = "詳しく記録する", en = "Detailed log", zh = "详细记录" }
@@ -490,9 +522,17 @@ demo.speak = { ja = "話す", en = "Speak", zh = "说话" }
 demo.press_again = { ja = "もう一度押す", en = "Press again", zh = "再按一次" }
 demo.release = { ja = "離す", en = "Release", zh = "松开" }
 
-models.japanese_focus = { ja = "日本語向け", en = "Japanese-focused", zh = "面向日语" }
-models.english_focus = { ja = "英語向け", en = "English-focused", zh = "面向英语" }
-models.chinese_focus = { ja = "中国語向け", en = "Chinese-focused", zh = "面向中文" }
+models.label_multilingual_tip = { ja = "日本語、英語、中国語など複数の言語に対応", en = "Handles several languages, including Japanese, English and Chinese", zh = "支持日语、英语、中文等多种语言" }
+models.label_japanese_tip = { ja = "日本語専用のモデルです", en = "Built for Japanese only", zh = "专为日语打造的模型" }
+models.label_english_tip = { ja = "英語専用のモデルです", en = "Built for English only", zh = "专为英语打造的模型" }
+models.label_chinese_tip = { ja = "中国語専用のモデルです", en = "Built for Chinese only", zh = "专为中文打造的模型" }
+fmt.model_parameters_tip = { ja = "{short} は約{count}のパラメータ。多いほど高精度ですが、動作は重くなります", en = "{short} is about {count} parameters. More is usually more accurate and heavier to run", zh = "{short} 即约 {count}参数，越多通常越准，运行也越重" }
+fmt.model_parameters_count = { ja = "{n}億個", en = "{n} million", zh = "{n}亿个" }
+fmt.model_parameters_count_billions = { ja = "{n}億個", en = "{n} billion", zh = "{n}亿个" }
+fmt.model_quantization_tip = { ja = "元の{from}ビットを{to}ビットに圧縮。精度はほぼ変わりません", en = "Compressed from {from}-bit to {to}-bit. Accuracy is almost unchanged", zh = "从原来的 {from} 位压缩到 {to} 位，精度几乎不变" }
+fmt.model_quantization_lossy_tip = { ja = "元の{from}ビットを{to}ビットに圧縮。精度はわずかに下がります", en = "Compressed from {from}-bit to {to}-bit. Accuracy drops slightly", zh = "从原来的 {from} 位压缩到 {to} 位，精度略有下降" }
+fmt.model_bit_range = { ja = "{min}〜{max}", en = "{min} to {max}", zh = "{min} 到 {max}" }
+fmt.model_size_tip = { ja = "ダウンロードに {size} の空き容量が必要です", en = "Needs {size} of free space to download", zh = "下载需要 {size} 的可用空间" }
 
 prompts.other = { ja = "その他", en = "Other", zh = "其他" }
 prompts.app_rules = { ja = "アプリ別のルール", en = "App rules", zh = "应用规则" }
@@ -603,7 +643,7 @@ ja = "「{app}」の{language}のルールと例を初期設定に戻します�
 en = "Restore the default {language} rules and examples for {app}."
 zh = "恢复「{app}」的{language}默认规则和示例。"
 
-[fmt.local_polish_hint]
+[fmt.local_text_hint]
 ja = "「{model}」の設定です。空欄は推奨値を使います。"
 en = "Settings for {model}. Empty fields use the recommended values."
 zh = "「{model}」的设置。留空则使用推荐值。"

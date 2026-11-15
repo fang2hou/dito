@@ -9,7 +9,7 @@ pub struct Example {
     pub written: &'static str,
 }
 
-pub struct PolishRequest<'a> {
+pub struct TextRequest<'a> {
     pub system: &'a str,
     /// Sent as earlier turns of the conversation, in order, before `text`.
     pub examples: &'static [Example],
@@ -18,6 +18,6 @@ pub struct PolishRequest<'a> {
 }
 
 #[async_trait]
-pub trait Polisher: Send + Sync {
-    async fn polish(&self, req: &PolishRequest<'_>) -> ProviderResult<String>;
+pub trait TextModel: Send + Sync {
+    async fn polish(&self, req: &TextRequest<'_>) -> ProviderResult<String>;
 }

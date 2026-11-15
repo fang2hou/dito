@@ -68,7 +68,7 @@ fn refresh(tray: &Tray, st: &AppState) {
     let health = Health::compute(&cfg, Some(&*st.local));
     let line = if !health.is_ok() {
         format!("● {}", lang.tr(Tr::StatusLocalStopped))
-    } else if cfg.asr.source == Source::Local && (!cfg.polish.enabled || cfg.polish.engine.source == Source::Local) {
+    } else if cfg.asr.source == Source::Local && (!cfg.polish.enabled || cfg.text_model.source == Source::Local) {
         format!("● {}", lang.tr(Tr::StatusRunningLocally))
     } else {
         format!("● {}", lang.tr(Tr::StatusRunningViaProvider))

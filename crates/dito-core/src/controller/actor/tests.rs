@@ -2,7 +2,7 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use super::*;
-use crate::config::{ConfigStore, DEFAULT_ASR_LOCAL, DEFAULT_POLISH_LOCAL, InsertMethod};
+use crate::config::{ConfigStore, DEFAULT_ASR_LOCAL, DEFAULT_TEXT_LOCAL, InsertMethod};
 use crate::controller::{
     CapturedSelection, Env, FocusWarmer, Frontmost, MusicMute, Recorder, RecorderError, ResultWrite, SelectionSource,
     Sink,
@@ -10,8 +10,8 @@ use crate::controller::{
 use crate::error::ProviderResult;
 use crate::factory::FixedEngines;
 use crate::intent::{Decision, Intent};
-use crate::provider::mock::{MockPolisher, MockRouter, MockTranscriber, decision};
-use crate::provider::{PolishRequest, Polisher};
+use crate::provider::mock::{MockRouter, MockTextModel, MockTranscriber, decision};
+use crate::provider::{TextModel, TextRequest};
 use crate::store::{CommandOutcome, HistoryFilter, InstructionOrigin, SourceKind, ToolChoice};
 use crate::surrounding::Surrounding;
 
@@ -138,12 +138,12 @@ fn later_around() -> Option<Surrounding> {
 
 /// Records every request a tool sends to the model, as (system prompt, user message).
 #[derive(Default)]
-struct SpyPolisher {
+struct SpyTextModel {
     seen: Mutex<Vec<(String, String)>>,
 }
 #[async_trait::async_trait]
-impl Polisher for Arc<SpyPolisher> {
-    async fn polish(&self, req: &PolishRequest<'_>) -> ProviderResult<String> {
+impl TextModel for Arc<SpyTextModel> {
+    async fn polish(&self, req: &TextRequest<'_>) -> ProviderResult<String> {
         self.seen.lock().unwrap().push((req.system.into(), req.text.into()));
         Ok("result".into())
     }
@@ -253,7 +253,7 @@ impl Rig {
     }
 }
 
-fn rig(asr: MockTranscriber, polish: impl Polisher + 'static, options: RigOptions) -> Rig {
+fn rig(asr: MockTranscriber, polish: impl TextModel + 'static, options: RigOptions) -> Rig {
     let dir = tempfile::tempdir().unwrap();
     let config = Arc::new(ConfigStore::open(dir.path().join("c.toml")).unwrap());
     config
@@ -314,11 +314,11 @@ fn rig(asr: MockTranscriber, polish: impl Polisher + 'static, options: RigOption
 }
 
 fn simple_rig(text: &str) -> Rig {
-    rig(MockTranscriber::new(text), MockPolisher::default(), RigOptions::default())
+    rig(MockTranscriber::new(text), MockTextModel::default(), RigOptions::default())
 }
 
 fn failing_rig(kind: ErrorKind) -> Rig {
-    rig(MockTranscriber::new("x").script([Err(kind)]), MockPolisher::default(), RigOptions::default())
+    rig(MockTranscriber::new("x").script([Err(kind)]), MockTextModel::default(), RigOptions::default())
 }
 
 async fn wait_for(h: &DictationHandle, want: impl Fn(&HudState) -> bool) -> HudState {
@@ -352,7 +352,7 @@ async fn history_of(store: &Store, count: usize) -> Vec<crate::store::HistoryEnt
 fn default_labels() -> EngineLabels {
     EngineLabels {
         asr: Some(format!("local:{DEFAULT_ASR_LOCAL}")),
-        polish: Some(format!("local:{DEFAULT_POLISH_LOCAL}")),
+        polish: Some(format!("local:{DEFAULT_TEXT_LOCAL}")),
     }
 }
 
@@ -361,7 +361,7 @@ async fn recording_limit_finishes_both_modes_and_ignores_old_timers() {
     for mode in [RecordMode::Toggle, RecordMode::Hold] {
         let r = rig(
             MockTranscriber::new("hello").with_delay(Duration::from_secs(30)),
-            MockPolisher::default(),
+            MockTextModel::default(),
             RigOptions { mode, ..Default::default() },
         );
         r.h.send(Command::KeyDown);
@@ -413,7 +413,7 @@ async fn toggle_mode_runs_listen_transcribe_polish_insert_then_hides() {
 async fn an_unwritable_audio_folder_never_fails_the_dictation() {
     let r = rig(
         MockTranscriber::new("hello"),
-        MockPolisher::default(),
+        MockTextModel::default(),
         RigOptions { audio_dir_blocked: true, ..Default::default() },
     );
     r.h.send(Command::KeyDown);
@@ -428,7 +428,7 @@ async fn an_unwritable_audio_folder_never_fails_the_dictation() {
 async fn hold_mode_ends_on_key_up_and_ignores_a_second_key_down() {
     let r = rig(
         MockTranscriber::new("hi"),
-        MockPolisher::default(),
+        MockTextModel::default(),
         RigOptions { mode: RecordMode::Hold, ..Default::default() },
     );
     r.h.send(Command::KeyDown);
@@ -457,7 +457,7 @@ async fn cancelling_while_listening_keeps_the_audio_as_a_cancelled_entry() {
 #[tokio::test]
 async fn stop_during_processing_cancels_and_records_it() {
     let asr = MockTranscriber::new("x").with_delay(Duration::from_secs(30));
-    let r = rig(asr, MockPolisher::default(), RigOptions::default());
+    let r = rig(asr, MockTextModel::default(), RigOptions::default());
     r.h.send(Command::KeyDown);
     r.h.send(Command::Finish);
     wait_for(&r.h, |s| *s == HudState::Transcribing).await;
@@ -473,7 +473,7 @@ async fn stop_during_processing_cancels_and_records_it() {
 async fn auth_failure_shows_error_records_history_and_retry_succeeds() {
     let r = rig(
         MockTranscriber::new("やり直し").script([Err(ErrorKind::Auth)]),
-        MockPolisher::default(),
+        MockTextModel::default(),
         RigOptions::default(),
     );
     r.h.send(Command::KeyDown);
@@ -497,7 +497,7 @@ async fn auth_failure_shows_error_records_history_and_retry_succeeds() {
 #[tokio::test]
 async fn microphone_failure_offers_open_settings() {
     let r =
-        rig(MockTranscriber::new("x"), MockPolisher::default(), RigOptions { mic_fails: true, ..Default::default() });
+        rig(MockTranscriber::new("x"), MockTextModel::default(), RigOptions { mic_fails: true, ..Default::default() });
     r.h.send(Command::KeyDown);
     let s = wait_for(&r.h, |s| matches!(s, HudState::Error { .. })).await;
     assert!(matches!(s, HudState::Error { kind: ErrorKind::Mic, action: ErrorAction::OpenSettings, .. }));
@@ -507,7 +507,7 @@ async fn microphone_failure_offers_open_settings() {
 async fn no_insertion_target_reports_copied() {
     let r = rig(
         MockTranscriber::new("hello"),
-        MockPolisher::default(),
+        MockTextModel::default(),
         RigOptions { no_insertion_target: true, ..Default::default() },
     );
     r.h.send(Command::KeyDown);
@@ -519,7 +519,7 @@ async fn no_insertion_target_reports_copied() {
 async fn a_key_press_during_delivery_starts_listening_only_after_its_result() {
     let mut r = rig(
         MockTranscriber::new("会議です"),
-        MockPolisher::default(),
+        MockTextModel::default(),
         RigOptions { gated_delivery: true, ..Default::default() },
     );
     r.h.send(Command::KeyDown);
@@ -542,7 +542,7 @@ async fn a_key_press_during_delivery_starts_listening_only_after_its_result() {
 async fn in_hold_mode_releasing_the_key_during_delivery_drops_the_held_back_press() {
     let mut r = rig(
         MockTranscriber::new("会議です"),
-        MockPolisher::default(),
+        MockTextModel::default(),
         RigOptions { mode: RecordMode::Hold, gated_delivery: true, ..Default::default() },
     );
     r.h.send(Command::KeyDown);
@@ -562,7 +562,7 @@ async fn in_hold_mode_releasing_the_key_during_delivery_drops_the_held_back_pres
 async fn commands_during_delivery_cannot_change_its_outcome() {
     let mut r = rig(
         MockTranscriber::new("会議です"),
-        MockPolisher::default(),
+        MockTextModel::default(),
         RigOptions { gated_delivery: true, ..Default::default() },
     );
     r.h.send(Command::KeyDown);
@@ -658,7 +658,7 @@ async fn hovering_an_error_cancels_and_restarts_its_full_lifetime() {
 async fn auto_mode_mutes_while_listening_and_restores_when_recording_ends() {
     let r = rig(
         MockTranscriber::new("x"),
-        MockPolisher::default(),
+        MockTextModel::default(),
         RigOptions { music_mute: MusicMuteMode::Auto, ..Default::default() },
     );
     r.h.send(Command::KeyDown);
@@ -674,7 +674,7 @@ async fn auto_mode_mutes_while_listening_and_restores_when_recording_ends() {
 async fn auto_mode_restores_music_when_listening_is_cancelled() {
     let r = rig(
         MockTranscriber::new("x"),
-        MockPolisher::default(),
+        MockTextModel::default(),
         RigOptions { music_mute: MusicMuteMode::Auto, ..Default::default() },
     );
     r.h.send(Command::KeyDown);
@@ -698,7 +698,7 @@ async fn off_mode_never_mutes() {
 async fn auto_mode_with_mic_failure_never_mutes() {
     let r = rig(
         MockTranscriber::new("x"),
-        MockPolisher::default(),
+        MockTextModel::default(),
         RigOptions { mic_fails: true, music_mute: MusicMuteMode::Auto, ..Default::default() },
     );
     r.h.send(Command::KeyDown);
@@ -709,7 +709,7 @@ async fn auto_mode_with_mic_failure_never_mutes() {
 fn command_rig(selection: Option<&'static str>, router: MockRouter, result: &str) -> Rig {
     rig(
         MockTranscriber::new("make it shorter"),
-        MockPolisher::default().script([Ok(result.to_string())]),
+        MockTextModel::default().script([Ok(result.to_string())]),
         RigOptions { selection, router, ..Default::default() },
     )
 }
@@ -754,7 +754,7 @@ async fn a_confident_intent_replaces_the_selection_and_records_the_command() {
     assert_eq!((details.tool, details.source), (Some(Intent::Polish), Some(SourceKind::Selection)));
     assert_eq!(details.outcome, CommandOutcome::Replaced);
     assert!(details.route_ms.is_some());
-    assert_eq!(details.router_engine, Some(format!("local:{DEFAULT_POLISH_LOCAL}")));
+    assert_eq!(details.router_engine, Some(format!("local:{DEFAULT_TEXT_LOCAL}")));
 }
 
 #[tokio::test]
@@ -834,7 +834,7 @@ async fn entered_text_an_answer_and_a_closed_window_each_end_in_their_own_row() 
 async fn a_failed_tool_and_a_cancel_intent_are_recorded() {
     let r = rig(
         MockTranscriber::new("make it shorter"),
-        MockPolisher::default().script([Err(ErrorKind::Network)]),
+        MockTextModel::default().script([Err(ErrorKind::Network)]),
         RigOptions { selection: Some("a text"), router: routes_to(Intent::Rewrite, 0.99), ..Default::default() },
     );
     speak_command(&r).await;
@@ -962,7 +962,7 @@ fn read_only_rig(intent: Intent, result: &str) -> Rig {
         router: routes_to(intent, 0.99),
         ..Default::default()
     };
-    rig(MockTranscriber::new("make it shorter"), MockPolisher::default().script([Ok(result.to_string())]), options)
+    rig(MockTranscriber::new("make it shorter"), MockTextModel::default().script([Ok(result.to_string())]), options)
 }
 
 #[tokio::test]
@@ -1007,7 +1007,7 @@ async fn text_entered_in_the_window_is_inserted_even_if_the_selection_could_not_
         router: routes_to(Intent::Translate, 0.99),
         ..Default::default()
     };
-    let r = rig(MockTranscriber::new("translate"), MockPolisher::default().script([Ok("hallo".into())]), options);
+    let r = rig(MockTranscriber::new("translate"), MockTextModel::default().script([Ok("hallo".into())]), options);
     speak_command(&r).await;
     wait_for(&r.h, |s| *s == HudState::NeedsText).await;
     r.h.send(Command::SubmitText("hello".into()));
@@ -1026,7 +1026,7 @@ async fn the_second_reading_decides_whether_the_selection_can_be_written_over() 
         router: routes_to(Intent::Rewrite, 0.99),
         ..Default::default()
     };
-    let r = rig(MockTranscriber::new("make it shorter"), MockPolisher::default().script([Ok("made".into())]), options);
+    let r = rig(MockTranscriber::new("make it shorter"), MockTextModel::default().script([Ok("made".into())]), options);
     speak_command(&r).await;
     wait_for(&r.h, |s| *s == HudState::Replaced).await;
     assert_eq!(*r.replaced.lock().unwrap(), ["made"]);
@@ -1039,7 +1039,7 @@ async fn the_second_reading_decides_whether_the_selection_can_be_written_over() 
         router: routes_to(Intent::Rewrite, 0.99),
         ..Default::default()
     };
-    let r = rig(MockTranscriber::new("make it shorter"), MockPolisher::default().script([Ok("made".into())]), options);
+    let r = rig(MockTranscriber::new("make it shorter"), MockTextModel::default().script([Ok("made".into())]), options);
     speak_command(&r).await;
     let confirm = HudState::Confirm { text: "made".into(), write: ResultWrite::CopyOnly };
     wait_for(&r.h, |s| *s == confirm).await;
@@ -1167,8 +1167,8 @@ fn spy_rig(
     selection: Option<&'static str>,
     surrounding: Option<Surrounding>,
     intent: Intent,
-) -> (Rig, Arc<SpyPolisher>) {
-    let spy = Arc::new(SpyPolisher::default());
+) -> (Rig, Arc<SpyTextModel>) {
+    let spy = Arc::new(SpyTextModel::default());
     let options = RigOptions { selection, surrounding, router: routes_to(intent, 0.99), ..Default::default() };
     (rig(MockTranscriber::new("make it shorter"), spy.clone(), options), spy)
 }
@@ -1250,7 +1250,7 @@ async fn the_rewrite_op_reaches_only_a_rewrite_the_decision_chose() {
     let hinted =
         |confidence| Decision { rewrite_op: Some((RewriteOp::Casual, 0.85)), ..decision(Intent::Rewrite, confidence) };
     let run = |router: MockRouter| {
-        let spy = Arc::new(SpyPolisher::default());
+        let spy = Arc::new(SpyTextModel::default());
         let options = RigOptions { selection: Some("the plan"), router, ..Default::default() };
         (rig(MockTranscriber::new("make it friendlier"), spy.clone(), options), spy)
     };
@@ -1272,7 +1272,7 @@ async fn the_rewrite_op_reaches_only_a_rewrite_the_decision_chose() {
 fn command_rig_in(mode: RecordMode, selection: Option<&'static str>, result: &str) -> Rig {
     rig(
         MockTranscriber::new("make it shorter"),
-        MockPolisher::default().script([Ok(result.to_string())]),
+        MockTextModel::default().script([Ok(result.to_string())]),
         RigOptions { mode, selection, router: routes_to(Intent::Polish, 0.97), ..Default::default() },
     )
 }
@@ -1379,7 +1379,7 @@ async fn either_shortcut_finishes_a_dictation_in_toggle_mode_and_nothing_after_i
 async fn repeated_presses_alternate_between_starting_and_finishing() {
     let r = rig(
         MockTranscriber::new("make it shorter"),
-        MockPolisher::default().script([Ok("one".into()), Ok("two".into())]),
+        MockTextModel::default().script([Ok("one".into()), Ok("two".into())]),
         RigOptions {
             selection: Some("teh text"),
             router: MockRouter::default()
@@ -1405,8 +1405,8 @@ fn changing_rig(
     first: Option<&'static str>,
     later: Option<&'static str>,
     router: MockRouter,
-) -> (Rig, Arc<SpyPolisher>) {
-    let spy = Arc::new(SpyPolisher::default());
+) -> (Rig, Arc<SpyTextModel>) {
+    let spy = Arc::new(SpyTextModel::default());
     let options = RigOptions {
         selection: first,
         surrounding: around(),
@@ -1493,7 +1493,7 @@ async fn a_chord_abort_drops_the_recording_its_press_started_and_never_one_the_p
     // A run that was listening before the press was finished by it, so the abort has nothing to drop.
     let r = rig(
         MockTranscriber::new("x").with_delay(Duration::from_secs(30)),
-        MockPolisher::default(),
+        MockTextModel::default(),
         RigOptions::default(),
     );
     r.h.send(Command::KeyDown);
@@ -1537,7 +1537,7 @@ async fn in_hold_mode_each_shortcut_ends_only_the_recording_it_started() {
 
     let r = rig(
         MockTranscriber::new("hi"),
-        MockPolisher::default(),
+        MockTextModel::default(),
         RigOptions { mode: RecordMode::Hold, ..Default::default() },
     );
     r.h.send(Command::KeyDown);

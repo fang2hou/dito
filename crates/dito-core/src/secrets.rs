@@ -17,10 +17,10 @@ pub trait SecretStore: Send + Sync {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Role {
     Asr,
-    Polish,
+    Text,
 }
 
-pub fn polish_account(id: &str) -> String {
+pub fn text_account(id: &str) -> String {
     format!("polish.{id}")
 }
 

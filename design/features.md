@@ -30,7 +30,7 @@ What the app is for and what it does, from the user's side. How it looks and mov
 - The instruction can be typed instead: hovering the capsule shows a keyboard button that opens a field. A polish button next to it polishes the selection at once.
 - The capsule turns blue for a command and shows only the state: transcribing, thinking, working, then a blue check.
 - A small window opens above the capsule only when needed: to choose between tools when the instruction is unclear, to enter text when nothing is selected, to confirm a result before it replaces the selection (always for a summary, for everything with the setting on), and to show the answer to a question. A reply always waits for confirmation. Something Dito cannot do, such as "send this to Sato", is not a command: nothing runs, and a gray capsule says the instruction was not recognized, then hides after 3 s. A question asked with nothing selected is answered on its own, without the text of the field around the cursor.
-- A command needs a local polish model, which also decides what the instruction asks for.
+- A command needs a local text model, which also decides what the instruction asks for.
 - One step per instruction for now.
 
 ## Transcription
@@ -58,8 +58,8 @@ What the app is for and what it does, from the user's side. How it looks and mov
 | --- | --- |
 | 書き起こし (Transcription) | Under 機能, above the settings: start or stop a session, pick what it records (desktop audio, microphone or both), the list of transcripts and each transcript as an editable entry |
 | 一般 (General) | Shortcut, record mode, insert method, command shortcut (with a button back to the default; never the same as the dictation shortcut), music mute, microphone (automatic or fixed), speech language, display language, appearance, HUD appearance and position, launch at login, restart onboarding |
-| モデル (Models) | Local models (download, pause, resume, verify, delete, switch with 使用する, move the folder), with request parameters per local polish model; cloud configurations for speech and for polishing, shown as a scrolling row of tiles that can be added from a template (FunASR, Qwen ASR, OpenRouter for speech; Azure OpenAI, Amazon Bedrock, OpenAI-compatible for polishing), duplicated, renamed, reordered by dragging and deleted; cloud speech edits the full request in the inline JSON editor with valid-draft autosave, native undo and redo, and a single documentation help dialog with four scrollable reference cards; cloud polishing has request parameters (temperature, top-p, max tokens, reasoning effort, extra JSON); connection tests |
-| 単語帳 (Wordbook) | Words passed to speech recognition as hotwords, optionally also to polishing; import, export and confirmed bulk deletion; a banner when an action fails |
+| モデル (Models) | Local models (download, pause, resume, verify, delete, switch with 使用する, move the folder), with request parameters per local text model; cloud configurations for speech and for polishing, shown as a scrolling row of tiles that can be added from a template (FunASR, Qwen ASR, OpenRouter for speech; Azure OpenAI, Amazon Bedrock, OpenAI-compatible for polishing), duplicated, renamed, reordered by dragging and deleted; cloud speech edits the full request in the inline JSON editor with valid-draft autosave, native undo and redo, and a single documentation help dialog with four scrollable reference cards; cloud polishing has request parameters (temperature, top-p, max tokens, reasoning effort, extra JSON); connection tests |
+| 単語帳 (Wordbook) | Words passed to speech recognition as hotwords, optionally also to polishing; import, export and confirmed bulk deletion; a banner when an action fails; finding words in pasted text or in a Markdown, plain text, Word or PowerPoint file with the text model, or in the reply of another AI that was given a copied prompt and files Dito cannot read (PDF, images), then choosing which to add |
 | プロンプト (Prompts) | Shared rules and app writing styles per language, installed-app icons, add or remove an app style, copy settings to another app, optional style examples and a safe preview. `design:settings/prompts`: taller editors, grouped undo and redo, draft autosave, scoped reset confirmation and plain-text before and after panes |
 | 履歴 (History) | Search and filter by period, text or app; entries from configured apps carry the app name and the rest read as Other; each entry shows the polished text and the original; transcribe again, polish again, copy, play audio, delete |
 | 統計 (Stats) | Time saved first, then characters, recordings and speaking speed; characters per day as a week of tiles, a month calendar or a heatmap since first use, following the period, top apps and languages |
@@ -69,8 +69,9 @@ The sidebar groups pages under 機能 (Features), 設定 (Settings) and 利用�
 
 ## Models
 
-- Local speech recognition: Qwen3-ASR 1.7B (default, most accurate) and 0.6B, both with hotwords; SenseVoice Small (fastest).
+- Local speech recognition: Qwen3-ASR 1.7B (default, most accurate) and 0.6B, both with hotwords; SenseVoice Small (fastest). Optional downloads to compare: Confucius4-R2T2, Fun-ASR-MLT-Nano-2512, whisper-large-v3 and whisper-large-v3-turbo (all with hotwords), and Haas-ja v1.0.
 - Local polishing: Qwen3.5 Instruct 2B, 4B and 9B.
+- Each local model lists from small to large and carries labels for its parameter count, quantization, language (speech models) and download size. Hovering a label explains it in everyday words (`design:settings/local-models/labels`).
 - Nothing downloads until the user asks; downloads resume and are verified. Models in use start at launch.
 
 ## Menu Bar

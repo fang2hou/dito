@@ -187,9 +187,9 @@ async fn tool_step(
     trace_log!(tool = tool.name(), "tool started");
     let started = Instant::now();
     let run = async {
-        let polisher = env
+        let text_model = env
             .engines
-            .polisher(&env.cfg)
+            .text_model(&env.cfg)
             .await?
             .ok_or_else(|| ProviderError::new(ErrorKind::Unavailable, "polishing is switched off"))?;
         let words =
@@ -200,7 +200,7 @@ async fn tool_step(
             wordbook: pipeline::polish_wordbook(&env.cfg, &words),
             surrounding: surrounding.as_ref(),
         };
-        let text = tool.run(polisher.as_ref(), ctx).await?;
+        let text = tool.run(text_model.as_ref(), ctx).await?;
         // An empty result would erase the selection it replaces.
         if text.trim().is_empty() {
             return Err(ProviderError::new(ErrorKind::BadResponse, "empty model output"));
@@ -305,7 +305,7 @@ impl Actor {
             self.reread_selection(&mut run);
         }
         let cfg = self.deps.config.get();
-        let models = Models::new(&cfg.asr, &cfg.polish.engine);
+        let models = Models::new(&cfg.asr, &cfg.text_model);
         self.processing.send_replace(ProcessingEstimate {
             transcription_secs: self.timings.transcription(models.asr, clip.duration_ms() as f32 / 1000.),
             polishing: None,
@@ -320,7 +320,7 @@ impl Actor {
     fn route(&mut self, mut run: CommandRun) {
         let instruction = run.instruction.clone();
         // The router is always the local chat model, whatever the polish source is.
-        run.record.router_engine = Some(format!("local:{}", self.deps.config.get().polish.engine.local_model));
+        run.record.router_engine = Some(format!("local:{}", self.deps.config.get().text_model.local_model));
         self.start_step(run, HudState::Thinking, move |env| route_step(env, instruction));
     }
 
@@ -518,7 +518,7 @@ impl Actor {
         let surrounding = if tool.takes_surrounding() { run.fitted_surrounding(text.as_deref()) } else { None };
         let cfg = self.deps.config.get();
         run.record.tool = Some(intent);
-        run.record.polish_engine = cfg.polish.enabled.then(|| cfg.polish.engine.label());
+        run.record.polish_engine = cfg.polish.enabled.then(|| cfg.text_model.label());
         run.record.source =
             text.map(|text| (if from_selection { SourceKind::Selection } else { SourceKind::Entered }, text));
         trace_log!(engine = ?run.record.polish_engine, rewrite_hint = ?hint, "tool runs");

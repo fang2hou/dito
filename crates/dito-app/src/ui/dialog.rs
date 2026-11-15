@@ -23,7 +23,7 @@ pub enum ConfirmStyle {
     CompactDestructive,
 }
 
-/// Cancel is also what Escape does. `focus` owns the keyboard while the dialog is open; the caller focuses it when it
+/// Cancel is also what Escape does. Without `confirm` the dialog has that one answer. `focus` owns the keyboard while the dialog is open; the caller focuses it when it
 /// opens the dialog.
 #[allow(clippy::too_many_arguments)]
 pub fn confirm_dialog(
@@ -34,7 +34,25 @@ pub fn confirm_dialog(
     title: impl Into<SharedString>,
     content: Vec<AnyElement>,
     cancel: DialogAnswer,
-    confirm: DialogAnswer,
+    confirm: Option<DialogAnswer>,
+    style: ConfirmStyle,
+) -> AnyElement {
+    let header = text(title, 20., FontWeight::BOLD, p.text).into_any_element();
+    confirm_dialog_with_header(window, p, id, focus, header, content, cancel, confirm, style)
+}
+
+/// [`confirm_dialog`] with the caller's first row in place of a plain title, for a title that shares its row with a
+/// control.
+#[allow(clippy::too_many_arguments)]
+pub fn confirm_dialog_with_header(
+    window: &Window,
+    p: &Palette,
+    id: &'static str,
+    focus: &FocusHandle,
+    header: AnyElement,
+    content: Vec<AnyElement>,
+    cancel: DialogAnswer,
+    confirm: Option<DialogAnswer>,
     style: ConfirmStyle,
 ) -> AnyElement {
     let (width, padding, action_gap, confirm_kind) = match style {
@@ -53,7 +71,7 @@ pub fn confirm_dialog(
         .flex()
         .flex_col()
         .gap(px(16.))
-        .child(text(title, 20., FontWeight::BOLD, p.text))
+        .child(header)
         .children(content)
         .child(
             div()
@@ -62,7 +80,9 @@ pub fn confirm_dialog(
                 .justify_end()
                 .gap(px(action_gap))
                 .child(answer(p, ElementId::from((ElementId::from(id), "cancel")), BtnKind::Secondary, cancel))
-                .child(answer(p, ElementId::from((ElementId::from(id), "confirm")), confirm_kind, confirm)),
+                .children(confirm.map(|confirm| {
+                    answer(p, ElementId::from((ElementId::from(id), "confirm")), confirm_kind, confirm)
+                })),
         );
     modal_layer(id, focus)
         .on_key_down(move |event: &KeyDownEvent, window, cx| {

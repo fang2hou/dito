@@ -33,7 +33,7 @@ impl RowParts {
                     .gap(px(10.))
                     .h(px(26.))
                     .child(text(spec.name.clone(), 16., FontWeight::SEMIBOLD, p.text).truncate())
-                    .child(text(super::metadata::model_metadata(c, spec), 12., FontWeight::NORMAL, p.model_meta)),
+                    .child(super::metadata::model_labels(c, spec)),
             );
         }
         Self { body, ctl }

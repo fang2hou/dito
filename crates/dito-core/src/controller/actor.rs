@@ -461,7 +461,7 @@ impl Actor {
         let cancel = CancellationToken::new();
         let epoch = self.epoch;
         let cfg = self.deps.config.get();
-        let models = Models::new(&cfg.asr, &cfg.polish.engine);
+        let models = Models::new(&cfg.asr, &cfg.text_model);
         let labels = cfg.engine_labels();
         self.processing.send_replace(ProcessingEstimate {
             transcription_secs: self.timings.transcription(models.asr, clip.duration_ms() as f32 / 1000.),

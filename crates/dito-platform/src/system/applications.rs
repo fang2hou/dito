@@ -32,16 +32,21 @@ pub fn application_at(path: &Path) -> Option<InstalledApplication> {
         .into_iter()
         .find_map(|key| bundle.objectForInfoDictionaryKey(key)?.downcast::<NSString>().ok().map(|s| s.to_string()))
         .unwrap_or_else(|| path.file_stem().unwrap_or_default().to_string_lossy().into_owned());
-    let icon = NSWorkspace::sharedWorkspace().iconForFile(&path_string);
-    icon.setSize(NSSize::new(64., 64.));
-    let icon_png = icon
-        .TIFFRepresentation()
-        .and_then(|tiff| NSBitmapImageRep::imageRepWithData(&tiff))
-        .and_then(|bitmap| {
-            // SAFETY: an empty property dictionary has no incorrectly typed values.
-            unsafe { bitmap.representationUsingType_properties(NSBitmapImageFileType::PNG, &NSDictionary::new()) }
-        })
-        .map(|data| data.to_vec())
-        .unwrap_or_default();
+    let icon_png = icon_png(&path_string).unwrap_or_default();
     Some(InstalledApplication { bundle_id, name, path: path.to_owned(), icon_png })
+}
+
+/// The icon Finder shows for the file at `path`, as PNG.
+pub fn file_icon_png(path: &Path) -> Option<Vec<u8>> {
+    icon_png(&NSString::from_str(path.to_str()?))
+}
+
+fn icon_png(path: &NSString) -> Option<Vec<u8>> {
+    let icon = NSWorkspace::sharedWorkspace().iconForFile(path);
+    icon.setSize(NSSize::new(64., 64.));
+    let tiff = icon.TIFFRepresentation()?;
+    let bitmap = NSBitmapImageRep::imageRepWithData(&tiff)?;
+    // SAFETY: an empty property dictionary has no incorrectly typed values.
+    let png = unsafe { bitmap.representationUsingType_properties(NSBitmapImageFileType::PNG, &NSDictionary::new()) };
+    png.map(|data| data.to_vec())
 }

@@ -15,7 +15,7 @@ grant under the launching terminal instead of the app.
 
 Fix: a self-signed code-signing identity created once per machine and trusted for
 code signing. Binaries are re-signed with it (stable identifier
-`com.japan-d2.dito` + stable certificate = stable designated requirement = one
+`com.fang2hou.dito-dev` + stable certificate = stable designated requirement = one
 persistent TCC entry for the app and the test binaries).
 
 ## One-time setup per machine
@@ -46,7 +46,7 @@ Verify a signed dev binary:
 
 ```sh
 codesign -dv target/debug/dito
-codesign -dr - target/debug/dito   # designated => identifier "com.japan-d2.dito" and certificate root = H"…"
+codesign -dr - target/debug/dito   # designated => identifier "com.fang2hou.dito-dev" and certificate root = H"…"
 ```
 
 The certificate hash must be identical across rebuilds — that is exactly what keeps
@@ -56,8 +56,11 @@ the TCC grant.
 
 - A bare `target/debug/dito` has no Info.plist: macOS silently denies the microphone (no
   usage description, no prompt, nothing in System Settings). `scripts/dev-runner.sh` wraps
-  the binary into `target/bundle/DitoDev.app` (same bundle id and identity as the release
-  bundle) and launches it via `open -W -n` so TCC sees a proper app.
+  the binary into `target/bundle/dev-<runner pid>/DitoDev.app` (the dev bundle id
+  `com.fang2hou.dito-dev`, the same signing identity as the release bundle) and launches it via
+  `open -W -n` so TCC sees a proper app. Each run has a wrapper of its own and stops only the
+  instance it started, so several instances (two worktrees, a mock run beside a real one) can
+  run and be closed independently; a wrapper left by a runner that died is removed by the next run.
 - TCC prompts are attributed to LaunchServices-launched apps. A shell-exec'd binary is
   attributed to its parent terminal, which suppresses mic prompts and even
   "open System Settings" from working. Always launch the app via `open`, never exec the

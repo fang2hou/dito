@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "figcraft-live": {
+      "source": "fang2hou/skills",
+      "sourceType": "github",
+      "skillPath": "skills/figcraft-live/SKILL.md",
+      "computedHash": "e69ebd6a5b20068d50c853ba2de88bd99205ecda91ccb995f7a1188fc0d19720"
+    }
+  }
+}

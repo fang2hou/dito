@@ -35,10 +35,10 @@ impl Settings {
         match e.source {
             Source::Provider => {
                 let asr_configurations = role::cloud_asr_configurations(role, e);
-                let polish_configurations = e.polish_configurations(lang);
+                let text_configurations = e.text_configurations(lang);
                 let name = match asr_configurations.as_deref() {
                     Some(configurations) => configurations.active_name(),
-                    None => polish_configurations.active().map(|configuration| configuration.name.as_str()),
+                    None => text_configurations.active().map(|configuration| configuration.name.as_str()),
                 };
                 SharedString::from(name.unwrap_or_else(|| lang.tr(Tr::ModelsProvider)).to_owned())
             }
@@ -63,9 +63,9 @@ impl Settings {
                 status: Some(health.asr),
             },
             HealthRow {
-                role: lang.tr(Tr::ModelsPolish),
+                role: lang.tr(Tr::ModelsTextModel),
                 name: if cfg.polish.enabled {
-                    Self::health_name(lang, Role::Polish, &cfg.polish.engine, &self.st.models)
+                    Self::health_name(lang, Role::Text, &cfg.text_model, &self.st.models)
                 } else {
                     SharedString::from(lang.tr(Tr::ModelsPolishOff))
                 },
