@@ -18,8 +18,8 @@ dito-core = { path = "../dito-core" }
 dito-local = { path = "../dito-local" }
 tracing.workspace = true
 encoding_rs = { version = "0.8", optional = true }
-llama-cpp-2 = { version = "=0.1.160", optional = true, features = ["metal", "mtmd"] }
-llama-cpp-sys-2 = { version = "=0.1.160", optional = true }
+llama-cpp-2 = { version = "=0.1.161", optional = true, features = ["metal", "mtmd"] }
+llama-cpp-sys-2 = { version = "=0.1.161", optional = true }
 sherpa-onnx-sys = { version = "=2.0.1", optional = true }
 serde_json = { workspace = true, optional = true }
 transcribe-cpp = { version = "=0.4.2", optional = true }
