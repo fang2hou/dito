@@ -157,7 +157,7 @@ impl Render for Settings {
         // The shell (sidebar, health card, rail reveal) draws under the window's persistent scope:
         // its nav plate keeps moving across page switches, which reset only page scopes.
         let shell = self.chrome.motion();
-        ui::with_motion_scope(shell, || ui::tooltip_root(self.render_shell(window, cx)))
+        ui::render_with_scope(shell, || ui::tooltip_root(self.render_shell(window, cx)))
     }
 }
 

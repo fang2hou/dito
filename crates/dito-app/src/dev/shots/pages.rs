@@ -76,8 +76,13 @@ pub async fn tools_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
         tools_page_shot(cx, dir, &format!("tools-readiness-{}.png", theme_tag(appearance))).await;
         on_tools_window(cx, |_, cx, view| view.update(cx, |t, cx| t.assume_transcription_ready(true, cx)));
         tools_page_shot(cx, dir, &format!("tools-{}.png", theme_tag(appearance))).await;
+        on_tools_window(cx, |_, cx, view| view.update(cx, |t, cx| t.pose_transcription_settings(true, cx)));
+        tools_page_shot(cx, dir, &format!("tools-settings-{}.png", theme_tag(appearance))).await;
+        on_tools_window(cx, |_, cx, view| view.update(cx, |t, cx| t.pose_transcription_settings(false, cx)));
         on_tools_window(cx, |w, cx, view| view.update(cx, |t, cx| t.preview_transcript(w, cx)));
         tools_page_shot(cx, dir, &format!("tools-transcription-{}.png", theme_tag(appearance))).await;
+        on_tools_window(cx, |w, cx, view| view.update(cx, |t, cx| t.pose_transcription_paragraph_focus(w, cx)));
+        tools_page_shot(cx, dir, &format!("tools-transcription-edit-{}.png", theme_tag(appearance))).await;
         on_tools_window(cx, |w, cx, view| {
             view.update(cx, |t, cx| t.preview_live_transcript(crate::dev::seed::LIVE_TAIL, w, cx));
         });

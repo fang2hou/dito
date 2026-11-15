@@ -368,7 +368,7 @@ impl Render for ModelsPage {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         // Own scope: after a page switch the controls mount statically instead of sliding to values remembered from an
         // earlier visit.
-        ui::with_motion_scope(self.motion.handle(), || self.view(window, cx))
+        ui::render_with_scope(self.motion.handle(), || self.view(window, cx))
     }
 }
 

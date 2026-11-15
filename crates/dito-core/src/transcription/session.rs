@@ -327,6 +327,8 @@ async fn record(
         Ok(p) => p.map(Ok),
         Err(e) => Some(Err(e.to_string())),
     };
+    let titler = polisher.as_ref().and_then(|p| p.as_ref().ok().cloned()).filter(|_| cfg.transcription.auto_title);
+    let title_instruction = cfg.transcription.title_instruction().to_owned();
     let words = deps.store.words(None).unwrap_or_default();
     let terms = polish_wordbook(&cfg, &words).to_vec();
     let mut wanted = Vec::new();
@@ -504,6 +506,9 @@ async fn record(
     session.publish(true);
     drop(session);
     let _ = polish_task.await;
+    if let Some(model) = titler {
+        name_untitled(&deps.store, model.as_ref(), &title_instruction, id, status).await;
+    }
     for source in taps {
         let _ = tokio::task::spawn_blocking(move || source.thread.join()).await;
     }
@@ -612,6 +617,71 @@ impl Session<'_> {
     }
 }
 
+/// A generated title reads only the beginning of a long meeting, where its subject is usually named.
+const TITLE_INPUT_CHARS: usize = 3_000;
+const TITLE_MAX_CHARS: usize = 40;
+/// Naming never holds the end of a session for long.
+const TITLE_TIMEOUT: Duration = Duration::from_secs(15);
+/// Appended to the user's instruction, which says what the title is; this only fixes the shape of the reply.
+const TITLE_RULES: &str = "Reply with the title only, on one line, without quotes or a final period.";
+
+/// Names a meeting the user left untitled. Any failure leaves it untitled, and a title the user typed while the model
+/// was writing is never replaced.
+async fn name_untitled(store: &Store, model: &dyn TextModel, instruction: &str, id: i64, status: &Status) {
+    let untitled = || matches!(store.get_transcript(id), Ok(Some(t)) if t.summary.title.trim().is_empty());
+    let Ok(Some(transcript)) = store.get_transcript(id) else { return };
+    if !transcript.summary.title.trim().is_empty() {
+        return;
+    }
+    let input = title_input(&transcript.paragraphs);
+    if input.is_empty() {
+        return;
+    }
+    let system = format!("{instruction}\n\n{TITLE_RULES}");
+    let request = TextRequest { system: &system, examples: &[], text: &input };
+    let reply = match tokio::time::timeout(TITLE_TIMEOUT, model.polish(&request)).await {
+        Ok(Ok(reply)) => reply,
+        Ok(Err(e)) => return tracing::warn!("could not name transcript {id}: {e}"),
+        Err(_) => return tracing::warn!("naming transcript {id} timed out"),
+    };
+    let Some(title) = clean_title(&reply) else { return };
+    if !untitled() {
+        return;
+    }
+    match store.set_transcript_title(id, &title) {
+        Ok(()) => status.send_modify(|s| s.revision += 1),
+        Err(e) => tracing::warn!("could not store the title of transcript {id}: {e}"),
+    }
+}
+
+/// The meeting's words in order, polished where they are, cut at the input limit.
+fn title_input(paragraphs: &[crate::store::TranscriptParagraph]) -> String {
+    let mut input = String::new();
+    for p in paragraphs {
+        let words = if p.text.trim().is_empty() { p.raw.trim() } else { p.text.trim() };
+        if words.is_empty() {
+            continue;
+        }
+        if !input.is_empty() {
+            input.push('\n');
+        }
+        input.push_str(words);
+        if input.chars().count() >= TITLE_INPUT_CHARS {
+            break;
+        }
+    }
+    input.chars().take(TITLE_INPUT_CHARS).collect()
+}
+
+/// The first line of the reply without the quotes or brackets a model likes to add, capped; `None` when empty.
+fn clean_title(reply: &str) -> Option<String> {
+    let line = reply.lines().map(str::trim).find(|line| !line.is_empty())?;
+    let quotes: &[char] = &['"', '\x27', '`', '\u{300C}', '\u{300D}', '\u{300E}', '\u{300F}', '\u{201C}', '\u{201D}'];
+    let bare = line.trim_end_matches(['.', '\u{3002}']).trim_matches(quotes).trim_end_matches(['.', '\u{3002}']);
+    let title: String = bare.trim().chars().take(TITLE_MAX_CHARS).collect();
+    (!title.trim().is_empty()).then(|| title.trim().to_owned())
+}
+
 async fn polish_loop(
     store: Arc<Store>,
     polisher: Option<Result<Arc<dyn TextModel>, String>>,
@@ -659,6 +729,30 @@ mod tests {
     use crate::provider::mock::{MockTextModel, MockTranscriber};
     use crate::store::{ParagraphState, Speaker};
     use crate::transcription::{ChunkSink, EnergyDetectors, LiveInput};
+
+    #[test]
+    fn a_title_reply_keeps_its_first_line_without_quotes() {
+        assert_eq!(clean_title("「📋 リリース計画の確認」\n説明です"), Some("📋 リリース計画の確認".into()));
+        assert_eq!(clean_title("\n  \"週次定例\".\n"), Some("週次定例".into()));
+        assert_eq!(clean_title("   \n"), None);
+    }
+
+    #[tokio::test]
+    async fn a_typed_title_is_never_replaced_and_an_empty_one_is_named() {
+        let store = Store::open_in_memory().unwrap();
+        let status = Arc::new(watch::channel(TranscriptionStatus::default()).0);
+        let named = store.create_transcript(1, Sources::default()).unwrap();
+        store.add_paragraph(named, Speaker::Others, 0, 1_000, "来週のリリース計画を確認します").unwrap();
+        let typed = store.create_transcript(2, Sources::default()).unwrap();
+        store.add_paragraph(typed, Speaker::Others, 0, 1_000, "来週のリリース計画を確認します").unwrap();
+        store.set_transcript_title(typed, "自分でつけた題").unwrap();
+        let model = MockTextModel::default().script([Ok("📋 リリース計画の確認".to_string())]);
+        name_untitled(&store, &model, "instruction", typed, &status).await;
+        assert_eq!(model.calls(), 0, "a titled meeting never reaches the model");
+        assert_eq!(store.get_transcript(typed).unwrap().unwrap().summary.title, "自分でつけた題");
+        name_untitled(&store, &model, "instruction", named, &status).await;
+        assert_eq!(store.get_transcript(named).unwrap().unwrap().summary.title, "📋 リリース計画の確認");
+    }
 
     /// Plays a script per source as soon as it opens, then stays open until dropped. A test can also push more
     /// audio into an open source later, as its device would.

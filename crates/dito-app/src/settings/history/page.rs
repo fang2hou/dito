@@ -256,7 +256,7 @@ impl Render for HistoryPage {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         // Own scope: after a page switch the controls mount statically instead of sliding to values remembered from an
         // earlier visit.
-        ui::with_motion_scope(self.motion.handle(), || {
+        ui::render_with_scope(self.motion.handle(), || {
             let content = self.view(window, cx).into_any_element();
             div()
                 .id("history-page")

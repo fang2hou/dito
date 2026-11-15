@@ -192,3 +192,15 @@ layer = "Transcript detail"
 [tools.rail-labels]
 board = "23.04"
 layer = "Compact rail"
+
+[tools.chat]
+board = "23.05"
+layer = "Chat"
+
+[tools.local-api]
+board = "23.06"
+layer = "Local API"
+
+[tools.mcp]
+board = "23.07"
+layer = "MCP"

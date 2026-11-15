@@ -26,7 +26,12 @@ pub(crate) const HEALTH_PADDING: f32 = 12.;
 pub(crate) const HEALTH_ROW_HEIGHT: f32 = 22.;
 pub(crate) const HEALTH_ROW_GAP: f32 = 13.;
 pub(crate) const HEALTH_HEIGHT: f32 = HEALTH_PADDING * 2. + HEALTH_ROW_HEIGHT * 3. + HEALTH_ROW_GAP * 2.;
-pub(crate) const HEALTH_MS: u64 = 320;
+/// The card opens on the motion/glass spring, width leading and height trailing, and settles with a small rebound; it
+/// closes on a short ease without one.
+const HEALTH_OPEN_MS: u64 = 460;
+const HEALTH_CLOSE_MS: u64 = 200;
+/// The height starts this share of the opening later than the width (64 ms of 460).
+const HEALTH_TRAIL: f32 = 0.14;
 const HEALTH_WIDTH: f32 = 322.;
 const DOT_HIT: &str = "health-dot-hit";
 const CARD_HIT: &str = "health-card-hit";
@@ -63,7 +68,7 @@ pub(crate) fn rows(st: &AppState, lang: Lang) -> Vec<HealthRow> {
             status: Some(health.asr),
         },
         HealthRow {
-            role: lang.tr(Tr::ModelsTextModel),
+            role: lang.tr(Tr::ModelsTextModelShort),
             name: if cfg.polish.enabled {
                 name(lang, Role::Text, &cfg.text_model, &st.models)
             } else {
@@ -242,11 +247,15 @@ pub(crate) fn overlay(chrome: &Chrome, c: &Ctx) -> AnyElement {
         .rounded(radius)
         .on_hover(ui::hover_tracker(hit_id))
         .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-        .child(ui::tweened(
+        .child(ui::tweened_linear(
             ElementId::from("health-card"),
             if hovered { 1. } else { 0. },
-            if motion.is_reduced() { 120 } else { HEALTH_MS },
-            move |t| popup.at(t, motion),
+            match (motion.is_reduced(), hovered) {
+                (true, _) => 120,
+                (false, true) => HEALTH_OPEN_MS,
+                (false, false) => HEALTH_CLOSE_MS,
+            },
+            move |t| popup.at(t, hovered, motion),
         ))
         .into_any_element()
 }
@@ -260,21 +269,31 @@ struct HealthPopup {
 }
 
 impl HealthPopup {
-    fn at(&self, t: f32, motion: Motion) -> Div {
+    /// `t` is the linear progress toward open; `opening` picks the spring or the closing ease.
+    fn at(&self, t: f32, opening: bool, motion: Motion) -> Div {
         if t <= 0.001 {
             return div();
         }
         let Self { p, lang, dot_size, color, .. } = *self;
         let radius = px(HEALTH_RADIUS);
         let reduced = motion.is_reduced();
-        let progress = if reduced { 1. } else { t };
+        let ease = |x: f32| x * x * (3. - 2. * x);
+        let (wide, tall) = if reduced {
+            (1., 1.)
+        } else if opening {
+            (ui::spring(t, motion), ui::spring(((t - HEALTH_TRAIL) / (1. - HEALTH_TRAIL)).max(0.), motion))
+        } else {
+            (ease(t), ease(t))
+        };
         let text_opacity = if reduced { t } else { ((t - 0.25) / 0.75).clamp(0., 1.) };
+        // The surface arrives in the first half of the opening and leaves on the closing ease.
+        let t = if opening { (t * 2.).min(1.) } else { ease(t) };
         div()
             .absolute()
             .left_0()
             .top_0()
-            .w(px(46. + (HEALTH_WIDTH - 46.) * progress))
-            .h(px(46. + (HEALTH_HEIGHT - 46.) * progress))
+            .w(px(46. + (HEALTH_WIDTH - 46.) * wide))
+            .h(px(46. + (HEALTH_HEIGHT - 46.) * tall))
             .rounded(radius)
             .bg(p.menu_bg)
             .opacity(t)

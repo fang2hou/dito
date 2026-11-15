@@ -33,4 +33,4 @@ pub use migrate::SCHEMA_VERSION;
 pub use restore::{ParseProblem, parse_problem, restore_defaults};
 pub use settings::Config;
 pub use store::ConfigStore;
-pub use transcription::TranscriptionSettings;
+pub use transcription::{DEFAULT_TITLE_TEMPLATE, TranscriptionSettings};

@@ -46,6 +46,18 @@ impl Tools {
         self.transcription.update(cx, |t, cx| t.apply_status(status, window, cx));
     }
 
+    /// Opens or closes the transcription settings dialog without a pointer.
+    #[cfg(feature = "screenshots")]
+    pub fn pose_transcription_settings(&mut self, open: bool, cx: &mut Context<Self>) {
+        self.transcription.update(cx, |t, cx| t.pose_settings(open, cx));
+    }
+
+    /// Focuses the first editable paragraph of the open transcript.
+    #[cfg(feature = "screenshots")]
+    pub fn pose_transcription_paragraph_focus(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.transcription.update(cx, |t, cx| t.pose_focus_paragraph(window, cx));
+    }
+
     /// Marks New meeting as just pressed, so a session started next folds the button as a click does.
     #[cfg(feature = "screenshots")]
     pub fn pose_transcription_start_pressed(&mut self, cx: &mut Context<Self>) {

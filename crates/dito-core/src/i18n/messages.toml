@@ -578,10 +578,18 @@ transcription.stop = { ja = "停止", en = "Stop", zh = "停止" }
 transcription.starting = { ja = "準備中", en = "Getting ready", zh = "正在准备" }
 transcription.finishing = { ja = "整形中", en = "Polishing", zh = "正在润色" }
 transcription.recording = { ja = "録音中", en = "Recording", zh = "正在录音" }
+transcription.paused = { ja = "一時停止中", en = "Paused", zh = "已暂停" }
 transcription.pause = { ja = "一時停止", en = "Pause", zh = "暂停" }
 transcription.resume = { ja = "再開", en = "Resume", zh = "继续" }
 transcription.stop_confirm = { ja = "停止する？", en = "Stop?", zh = "停止？" }
 transcription.empty = { ja = "まだ書き起こしはありません。下のパネルの「新しい会議」を押すと始まります。", en = "No transcripts yet. Press New meeting in the panel below to begin.", zh = "还没有转写记录。按下方面板中的「新会议」即可开始。" }
+transcription.no_matches = { ja = "条件に合う書き起こしはありません。", en = "No transcripts match.", zh = "没有符合条件的转写记录。" }
+transcription.search = { ja = "書き起こしを検索", en = "Search transcripts", zh = "搜索转写" }
+transcription.auto_title = { ja = "タイトルの自動生成", en = "Automatic titles", zh = "自动生成标题" }
+transcription.auto_title_hint = { ja = "タイトルが未設定の場合、録音終了後に内容の整形が完了すると、タイトルを自動で生成します。", en = "If a meeting has no title, one is generated once recording ends and polishing finishes.", zh = "未设置标题时，录音结束并完成内容润色后，会自动生成标题。" }
+transcription.title_format = { ja = "タイトル生成用プロンプト", en = "Title prompt", zh = "标题生成提示词" }
+transcription.model_hint = { ja = "生成にはテキストモデルを使用します。", en = "Titles are written by the text model.", zh = "生成时使用文本模型。" }
+transcription.reset_format = { ja = "初期設定に戻す", en = "Restore default", zh = "恢复默认" }
 transcription.untitled = { ja = "無題", en = "Untitled", zh = "无标题" }
 transcription.title_placeholder = { ja = "タイトル", en = "Title", zh = "标题" }
 transcription.me = { ja = "自分", en = "Me", zh = "我" }

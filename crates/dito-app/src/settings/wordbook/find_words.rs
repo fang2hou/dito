@@ -436,7 +436,7 @@ impl WordbookPage {
                 }
             }),
         );
-        ui::with_motion_scope(self.motion.handle(), || {
+        ui::render_with_scope(self.motion.handle(), || {
             ui::confirm_dialog_with_header(
                 window,
                 &p,

@@ -434,7 +434,7 @@ impl AsrEditor {
 impl Render for AsrEditor {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let scope = self.motion.handle();
-        ui::with_motion_scope(scope, || {
+        ui::render_with_scope(scope, || {
             if self.dialog {
                 self.modal(window, cx).into_any_element()
             } else {

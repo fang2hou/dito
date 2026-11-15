@@ -53,8 +53,12 @@ pub enum Ic {
     Sliders,
     Cpu,
     Search,
+    /// A module's own settings, beside its page title; the app's settings keep the sliders.
+    Settings,
     BookSearch,
     Plus,
+    /// Restores a default, beside the value it resets.
+    RotateCcw,
     X,
     Check,
     ChevronDown,
@@ -109,8 +113,10 @@ impl Ic {
             Self::Sliders => "icons/lucide/sliders-horizontal.svg",
             Self::Cpu => "icons/lucide/cpu.svg",
             Self::Search => "icons/lucide/search.svg",
+            Self::Settings => "icons/lucide/settings.svg",
             Self::BookSearch => "icons/lucide/book-search.svg",
             Self::Plus => "icons/lucide/plus.svg",
+            Self::RotateCcw => "icons/lucide/rotate-ccw.svg",
             Self::X => "icons/lucide/x.svg",
             Self::Check => "icons/lucide/check.svg",
             Self::ChevronDown => "icons/lucide/chevron-down.svg",

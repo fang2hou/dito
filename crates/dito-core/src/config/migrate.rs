@@ -9,7 +9,7 @@ use crate::prompts::{AppTarget, default_set};
 
 /// Version of the persisted shape that this build reads and writes. Raise it together with appending one function to
 /// `MIGRATIONS`, and never edit or renumber a shipped migration: files in the field have already passed through it.
-pub const SCHEMA_VERSION: u32 = 8;
+pub const SCHEMA_VERSION: u32 = 9;
 
 const VERSION_KEY: &str = "schema_version";
 
@@ -24,6 +24,7 @@ const MIGRATIONS: [fn(&mut Table); SCHEMA_VERSION as usize] = [
     command_settings,
     text_model_table,
     tools_shortcut,
+    transcription_titles,
 ];
 
 /// Either way the file must stay as it is.
@@ -296,10 +297,33 @@ fn tools_shortcut(table: &mut Table) {
     general.entry("tools_shortcut").or_insert("Control+Option+T".into());
 }
 
+/// 8 to 9: transcription gains generated titles, written out with their defaults (on, with the default instruction)
+/// so an older build refuses the file instead of dropping them. A file without `transcription` takes the defaults.
+fn transcription_titles(table: &mut Table) {
+    let Some(transcription) = table.get_mut("transcription").and_then(Value::as_table_mut) else { return };
+    transcription.entry("auto_title").or_insert(true.into());
+    transcription.entry("title_template").or_insert(super::DEFAULT_TITLE_TEMPLATE.into());
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::config::{CloudAsrConfigurations, Config};
+
+    #[test]
+    fn version_eight_writes_out_generated_titles_and_keeps_the_sources() {
+        let mut legacy = parse("schema_version = 8\n[transcription]\nmicrophone = false\n");
+        assert_eq!(upgrade(&mut legacy), Ok(8));
+        assert_eq!(legacy["transcription"]["auto_title"].as_bool(), Some(true));
+        assert_eq!(legacy["transcription"]["title_template"].as_str(), Some(crate::config::DEFAULT_TITLE_TEMPLATE));
+        let migrated: Config = legacy.try_into().unwrap();
+        assert!(!migrated.transcription.microphone, "the rest of the table is untouched");
+
+        let mut without = parse("schema_version = 8\nonboarded = true\n");
+        assert_eq!(upgrade(&mut without), Ok(8));
+        assert!(without.get("transcription").is_none(), "a file without the table takes the typed defaults");
+        assert!(without.try_into::<Config>().unwrap().transcription.auto_title);
+    }
 
     #[test]
     fn version_seven_gains_the_tools_shortcut_written_out_with_its_default() {

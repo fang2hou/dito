@@ -27,6 +27,7 @@ The `config.toml` shapes so far, one migration each (`MIGRATIONS` in `migrate.rs
 | 6 | Command mode: `general.command_shortcut` (empty, meaning unset: derived as Shift plus the dictation shortcut, so it follows when that changes) and `general.confirm_before_replace` (off) are written into an existing `general` table |
 | 7 | The model settings leave `polish` for their own table `text_model`, and `cloud_polish` is renamed `cloud_text`, because the model that polishes also runs commands and finds words. `polish` keeps `enabled`. Keychain accounts keep the `polish.` prefix |
 | 8 | The Tools window gains a shortcut: `general.tools_shortcut` is written into an existing `general` table with its default, `Control+Option+T` |
+| 9 | Transcription gains generated titles: `transcription.auto_title` (on) and `transcription.title_template` (the default instruction) are written into an existing `transcription` table |
 
 Version 3 keeps the Keychain accounts `polish.azure` and `polish.compat` working by giving the migrated configurations the ids `azure`, `bedrock` and `compat`; every later configuration has a random id suffix, so the key of a removed one is never picked up by a new one.
 

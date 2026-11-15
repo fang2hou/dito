@@ -418,7 +418,7 @@ pub(super) fn view(
     c: &Ctx,
     window: &Window,
     cx: &mut Context<TranscriptionPage>,
-) -> (Div, Pose) {
+) -> (Div, Pose, f32) {
     let p = &c.p;
     let motion = ui::Motion::system();
     let reduced = motion.is_reduced();
@@ -562,7 +562,9 @@ pub(super) fn view(
         && page.status.live.iter().any(|l| !l.unsettled.trim().is_empty());
     let finishing_shown = page.dock.status_kind == StatusKind::Finishing && status_fade > 0.;
     let status_sweep = !reduced && finishing_shown;
-    page.keep_sweeping(lanes_sweep || status_sweep, cx);
+    // The lanes' listening label breathes while a session records; the same timer drives it.
+    let pulse = !reduced && recording && !page.is_paused() && cards.as_ref().is_some_and(|g| g.show_status);
+    page.keep_sweeping(lanes_sweep || status_sweep || pulse, cx);
     let sweep_t = lanes_sweep.then(|| now.duration_since(page.born).as_secs_f32());
     if page.dock.folding && page.dock.fold.settled(now) && page.dock.spread[STOP].settled(now) {
         page.dock.folding = false;
@@ -576,10 +578,12 @@ pub(super) fn view(
     }
 
     let radius = lerp(h.min(CAPSULE_H) / 2., PANEL_RADIUS, ((h - CAPSULE_H) / (COMPACT_H - CAPSULE_H)).clamp(0., 1.));
-    let body = page.dock.body.sample(now);
-    let surface_color = ui::mix_rgb(p.sub, p.seg, page.dock.statusness.sample(now));
     let deepen = page.dock.deepen.sample(now);
-    let start_fade = page.dock.start.sample(now);
+    // Gold is the strongest color on the page, so a shape coming back to the button turns gold only in the last
+    // stretch of the move, when it is nearly button-sized; until then it keeps its own surface.
+    let start_fade = page.dock.start.sample(now) * nearness((w, h), page.dock.morph.target());
+    let body = page.dock.body.sample(now).max(if look == Look::Button { 1. - start_fade } else { 0. });
+    let surface_color = ui::mix_rgb(p.sub, p.seg, page.dock.statusness.sample(now));
     // One shadow for the whole capsule, cast by whichever face is showing: the surface, the button, or the button
     // folding away, so handing over between them never drops it for a frame.
     let folding_face = if page.dock.folding { 1. - page.dock.fold.sample(now) } else { 0. };
@@ -705,7 +709,8 @@ pub(super) fn view(
         );
     let pose = Pose { entry, review };
     let detail = if follows_session { pose } else { Pose { entry: 1., review: 1. } };
-    (slot, detail)
+    // The slot height tells a list beneath the floating panel how much room to leave at its end.
+    (slot, detail, h + f32::from(held) * ERROR_H)
 }
 
 /// The plus and the New meeting label, centered with the design's 16 pt lead and 20 pt trail. `lead` moves the
@@ -1246,14 +1251,19 @@ fn session_identity(
     let recording = matches!(page.status.state, SessionState::Recording { .. });
     let elapsed = page.session_elapsed_ms().unwrap_or(0);
     let identity = div().id("dock-identity").flex_1().min_w(px(0.)).flex().items_center().gap(px(12.)).child(
-        div().flex().items_center().gap(px(8.)).child(div().size(px(8.)).rounded_full().bg(p.danger)).child(
-            // The clock column keeps the widest clock's width, so the title never moves as it ticks.
-            div().w(px(clock_w)).flex_none().child(
-                text(clock(elapsed), CLOCK_SIZE, FontWeight::MEDIUM, p.text)
-                    .line_height(px(CLOCK_LINE))
-                    .font_features(FontFeatures(std::sync::Arc::new(vec![("tnum".into(), 1)]))),
+        div()
+            .flex()
+            .items_center()
+            .gap(px(8.))
+            .child(div().size(px(8.)).rounded_full().bg(if page.is_paused() { p.muted } else { p.danger }))
+            .child(
+                // The clock column keeps the widest clock's width, so the title never moves as it ticks.
+                div().w(px(clock_w)).flex_none().child(
+                    text(clock(elapsed), CLOCK_SIZE, FontWeight::MEDIUM, p.text)
+                        .line_height(px(CLOCK_LINE))
+                        .font_features(FontFeatures(std::sync::Arc::new(vec![("tnum".into(), 1)]))),
+                ),
             ),
-        ),
     );
     // The title field has its own border, so only the borderless browsing line keeps a divider after the clock.
     let identity = if compact {
@@ -1467,4 +1477,13 @@ fn spread_left(dock: &DockAnim, row: &Row, w: f32, now: Instant) -> f32 {
     }
     let e = dock.spread[AUDIO].sample(now);
     lerp(w / 2., row.centers[AUDIO], e) - CONTROL_H * lerp(SPREAD_FROM, 1., e) / 2.
+}
+
+/// How close a drawn shape is to the size it is moving to, 0 far away to 1 there. The gold face rides on it while
+/// the dock heads for the button, pressed or not.
+fn nearness((w, h): (f32, f32), (target_w, target_h): (f32, f32)) -> f32 {
+    /// The gold begins this far from the button's size, counting height twice since it changes less.
+    const GOLD_FROM: f32 = 48.;
+    let distance = (w - target_w).abs() + 2. * (h - target_h).abs();
+    (1. - distance / GOLD_FROM).clamp(0., 1.)
 }

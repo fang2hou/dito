@@ -148,7 +148,7 @@ impl Render for TileRowShot {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         theme::apply(&self.p, cx);
         ui::set_ui_language(Lang::Ja);
-        ui::with_motion_scope(self.motion.handle(), || self.view(cx))
+        ui::render_with_scope(self.motion.handle(), || self.view(cx))
     }
 }
 

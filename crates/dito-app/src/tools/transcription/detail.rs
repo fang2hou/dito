@@ -24,11 +24,17 @@ const ROW_PAD_Y: f32 = 10.;
 const BODY_SIZE: f32 = 14.;
 const BODY_LINE: f32 = 22.;
 const ACTION_COL: f32 = 32.;
+/// The row's gap between columns, and the larger room kept between the editing ring and the copy button.
+const ROW_GAP: f32 = 4.;
+const RING_TO_ACTION: f32 = 12.;
 const FADE: f32 = 24.;
-/// The textarea's own inset around its text (its medium input padding plus the 1 pt border it keeps); plain text
-/// paragraphs use the same inset so editing never moves the words.
+/// The inset around a paragraph's words, set on both the plain text and the borderless textarea so editing never
+/// moves them; the borderless textarea keeps its own 10/8 pt padding, so it takes the difference.
 const EDITOR_PAD_X: f32 = 12.;
 const EDITOR_PAD_Y: f32 = 9.;
+/// gpui-base's textarea pads its text by this much once its border is off.
+const TEXTAREA_PAD_X: f32 = 10.;
+const TEXTAREA_PAD_Y: f32 = 8.;
 /// The textarea wraps this far short of its text area (gpui-base's `RIGHT_MARGIN`).
 const EDITOR_WRAP_MARGIN: f32 = 10.;
 /// The meta column and the hover copy button hang from the first text line, which starts `EDITOR_PAD_Y` below the row.
@@ -106,6 +112,8 @@ fn live_head(open: &OpenTranscript, page: &TranscriptionPage, c: &Ctx, cx: &mut 
                     p,
                     c.t(if matches!(page.status.state, SessionState::Finishing { .. }) {
                         Tr::TranscriptionFinishing
+                    } else if page.is_paused() {
+                        Tr::TranscriptionPaused
                     } else {
                         Tr::TranscriptionRecording
                     }),
@@ -217,7 +225,7 @@ fn paragraph_card(
     entry: f32,
     window: &mut Window,
     cx: &mut Context<TranscriptionPage>,
-) -> Div {
+) -> Stateful<Div> {
     let p = &c.p;
     // The paragraph still being heard lives in the lanes; only closed paragraphs are rows. The store can be ahead of
     // the status: a paragraph closed after it is still in the lanes, so it waits.
@@ -245,13 +253,23 @@ fn paragraph_card(
     let max = f32::from(page.scroll.max_offset().y);
     let top = (scrolled / FADE).clamp(0., 1.);
     let bottom = ((max - scrolled) / FADE).clamp(0., 1.);
-    ui::card(p)
-        .flex_1()
-        .min_h(px(0.))
+    let card = ui::card(p)
+        .size_full()
         .overflow_hidden()
         .child(div().relative().size_full().opacity(visible).child(inner))
         .when(top > 0.001, |card| card.child(edge_fade(Edge::Top, p.card, FADE, 0.).opacity(top)))
-        .when(bottom > 0.001, |card| card.child(edge_fade(Edge::Bottom, p.card, FADE, 0.).opacity(bottom)))
+        .when(bottom > 0.001, |card| card.child(edge_fade(Edge::Bottom, p.card, FADE, 0.).opacity(bottom)));
+    // The thumb hangs outside the clipped card, 6 pt to its right.
+    let area = ElementId::from("transcript-detail-area");
+    let extent = ui::ScrollExtent { viewport: f32::from(page.scroll.bounds().size.height), max, scrolled };
+    div()
+        .id(area.clone())
+        .relative()
+        .flex_1()
+        .min_h(px(0.))
+        .on_hover(ui::hover_tracker(area.clone()))
+        .child(card)
+        .child(ui::overlay_thumb("transcript-detail-thumb", p, ui::is_hovered(&area), extent, 0.))
 }
 
 /// Show the speaker when the session recorded both sides.
@@ -325,7 +343,7 @@ fn paragraph_row(
         .py(px(ROW_PAD_Y))
         .flex()
         .items_start()
-        .gap(px(4.))
+        .gap(px(ROW_GAP))
         .on_hover(ui::hover_tracker(key.clone()));
     let scroll = scroll.clone();
     let color = p.sub;
@@ -334,7 +352,8 @@ fn paragraph_row(
             row_fill(scroll.clone(), color.opacity(opacity))
         }))
         .child(meta)
-        .child(div().flex_1().min_w(px(0.)).child(body))
+        // The editing ring ends 12 pt before the copy button rather than touching the column.
+        .child(div().flex_1().min_w(px(0.)).mr(px(RING_TO_ACTION - ROW_GAP)).child(body))
         .child(action);
     if !last {
         row = row.border_b_1().border_color(p.border);
@@ -392,6 +411,8 @@ fn paragraph_editor(p: &Palette, editor: &Entity<TextareaState>, window: &Window
                 Textarea::new(editor)
                     .appearance(false)
                     .bordered(false)
+                    .px(px(EDITOR_PAD_X - TEXTAREA_PAD_X))
+                    .py(px(EDITOR_PAD_Y - TEXTAREA_PAD_Y))
                     .h_full()
                     .text_size(px(BODY_SIZE))
                     .font_weight(FontWeight::NORMAL)
@@ -407,4 +428,17 @@ fn paragraph_editor(p: &Palette, editor: &Entity<TextareaState>, window: &Window
         ui::transparent(),
         p.accent,
     )
+}
+
+impl TranscriptionPage {
+    /// Focuses the first editable paragraph of the open transcript, for the screenshot harness.
+    #[cfg(feature = "screenshots")]
+    pub fn pose_focus_paragraph(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(editor) = self.open.as_ref().and_then(|open| open.paragraphs.iter().find_map(|v| v.editor.clone()))
+        else {
+            return;
+        };
+        editor.read(cx).focus_handle(cx).focus(window, cx);
+        cx.notify();
+    }
 }

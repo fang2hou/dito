@@ -7,6 +7,7 @@ mod lanes;
 mod list;
 mod morph;
 mod readiness;
+mod settings;
 
 use std::cell::Cell;
 use std::rc::Rc;
@@ -35,6 +36,9 @@ const DETAIL_PAD_TOP: f32 = 50.;
 // Leave room for the recording dock's panel shadow.
 const PAGE_PAD_BOTTOM: f32 = 40.;
 const PAGE_GAP: f32 = 18.;
+/// The fade behind the floating panel rises this far above it and turns solid this far down its length.
+const LIST_FADE: f32 = 56.;
+const LIST_FADE_SOLID: f32 = 0.55;
 /// The sweep over unsettled words is redrawn this often instead of every display frame: it is a slow color change,
 /// and each redraw renders the whole page.
 const SWEEP_FRAME: Duration = Duration::from_millis(33);
@@ -98,7 +102,10 @@ pub struct TranscriptionPage {
     sweep: Option<Task<()>>,
     /// The open transcript's own scroll.
     scroll: ScrollHandle,
-    list_scroll: ScrollHandle,
+    /// The meeting list's search, period and scroll.
+    browse: list::Browse,
+    /// The gear's settings dialog and its prompt editor.
+    module: settings::ModuleSettings,
     /// The bottom panel's size and where its move stands.
     dock: dock::DockAnim,
     /// The bottom panel's real width, measured once it has painted: the shell's sidebar collapses and expands at
@@ -179,13 +186,16 @@ impl TranscriptionPage {
         let escape = cx.intercept_keystrokes(move |event, window, cx| {
             if window.window_handle() == owner && event.keystroke.key == "escape" {
                 let _ = weak.update(cx, |page, cx| {
-                    if page.dock.disarm(ui::Motion::system(), Instant::now()) {
+                    let closed = std::mem::take(&mut page.module.open);
+                    if page.dock.disarm(ui::Motion::system(), Instant::now()) || closed {
                         cx.notify();
                     }
                 });
             }
         });
         let status = st.transcription.status();
+        let lang = st.cfg.get().general.lang();
+        let instruction = st.cfg.get().transcription.title_instruction().to_owned();
         let mut page = Self {
             st,
             motion: ui::MotionScope::new(),
@@ -200,7 +210,8 @@ impl TranscriptionPage {
             born: Instant::now(),
             sweep: None,
             scroll: ScrollHandle::new(),
-            list_scroll: ScrollHandle::new(),
+            browse: list::Browse::new(lang, window, cx),
+            module: settings::ModuleSettings::new(&instruction, window, cx),
             dock: dock::DockAnim::new(),
             dock_width: Rc::new(Cell::new(None)),
             dock_lanes: None,
@@ -229,6 +240,11 @@ impl TranscriptionPage {
     /// True while a session records: the window's sidebar shows a red dot for it.
     pub fn is_recording(&self) -> bool {
         matches!(self.status.state, SessionState::Recording { .. })
+    }
+
+    /// True while the running session is paused: its dots turn muted and its labels read paused.
+    pub fn is_paused(&self) -> bool {
+        matches!(self.status.state, SessionState::Recording { segment_start: None, .. })
     }
 
     pub fn reset_motion(&mut self) {
@@ -429,6 +445,14 @@ impl TranscriptionPage {
                 }
                 None => paragraphs.push(self.paragraph_view(data, window, cx)),
             }
+        }
+        // A generated title lands in an empty, unfocused field; a field the user is in keeps what they typed.
+        let stored = t.summary.title.clone();
+        let field = &old.title;
+        let idle = field.read(cx).value().trim().is_empty() && !field.read(cx).focus_handle(cx).is_focused(window);
+        if idle && !stored.trim().is_empty() {
+            field.update(cx, |state, cx| state.set_value(stored.clone(), window, cx));
+            old.summary.title = stored;
         }
         old.summary = TranscriptSummary { title: old.summary.title, ..t.summary };
         old.paragraphs = paragraphs;
@@ -642,7 +666,7 @@ fn open_row(cx: &mut Context<TranscriptionPage>, id: i64) -> impl Fn(&ClickEvent
 
 impl Render for TranscriptionPage {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        ui::with_motion_scope(self.motion.handle(), || self.view(window, cx))
+        ui::render_with_scope(self.motion.handle(), || self.view(window, cx))
     }
 }
 
@@ -658,7 +682,7 @@ impl TranscriptionPage {
                 self.scroll.scroll_to_bottom();
             }
         }
-        let mut page = div()
+        let page = div()
             .size_full()
             .flex()
             .flex_col()
@@ -670,26 +694,37 @@ impl TranscriptionPage {
             return page.child(div().flex_1().min_h(px(0.)).child(readiness::view(self, &c, cx)));
         }
         let banner = self.banner(&c, cx);
-        let (dock, pose) = dock::view(self, &c, window, cx);
+        let (dock, pose, dock_h) = dock::view(self, &c, window, cx);
         if self.view == View::Detail && self.open.is_some() {
-            page = page
+            return page
                 .pt(px(DETAIL_PAD_TOP))
                 .children(banner)
-                .child(div().flex_1().min_h(px(0.)).child(detail::view(self, &c, pose, window, cx)));
-        } else {
-            page = page
-                .child(
-                    div()
-                        .w_full()
-                        .flex()
-                        .items_center()
-                        .justify_between()
-                        .child(ui::page_title(&c.p, c.t(Tr::NavTranscription))),
-                )
-                .children(banner)
-                .child(div().flex_1().min_h(px(0.)).child(list::view(self, &c, cx)));
+                .child(div().flex_1().min_h(px(0.)).child(detail::view(self, &c, pose, window, cx)))
+                .child(dock);
         }
-        page.child(dock)
+        // The list runs to the window's bottom and scrolls under the floating panel, behind a fade into the canvas.
+        let room = dock_h + PAGE_PAD_BOTTOM;
+        let p = c.p;
+        let head = div()
+            .w_full()
+            .flex()
+            .items_center()
+            .justify_between()
+            .child(ui::page_title(&p, c.t(Tr::NavTranscription)))
+            .child(settings::gear(self, &c, cx));
+        let dialog = settings::dialog(self, &c, window, cx);
+        page.relative()
+            .pb(px(0.))
+            .child(head)
+            .children(banner)
+            .child(div().flex_1().min_h(px(0.)).child(list::view(self, &c, room, window, cx)))
+            .child(div().absolute().left_0().right_0().bottom_0().h(px(room + LIST_FADE)).bg(linear_gradient(
+                180.,
+                linear_color_stop(p.bg.opacity(0.), 0.),
+                linear_color_stop(p.bg, LIST_FADE_SOLID),
+            )))
+            .child(div().absolute().left(px(PAGE_PAD_X)).right(px(PAGE_PAD_X)).bottom(px(PAGE_PAD_BOTTOM)).child(dock))
+            .children(dialog)
     }
 
     /// A runtime failure is one dismissible banner; closing it holds until the next distinct error.

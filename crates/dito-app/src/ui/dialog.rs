@@ -117,3 +117,47 @@ fn answer(p: &Palette, id: ElementId, kind: BtnKind, answer: DialogAnswer) -> St
         }),
     )
 }
+
+/// The tool settings dialog of `design:components` (11.03.14): a centered 480 pt dialog with the tool's title, a ghost
+/// close button and the tool's own settings. Every change saves as it is made, so closing is the only answer; the
+/// close button and Escape both call `on_close`.
+pub fn tool_settings_dialog(
+    window: &Window,
+    p: &Palette,
+    id: &'static str,
+    focus: &FocusHandle,
+    title: impl Into<SharedString>,
+    content: AnyElement,
+    on_close: Cb,
+) -> AnyElement {
+    let escape = on_close.clone();
+    let header = div()
+        .w_full()
+        .flex()
+        .items_center()
+        .gap(px(12.))
+        .child(div().flex_1().min_w(px(0.)).child(text(title, 20., FontWeight::BOLD, p.text)))
+        .child(super::button::close_button(ElementId::from((ElementId::from(id), "close")), p, on_close));
+    let body = div()
+        .w(px(480.))
+        .max_w(window.viewport_size().width - px(48.))
+        .p(px(28.))
+        .rounded(px(20.))
+        .border_1()
+        .border_color(p.border_strong)
+        .bg(p.card)
+        .flex()
+        .flex_col()
+        .gap(px(16.))
+        .child(header)
+        .child(content);
+    modal_layer(id, focus)
+        .on_key_down(move |event: &KeyDownEvent, window, cx| {
+            if event.keystroke.key == "escape" {
+                escape(window, cx);
+                cx.stop_propagation();
+            }
+        })
+        .child(body)
+        .into_any_element()
+}

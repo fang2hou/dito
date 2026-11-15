@@ -11,7 +11,7 @@ use super::{Onboarding, Step};
 impl Render for Onboarding {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let scope = self.motion.handle();
-        ui::with_motion_scope(scope, || ui::tooltip_root(self.render_scoped(window, cx).children(self.editor.clone())))
+        ui::render_with_scope(scope, || ui::tooltip_root(self.render_scoped(window, cx).children(self.editor.clone())))
     }
 }
 
@@ -48,7 +48,7 @@ impl Onboarding {
         // The leaving page is built under its own motion scope, so controls that both pages share (the footer's
         // buttons) never trade hover state.
         let leaving_scope = self.leaving_motion.handle();
-        let leaving = ui::with_motion_scope(leaving_scope, || self.page(from, &c, cx, None));
+        let leaving = ui::render_with_scope(leaving_scope, || self.page(from, &c, cx, None));
         let arriving = self.page(self.step, &c, cx, Some(v.art_dx));
         root.child(div().id("page-leaving").absolute().size_full().left(px(v.out_dx)).opacity(v.out_a).child(leaving))
             .child(div().id("page-arriving").absolute().size_full().left(px(v.in_dx)).opacity(v.in_a).child(arriving))

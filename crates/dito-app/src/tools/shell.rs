@@ -58,6 +58,8 @@ pub struct Tools {
     transcription: Entity<TranscriptionPage>,
     /// The session state the sidebar dot shows; cached so the row renders without reading the page.
     recording: bool,
+    /// A paused session keeps its dot, in muted instead of danger.
+    paused: bool,
 }
 
 #[cfg(feature = "screenshots")]
@@ -68,18 +70,18 @@ impl Tools {
         services::watch_config(&st, cx);
         let transcription = cx.new(|cx| TranscriptionPage::new(st.clone(), window, cx));
         transcription.update(cx, |page, cx| page.set_active(true, cx));
-        let recording = transcription.read(cx).is_recording();
-        // The page redraws itself; the shell only needs to re-render when the recording dot appears
-        // or goes away.
+        let (recording, paused) = (transcription.read(cx).is_recording(), transcription.read(cx).is_paused());
+        // The page redraws itself; the shell only needs to re-render when the recording dot appears, goes away or
+        // turns muted for a pause.
         cx.observe(&transcription, |this, page, cx| {
-            let recording = page.read(cx).is_recording();
-            if recording != this.recording {
-                this.recording = recording;
+            let (recording, paused) = (page.read(cx).is_recording(), page.read(cx).is_paused());
+            if (recording, paused) != (this.recording, this.paused) {
+                (this.recording, this.paused) = (recording, paused);
                 cx.notify();
             }
         })
         .detach();
-        Self { chrome: Chrome::new(st), transcription, recording }
+        Self { chrome: Chrome::new(st), transcription, recording, paused }
     }
 
     #[cfg(feature = "screenshots")]
@@ -123,14 +125,14 @@ impl NavHost for Tools {
 
     fn nav_badge(&self, _page: ToolsPage, p: &Palette) -> Option<Hsla> {
         // A live session reads from the sidebar even with the page scrolled away.
-        self.recording.then_some(p.danger)
+        self.recording.then_some(if self.paused { p.muted } else { p.danger })
     }
 }
 
 impl Render for Tools {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let shell = self.chrome.motion();
-        ui::with_motion_scope(shell, || ui::tooltip_root(self.render_shell(window, cx)))
+        ui::render_with_scope(shell, || ui::tooltip_root(self.render_shell(window, cx)))
     }
 }
 

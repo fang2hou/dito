@@ -58,7 +58,9 @@ pub(super) fn lane(page: &TranscriptionPage, c: &Ctx, speaker: Speaker, geometry
         .bg(p.card)
         .border_1()
         .border_color(p.border)
-        .when(height >= 26., |d| d.child(lane_head(p, c, speaker, live, started_ts, show_status)));
+        .when(height >= 26., |d| {
+            d.child(lane_head(p, c, speaker, live, started_ts, show_status, listening_status(page)))
+        });
     if body_opacity <= 0. {
         return card;
     }
@@ -106,6 +108,7 @@ fn lane_head(
     live: Option<&LiveText>,
     started_ts: Option<i64>,
     full: bool,
+    status: (dito_core::i18n::Tr, f32),
 ) -> Div {
     let (dot, ink) = if speaker == Speaker::Me { (p.primary, p.accent_text) } else { (p.muted, p.text) };
     let off = dito_platform::local_utc_offset_secs();
@@ -135,11 +138,40 @@ fn lane_head(
         )
         .when(full, |head| {
             head.child(
-                text(c.t(dito_core::i18n::Tr::TranscriptionListening), 11., FontWeight::MEDIUM, p.muted)
+                text(c.t(status.0), 11., FontWeight::MEDIUM, p.muted)
                     .line_height(px(18.))
-                    .whitespace_nowrap(),
+                    .whitespace_nowrap()
+                    .opacity(status.1),
             )
         })
+}
+
+/// The lane's status: `TranscriptionListening` breathing between 100 and 80 percent while recording, `TranscriptionPaused` held steady while
+/// paused (`design:tools/recording`). Reduce Motion holds the label steady too.
+fn listening_status(page: &TranscriptionPage) -> (dito_core::i18n::Tr, f32) {
+    if page.is_paused() {
+        return (dito_core::i18n::Tr::TranscriptionPaused, 1.);
+    }
+    let opacity = if ui::Motion::system().is_reduced() { 1. } else { pulse(page.born.elapsed().as_secs_f32()) };
+    (dito_core::i18n::Tr::TranscriptionListening, opacity)
+}
+
+/// Each leg eases over 650 ms and each end holds for 150 ms.
+fn pulse(t: f32) -> f32 {
+    const LEG: f32 = 650.;
+    const HOLD: f32 = 150.;
+    const DIP: f32 = 0.2;
+    let ms = (t * 1000.) % (2. * (LEG + HOLD));
+    let ease = |x: f32| x * x * (3. - 2. * x);
+    if ms < LEG {
+        1. - DIP * ease(ms / LEG)
+    } else if ms < LEG + HOLD {
+        1. - DIP
+    } else if ms < 2. * LEG + HOLD {
+        1. - DIP + DIP * ease((ms - LEG - HOLD) / LEG)
+    } else {
+        1.
+    }
 }
 
 fn overflow(settled: &str, unsettled: &str, width: f32) -> bool {
