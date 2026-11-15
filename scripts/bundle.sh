@@ -1,23 +1,14 @@
 #!/usr/bin/env bash
-# Build target/bundle/Dito.app (release build, Liquid Glass icon, Info.plist).
+# Build target/bundle/Dito.app and its application resources.
 # Ad-hoc signed unless CODESIGN_IDENTITY is set.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-if [[ -z ${DEVELOPER_DIR:-} ]]; then
-  selected_xcode="$(xcode-select -p 2>/dev/null || true)"
-  if [[ -x "$selected_xcode/usr/bin/xcodebuild" ]]; then
-    DEVELOPER_DIR="$selected_xcode"
-  else
-    DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
-  fi
-fi
-export DEVELOPER_DIR
-
-cargo build --release -p dito-app
+profile="${DITO_BUILD_PROFILE:-release}"
+cargo build --locked --profile "$profile" --target-dir target -p dito-app
 app=target/bundle/Dito.app
 rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
-cp target/release/dito "$app/Contents/MacOS/dito"
+cp "target/$profile/dito" "$app/Contents/MacOS/dito"
 
 scripts/icon.sh compile "$app/Contents/Resources"
 
