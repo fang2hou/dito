@@ -1,4 +1,5 @@
 use dito_core::local_api::{InstalledModel, InstalledModels, ModelRole};
+use dito_core::provider::ThinkingCapabilities;
 use dito_local::{ModelKind, ModelManager};
 
 /// The installed local models, as the Local API lists them.
@@ -19,5 +20,9 @@ impl InstalledModels for InstalledCatalog {
                 Some(InstalledModel { id: spec.id.clone(), name: spec.name.clone(), role })
             })
             .collect()
+    }
+
+    fn thinking(&self, model_id: &str) -> Option<ThinkingCapabilities> {
+        self.0.spec(model_id)?.text_capabilities?.thinking
     }
 }

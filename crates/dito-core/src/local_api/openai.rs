@@ -22,6 +22,13 @@ impl ApiError {
         Self { status: StatusCode::BAD_REQUEST, kind: "invalid_request_error", code, message: message.into() }
     }
 
+    pub(super) fn unsupported_effort(supported: &[&str]) -> Self {
+        Self::invalid(
+            "unsupported_reasoning_effort",
+            format!("The model in use takes these values for reasoning_effort: {}.", supported.join(", ")),
+        )
+    }
+
     pub(super) fn unauthorized() -> Self {
         Self {
             status: StatusCode::UNAUTHORIZED,
@@ -103,6 +110,7 @@ pub(super) struct ChatCompletionRequest {
     max_tokens: Option<u32>,
     max_completion_tokens: Option<u32>,
     n: Option<u32>,
+    pub(super) reasoning_effort: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

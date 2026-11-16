@@ -2,7 +2,9 @@
 
 use serde::Serialize;
 
+use crate::chat::{CLOUD_THINKING, THINKING_OFF, THINKING_ON, thinking_choices};
 use crate::config::{Config, Source};
+use crate::provider::{Thinking, ThinkingCapabilities};
 
 pub const TEXT_MODEL_ID: &str = "dito-text";
 pub const SPEECH_MODEL_ID: &str = "dito-speech";
@@ -25,6 +27,61 @@ pub struct InstalledModel {
 
 pub trait InstalledModels: Send + Sync {
     fn installed(&self) -> Vec<InstalledModel>;
+
+    /// What the catalog declares about a local text model's thinking.
+    fn thinking(&self, _model_id: &str) -> Option<ThinkingCapabilities> {
+        None
+    }
+}
+
+/// The value a request sends to switch thinking off, as the OpenAI API names it.
+const EFFORT_NONE: &str = "none";
+
+fn text_thinking(cfg: &Config, installed: &dyn InstalledModels) -> Option<ThinkingCapabilities> {
+    match cfg.text_model.source {
+        Source::Local => installed.thinking(&cfg.text_model.local_model),
+        Source::Provider => Some(CLOUD_THINKING),
+    }
+}
+
+/// The `reasoning_effort` values the text model in use understands: `none` when it can stop thinking, then its
+/// levels, or `on` for a model that only switches.
+pub fn reasoning_efforts(cfg: &Config, installed: &dyn InstalledModels) -> Vec<&'static str> {
+    text_thinking(cfg, installed)
+        .map(|capabilities| {
+            thinking_choices(&capabilities)
+                .into_iter()
+                .map(|choice| if choice == THINKING_OFF { EFFORT_NONE } else { choice })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// A request's `reasoning_effort` as the thinking choice of the text model in use. A cloud configuration gets the
+/// value as it is, since its provider knows which efforts it takes. A local model that has no thinking control ignores
+/// it, as clients send it by habit; one that only switches thinks for any effort but `none`; one with levels refuses a
+/// level it does not have, with the list of those it does.
+pub fn thinking_for(
+    effort: Option<&str>,
+    cfg: &Config,
+    installed: &dyn InstalledModels,
+) -> Result<Option<Thinking>, Vec<&'static str>> {
+    let Some(effort) = effort.map(str::trim).filter(|effort| !effort.is_empty()) else { return Ok(None) };
+    if cfg.text_model.source == Source::Provider {
+        return Ok(Some(Thinking::Level(effort.to_owned())));
+    }
+    let Some(capabilities) = text_thinking(cfg, installed) else { return Ok(None) };
+    if matches!(effort, EFFORT_NONE | THINKING_OFF | "minimal") {
+        return Ok(capabilities.can_disable.then_some(Thinking::Off));
+    }
+    if capabilities.levels.is_empty() {
+        return Ok(Some(Thinking::On));
+    }
+    match capabilities.levels.iter().find(|level| level.key == effort) {
+        Some(level) => Ok(Some(Thinking::Level(level.key.to_owned()))),
+        None if effort == THINKING_ON => Ok(Some(Thinking::On)),
+        None => Err(reasoning_efforts(cfg, installed)),
+    }
 }
 
 /// One entry of `GET /v1/models` and of the MCP model list.
@@ -65,9 +122,13 @@ pub fn model_listing(cfg: &Config, installed: &dyn InstalledModels) -> serde_jso
         .map(|m| serde_json::json!({ "id": m.id, "name": m.name, "role": m.role, "in_use": false }))
         .collect();
     let in_use = served.iter().map(|m| {
-        serde_json::json!({
+        let mut entry = serde_json::json!({
             "id": m.id, "role": m.role, "capabilities": m.capabilities, "formats": m.formats, "in_use": true
-        })
+        });
+        if m.role == ModelRole::Text {
+            entry["reasoning_efforts"] = reasoning_efforts(cfg, installed).into();
+        }
+        entry
     });
     serde_json::json!({ "models": in_use.chain(others).collect::<Vec<_>>() })
 }
@@ -95,6 +156,42 @@ mod tests {
         cfg.asr.source = Source::Provider;
         let [text, speech] = served_models(&cfg);
         assert_eq!((text.id.as_str(), speech.id.as_str()), (TEXT_MODEL_ID, SPEECH_MODEL_ID));
+    }
+
+    struct Thinks(ThinkingCapabilities);
+    impl InstalledModels for Thinks {
+        fn installed(&self) -> Vec<InstalledModel> {
+            Vec::new()
+        }
+        fn thinking(&self, _: &str) -> Option<ThinkingCapabilities> {
+            Some(self.0)
+        }
+    }
+
+    #[test]
+    fn a_reasoning_effort_becomes_what_the_model_in_use_can_do() {
+        use crate::provider::ThinkingLevel;
+        let mut cfg = Config::default();
+        let none = Installed(Vec::new());
+        assert_eq!(thinking_for(Some("high"), &cfg, &none), Ok(None), "a model without the control ignores it");
+        assert_eq!(thinking_for(None, &cfg, &none), Ok(None));
+
+        let switch = Thinks(ThinkingCapabilities { can_disable: true, levels: &[], default_level: None });
+        assert_eq!(thinking_for(Some("none"), &cfg, &switch), Ok(Some(Thinking::Off)));
+        assert_eq!(thinking_for(Some("high"), &cfg, &switch), Ok(Some(Thinking::On)));
+        assert_eq!(reasoning_efforts(&cfg, &switch), ["none", "on"]);
+
+        let levels = Thinks(ThinkingCapabilities {
+            can_disable: true,
+            levels: &[ThinkingLevel::LOW, ThinkingLevel::XHIGH],
+            default_level: Some("xhigh"),
+        });
+        assert_eq!(thinking_for(Some("low"), &cfg, &levels), Ok(Some(Thinking::Level("low".into()))));
+        assert_eq!(thinking_for(Some("high"), &cfg, &levels), Err(vec!["none", "low", "xhigh"]));
+
+        cfg.text_model.source = Source::Provider;
+        assert_eq!(thinking_for(Some("minimal"), &cfg, &none), Ok(Some(Thinking::Level("minimal".into()))));
+        assert_eq!(reasoning_efforts(&cfg, &none), ["low", "medium", "high"]);
     }
 
     #[test]

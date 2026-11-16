@@ -15,7 +15,7 @@ use rmcp::transport::streamable_http_server::{StreamableHttpServerConfig, Stream
 use serde_json::{Map, Value, json};
 use tokio_util::sync::CancellationToken;
 
-use super::models::model_listing;
+use super::models::{model_listing, thinking_for};
 use super::server::{Shared, generate};
 use crate::provider::{ChatCancel, ChatMessage, ChatRequest, ChatRole};
 
@@ -50,7 +50,11 @@ pub fn tool_schemas() -> [(&'static str, Value); 2] {
                     "prompt": { "type": "string", "description": "The message to answer." },
                     "system": { "type": "string", "description": "Instructions that shape the answer." },
                     "temperature": { "type": "number" },
-                    "max_tokens": { "type": "integer", "minimum": 1 }
+                    "max_tokens": { "type": "integer", "minimum": 1 },
+                    "reasoning_effort": {
+                        "type": "string",
+                        "description": "How hard the model thinks first."
+                    }
                 },
                 "required": ["prompt"]
             }),
@@ -117,12 +121,21 @@ impl ServerHandler for DitoMcp {
                     messages.push(ChatMessage::new(ChatRole::System, system));
                 }
                 messages.push(ChatMessage::new(ChatRole::User, prompt));
+                let effort = arguments.get("reasoning_effort").and_then(Value::as_str);
+                let thinking = thinking_for(effort, &self.shared.cfg.get(), self.shared.installed.as_ref()).map_err(
+                    |supported| {
+                        ErrorData::invalid_params(
+                            format!("reasoning_effort must be one of: {}", supported.join(", ")),
+                            None,
+                        )
+                    },
+                )?;
                 let request = ChatRequest {
                     messages,
                     temperature: arguments.get("temperature").and_then(Value::as_f64).map(|t| t as f32),
                     top_p: None,
                     max_tokens: arguments.get("max_tokens").and_then(Value::as_u64).and_then(|n| u32::try_from(n).ok()),
-                    thinking: None,
+                    thinking,
                 };
                 match generate(&self.shared, &request, &ChatCancel::default()).await {
                     Ok(reply) => Ok(text_result(reply, false)),

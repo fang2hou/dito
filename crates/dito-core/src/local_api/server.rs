@@ -17,7 +17,7 @@ use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
 use super::auth::{bearer, has_browser_origin, host_allowed, token_matches};
-use super::models::{InstalledModels, served_models};
+use super::models::{InstalledModels, served_models, thinking_for};
 use super::openai::{self, ApiError, ChatCompletionRequest, Chunk};
 use super::token::Token;
 use super::wav::{self, WavError};
@@ -131,8 +131,11 @@ async fn chat_completions(State(state): State<ServerState>, body: Bytes) -> Resu
     let request: ChatCompletionRequest = serde_json::from_slice(&body)
         .map_err(|e| ApiError::invalid("invalid_json", format!("The body is not a chat completion request: {e}")))?;
     let stream = request.stream;
-    let chat = request.into_chat()?;
     let shared = state.shared;
+    let thinking = thinking_for(request.reasoning_effort.as_deref(), &shared.cfg.get(), shared.installed.as_ref())
+        .map_err(|supported| ApiError::unsupported_effort(&supported))?;
+    let mut chat = request.into_chat()?;
+    chat.thinking = thinking;
     let model_id = served_models(&shared.cfg.get())[0].id.clone();
     let (id, created) = (openai::completion_id(), openai::unix_seconds());
 

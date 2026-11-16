@@ -332,7 +332,7 @@ mod tests {
     fn a_tool_schema_keeps_one_property_to_a_line_and_stays_valid_json() {
         let generate = reference(Item::GenerateText, &facts(false), &en);
         let schema = &generate.blocks[0].body;
-        assert!(schema.lines().count() <= 10, "{schema}");
+        assert!(schema.lines().count() <= 11, "{schema}");
         let parsed: serde_json::Value = serde_json::from_str(schema).unwrap();
         assert_eq!(parsed["required"][0], "prompt");
         assert_eq!(parsed["properties"]["max_tokens"]["minimum"], 1);
