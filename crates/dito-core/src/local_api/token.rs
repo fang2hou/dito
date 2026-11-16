@@ -1,7 +1,7 @@
 //! The access token the API and MCP share. It is a credential, so it lives in the Keychain (ADR-0008) and is read once.
 
 use std::io::Read;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex};
 
 use crate::secrets::{SecretError, SecretStore};
 
@@ -10,24 +10,30 @@ const PREFIX: &str = "dito_";
 
 pub(super) struct Token {
     secrets: Arc<dyn SecretStore>,
-    current: RwLock<String>,
+    current: Mutex<Option<String>>,
 }
 
 impl Token {
-    /// Reads the saved token, or makes and saves the first one.
-    pub(super) fn load(secrets: Arc<dyn SecretStore>) -> Self {
-        let current = secrets.get(ACCOUNT).filter(|token| !token.is_empty()).unwrap_or_else(|| {
-            let token = generate();
-            if let Err(e) = secrets.set(ACCOUNT, &token) {
-                tracing::warn!("could not save the Local API token: {e}");
-            }
-            token
-        });
-        Self { secrets, current: RwLock::new(current) }
+    /// Nothing is read or made until the token is first needed, so a Mac that never turns the service on never touches
+    /// the Keychain for it.
+    pub(super) fn new(secrets: Arc<dyn SecretStore>) -> Self {
+        Self { secrets, current: Mutex::new(None) }
     }
 
+    /// The saved token, or the first one, made and saved now.
     pub(super) fn get(&self) -> String {
-        self.current.read().expect("token lock poisoned").clone()
+        let mut current = self.current.lock().expect("token lock poisoned");
+        current
+            .get_or_insert_with(|| {
+                self.secrets.get(ACCOUNT).filter(|token| !token.is_empty()).unwrap_or_else(|| {
+                    let token = generate();
+                    if let Err(e) = self.secrets.set(ACCOUNT, &token) {
+                        tracing::warn!("could not save the Local API token: {e}");
+                    }
+                    token
+                })
+            })
+            .clone()
     }
 
     /// An empty token would let anything in, so it is not accepted.
@@ -37,7 +43,7 @@ impl Token {
             return Ok(());
         }
         self.secrets.set(ACCOUNT, token)?;
-        *self.current.write().expect("token lock poisoned") = token.to_owned();
+        *self.current.lock().expect("token lock poisoned") = Some(token.to_owned());
         Ok(())
     }
 
@@ -69,14 +75,23 @@ mod tests {
     #[test]
     fn the_first_token_is_saved_and_read_back_by_the_next_launch() {
         let secrets: Arc<dyn SecretStore> = Arc::new(MemorySecrets::default());
-        let first = Token::load(secrets.clone()).get();
+        let first = Token::new(secrets.clone()).get();
         assert!(first.starts_with(PREFIX) && first.len() == PREFIX.len() + 32, "{first}");
-        assert_eq!(Token::load(secrets).get(), first);
+        assert_eq!(Token::new(secrets).get(), first);
+    }
+
+    #[test]
+    fn nothing_is_read_or_saved_until_the_token_is_needed() {
+        let secrets = Arc::new(MemorySecrets::default());
+        let token = Token::new(secrets.clone());
+        assert_eq!(secrets.get(ACCOUNT), None);
+        let made = token.get();
+        assert_eq!(secrets.get(ACCOUNT), Some(made));
     }
 
     #[test]
     fn a_token_can_be_replaced_but_not_emptied_and_regenerating_changes_it() {
-        let token = Token::load(Arc::new(MemorySecrets::default()));
+        let token = Token::new(Arc::new(MemorySecrets::default()));
         token.set("  my-own-token ").unwrap();
         assert_eq!(token.get(), "my-own-token");
         token.set("   ").unwrap();

@@ -92,7 +92,7 @@ impl LocalApi {
             cfg: deps.cfg,
             backend: deps.backend,
             installed: deps.installed,
-            token: Token::load(deps.secrets),
+            token: Token::new(deps.secrets),
         });
         let (tx, status) = watch::channel(Status::Stopped);
         rt.spawn(supervise(shared.clone(), tx));

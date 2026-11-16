@@ -640,7 +640,7 @@ local_api.endpoint_chat = { ja = "テキスト生成、ストリーミング対�
 local_api.endpoint_transcriptions = { ja = "音声ファイルの書き起こし", en = "Transcribe an audio file", zh = "转写音频文件" }
 local_api.mcp_url = { ja = "接続 URL", en = "Connection URL", zh = "连接 URL" }
 local_api.mcp_auth = { ja = "認証", en = "Authentication", zh = "认证" }
-local_api.mcp_example = { ja = "クライアント設定の例 (Streamable HTTP)", en = "Client configuration example (Streamable HTTP)", zh = "客户端配置示例 (Streamable HTTP)" }
+local_api.mcp_example = { ja = "クライアント設定の例 (Streamable HTTP)", en = "Client configuration example (Streamable HTTP)", zh = "客户端配置示例（Streamable HTTP）" }
 local_api.mcp_items = { ja = "ツールとリソース", en = "Tools and resources", zh = "工具和资源" }
 local_api.kind_tool = { ja = "ツール", en = "Tool", zh = "工具" }
 local_api.kind_resource = { ja = "リソース", en = "Resource", zh = "资源" }
@@ -662,8 +662,8 @@ local_api.ref_token_placeholder = { ja = "<アクセストークン>", en = "<ac
 local_api.ref_model = { ja = "モデル", en = "Model", zh = "模型" }
 local_api.ref_request = { ja = "リクエスト", en = "Request", zh = "请求" }
 local_api.ref_response = { ja = "レスポンス", en = "Response", zh = "响应" }
-local_api.ref_response_json = { ja = "レスポンス (stream が false のとき)", en = "Response (when stream is false)", zh = "响应 (stream 为 false 时)" }
-local_api.ref_response_stream = { ja = "レスポンス (stream が true のとき)", en = "Response (when stream is true)", zh = "响应 (stream 为 true 时)" }
+local_api.ref_response_json = { ja = "レスポンス (stream が false のとき)", en = "Response (when stream is false)", zh = "响应（stream 为 false 时）" }
+local_api.ref_response_stream = { ja = "レスポンス (stream が true のとき)", en = "Response (when stream is true)", zh = "响应（stream 为 true 时）" }
 local_api.ref_input_schema = { ja = "入力スキーマ", en = "Input schema", zh = "输入架构" }
 local_api.ref_example = { ja = "呼び出し例", en = "Example", zh = "调用示例" }
 local_api.ref_no_auth = { ja = "不要", en = "Not needed", zh = "无需" }

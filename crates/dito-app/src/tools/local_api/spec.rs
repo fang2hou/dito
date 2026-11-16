@@ -185,7 +185,7 @@ pub(super) fn reference(item: Item, facts: &Facts, t: &dyn Fn(Tr) -> String) -> 
         Item::GenerateText | Item::ListModels => {
             let schemas = tool_schemas();
             let schema = schemas.iter().find(|(name, _)| *name == item.path()).map(|(_, schema)| schema);
-            let schema = serde_json::to_string_pretty(&schema).expect("a schema encodes as JSON");
+            let schema = schema.map_or_else(String::new, compact_schema);
             let arguments = match item {
                 Item::GenerateText => format!("{{ \"prompt\": {} }}", json(&t(Tr::LocalApiSamplePrompt))),
                 _ => "{}".into(),
@@ -207,6 +207,37 @@ pub(super) fn reference(item: Item, facts: &Facts, t: &dyn Fn(Tr) -> String) -> 
         ),
     };
     Reference { item, kind, description: t(item.description()), auth, model, blocks, curl }
+}
+
+/// A JSON value on one line, spaced the way the design writes its samples.
+fn inline(value: &serde_json::Value) -> String {
+    use serde_json::Value;
+    match value {
+        Value::Object(map) if map.is_empty() => "{}".into(),
+        Value::Object(map) => {
+            let entries: Vec<_> = map.iter().map(|(k, v)| format!("{}: {}", json(k), inline(v))).collect();
+            format!("{{ {} }}", entries.join(", "))
+        }
+        Value::Array(items) => format!("[{}]", items.iter().map(inline).collect::<Vec<_>>().join(", ")),
+        other => other.to_string(),
+    }
+}
+
+/// A tool's input schema with one property to a line, so a long schema stays short enough to read in the dialog.
+fn compact_schema(schema: &serde_json::Value) -> String {
+    let Some(map) = schema.as_object() else { return inline(schema) };
+    let mut lines = Vec::new();
+    for (key, value) in map {
+        match value.as_object().filter(|_| key == "properties") {
+            Some(properties) if !properties.is_empty() => {
+                let inner: Vec<_> =
+                    properties.iter().map(|(name, spec)| format!("    {}: {}", json(name), inline(spec))).collect();
+                lines.push(format!("  \"properties\": {{\n{}\n  }}", inner.join(",\n")));
+            }
+            _ => lines.push(format!("  {}: {}", json(key), inline(value))),
+        }
+    }
+    format!("{{\n{}\n}}", lines.join(",\n"))
 }
 
 pub(super) fn markdown(reference: &Reference, t: &dyn Fn(Tr) -> String) -> String {
@@ -295,6 +326,18 @@ mod tests {
         let request: serde_json::Value = serde_json::from_str(&chat.blocks[0].body).unwrap();
         assert_eq!(request["model"], "qwen-test");
         assert_eq!(request["stream"], true);
+    }
+
+    #[test]
+    fn a_tool_schema_keeps_one_property_to_a_line_and_stays_valid_json() {
+        let generate = reference(Item::GenerateText, &facts(false), &en);
+        let schema = &generate.blocks[0].body;
+        assert!(schema.lines().count() <= 10, "{schema}");
+        let parsed: serde_json::Value = serde_json::from_str(schema).unwrap();
+        assert_eq!(parsed["required"][0], "prompt");
+        assert_eq!(parsed["properties"]["max_tokens"]["minimum"], 1);
+        let list = reference(Item::ListModels, &facts(false), &en);
+        assert!(serde_json::from_str::<serde_json::Value>(&list.blocks[0].body).is_ok());
     }
 
     #[test]

@@ -16,12 +16,14 @@ use crate::ui::{self, CircleAppearance, CircleSize, MethodSize, ToolDialogHeader
 
 const CONTENT_GAP: f32 = 18.;
 const REFERENCE_GAP: f32 = 14.;
+/// What the reference dialog needs besides its content: window margins, padding, the header and the gap under it.
+const REFERENCE_CHROME: f32 = 168.;
 
 impl LocalApiPage {
     /// The open dialog over the whole window, sidebar included, or nothing.
     pub(super) fn dialog_layer(&self, c: &Ctx, window: &mut Window, cx: &mut Context<Self>) -> Option<AnyElement> {
         let dialog = self.dialog?;
-        let close = cbk(cx, |page: &mut Self, _, cx| page.close_dialog(cx));
+        let close = cbk(cx, |page: &mut Self, window, cx| page.close_dialog(window, cx));
         let element = match dialog {
             Dialog::Settings => ui::tool_settings_dialog(
                 window,
@@ -193,7 +195,14 @@ impl LocalApiPage {
             "local-api-reference-dialog",
             &self.focus,
             header,
-            reference_content(c, &p, &reference).into_any_element(),
+            // A long schema scrolls inside the dialog; the header and its close button stay in view.
+            div()
+                .id("local-api-reference-scroll")
+                .w_full()
+                .max_h(window.viewport_size().height - px(REFERENCE_CHROME))
+                .overflow_y_scroll()
+                .child(reference_content(c, &p, &reference))
+                .into_any_element(),
             close,
         )
     }
