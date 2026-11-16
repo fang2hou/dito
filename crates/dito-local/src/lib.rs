@@ -5,6 +5,7 @@ mod disk;
 pub mod download;
 pub mod intent;
 pub mod local_engines;
+pub mod managed_process;
 pub mod manager;
 mod manager_error;
 mod process;
@@ -15,6 +16,6 @@ pub use catalog::{ModelKind, ModelSpec, Runtime, SILERO_VAD, Sampling, default_c
 pub use local_engines::{EngineUsage, LocalEngines};
 pub use manager::{ModelManager, ModelState, Snapshot, Storage};
 pub use manager_error::ManagerError;
-pub use process::{ProcessUsage, process_usage};
+pub use process::{ProcessUsage, process_usage, process_usage_for};
 pub use runtime::{AsrOutput, AsrRuntime, Example, LlmRuntime, NoRuntime, RuntimeLoader};
 pub use runtime_error::RuntimeError;

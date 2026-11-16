@@ -297,6 +297,122 @@ async fn stopping_during_load_does_not_publish_the_finished_runtime() {
 
 const WAIT: Duration = Duration::from_secs(5);
 
+struct CancellableLoader(std::sync::mpsc::Sender<()>);
+
+impl RuntimeLoader for CancellableLoader {
+    fn load_asr(&self, _: &ModelSpec, _: &Path) -> Result<Arc<dyn AsrRuntime>, RuntimeError> {
+        Err(RuntimeError::engine("cancellable loader required"))
+    }
+
+    fn load_llm(&self, _: &ModelSpec, _: &Path) -> Result<Arc<dyn LlmRuntime>, RuntimeError> {
+        Err(RuntimeError::engine("speech only"))
+    }
+
+    fn load_asr_cancellable(
+        &self,
+        _: &ModelSpec,
+        _: &Path,
+        stop: &AtomicBool,
+    ) -> Result<Arc<dyn AsrRuntime>, RuntimeError> {
+        self.0.send(()).unwrap();
+        let deadline = std::time::Instant::now() + WAIT;
+        while !stop.load(Ordering::Relaxed) {
+            assert!(std::time::Instant::now() < deadline, "startup never received cancellation");
+            std::thread::sleep(Duration::from_millis(1));
+        }
+        Err(RuntimeError::Cancelled)
+    }
+}
+
+#[tokio::test]
+async fn stop_interrupts_startup_instead_of_waiting_for_a_model_to_finish_loading() {
+    let (manager, _dir) = installed_manager();
+    let (entered, received) = std::sync::mpsc::channel();
+    let engine = LocalEngines::new(manager, Arc::new(CancellableLoader(entered)));
+    let loading = engine.clone();
+    let task = tokio::spawn(async move { loading.warm("asr").await });
+    tokio::task::yield_now().await;
+    received.recv_timeout(WAIT).unwrap();
+    engine.unload("asr");
+    tokio::time::timeout(WAIT, task).await.unwrap().unwrap();
+    assert_eq!(engine.status("asr"), EngineStatus::Stopped);
+}
+
+#[tokio::test]
+async fn abandoning_startup_does_not_leave_the_model_stuck_loading() {
+    let (manager, _dir) = installed_manager();
+    let (entered, received) = std::sync::mpsc::channel();
+    let engine = LocalEngines::new(manager, Arc::new(CancellableLoader(entered)));
+    let loading = engine.clone();
+    let task = tokio::spawn(async move { loading.warm("asr").await });
+    tokio::task::yield_now().await;
+    received.recv_timeout(WAIT).unwrap();
+    task.abort();
+    assert!(task.await.unwrap_err().is_cancelled());
+    tokio::time::timeout(WAIT, async {
+        while engine.status("asr") != EngineStatus::Stopped {
+            tokio::time::sleep(Duration::from_millis(1)).await;
+        }
+    })
+    .await
+    .unwrap();
+}
+
+struct ManagedFake(AtomicBool);
+
+impl AsrRuntime for ManagedFake {
+    fn shutdown(&self) {
+        self.0.store(true, Ordering::Relaxed);
+    }
+
+    fn failure(&self) -> Option<String> {
+        self.0.load(Ordering::Relaxed).then(|| "worker exited".into())
+    }
+
+    fn transcribe(&self, _: &[f32], _: Option<&str>, _: &[String], _: &AtomicBool) -> Result<AsrOutput, RuntimeError> {
+        match self.failure() {
+            Some(error) => Err(RuntimeError::engine(error)),
+            None => Ok(AsrOutput { text: "speech".into(), language: None }),
+        }
+    }
+}
+
+struct ManagedLoader(Arc<ManagedFake>);
+
+impl RuntimeLoader for ManagedLoader {
+    fn load_asr(&self, _: &ModelSpec, _: &Path) -> Result<Arc<dyn AsrRuntime>, RuntimeError> {
+        Ok(self.0.clone())
+    }
+
+    fn load_llm(&self, _: &ModelSpec, _: &Path) -> Result<Arc<dyn LlmRuntime>, RuntimeError> {
+        Err(RuntimeError::engine("speech only"))
+    }
+}
+
+#[tokio::test]
+async fn stop_releases_a_worker_while_a_transcriber_is_retained() {
+    let (manager, _dir) = installed_manager();
+    let runtime = Arc::new(ManagedFake(AtomicBool::new(false)));
+    let engine = LocalEngines::new(manager, Arc::new(ManagedLoader(runtime.clone())));
+    let retained = engine.transcriber("asr").await.unwrap();
+    engine.unload("asr");
+    assert!(runtime.0.load(Ordering::Relaxed));
+    let clip = AudioClip::silence(0.1);
+    assert!(retained.transcribe(&AsrRequest { clip: &clip, language: None, hotwords: &[] }).await.is_err());
+    assert_eq!(engine.status("asr"), EngineStatus::Stopped);
+}
+
+#[tokio::test]
+async fn a_worker_that_exits_is_failed_instead_of_still_running() {
+    let (manager, _dir) = installed_manager();
+    let runtime = Arc::new(ManagedFake(AtomicBool::new(false)));
+    let engine = LocalEngines::new(manager, Arc::new(ManagedLoader(runtime.clone())));
+    engine.warm("asr").await;
+    runtime.0.store(true, Ordering::Relaxed);
+    assert_eq!(engine.status("asr"), EngineStatus::Failed("worker exited".into()));
+    assert!(engine.transcriber("asr").await.is_err());
+}
+
 /// One runtime serving as both the speech and the language model, so a test decides how every inference call ends.
 struct Shared<R>(Arc<R>);
 impl<R: AsrRuntime + LlmRuntime + 'static> RuntimeLoader for Shared<R> {

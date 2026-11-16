@@ -11,6 +11,8 @@ use dito_local::{AsrRuntime, LlmRuntime, RuntimeError, RuntimeLoader};
 mod chunking;
 #[cfg(feature = "llama")]
 mod llama;
+#[cfg(feature = "nemo")]
+mod nemo;
 #[cfg(any(feature = "llama", test))]
 #[cfg_attr(not(feature = "llama"), allow(dead_code))]
 mod qwen_text;
@@ -31,9 +33,20 @@ pub use vad::SileroDetectors;
 pub struct Runtimes;
 
 impl RuntimeLoader for Runtimes {
-    #[cfg_attr(not(any(feature = "llama", feature = "sherpa", feature = "transcribe")), allow(unused_variables))]
+    #[cfg_attr(
+        not(any(feature = "llama", feature = "sherpa", feature = "transcribe", feature = "nemo")),
+        allow(unused_variables)
+    )]
     fn load_asr(&self, spec: &ModelSpec, dir: &Path) -> Result<Arc<dyn AsrRuntime>, RuntimeError> {
         match spec.format {
+            #[cfg(feature = "nemo")]
+            ModelFormat::NemoSpeech { model, encoder, archive } => Ok(Arc::new(nemo::Speech::load(
+                dir,
+                model,
+                encoder,
+                archive,
+                &std::sync::atomic::AtomicBool::new(false),
+            )?)),
             #[cfg(feature = "sherpa")]
             ModelFormat::SenseVoice { model, tokens } => {
                 Ok(Arc::new(sherpa::SenseVoice::load(&model_file(dir, model)?, &model_file(dir, tokens)?)?))
@@ -62,6 +75,20 @@ impl RuntimeLoader for Runtimes {
         }
     }
 
+    fn load_asr_cancellable(
+        &self,
+        spec: &ModelSpec,
+        dir: &Path,
+        stop: &std::sync::atomic::AtomicBool,
+    ) -> Result<Arc<dyn AsrRuntime>, RuntimeError> {
+        #[cfg(feature = "nemo")]
+        if let ModelFormat::NemoSpeech { model, encoder, archive } = spec.format {
+            return Ok(Arc::new(nemo::Speech::load(dir, model, encoder, archive, stop)?));
+        }
+        let _ = stop;
+        self.load_asr(spec, dir)
+    }
+
     #[cfg_attr(not(feature = "llama"), allow(unused_variables))]
     fn load_llm(&self, spec: &ModelSpec, dir: &Path) -> Result<Arc<dyn LlmRuntime>, RuntimeError> {
         match spec.format {
@@ -81,7 +108,7 @@ fn unavailable(runtime: Runtime, name: &str) -> RuntimeError {
 }
 
 /// Never an arbitrary matching file in the directory: the catalog names the exact file.
-#[cfg(any(feature = "llama", feature = "sherpa", test))]
+#[cfg(any(feature = "llama", feature = "sherpa", feature = "nemo", feature = "transcribe", test))]
 fn model_file(dir: &Path, name: &str) -> Result<std::path::PathBuf, RuntimeError> {
     let path = dir.join(name);
     if path.is_file() { Ok(path) } else { Err(RuntimeError::MissingFile(path)) }

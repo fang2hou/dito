@@ -118,6 +118,11 @@ pub enum ModelFormat {
         model: &'static str,
         hotwords: bool,
     },
+    NemoSpeech {
+        model: &'static str,
+        encoder: &'static str,
+        archive: &'static str,
+    },
     /// The prompt comes from the chat template embedded in the file, so a file without one fails to load.
     /// `disable_thinking` is the Qwen hybrid-thinking prefill (an empty think block after the generation prompt);
     /// `false` for other families. `sampling` fills every parameter the user leaves empty.
@@ -138,6 +143,7 @@ impl ModelFormat {
             Self::SenseVoice { .. } | Self::NemoTdt { .. } | Self::SileroVad { .. } => Runtime::SherpaOnnx,
             Self::QwenAsr { .. } | Self::Chat { .. } => Runtime::LlamaCpp,
             Self::TranscribeCpp { .. } => Runtime::TranscribeCpp,
+            Self::NemoSpeech { .. } => Runtime::NemoSpeech,
         }
     }
 
@@ -159,6 +165,7 @@ impl ModelFormat {
             Self::SenseVoice { model, tokens } => vec![model, tokens],
             Self::NemoTdt { encoder, decoder, joiner, tokens, .. } => vec![encoder, decoder, joiner, tokens],
             Self::QwenAsr { model, projector } => vec![model, projector],
+            Self::NemoSpeech { model, encoder, archive } => vec![model, encoder, archive],
             Self::Chat { model, .. } | Self::TranscribeCpp { model, .. } => vec![model],
         }
     }
@@ -169,6 +176,7 @@ pub enum Runtime {
     SherpaOnnx,
     LlamaCpp,
     TranscribeCpp,
+    NemoSpeech,
 }
 
 impl ModelSpec {
@@ -538,6 +546,44 @@ pub fn default_catalog() -> Vec<ModelSpec> {
             language_focus: None,
         },
     ];
+    if cfg!(target_arch = "aarch64") {
+        let revision = "dbd06c5cad7a2f33c8e06be2fb3ef814dbd9aa59";
+        let repo = format!("{hf}/AtomicChat/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-GGUF/resolve/{revision}");
+        let model = "NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-AD-IQ4_NL.gguf";
+        let encoder = "NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-Encoder-F16.gguf";
+        let archive = "nemo-speech-0.3.0-macos-aarch64-metal.tar.gz";
+        catalog.push(ModelSpec {
+            id: NEMOTRON_TRANSCRIBE.into(),
+            name: "Nemotron 3.5 Transcribe 30B-A4B".into(),
+            kind: ModelKind::Asr,
+            text_capabilities: None,
+            parameters_m: 34000,
+            quantization: Quantization { label: "IQ4_NL", source_bits: 16, bits: (4, 32) },
+            files: vec![
+                file(
+                    model,
+                    &format!("{repo}/{model}"),
+                    19_678_656_672,
+                    Some("0c47d4ab6c783e7606ec03714b354fab0b2052027a7ea1991e7e2d3009c345ad"),
+                ),
+                file(
+                    encoder,
+                    &format!("{repo}/{encoder}"),
+                    1_670_410_080,
+                    Some("4221029c8a565c4a80c507ffa760c716e595acf663f9f4273ce69910050e7ba2"),
+                ),
+                file(
+                    archive,
+                    &format!("https://github.com/NVIDIA/NeMo-Speech.cpp/releases/download/v0.3.0/{archive}"),
+                    7_239_335,
+                    Some("2b972ed8b5dba07492212acf8cb75cbf34ecb141198ffa1997febe84b7c4d9ed"),
+                ),
+            ],
+            memory_mb: 20000,
+            format: ModelFormat::NemoSpeech { model, encoder, archive },
+            language_focus: None,
+        });
+    }
     // The Models page lists each kind in this order.
     catalog.sort_by_key(|model| model.parameters_m);
     catalog
@@ -545,6 +591,8 @@ pub fn default_catalog() -> Vec<ModelSpec> {
 
 /// The voice activity detector transcription downloads on first use.
 pub const SILERO_VAD: &str = "silero-vad";
+
+pub const NEMOTRON_TRANSCRIBE: &str = "nemotron-3.5-transcribe";
 
 #[cfg(test)]
 mod tests {
