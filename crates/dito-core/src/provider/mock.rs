@@ -7,7 +7,9 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 
-use super::{AsrRequest, Router, TextModel, TextRequest, Transcriber, Transcript};
+use super::{
+    AsrRequest, ChatCancel, ChatDelta, ChatRequest, ChatRole, Router, TextModel, TextRequest, Transcriber, Transcript,
+};
 use crate::error::{ErrorKind, ProviderError, ProviderResult};
 use crate::intent::{Decision, Intent};
 
@@ -130,7 +132,41 @@ impl TextModel for MockTextModel {
             None => Ok(rule_reply(req.system, req.text)),
         }
     }
+
+    /// Streams the next scripted reply, or the rule reply to the last user turn, a few characters at a time.
+    async fn chat(&self, req: &ChatRequest, on_delta: ChatDelta<'_>, cancel: &ChatCancel) -> ProviderResult<String> {
+        self.calls.fetch_add(1, Ordering::SeqCst);
+        if !self.delay.is_zero() {
+            tokio::time::sleep(self.delay).await;
+        }
+        let last = |role: ChatRole| req.messages.iter().rfind(|m| m.role == role).map_or("", |m| m.content.as_str());
+        let reply = match self.script.lock().expect("script mutex poisoned").pop_front() {
+            Some(Ok(text)) => text,
+            Some(Err(kind)) => return Err(ProviderError::new(kind, "scripted failure")),
+            None => rule_reply(last(ChatRole::System), last(ChatRole::User)),
+        };
+        let chars: Vec<char> = reply.chars().collect();
+        let mut sent = String::new();
+        for (i, piece) in chars.chunks(CHAT_PIECE_CHARS).enumerate() {
+            if cancel.is_cancelled() {
+                break;
+            }
+            if i > 0 {
+                tokio::time::sleep(CHAT_PIECE_DELAY).await;
+                if cancel.is_cancelled() {
+                    break;
+                }
+            }
+            let piece: String = piece.iter().collect();
+            on_delta(&piece);
+            sent.push_str(&piece);
+        }
+        Ok(sent)
+    }
 }
+
+const CHAT_PIECE_CHARS: usize = 3;
+const CHAT_PIECE_DELAY: Duration = Duration::from_millis(40);
 
 /// Recognizes scripted speech: line `i` of the script is spoken as a tone of [`tone_hz`]`(i)`, and the text of a clip
 /// is as much of that line as the clip holds tone, so partial audio reads as a partial line. Takes longer for longer
@@ -231,5 +267,41 @@ impl Router for MockRouter {
             Some(Err(kind)) => Err(ProviderError::new(kind, "scripted failure")),
             None => Ok(self.fallback.clone()),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::provider::ChatMessage;
+
+    fn ask(text: &str) -> ChatRequest {
+        ChatRequest { messages: vec![ChatMessage::new(ChatRole::User, text)], ..ChatRequest::default() }
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_mock_chat_streams_several_pieces_and_stops_when_cancelled() {
+        let model = MockTextModel::default().script([Ok("one two three four".to_string())]);
+        let mut pieces = Vec::new();
+        let reply = model.chat(&ask("hi"), &mut |p| pieces.push(p.to_string()), &ChatCancel::default()).await.unwrap();
+        assert_eq!((reply.as_str(), pieces.concat()), ("one two three four", reply.clone()));
+        assert!(pieces.len() > 3);
+
+        let cancel = ChatCancel::default();
+        let mut first = Vec::new();
+        let partial = model
+            .chat(
+                &ask("um a long enough reply"),
+                &mut |p| {
+                    first.push(p.to_string());
+                    cancel.cancel();
+                },
+                &cancel,
+            )
+            .await
+            .unwrap();
+        assert_eq!(first.len(), 1);
+        assert_eq!(partial, first[0]);
+        assert_eq!(model.calls(), 2);
     }
 }
