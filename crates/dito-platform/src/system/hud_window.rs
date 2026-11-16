@@ -172,6 +172,16 @@ impl<'a> HudNativeWindow<'a> {
         self.view.window()
     }
 
+    /// Converts a point in the rendered view to the primary screen's top-left coordinate space.
+    pub fn point_on_screen(&self, x: f32, y: f32) -> Option<(f32, f32)> {
+        let window = self.window()?;
+        let primary = NSScreen::screens(self.mtm).into_iter().next()?.frame();
+        let local = NSPoint::new(f64::from(x), self.view.bounds().size.height - f64::from(y));
+        let in_window = self.view.convertPoint_toView(local, None);
+        let on_screen = window.convertPointToScreen(in_window);
+        Some((on_screen.x as f32, (primary.size.height - on_screen.y) as f32))
+    }
+
     /// So a transparent window shows only what is drawn in it.
     pub fn remove_shadow(&self) {
         if let Some(window) = self.window() {
@@ -242,6 +252,21 @@ impl<'a> HudNativeWindow<'a> {
         let x = screen_frame.origin.x + (screen_frame.size.width - frame.size.width) / 2.;
         let y = (visible.origin.y + f64::from(clearance) - FOOTPRINT_BOTTOM)
             .min(visible.origin.y + (visible.size.height - frame.size.height).max(0.));
+        ((frame.origin.x - x).abs() > MIN_MOVE || (frame.origin.y - y).abs() > MIN_MOVE)
+            .then(|| HudWindowMove(window, NSPoint::new(x, y)))
+    }
+
+    /// Anchors the capsule's bottom center in GPUI's global, top-left coordinates.
+    pub fn anchor_capsule(&self, x: f32, bottom: f32) -> Option<HudWindowMove> {
+        let window = self.window()?;
+        let primary = NSScreen::screens(self.mtm).into_iter().next()?.frame();
+        let target = NSPoint::new(f64::from(x), primary.size.height - f64::from(bottom));
+        let screen = screen_under(target, self.mtm).or_else(|| window.screen())?;
+        let visible = screen.visibleFrame();
+        let frame = window.frame();
+        let x = (target.x - frame.size.width / 2.)
+            .clamp(visible.origin.x, visible.origin.x + (visible.size.width - frame.size.width).max(0.));
+        let y = target.y.clamp(visible.origin.y, visible.origin.y + (visible.size.height - 33.).max(0.)) - 45.;
         ((frame.origin.x - x).abs() > MIN_MOVE || (frame.origin.y - y).abs() > MIN_MOVE)
             .then(|| HudWindowMove(window, NSPoint::new(x, y)))
     }

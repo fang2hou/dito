@@ -11,6 +11,8 @@ Typing into other apps is the product's core promise and its least controllable 
 
 Delivery is a verified, bounded flow: try the configured method, check the cursor, continue only what is missing, switch method once if nothing landed, and fall back to the clipboard last. Never retry text that already landed; treat unverifiable targets as success; restore the clipboard from a full snapshot only if nothing else wrote to it. The policy lives in `dito-core::insert`, the macOS mechanics in `dito-platform::insert`. Resolve focus through both the system and the focused application. Web editors may expose the editable ancestor of the focused node. Require focus evidence before selecting a descendant, and verify or retry against the same accessibility element.
 
+Dito's own windows use the app-side sink because their editors are not foreign accessibility targets. In `design:onboarding`, the focused Try It editor accepts the result through its ordinary selection replacement API, preserving undo history and existing text outside the selection. The sink claims the request before changing the editor and reports insertion only after that synchronous edit. Only this delivery completes the onboarding trial; clipboard fallback, unrelated history and manual typing do not. Tools and Settings retain their focused-field paste route.
+
 ## Alternatives Considered
 
 ### One type or paste call

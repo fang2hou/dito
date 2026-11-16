@@ -29,7 +29,7 @@ dito-local = { path = "../dito-local" }
 dito-platform = { path = "../dito-platform" }
 dito-runtimes = { path = "../dito-runtimes", optional = true }
 dito-testkit = { path = "../dito-testkit", optional = true }
-gpui-kit = "0.9"
+gpui-kit = "0.10"
 ttf-parser = "0.25"
 raw-window-handle = "0.6"
 pulldown-cmark = { version = "0.13", default-features = false }
