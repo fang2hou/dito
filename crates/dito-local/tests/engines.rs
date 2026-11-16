@@ -71,6 +71,7 @@ fn installed_manager() -> (ModelManager, tempfile::TempDir) {
         id: id.into(),
         name: id.into(),
         kind,
+        text_capabilities: (kind == ModelKind::Text).then_some(dito_local::catalog::QWEN35_TEXT_CAPABILITIES),
         files: vec![FileSpec { name: "f".into(), url: String::new(), size: 3, sha256: None }],
         parameters_m: 1,
         quantization: dito_local::catalog::Quantization::Q8_0,
