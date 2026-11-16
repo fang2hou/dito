@@ -156,13 +156,17 @@ pub async fn run(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
         open(cx, Some(ids.summary));
         on_chat(cx, |w, app, chat| {
             chat.update(app, |p, cx| {
-                p.pose_type("提案書の締め切りはいつ？", w, cx);
+                p.pose_type(&"提案書の締め切りはいつですか。".repeat(25), w, cx);
                 p.pose_send(w, cx);
             })
         });
-        settle(cx, 1500).await;
-        shot(cx, dir, &format!("chat-sent-{tag}.png")).await;
+        shot(cx, dir, &format!("chat-streaming-a-{tag}.png")).await;
+        shot(cx, dir, &format!("chat-streaming-b-{tag}.png")).await;
+        on_chat(cx, |_, app, chat| chat.update(app, |p, cx| p.pose_stop(cx)));
+        shot(cx, dir, &format!("chat-stopped-real-{tag}.png")).await;
         on_chat(cx, |_, app, chat| chat.update(app, |p, cx| p.pose_retry(cx)));
+        settle(cx, 9000).await;
+        shot(cx, dir, &format!("chat-retried-{tag}.png")).await;
 
         open(cx, None);
         on_chat(cx, |w, app, chat| {
@@ -171,7 +175,7 @@ pub async fn run(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
                 p.pose_send(w, cx);
             })
         });
-        settle(cx, 1500).await;
+        settle(cx, 3000).await;
         shot(cx, dir, &format!("chat-draft-sent-{tag}.png")).await;
 
         open(cx, Some(ids.summary));

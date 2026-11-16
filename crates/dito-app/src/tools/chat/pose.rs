@@ -30,6 +30,11 @@ impl ChatPage {
         self.send(window, cx);
     }
 
+    pub(crate) fn pose_stop(&mut self, cx: &mut Context<Self>) {
+        self.stop();
+        cx.notify();
+    }
+
     pub(crate) fn pose_drawer(&mut self, open: bool, cx: &mut Context<Self>) {
         self.drawer = open;
         cx.notify();

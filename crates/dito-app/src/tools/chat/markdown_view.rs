@@ -7,7 +7,7 @@ use super::ChatPage;
 use super::highlight::{Ink, ink_ranges};
 use super::markdown::{Block, Span};
 use crate::theme::Palette;
-use crate::ui::{self, CircleSize};
+use crate::ui;
 
 const BODY_SIZE: f32 = 14.;
 const BODY_LINE: f32 = 24.;
@@ -49,7 +49,7 @@ fn block_view(block: &Block, p: &Palette, id: &ElementId, cx: &mut Context<ChatP
             .bg(p.accent_soft)
             .child(blocks(inner.iter(), p, id, cx))
             .into_any_element(),
-        Block::Code { lang, text } => code_block(lang, text, p, id, cx).into_any_element(),
+        Block::Code { lang, text } => code_block(lang, text, p, id).into_any_element(),
         Block::Table { head, rows } => table(head, rows, p, id).into_any_element(),
         Block::Rule => div().w_full().h(px(1.)).bg(p.border).into_any_element(),
     }
@@ -128,38 +128,12 @@ fn inline(spans: &[Span], p: &Palette, id: &ElementId, size: f32, line: f32, wei
     )
 }
 
-fn code_block(lang: &str, body: &str, p: &Palette, id: &ElementId, cx: &mut Context<ChatPage>) -> Div {
-    let copied = body.to_owned();
-    let copy = ui::copy_button_with(
-        ElementId::from((id.clone(), "copy")),
-        p,
-        CircleSize::Compact,
-        ui::cbk_copy(cx, move |_, _, cx| {
-            cx.write_to_clipboard(ClipboardItem::new_string(copied.clone()));
-            true
-        }),
-    );
-    let header = div()
-        .h(px(32.))
-        .px(px(16.))
-        .flex()
-        .items_center()
-        .justify_between()
-        .child(ui::text(lang.to_owned(), 12., FontWeight::NORMAL, p.muted))
-        .child(copy);
-    let mut lines = div().px(px(16.)).pb(px(12.)).flex().flex_col();
+fn code_block(lang: &str, body: &str, p: &Palette, id: &ElementId) -> Div {
+    let mut lines = div().w_full().flex().flex_col();
     for (i, line) in body.split('\n').enumerate() {
         lines = lines.child(code_line(line, p, &sub(id, "line", i)));
     }
-    div()
-        .w_full()
-        .rounded(px(12.))
-        .bg(p.sub)
-        .border_1()
-        .border_color(p.border)
-        .overflow_hidden()
-        .child(header)
-        .child(lines)
+    ui::code_block_with(id.clone(), p, lang.to_owned(), body.to_owned(), lines)
 }
 
 fn code_line(line: &str, p: &Palette, id: &ElementId) -> impl IntoElement {

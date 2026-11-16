@@ -24,9 +24,21 @@ pub fn code_block(
     label: impl Into<SharedString>,
     body: impl Into<SharedString>,
 ) -> Div {
-    let id: ElementId = id.into();
     let body: SharedString = body.into();
-    let copied = body.clone();
+    code_block_with(id, p, label, body.clone(), body)
+}
+
+/// [`code_block`] with the caller's own content in the body, for code that is colored or selectable. `copied` is what
+/// Copy puts on the clipboard; `content` inherits Menlo 12 on a 20 pt line and the text color.
+pub fn code_block_with(
+    id: impl Into<ElementId>,
+    p: &Palette,
+    label: impl Into<SharedString>,
+    copied: impl Into<SharedString>,
+    content: impl IntoElement,
+) -> Div {
+    let id: ElementId = id.into();
+    let copied: SharedString = copied.into();
     let copy = ghost_copy_button(
         ElementId::from((id, "copy")),
         p,
@@ -55,7 +67,7 @@ pub fn code_block(
         .text_size(px(12.))
         .line_height(px(LINE_H))
         .text_color(p.text)
-        .child(body);
+        .child(content);
     div()
         .w_full()
         .flex()

@@ -50,7 +50,7 @@ pub use button::{
     icon_button, icon_button_with, status_disc,
 };
 pub use callbacks::{Cb, CopyCb, ToggleCb, cbk, cbk_copy, cbk_idx, click_cb};
-pub use code_block::code_block;
+pub use code_block::{code_block, code_block_with};
 pub use config_tiles::{ConfigTile, TilePlus, TileRowState, cbk_id, cbk_move, tile_row};
 pub use copy_button::{copy_button, copy_button_with, ghost_copy_button};
 pub use dialog::{
