@@ -57,6 +57,21 @@ impl Generation {
         Self { chat_id, message_id, started: Instant::now(), buffer, seen: 0, cancel, stop, done }
     }
 
+    /// A reply that is being written and never ends, with `written` already on screen and the sweep `ms` into its loop.
+    #[cfg(feature = "screenshots")]
+    pub fn posed(chat_id: i64, message_id: i64, written: &str, ms: u64) -> Self {
+        Self {
+            chat_id,
+            message_id,
+            started: Instant::now() - std::time::Duration::from_millis(ms),
+            buffer: Arc::new(Mutex::new(written.to_owned())),
+            seen: written.len(),
+            cancel: ChatCancel::default(),
+            stop: Arc::new(Notify::new()),
+            done: Arc::new(Mutex::new(None)),
+        }
+    }
+
     /// Asks the engine to stop between tokens and ends a wait that cannot be interrupted; what was written is kept.
     pub fn stop(&self) {
         self.cancel.cancel();

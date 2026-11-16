@@ -82,14 +82,12 @@ pub(super) fn view(picker: &Picker, c: &Ctx, cx: &mut Context<ChatPage>) -> impl
     let shown = picker.shown();
     let mut list = div().id("chat-picker-list").w_full().max_h(px(LIST_MAX_H)).overflow_y_scroll().flex().flex_col();
     if shown.is_empty() {
-        list = list.child(
-            div().h(px(ROW_H)).px(px(12.)).flex().items_center().child(ui::text(
-                c.t(Tr::ChatNoMeetings),
-                13.,
-                FontWeight::NORMAL,
-                p.muted,
-            )),
-        );
+        list = list.child(div().h(px(ROW_H)).px(px(12.)).flex().items_center().child(ui::text(
+            c.t(Tr::ChatNoMeetings),
+            13.,
+            FontWeight::NORMAL,
+            p.muted,
+        )));
     }
     let mut last_day = None;
     for meeting in shown {
@@ -103,14 +101,12 @@ pub(super) fn view(picker: &Picker, c: &Ctx, cx: &mut Context<ChatPage>) -> impl
             } else {
                 ymd(day).replace('-', "/")
             };
-            list = list.child(
-                div().h(px(28.)).px(px(12.)).pt(px(8.)).flex().items_center().child(ui::text(
-                    heading,
-                    11.,
-                    FontWeight::MEDIUM,
-                    p.muted,
-                )),
-            );
+            list = list.child(div().h(px(28.)).px(px(12.)).pt(px(8.)).flex().items_center().child(ui::text(
+                heading,
+                11.,
+                FontWeight::MEDIUM,
+                p.muted,
+            )));
         }
         list = list.child(row(picker, meeting, off, c, cx));
     }
@@ -142,13 +138,7 @@ pub(super) fn view(picker: &Picker, c: &Ctx, cx: &mut Context<ChatPage>) -> impl
         .child(footer)
 }
 
-fn row(
-    picker: &Picker,
-    meeting: &TranscriptSummary,
-    off: i32,
-    c: &Ctx,
-    cx: &mut Context<ChatPage>,
-) -> Stateful<Div> {
+fn row(picker: &Picker, meeting: &TranscriptSummary, off: i32, c: &Ctx, cx: &mut Context<ChatPage>) -> Stateful<Div> {
     let p = c.p;
     let id = meeting.id;
     let live = meeting.ended_ts.is_none();

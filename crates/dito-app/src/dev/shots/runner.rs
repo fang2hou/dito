@@ -86,6 +86,9 @@ async fn render_app_shots(st: &Arc<AppState>, dir: &Path, groups: &Groups, cx: &
     if groups.selects("localapi") {
         local_api::local_api_shots(st, dir, cx).await;
     }
+    if groups.selects("chat") {
+        super::chat::run(st, dir, cx).await;
+    }
     if groups.selects("transcriptfilm") {
         super::transcript_film::run(st, dir, cx).await;
     }

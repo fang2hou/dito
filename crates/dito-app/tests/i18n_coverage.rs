@@ -13,6 +13,8 @@ const EXEMPT: &[(&str, &str)] = &[
     ("dev/mock_router.rs", "*"),
     // The text the command HUD shots show in the answer, confirm and typing windows (user content).
     ("dev/shots/hud.rs", "*"),
+    // The conversations the chat shots seed (user content, not UI copy).
+    ("dev/shots/chat.rs", "*"),
     // Configuration names the polish form shots type into the form (user content, not UI copy).
     ("dev/shots/text_model_form.rs", "*"),
     // List separator chosen per language in code (the ideographic comma, only for Japanese).

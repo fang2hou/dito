@@ -28,7 +28,7 @@ pub(super) struct Rename {
 }
 
 impl ChatPage {
-    fn start_rename(&mut self, id: i64, window: &mut Window, cx: &mut Context<Self>) {
+    pub(super) fn start_rename(&mut self, id: i64, window: &mut Window, cx: &mut Context<Self>) {
         let title = self.sessions.iter().find(|s| s.id == id).map(|s| s.title.clone()).unwrap_or_default();
         let input = cx.new(|cx| InputState::new(window, cx).default_value(title));
         cx.subscribe_in(&input, window, move |page: &mut Self, state, ev: &InputEvent, _, cx| match ev {
@@ -112,14 +112,23 @@ pub(super) fn drawer(
             .absolute()
             .inset_0()
             .child(scrim)
-            .child(div().absolute().top_0().bottom_0().right(px(-slide)).opacity(if reduced { shown } else { 1. }).child(panel))
+            .child(
+                div()
+                    .absolute()
+                    .top_0()
+                    .bottom_0()
+                    .right(px(-slide))
+                    .opacity(if reduced { shown } else { 1. })
+                    .child(panel),
+            )
             .into_any_element(),
     )
 }
 
 pub(super) fn panel(page: &ChatPage, c: &Ctx, cx: &mut Context<ChatPage>, in_drawer: bool) -> Stateful<Div> {
     let p = c.p;
-    let drag = (!in_drawer).then(|| ui::drag_area("chat-sidebar-drag").absolute().top_0().left_0().right_0().h(px(HEADER_H)));
+    let drag =
+        (!in_drawer).then(|| ui::drag_area("chat-sidebar-drag").absolute().top_0().left_0().right_0().h(px(HEADER_H)));
     let action = if in_drawer {
         ui::circle_control(
             "chat-history-close",
@@ -190,16 +199,21 @@ fn row_shell(id: ElementId, selected: bool, p: &Palette) -> Stateful<Div> {
         .rounded(px(10.))
         .cursor_pointer()
         .on_hover(ui::hover_tracker(id.clone()))
-        .when(selected, |d| d.bg(p.seg))
-        .child(ui::hover_fill_if(&id, Some(10.), p.seg, !selected))
+        .when(selected, |d| d.bg(p.nav_on))
+        .child(ui::hover_fill_if(&id, Some(10.), p.nav_on, !selected))
 }
 
 fn label(text: String, selected: bool, p: &Palette) -> Div {
-    ui::text(text, 13., if selected { FontWeight::MEDIUM } else { FontWeight::NORMAL }, if selected { p.text } else { p.muted })
-        .line_height(px(19.))
-        .flex_1()
-        .min_w(px(0.))
-        .truncate()
+    ui::text(
+        text,
+        13.,
+        if selected { FontWeight::MEDIUM } else { FontWeight::NORMAL },
+        if selected { p.text } else { p.muted },
+    )
+    .line_height(px(19.))
+    .flex_1()
+    .min_w(px(0.))
+    .truncate()
 }
 
 /// The unsaved new chat, shown selected while nothing has been sent in it.
@@ -257,7 +271,10 @@ fn actions_button(id: i64, open: bool, page: &ChatPage, c: &Ctx, cx: &mut Contex
     .role(Role::Button)
     .aria_label(label)
     .on_click(ui::click_cb(ui::cbk(cx, move |page, _, cx| {
-        let recent = page.menu_closed.take().is_some_and(|(closed, at)| closed == id && at.elapsed() < Duration::from_millis(200));
+        let recent = page
+            .menu_closed
+            .take()
+            .is_some_and(|(closed, at)| closed == id && at.elapsed() < Duration::from_millis(200));
         page.menu = match &page.menu {
             Some(m) if m.id == id => None,
             _ if recent => None,

@@ -1,4 +1,5 @@
 mod capture;
+mod chat;
 #[cfg(feature = "mock")]
 mod cloud_speech_tiles;
 mod demo;

@@ -86,9 +86,15 @@ fn pose_of(poses: &Poses, t: usize, first_animated: usize) -> Option<Pose> {
 
 fn empty_state(c: &Ctx) -> Div {
     let p = c.p;
-    div().size_full().flex().flex_col().items_center().justify_center().gap(px(10.)).child(
-        ui::text(c.t(Tr::ChatEmptyTitle), 22., FontWeight::BOLD, p.text).line_height(px(30.)),
-    ).child(ui::text(c.t(Tr::ChatEmptyHint), 13., FontWeight::NORMAL, p.muted).line_height(px(20.)))
+    div()
+        .size_full()
+        .flex()
+        .flex_col()
+        .items_center()
+        .justify_center()
+        .gap(px(10.))
+        .child(ui::text(c.t(Tr::ChatEmptyTitle), 22., FontWeight::BOLD, p.text).line_height(px(30.)))
+        .child(ui::text(c.t(Tr::ChatEmptyHint), 13., FontWeight::NORMAL, p.muted).line_height(px(20.)))
 }
 
 fn jump_pill(c: &Ctx, cx: &mut Context<ChatPage>) -> Div {
@@ -129,16 +135,14 @@ fn user_bubble(row: &ChatMessageRow, c: &Ctx, id: &ElementId) -> Div {
         bubble = bubble.child(chips);
     }
     if !row.content.is_empty() {
-        bubble = bubble.child(
-            div().text_size(px(14.)).line_height(px(22.)).child(ui::selectable_text(
-                &p,
-                id.clone(),
-                row.content.clone(),
-                14.,
-                FontWeight::NORMAL,
-                p.text,
-            )),
-        );
+        bubble = bubble.child(div().text_size(px(14.)).line_height(px(22.)).child(ui::selectable_text(
+            &p,
+            id.clone(),
+            row.content.clone(),
+            14.,
+            FontWeight::NORMAL,
+            p.text,
+        )));
     }
     div().w_full().flex().justify_end().child(bubble)
 }
@@ -160,16 +164,20 @@ fn sent_chip(attachment: &Attachment, p: &Palette) -> Div {
         .child(ui::text(attachment.name().to_owned(), 12., FontWeight::MEDIUM, p.text).max_w(px(180.)).truncate())
 }
 
-fn reply(page: &ChatPage, row: &ChatMessageRow, doc: Option<&std::rc::Rc<super::markdown::Document>>, c: &Ctx, cx: &mut Context<ChatPage>) -> Div {
+fn reply(
+    page: &ChatPage,
+    row: &ChatMessageRow,
+    doc: Option<&std::rc::Rc<super::markdown::Document>>,
+    c: &Ctx,
+    cx: &mut Context<ChatPage>,
+) -> Div {
     let p = c.p;
     let live = page.generation.as_ref().is_some_and(|g| g.message_id == row.id);
     let last = page.rows.last().is_some_and(|r| r.id == row.id);
-    let mut head = div()
-        .h(px(18.))
-        .flex()
-        .items_center()
-        .gap(px(8.))
-        .child(ui::text(row.model.clone().unwrap_or_default(), 13., FontWeight::MEDIUM, p.text).line_height(px(18.)));
+    let mut head =
+        div().h(px(18.)).flex().items_center().gap(px(8.)).child(
+            ui::text(row.model.clone().unwrap_or_default(), 13., FontWeight::MEDIUM, p.text).line_height(px(18.)),
+        );
     if live {
         let elapsed = page.generation.as_ref().map_or(0., |g| g.started.elapsed().as_secs_f32() * 1000.);
         head = head.child(generating_label(&c.t(Tr::ChatGenerating), &p, elapsed));
@@ -198,9 +206,8 @@ fn reply(page: &ChatPage, row: &ChatMessageRow, doc: Option<&std::rc::Rc<super::
     if row.state == MessageState::Failed
         && let Some(error) = &row.error
     {
-        column = column.child(
-            ui::text(ui::error_line(c.lang, error), 12., FontWeight::NORMAL, p.muted).line_height(px(18.)),
-        );
+        column = column
+            .child(ui::text(ui::error_line(c.lang, error), 12., FontWeight::NORMAL, p.muted).line_height(px(18.)));
     }
     column.child(body)
 }

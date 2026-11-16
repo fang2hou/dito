@@ -59,10 +59,10 @@ fn list(start: Option<u64>, items: &[Vec<Block>], p: &Palette, id: &ElementId, c
     let mut column = div().w_full().flex().flex_col().gap(px(8.));
     for (i, item) in items.iter().enumerate() {
         let marker = match start {
-            Some(first) => div()
-                .w(px(20.))
-                .flex_none()
-                .child(ui::text(format!("{}.", first + i as u64), 13., FontWeight::MEDIUM, p.accent_text).line_height(px(BODY_LINE))),
+            Some(first) => div().w(px(20.)).flex_none().child(
+                ui::text(format!("{}.", first + i as u64), 13., FontWeight::MEDIUM, p.accent_text)
+                    .line_height(px(BODY_LINE)),
+            ),
             None => div()
                 .w(px(20.))
                 .h(px(BODY_LINE))
@@ -72,9 +72,12 @@ fn list(start: Option<u64>, items: &[Vec<Block>], p: &Palette, id: &ElementId, c
                 .child(div().size(px(5.)).rounded_full().bg(p.accent)),
         };
         column = column.child(
-            div().w_full().flex().gap(px(4.)).child(marker).child(
-                div().flex_1().min_w(px(0.)).child(blocks(item.iter(), p, &sub(id, "b", i), cx)),
-            ),
+            div().w_full().flex().gap(px(4.)).child(marker).child(div().flex_1().min_w(px(0.)).child(blocks(
+                item.iter(),
+                p,
+                &sub(id, "b", i),
+                cx,
+            ))),
         );
     }
     column
@@ -188,23 +191,32 @@ fn code_line(line: &str, p: &Palette, id: &ElementId) -> impl IntoElement {
         face.weight = FontWeight::NORMAL;
         (
             " ".to_owned(),
-            vec![TextRun { len: 1, font: face, color: p.text, background_color: None, underline: None, strikethrough: None }],
+            vec![TextRun {
+                len: 1,
+                font: face,
+                color: p.text,
+                background_color: None,
+                underline: None,
+                strikethrough: None,
+            }],
         )
     } else {
         (line.to_owned(), runs)
     };
-    div()
-        .w_full()
-        .text_size(px(CODE_SIZE))
-        .line_height(px(CODE_LINE))
-        .child(ui::selectable_runs(p, id.clone(), shown, runs))
+    div().w_full().text_size(px(CODE_SIZE)).line_height(px(CODE_LINE)).child(ui::selectable_runs(
+        p,
+        id.clone(),
+        shown,
+        runs,
+    ))
 }
 
 fn table(head: &[Vec<Span>], rows: &[Vec<Vec<Span>>], p: &Palette, id: &ElementId) -> Div {
     let cell = |spans: &[Span], weight: FontWeight, id: ElementId| {
         div().flex_1().min_w(px(0.)).px(px(12.)).py(px(8.)).child(inline(spans, p, &id, 13., 20., weight))
     };
-    let mut column = div().w_full().flex().flex_col().rounded(px(8.)).overflow_hidden().border_1().border_color(p.border);
+    let mut column =
+        div().w_full().flex().flex_col().rounded(px(8.)).overflow_hidden().border_1().border_color(p.border);
     let mut header = div().w_full().flex().bg(p.sub).border_b_1().border_color(p.border);
     for (c, spans) in head.iter().enumerate() {
         header = header.child(cell(spans, FontWeight::MEDIUM, sub(id, "head", c)));

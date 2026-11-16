@@ -3,9 +3,22 @@
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
-use super::Tools;
+use super::{ChatPage, Tools, ToolsPage};
+use crate::app_shell::NavHost;
 
 impl Tools {
+    /// The chat page's entity, for the harness to steer.
+    #[cfg(feature = "screenshots")]
+    pub(crate) fn chat(&self) -> &Entity<ChatPage> {
+        &self.chat
+    }
+
+    /// Selects the chat page in the sidebar, as a click does.
+    #[cfg(feature = "screenshots")]
+    pub fn show_chat(&mut self, cx: &mut Context<Self>) {
+        self.select_page(ToolsPage::Chat, cx);
+    }
+
     pub fn assume_transcription_ready(&mut self, ready: bool, cx: &mut Context<Self>) {
         self.transcription.update(cx, |t, cx| t.assume_ready(ready, cx));
     }

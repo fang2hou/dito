@@ -322,11 +322,15 @@ mod tests {
 
     #[test]
     fn inline_styles_nest_and_cjk_emphasis_closes_before_a_particle() {
-        let blocks = parse("\u{4eca}\u{9031}\u{4e2d}\u{306b}**3\u{3064}\u{306e}\u{4f5c}\u{696d}**\u{3092}\u{7d42}\u{3048}\u{307e}\u{3059}\u{3002}`config.toml` \u{3068} [\u{624b}\u{9806}](https://x.test)\u{3002}");
+        let blocks = parse(
+            "\u{4eca}\u{9031}\u{4e2d}\u{306b}**3\u{3064}\u{306e}\u{4f5c}\u{696d}**\u{3092}\u{7d42}\u{3048}\u{307e}\u{3059}\u{3002}`config.toml` \u{3068} [\u{624b}\u{9806}](https://x.test)\u{3002}",
+        );
         let [Block::Paragraph(spans)] = blocks.as_slice() else { panic!("one paragraph: {blocks:?}") };
         assert!(spans.iter().any(|s| s.style.bold && s.text == "3\u{3064}\u{306e}\u{4f5c}\u{696d}"));
         assert!(spans.iter().any(|s| s.style.code && s.text == "config.toml"));
-        assert!(spans.iter().any(|s| s.style.link.as_deref() == Some("https://x.test") && s.text == "\u{624b}\u{9806}"));
+        assert!(
+            spans.iter().any(|s| s.style.link.as_deref() == Some("https://x.test") && s.text == "\u{624b}\u{9806}")
+        );
     }
 
     #[test]

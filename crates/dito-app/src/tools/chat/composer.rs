@@ -24,7 +24,7 @@ pub(super) fn view(page: &ChatPage, c: &Ctx, window: &mut Window, cx: &mut Conte
         .flex_none()
         .px(px(14.))
         .pt(px(12.))
-        .pb(px(6.))
+        .pb(px(8.))
         .flex()
         .flex_col()
         .rounded(px(16.))
@@ -52,11 +52,10 @@ pub(super) fn view(page: &ChatPage, c: &Ctx, window: &mut Window, cx: &mut Conte
                 reserve_bottom: 0.,
             },
         ))
+        .child(div().h(px(12.)).flex_none())
         .child(actions(page, c, cx));
     if let Some(open) = &page.picker {
-        shell = shell.child(
-            div().absolute().left(px(14.)).bottom(px(46.)).child(picker::view(open, c, cx)),
-        );
+        shell = shell.child(div().absolute().left(px(14.)).bottom(px(44.)).child(picker::view(open, c, cx)));
     }
     shell
 }
@@ -163,9 +162,7 @@ fn chip(index: usize, attachment: &Attachment, c: &Ctx, cx: &mut Context<ChatPag
             };
             fmt::chat_file_detail(c.lang, c.lang.tr(kind), &size_label(*bytes))
         }
-        Attachment::Meeting { duration_ms, .. } => {
-            fmt::chat_meeting_detail(c.lang, &clock(duration_ms.unwrap_or(0)))
-        }
+        Attachment::Meeting { duration_ms, .. } => fmt::chat_meeting_detail(c.lang, &clock(duration_ms.unwrap_or(0))),
     };
     let hovered = ui::is_hovered(&id);
     let remove = hovered.then(|| {
@@ -174,7 +171,12 @@ fn chip(index: usize, attachment: &Attachment, c: &Ctx, cx: &mut Context<ChatPag
             ElementId::from(("chat-chip-remove", index)),
             Ic::X,
             CircleSize::Compact,
-            CircleAppearance { background: Some(p.card), foreground: p.muted, border: Some(p.border), hover: Some(p.seg) },
+            CircleAppearance {
+                background: Some(p.card),
+                foreground: p.muted,
+                border: Some(p.border),
+                hover: Some(p.seg),
+            },
         )
         .absolute()
         .top(px(-6.))

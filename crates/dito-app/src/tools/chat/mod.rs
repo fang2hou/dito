@@ -9,6 +9,8 @@ mod markdown;
 mod markdown_view;
 mod messages;
 mod picker;
+#[cfg(feature = "screenshots")]
+mod pose;
 mod sidebar;
 mod switch;
 
@@ -86,7 +88,10 @@ impl ChatPage {
     pub(crate) fn new(st: Arc<AppState>, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let lang = st.cfg.get().general.lang();
         let composer = cx.new(|cx| {
-            TextareaState::new(window, cx).placeholder(lang.tr(Tr::ChatPlaceholder)).submit_on_enter(true).auto_grow(1, 6)
+            TextareaState::new(window, cx)
+                .placeholder(lang.tr(Tr::ChatPlaceholder))
+                .submit_on_enter(true)
+                .auto_grow(1, 6)
         });
         cx.subscribe_in(&composer, window, |page: &mut Self, _, ev: &InputEvent, window, cx| match ev {
             InputEvent::Change => cx.notify(),
