@@ -13,7 +13,7 @@ The **JA**, **EN**, and **ZH** columns give the canonical UI terms (`—` when a
 | ASR | Speech recognition, as a stage and as a model kind | 音声認識 | Speech recognition | 语音识别 | `Transcriber`, `AsrRequest`, `asr_*` | STT, recognizer (except sherpa-onnx's native `Recognizer`) |
 | Transcribe | Turning a clip into its raw transcript (`Output::raw`) | 認識 | Transcribe | 识别 | `Transcriber::transcribe`, `PipelinePhase::Transcribing`, `HudState::Transcribing` | recognize, recognized text |
 | Polish | Cleaning up and formatting a transcript with the text model | 文章整形（整形） | Polish | 文本润色（润色） | `PolishJob`, `pipeline::polish_text`, `polish.enabled` | rewrite, refine, clean up |
-| Text model | The language model that polishes dictation, runs the command tools and finds words for the wordbook; local or a cloud configuration | テキストモデル（テキスト） | Text model (Text) | 文本模型（文本） | `TextModel`, `TextRequest`, `Config::text_model`, `ModelKind::Text`, `Role::Text` | polish model, polisher, LLM, AI model (Keychain accounts keep their shipped `polish.` prefix) |
+| Text model | The language model that polishes dictation, runs the command tools, chats, and finds words for the wordbook; local or a cloud configuration | テキストモデル（テキスト） | Text model (Text) | 文本模型（文本） | `TextModel`, `TextRequest`, `Config::text_model`, `ModelKind::Text`, `Role::Text` | polish model, polisher, LLM, AI model (Keychain accounts keep their shipped `polish.` prefix) |
 | Pipeline | Transcribe, then polish, for one clip; excludes recording and insertion | — | — | — | `pipeline::run`, `PipelineJob`, `PipelinePhase` | |
 | Insertion | Putting the final text into the focused app by key input or paste | 入力 | Input | 输入 | `Sink`, `InsertMethod`, `Delivery` | typing-in, output |
 | Delivery | The outcome of an insertion: inserted, copied to the clipboard, or failed | — | — | — | `Delivery` | |
@@ -68,8 +68,10 @@ How a command is decided is in [INTENT_ROUTING.md](INTENT_ROUTING.md); how it is
 | Display language | The UI locale of menus, settings, and the HUD, shown as a self-name including script variant (such as Simplified or Traditional Chinese) | 表示言語（日本語, English, 简体中文, 繁體中文, 한국어, Монгол, Français） | Display language (日本語, English, 简体中文, 繁體中文, 한국어, Монгол, Français) | 界面语言（日本語, English, 简体中文, 繁體中文, 한국어, Монгол, Français） | `DisplayLanguage`, `Lang::native_name` | conflating UI script variants with speech language |
 | HUD | The floating capsule that shows live dictation and command state | HUD | HUD | HUD | `hud/`, `HudState`, `HudView` | overlay, toast |
 | HUD state | For dictation: hidden, listening, transcribing, polishing, inserted, copied, error; command adds thinking, working, its windows, and replaced | — | — | — | `HudState` | |
-| Tools window | The standalone workspace window outside Settings that hosts Dito's interactive tools (meeting transcription first, future tools alongside it in the `ツール` sidebar) | ツールウィンドウ（メニュー: ツールを開く） | Tools window (menu: Open Tools) | 工具窗口（菜单: 打开工具） | `tools/` | feature window, transcription window |
+| Tools window | The standalone workspace window outside Settings that hosts Dito's interactive tools (Transcription, Chat, and the Local API in the `ツール` sidebar) | ツールウィンドウ（メニュー: ツールを開く） | Tools window (menu: Open Tools) | 工具窗口（菜单: 打开工具） | `tools/` | feature window, transcription window |
 | Transcription | Continuous live transcription of desktop audio, the microphone, or both into an editable meeting entry inside the Tools window | 書き起こし | Transcription | 转写 | `transcription/` | meeting mode, live dictation |
+| Chat | Multi-turn conversation in the Tools window with the active text model, with optional file and meeting transcript attachments | チャット | Chat | 聊天 | `chat/`, `tools/chat/` | assistant |
+| Local API | The opt-in loopback service (`127.0.0.1`) in the Tools window that serves the active text and speech models over an OpenAI-compatible HTTP API and MCP | ローカル API | Local API | 本地 API | `local_api/`, `tools/local_api/` | local server |
 | Speech detection | The on-device voice activity detector model role (`Silero VAD`) that cuts live streams into utterances | 発話検出 | Speech detection | 发话检测 | `ModelKind::Vad`, `VoiceDetector` | speaker detection, diarization |
 | Tile | The horizontal card control representing one saved cloud configuration | — | — | — | `ConfigTile`, `config_tiles/` | card (cards are grouped containers) |
 | Page | One screen of the settings window | — | — | — | `settings/*` | tab |
@@ -91,6 +93,7 @@ Code, docs, and skills name a design section as `design:<id>` (for example `desi
 | Microphone | `dito-audio` | |
 | Shortcuts, permissions, insertion, Keychain | `dito-platform` | [6](adr/0006-minimal-permissions.md) |
 | Settings, schema versions | `dito-core` (`config`) | [10](adr/0010-one-home-per-setting.md), [15](adr/0015-versioned-persistence.md) |
-| History, wordbook, stats | `dito-core` (`store`) | [8](adr/0008-data-stays-local.md) |
+| History, wordbook, stats, transcripts, chats | `dito-core` (`store`) | [8](adr/0008-data-stays-local.md) |
+| Meeting transcription, chat, Local API | `dito-core` (`transcription`, `chat`, `local_api`), `dito-app` (`tools`) | [6](adr/0006-minimal-permissions.md), [8](adr/0008-data-stays-local.md), [13](adr/0013-ui-state-ownership.md) |
 | UI copy | `dito-core` (`i18n/messages.toml`) | [11](adr/0011-japanese-first.md) |
-| HUD, settings, onboarding | `dito-app` | [4](adr/0004-hud-out-of-the-way.md), [13](adr/0013-ui-state-ownership.md), [14](adr/0014-silent-launch.md) |
+| HUD, settings, Tools window, onboarding | `dito-app` | [4](adr/0004-hud-out-of-the-way.md), [13](adr/0013-ui-state-ownership.md), [14](adr/0014-silent-launch.md) |

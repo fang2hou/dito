@@ -18,7 +18,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 BINARY = ROOT / "target" / "local" / "dito"
 OUT = ROOT / "assets" / "readme"
-LANGS = ["ja", "en", "zh"]
+LANGS = ["ja", "en", "zh", "ko"]
 SCENES = ["dictation", "command", "meeting", "chat"]
 THEME = "dark"
 MAX_WIDTH = 800
