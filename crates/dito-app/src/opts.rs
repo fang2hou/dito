@@ -41,7 +41,7 @@ impl Opts {
                     o.data_dir = Some(it.next().ok_or_else(|| anyhow::anyhow!("--data-dir needs a path"))?.into())
                 }
                 "--lang" => {
-                    let v = it.next().ok_or_else(|| anyhow::anyhow!("--lang needs ja, en or zh"))?;
+                    let v = it.next().ok_or_else(|| anyhow::anyhow!("--lang needs a language tag"))?;
                     o.system_lang = Some(
                         dito_core::i18n::Lang::from_tag(&v).ok_or_else(|| anyhow::anyhow!("unknown language: {v}"))?,
                     );
@@ -79,7 +79,7 @@ const HELP: &str = "dito — voice dictation
   --wav <file>        use this 16-bit mono WAV as the recording instead of the microphone
   --demo-run          press the shortcut programmatically once, print the result, and exit
   --data-dir <dir>    config, history and models live here (default: ~/Library/Application Support/com.fang2hou.Dito, debug builds: com.fang2hou.Dito-dev)
-  --lang <ja|en|zh>   act as if the system language were this (default: ask macOS)
+  --lang <tag>        act as if the system language were this (ja, en, zh, zh-Hant, ko, mn, fr; default: ask macOS)
   --screenshots <dir> render all windows to PNG and exit (build with --features screenshots)";
 
 #[cfg(test)]

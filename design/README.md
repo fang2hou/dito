@@ -10,7 +10,7 @@ Applies to every page, section, board, layer and annotation in `design/dito.figc
 | --- | --- |
 | Documentation is English: page, section, board and layer names, notes, note cards, annotations | Whole file |
 | Screen copy is Japanese and matches the `ja` values in `crates/dito-core/src/i18n/messages.toml` exactly | Every screen frame |
-| English and 简体中文 screens appear only on `14 Localization` | Localized screens |
+| English and other localized screens appear only on `14 Localization` | Localized screens |
 | The design leads and the code follows. Only the chosen design is kept; rejected options are deleted | All sections |
 | Before changing anything, decide whether it is a shared component or belongs to one screen. Shared components are edited on `11 Type, Space & Components` or `12 Motion`; screen-specific parts are edited in that screen's section | All changes |
 | Keep notes short: key values and rules, not the discussion that led to them | All notes |
@@ -259,7 +259,7 @@ Annotation categories: **Interaction**, **Motion**, **Content**, **Measure**. An
 | `Color` | Light / Dark | Every `Palette` field in `crates/dito-app/src/theme.rs` under the same name (`bg`, `text`, `muted`, `on_primary`, `seg_on`, `menu_bg`, …), the constants `white` and `plain_black`, and `hud/*` for each `hud_color` pair in `crates/dito-app/src/hud` plus `hud/danger_ring` and `hud/button_shadow` |
 | `Motion` | Base | Shared: `motion/hover` 160, `tip` 150, `ring` 180, `sidebar` 260, `switch` 380, `glass` 460. HUD and onboarding: `pill` 150, `hud-pop` 300, `hud-widen` 300, `hud-label` 120, `onboarding-slide` 360 (ms). Other screen timings remain in their owning section |
 | `Size` | Base | Existing window metrics and radii, named spacing, control heights, icon sizes, boundaries, `opacity/disabled` (45 percent) and `canvas/*` dimensions. Canvas tokens are documentation-only; product dimensions are points |
-| `Type` | Base | `family/ja`, `family/latin`, `family/zh`, `family/fallback` and `size/*`. Text styles preserve weight, leading and tracking together |
+| `Type` | Base | `family/ja`, `family/latin`, `family/zh`, `family/zh-hant`, `family/ko`, `family/cyrillic`, `family/fallback` and `size/*`. Text styles preserve weight, leading and tracking together |
 
 `10.02 Semantic Color` shows the path from Primitive to Color to a main component to its instances, with paired surface and content examples in both modes. Equal palette values reference one primitive; semantic roles retain separate names even when their values currently match. Theme-specific and calculated colors keep their existing values. An alpha overlay is not replaced by an opaque tint.
 
@@ -272,10 +272,10 @@ Icon instances, HUD buttons, the close button and the `11.03` controls are bound
 ## 8. Language in the product
 
 - The app's first impression is Japanese: it is built for Japanese customers and users.
-- Users can switch to English or 简体中文 (or follow the system) in General → 表示言語. Switching is instant across settings, HUD and menu bar.
+- Users can switch to English, 简体中文, 繁體中文, 한국어, Монгол or Français (or follow the system) in General → 表示言語. Switching is instant across settings, HUD and menu bar.
 - **Code gap:** `DisplayLanguage` currently defaults to `System` (`crates/dito-core/src/config/general.rs`), so a Mac set to English starts in English. The design calls for Japanese as the default.
 
-Type: Japanese and mixed text use M PLUS 1p; Latin-only text uses Outfit; 简体中文 uses IBM Plex Sans SC; macOS fallback is Hiragino Kaku Gothic Pro.
+Type: Japanese and mixed text use M PLUS 1p; Latin text (English, Français) uses Outfit; 简体中文 uses IBM Plex Sans SC; 繁體中文 uses PingFang TC; 한국어 uses Apple SD Gothic Neo; Монгол (Cyrillic) uses Helvetica Neue; macOS fallback is Hiragino Kaku Gothic Pro.
 
 ## 9. Build constraints
 

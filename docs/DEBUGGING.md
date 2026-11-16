@@ -17,7 +17,7 @@ Run, inspect and diagnose Dito locally. Setup and commands are in [IMPLEMENTATIO
 | `--real-mic` | Use the real microphone in mock mode |
 | `--wav <file>` | Use a WAV file as the recording |
 | `--data-dir <dir>` | Config and history location; an empty directory shows onboarding |
-| `--lang <code>` | Pretend the system language is `ja`, `en` or `zh` |
+| `--lang <tag>` | Pretend the system language is `ja`, `en`, `zh`, `zh-Hant`, `ko`, `mn` or `fr` |
 | `--open-settings` | Open the settings window at launch. A launch opens no window by itself (see [ADR 0014](adr/0014-silent-launch.md)), so `mise run dev` and `dev:mock` pass this flag |
 | `--demo-run` | Run one dictation headlessly and print it; no Dock icon, menu bar or window, never frontmost |
 | `--screenshots <dir>` | Render screenshots (build with `--features screenshots`; narrow with `DITO_SHOTS_ONLY`); windows are never shown and never take focus |

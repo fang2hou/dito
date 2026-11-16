@@ -69,10 +69,10 @@ const ZH: Copy = Copy {
 };
 
 fn copy(lang: Lang) -> &'static Copy {
-    match lang {
+    match lang.prompt_language() {
         Lang::Ja => &JA,
-        Lang::En => &EN,
         Lang::Zh => &ZH,
+        _ => &EN,
     }
 }
 

@@ -586,7 +586,7 @@ impl ModelsPage {
         if elsewhere.is_empty() {
             return None;
         }
-        let separator = if c.lang == Lang::Ja { "、" } else { ", " };
+        let separator = if matches!(c.lang, Lang::Ja | Lang::Zh | Lang::ZhHant) { "、" } else { ", " };
         Some(ui::muted12(&c.p, format!("{}{}", c.t(Tr::ModelsDownloadingBg), elsewhere.join(separator))))
     }
 }

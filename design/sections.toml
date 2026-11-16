@@ -13,6 +13,15 @@ board = "12"
 layer = "Motion"
 page = true
 
+[localization]
+board = "14"
+layer = "Localization"
+page = true
+
+[localization.languages]
+board = "14.01"
+layer = "Languages"
+
 [settings]
 board = "20"
 layer = "Settings"

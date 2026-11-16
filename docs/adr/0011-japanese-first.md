@@ -1,15 +1,15 @@
-# ADR-0011: Japanese first, three languages compiled in
+# ADR-0011: Japanese first, display languages compiled in
 
 - **Status**: accepted
-- **Date**: 2026-11-05
+- **Date**: 2026-11-16
 
 ## Context
 
-The app is built for Japanese users first; English and Simplified Chinese users must still get a complete UI. Missing or inconsistent strings show up only at runtime when lookups are dynamic.
+The app is built for Japanese users first; users in other supported UI locales (English, Simplified Chinese, Traditional Chinese, Korean, Mongolian, and French) must still get a complete UI. Missing or inconsistent strings show up only at runtime when lookups are dynamic.
 
 ## Decision
 
-Japanese is the primary UI language and the design's language; English and Simplified Chinese are complete translations. Strings are compiled from `messages.toml` into a typed enum; the build fails on missing languages or placeholder drift, and a test forbids string lookups and CJK literals in code. The display language and the speech language are separate settings. Speech language names are translated into the UI language. The display-language selector retains self-names so it remains readable to someone switching from an unfamiliar locale. Fonts per language are decided in one place; no language adds letter spacing.
+Japanese is the primary UI language and the design's language; English, Simplified Chinese (`zh`), Traditional Chinese (`zh-Hant`), Korean (`ko`), Mongolian (`mn`, Cyrillic), and French (`fr`) are complete UI translations. Strings are compiled from `messages.toml` into a typed enum; the build fails on missing languages or placeholder drift, and a test forbids string lookups and CJK literals in code. The display language and the speech/prompt language (`ja`, `en`, `zh`) are separate settings. Speech language names are translated into the UI language. The display-language selector retains self-names so it remains readable to someone switching from an unfamiliar locale. Fonts per language are decided in one place (bundled faces for Japanese, Latin, and Simplified Chinese; macOS built-in faces PingFang TC, Apple SD Gothic Neo, and Helvetica Neue for Traditional Chinese, Korean, and Mongolian Cyrillic); no language adds letter spacing.
 
 ## Alternatives Considered
 
@@ -35,7 +35,7 @@ Moves that look reasonable but go against this decision:
 
 ## Review Triggers
 
-A fourth language is requested.
+A right-to-left script or runtime-downloaded locale pack is requested.
 
 ## Code
 

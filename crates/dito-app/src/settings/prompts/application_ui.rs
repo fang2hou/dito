@@ -93,7 +93,7 @@ impl PromptsPage {
             self.dialog_error = Some(self.st.cfg.get().general.lang().tr(Tr::PromptsSaveFailed).into());
             return;
         }
-        for lang in Lang::ALL {
+        for lang in Lang::PROMPT_LANGUAGES {
             self.histories.remove(&(lang, Some(removed_target.clone())));
         }
         self.apps = app_choices(&self.drafts);
