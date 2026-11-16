@@ -11,6 +11,7 @@ pub mod i18n;
 pub mod identity;
 pub mod insert;
 pub mod intent;
+pub mod local_api;
 pub mod pipeline;
 pub mod prompts;
 pub mod provider;
