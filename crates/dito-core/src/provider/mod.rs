@@ -12,6 +12,6 @@ mod transcriber;
 
 pub use router::Router;
 pub use test_outcome::{TestOutcome, test_text_model, test_transcriber, test_transcriber_with_language};
-pub use text_model::{Example, TextModel, TextRequest};
+pub use text_model::{ChatCancel, ChatDelta, ChatMessage, ChatRequest, ChatRole, Example, TextModel, TextRequest};
 pub(crate) use timeout::default_timeout;
 pub use transcriber::{AsrRequest, Transcriber, Transcript};

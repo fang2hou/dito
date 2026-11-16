@@ -7,6 +7,8 @@ use dito_core::i18n::Tr;
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
+use super::chat::ChatPage;
+use super::local_api::LocalApiPage;
 use super::transcription::TranscriptionPage;
 use crate::app_shell::{self, Chrome, NavHost, NavPage, WindowDestination};
 use crate::assets::Ic;
@@ -19,12 +21,16 @@ use crate::ui;
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) enum ToolsPage {
     Transcription,
+    Chat,
+    LocalApi,
 }
 
 impl ToolsPage {
     pub(crate) fn english(self) -> &'static str {
         match self {
             Self::Transcription => "Transcription",
+            Self::Chat => "Chat",
+            Self::LocalApi => "Local API",
         }
     }
 }
@@ -33,12 +39,16 @@ impl NavPage for ToolsPage {
     fn label(self) -> Tr {
         match self {
             Self::Transcription => Tr::NavTranscription,
+            Self::Chat => Tr::NavChat,
+            Self::LocalApi => Tr::NavLocalApi,
         }
     }
 
     fn icon(self) -> Ic {
         match self {
             Self::Transcription => Ic::AudioLines,
+            Self::Chat => Ic::MessageCircleMore,
+            Self::LocalApi => Ic::Cable,
         }
     }
 
@@ -51,11 +61,15 @@ impl NavPage for ToolsPage {
     }
 }
 
-static SECTIONS: [(Tr, &[ToolsPage]); 1] = [(Tr::NavTools, &[ToolsPage::Transcription])];
+static SECTIONS: [(Tr, &[ToolsPage]); 1] =
+    [(Tr::NavTools, &[ToolsPage::Transcription, ToolsPage::Chat, ToolsPage::LocalApi])];
 
 pub struct Tools {
     chrome: Chrome,
+    page: ToolsPage,
     transcription: Entity<TranscriptionPage>,
+    chat: Entity<ChatPage>,
+    local_api: Entity<LocalApiPage>,
     /// The session state the sidebar dot shows; cached so the row renders without reading the page.
     recording: bool,
     /// A paused session keeps its dot, in muted instead of danger.
@@ -81,7 +95,17 @@ impl Tools {
             }
         })
         .detach();
-        Self { chrome: Chrome::new(st), transcription, recording, paused }
+        let chat = cx.new(|cx| ChatPage::new(st.clone(), window, cx));
+        let local_api = cx.new(|cx| LocalApiPage::new(st.clone(), window, cx));
+        Self {
+            chrome: Chrome::new(st),
+            page: ToolsPage::Transcription,
+            transcription,
+            chat,
+            local_api,
+            recording,
+            paused,
+        }
     }
 
     #[cfg(feature = "screenshots")]
@@ -91,13 +115,19 @@ impl Tools {
 
     /// The window is being opened or brought forward: read the session's latest list into the page.
     pub(super) fn activate(&self, cx: &mut Context<Self>) {
-        self.transcription.update(cx, |page, cx| page.set_active(true, cx));
+        self.set_pages_active(Some(self.page), cx);
         cx.notify();
+    }
+
+    fn set_pages_active(&self, shown: Option<ToolsPage>, cx: &mut Context<Self>) {
+        self.transcription.update(cx, |page, cx| page.set_active(shown == Some(ToolsPage::Transcription), cx));
+        self.chat.update(cx, |page, cx| page.set_active(shown == Some(ToolsPage::Chat), cx));
+        self.local_api.update(cx, |page, cx| page.set_active(shown == Some(ToolsPage::LocalApi), cx));
     }
 
     /// The window is closing: nothing transient may replay if it is opened again.
     pub(super) fn on_window_closed(&mut self, cx: &mut Context<Self>) {
-        self.transcription.update(cx, |page, cx| page.set_active(false, cx));
+        self.set_pages_active(None, cx);
         self.transcription.update(cx, |page, _| page.reset_motion());
         self.chrome.reset_motion();
     }
@@ -111,21 +141,24 @@ impl NavHost for Tools {
     }
 
     fn nav_page(&self) -> ToolsPage {
-        ToolsPage::Transcription
+        self.page
     }
 
     fn switch_destination(&self) -> WindowDestination {
         WindowDestination::Settings
     }
 
-    fn select_page(&mut self, _page: ToolsPage, cx: &mut Context<Self>) {
-        // The window shows every tool at once; a nav click only settles the plate.
+    fn select_page(&mut self, page: ToolsPage, cx: &mut Context<Self>) {
+        if self.page != page {
+            self.page = page;
+            self.set_pages_active(Some(page), cx);
+        }
         cx.notify();
     }
 
-    fn nav_badge(&self, _page: ToolsPage, p: &Palette) -> Option<Hsla> {
-        // A live session reads from the sidebar even with the page scrolled away.
-        self.recording.then_some(if self.paused { p.muted } else { p.danger })
+    fn nav_badge(&self, page: ToolsPage, p: &Palette) -> Option<Hsla> {
+        // A live session reads from the sidebar even while another tool is shown.
+        (page == ToolsPage::Transcription && self.recording).then_some(if self.paused { p.muted } else { p.danger })
     }
 }
 
@@ -139,7 +172,12 @@ impl Render for Tools {
 impl Tools {
     /// Scroll still passes through, and content never enters these zones, so nothing is blocked.
     fn content(&self, p: Palette) -> Div {
-        let page = ToolsPage::Transcription;
+        let page = self.page;
+        let view: AnyView = match page {
+            ToolsPage::Transcription => self.transcription.clone().into(),
+            ToolsPage::Chat => self.chat.clone().into(),
+            ToolsPage::LocalApi => self.local_api.clone().into(),
+        };
         div()
             .flex_1()
             .h_full()
@@ -147,7 +185,7 @@ impl Tools {
             .overflow_hidden()
             .child(ui::prepare_card_backdrop(page.english(), p))
             .child(ui::page_wordmark(page.english(), p))
-            .child(self.transcription.clone())
+            .child(view)
             .child(
                 ui::drag_area("gutter-left")
                     .absolute()

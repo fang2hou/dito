@@ -72,6 +72,8 @@ models.downloaded = { ja = "ダウンロード済み", en = "Downloaded", zh = "
 models.connection_settings = { ja = "接続設定", en = "Connection settings", zh = "连接设置" }
 
 nav.transcription = { ja = "書き起こし", en = "Transcription", zh = "转写" }
+nav.chat = { ja = "チャット", en = "Chat", zh = "聊天" }
+nav.local_api = { ja = "ローカル API", en = "Local API", zh = "本地 API" }
 nav.tools = { ja = "ツール", en = "Tools", zh = "工具" }
 nav.settings = { ja = "設定", en = "Settings", zh = "设置" }
 nav.activity = { ja = "利用状況", en = "Activity", zh = "使用情况" }

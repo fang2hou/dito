@@ -1,5 +1,7 @@
 //! The Tools window: the same shell as Settings with the meeting tools in its sidebar.
 
+pub(crate) mod chat;
+pub(crate) mod local_api;
 mod shell;
 pub(crate) mod transcription;
 mod window;
