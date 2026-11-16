@@ -68,6 +68,27 @@ pub(super) const MIGRATIONS: &[&str] = &[
     // 6: the time a transcript has recorded across its sessions, without the gaps between them. Nullable: a
     // transcript from before it ran one session, so its span from start to end is its length.
     "ALTER TABLE transcripts ADD COLUMN recorded_ms INTEGER;",
+    // 7: chat conversations. `attachments` is a JSON list of the files and meetings a message carried, with their text
+    // copied in; `model` labels the model that wrote a reply.
+    "CREATE TABLE chats (
+       id INTEGER PRIMARY KEY AUTOINCREMENT,
+       title TEXT NOT NULL,
+       created_ts INTEGER NOT NULL,
+       updated_ts INTEGER NOT NULL
+     );
+     CREATE INDEX chats_updated ON chats(updated_ts DESC);
+     CREATE TABLE chat_messages (
+       id INTEGER PRIMARY KEY AUTOINCREMENT,
+       chat_id INTEGER NOT NULL,
+       author TEXT NOT NULL,
+       content TEXT NOT NULL,
+       state TEXT NOT NULL,
+       error TEXT,
+       attachments TEXT NOT NULL,
+       model TEXT,
+       ts INTEGER NOT NULL
+     );
+     CREATE INDEX chat_messages_chat ON chat_messages(chat_id, id);",
 ];
 
 pub(super) const SCHEMA_VERSION: u32 = MIGRATIONS.len() as u32;
