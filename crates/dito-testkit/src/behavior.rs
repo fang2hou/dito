@@ -10,6 +10,8 @@ pub struct Behavior {
     pub reject_reasoning_effort: bool,
     /// Chat completions end with `finish_reason: "length"`.
     pub truncate_chat: bool,
+    /// Streamed chat completions: pause between content events.
+    pub chat_chunk_delay: Duration,
     pub transcript: String,
     pub language: Option<String>,
     /// File downloads: cut the connection after this many body bytes (first matching request only).
@@ -26,6 +28,7 @@ impl Default for Behavior {
             fail_status: None,
             reject_reasoning_effort: false,
             truncate_chat: false,
+            chat_chunk_delay: Duration::from_millis(40),
             transcript: "えーと 明日の3時に会議があります".into(),
             language: Some("ja".into()),
             cut_download_after: None,
