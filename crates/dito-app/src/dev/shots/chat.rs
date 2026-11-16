@@ -11,7 +11,7 @@ use dito_core::store::{Attachment, Author, MessageState, NewChatMessage};
 use gpui_kit::*;
 
 use super::capture::{close_window, render_tools_window, resize_tools_window, save, theme_tag};
-use super::input::on_tools_window;
+use super::input::{click, on_tools_window};
 use crate::services;
 use crate::state::AppState;
 use crate::timefmt::now;
@@ -190,12 +190,30 @@ pub async fn run(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
             }
         }
 
+        open(cx, Some(ids.typography));
+        settle(cx, 300).await;
+        on_chat(cx, move |_, app, chat| chat.update(app, |p, cx| p.pose_switch(Some(ids.summary), cx)));
+        for (name, wait) in [("early", 150u64), ("late", 600)] {
+            settle(cx, wait).await;
+            if let Some(Ok(img)) = render_tools_window(cx) {
+                save(dir, &format!("chat-switch-long-{name}-{tag}.png"), img);
+            }
+        }
+
         cx.update(|cx| resize_tools_window(cx, 900., 680.));
         open(cx, Some(ids.summary));
         shot(cx, dir, &format!("chat-compact-{tag}.png")).await;
         on_chat(cx, |_, app, chat| chat.update(app, |p, cx| p.pose_scroll_up(cx)));
         on_chat(cx, |_, app, chat| chat.update(app, |p, cx| p.pose_drawer(true, cx)));
         shot(cx, dir, &format!("chat-drawer-{tag}.png")).await;
+        on_chat(cx, |w, app, chat| {
+            chat.update(app, |p, cx| {
+                p.pose_type("まだ送らない文章", w, cx);
+            })
+        });
+        on_tools_window(cx, |w, app, _| click(w, app, point(px(487.), px(536.))));
+        shot(cx, dir, &format!("chat-scrim-click-{tag}.png")).await;
+        on_chat(cx, |w, app, chat| chat.update(app, |p, cx| p.pose_reset(w, cx)));
         on_chat(cx, |_, app, chat| chat.update(app, |p, cx| p.pose_drawer(false, cx)));
 
         if let Some((window, _)) = cx.update(|cx| tools::handle(cx)) {

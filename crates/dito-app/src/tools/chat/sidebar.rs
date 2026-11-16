@@ -99,6 +99,7 @@ pub(super) fn drawer(
         .id("chat-scrim")
         .absolute()
         .inset_0()
+        .block_mouse_except_scroll()
         .bg(ui::hex_alpha(if p.dark { p.bg } else { crate::theme::hex("#444139") }, 0.18 * shown))
         .on_click(ui::click_cb(ui::cbk(cx, |page, _, cx| {
             page.drawer = false;

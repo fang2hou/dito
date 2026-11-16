@@ -7,11 +7,11 @@ use crate::provider::{ChatMessage, ChatRequest, ChatRole};
 use crate::store::{Attachment, Author, ChatMessageRow, MessageState};
 
 /// A file larger than this is refused instead of being sent in pieces.
-pub const MAX_FILE_BYTES: u64 = 512 * 1024;
+pub const MAX_FILE_BYTES: u64 = 64 * 1024;
 
 /// The oldest turns are left out of a request once the conversation is longer than this many characters. The last
 /// user turn always stays, whatever its length.
-pub const MAX_CONTEXT_CHARS: usize = 48_000;
+pub const MAX_CONTEXT_CHARS: usize = 32_000;
 
 const TITLE_CHARS: usize = 24;
 

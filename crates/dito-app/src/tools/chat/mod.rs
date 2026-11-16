@@ -635,6 +635,8 @@ impl ChatPage {
             self.switching = None;
         }
         if self.switching.is_some() {
+            // A chat opens at its latest turn: the layout that swaps the rows in must still be asked for the bottom.
+            self.scroll.scroll_to_bottom();
             window.request_animation_frame();
         }
         let main = self.main_column(&c, window, cx);

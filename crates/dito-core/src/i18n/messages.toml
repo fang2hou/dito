@@ -618,17 +618,17 @@ transcription.readiness_mic = { ja = "自分の発言を収録して文字に起
 transcription.readiness_system_audio = { ja = "通話相手の声や Mac で再生中の音声を収録するために、システムオーディオ録音へのアクセスが必要です。", en = "System Audio Recording access is needed to record the other side of a call and whatever your Mac plays.", zh = "需要系统录音权限，才能录制通话对方的声音和 Mac 正在播放的声音。" }
 transcription.readiness_vad_title = { ja = "発話検出モデル（Silero VAD）", en = "Speech detection model (Silero VAD)", zh = "发话检测模型（Silero VAD）" }
 transcription.readiness_vad = { ja = "連続する音声から発話の区間を切り出して音声認識へ渡すために必要です。", en = "Needed to cut speech out of the continuous audio and pass it to speech recognition.", zh = "用于从连续音频中切出发言片段并交给语音识别。" }
-chat.empty_title = { ja = "新しいチャット", en = "New chat", zh = "新对话" }
+chat.empty_title = { ja = "新しいチャット", en = "New chat", zh = "新聊天" }
 chat.empty_hint = { ja = "メッセージを入力するか、ファイルや会議を追加してください。", en = "Type a message, or add a file or a meeting.", zh = "输入消息，或添加文件和会议。" }
 chat.placeholder = { ja = "メッセージを入力…", en = "Type a message…", zh = "输入消息…" }
 chat.add_file = { ja = "ファイルを追加", en = "Add file", zh = "添加文件" }
 chat.add_meeting = { ja = "会議を追加", en = "Add meeting", zh = "添加会议" }
 chat.send = { ja = "送信", en = "Send", zh = "发送" }
 chat.stop = { ja = "停止", en = "Stop", zh = "停止" }
-chat.history = { ja = "チャット履歴", en = "Chat history", zh = "对话记录" }
+chat.history = { ja = "チャット履歴", en = "Chat history", zh = "聊天记录" }
 chat.history_open = { ja = "履歴", en = "History", zh = "记录" }
 chat.rename = { ja = "名前を変更", en = "Rename", zh = "重命名" }
-chat.actions = { ja = "チャットの操作", en = "Chat actions", zh = "对话操作" }
+chat.actions = { ja = "チャットの操作", en = "Chat actions", zh = "聊天操作" }
 chat.generating = { ja = "生成中", en = "Generating", zh = "生成中" }
 chat.stopped = { ja = "停止しました", en = "Stopped", zh = "已停止" }
 chat.failed = { ja = "応答できませんでした", en = "No reply", zh = "未能回复" }
@@ -643,7 +643,7 @@ chat.kind_code = { ja = "ソースコード", en = "Source code", zh = "源代�
 chat.file_not_text = { ja = "テキストファイルではありません。プレーンテキスト、Markdown、ソースコードを選んでください。", en = "That is not a text file. Choose plain text, Markdown or source code.", zh = "这不是文本文件。请选择纯文本、Markdown 或源代码。" }
 chat.file_unreadable = { ja = "ファイルを読み込めませんでした。", en = "The file could not be read.", zh = "无法读取该文件。" }
 chat.meeting_unreadable = { ja = "会議を読み込めませんでした。", en = "The meeting could not be read.", zh = "无法读取该会议。" }
-chat.save_failed = { ja = "チャットを保存できませんでした。", en = "The chat could not be saved.", zh = "无法保存对话。" }
+chat.save_failed = { ja = "チャットを保存できませんでした。", en = "The chat could not be saved.", zh = "无法保存聊天。" }
 chat.copy_code = { ja = "コードをコピー", en = "Copy code", zh = "复制代码" }
 
 local_api.tab_api = { ja = "API", en = "API", zh = "API" }
