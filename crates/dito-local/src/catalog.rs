@@ -21,6 +21,23 @@ pub const QWEN38_TEXT_CAPABILITIES: TextModelCapabilities = TextModelCapabilitie
     }),
 };
 
+/// What the model's chat template writes at the top of the system turn for a thinking level. The Qwen 3.8 template
+/// has a line for `xhigh` and `low`, and none for `medium`.
+pub fn reasoning_instruction(model_id: &str, level: &str) -> Option<&'static str> {
+    if !model_id.starts_with("qwen3.8-") {
+        return None;
+    }
+    match level {
+        "xhigh" => Some(
+            "Reasoning effort is set to xhigh. Please think carefully through the task, validate key assumptions,              consider plausible alternatives, and prioritize correctness, consistency, and clarity in the final answer.",
+        ),
+        "low" => Some(
+            "Reasoning effort is set to low. Keep your thinking brief and focused, moving directly to the conclusion              without unnecessary elaboration.",
+        ),
+        _ => None,
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ModelKind {
     Asr,

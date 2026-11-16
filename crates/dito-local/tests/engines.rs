@@ -424,6 +424,7 @@ impl LlmRuntime for Streaming {
         &self,
         _: &[dito_core::provider::ChatMessage],
         sampling: &Sampling,
+        _: Option<bool>,
         on_piece: &mut dyn FnMut(&str),
         stop: &AtomicBool,
     ) -> Result<String, RuntimeError> {

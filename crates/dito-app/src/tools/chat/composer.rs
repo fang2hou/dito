@@ -1,7 +1,9 @@
 //! The message field with its pending attachments, the two add actions and Send or Stop (`design:tools/chat`,
 //! 23.05.1 and 23.05.5).
 
+use dito_core::chat::{THINKING_OFF, THINKING_ON, thinking_choices};
 use dito_core::i18n::{Tr, fmt};
+use dito_core::provider::ThinkingCapabilities;
 use dito_core::store::Attachment;
 use gpui_kit::prelude::*;
 use gpui_kit::*;
@@ -81,8 +83,52 @@ fn actions(page: &ChatPage, c: &Ctx, cx: &mut Context<ChatPage>) -> Div {
             c.t(Tr::ChatAddMeeting),
             &p,
             ui::cbk(cx, |page, window, cx| page.open_picker(window, cx)),
-        ));
+        ))
+        .children(thinking(page, c, cx));
     div().h(px(32.)).w_full().flex().items_center().justify_between().child(left).child(send_or_stop(page, c, cx))
+}
+
+/// The thinking pill with its menu above it, for a model that declares a thinking control (`design:tools/chat`,
+/// 23.05.7). A level shows the name its model gives it, in every display language.
+fn thinking(page: &ChatPage, c: &Ctx, cx: &mut Context<ChatPage>) -> Option<Div> {
+    let p = c.p;
+    let facts = page.model_facts();
+    let capabilities = facts.thinking?;
+    let current = page.thinking_choice(&facts);
+    let title = c.t(Tr::ChatThinking);
+    let label = match current {
+        Some(choice) => SharedString::from(format!("{title} {}", choice_name(choice, &capabilities, c))),
+        None => title,
+    };
+    let button = pill("chat-thinking", Ic::Zap, label, &p, ui::cbk(cx, |page, _, cx| page.toggle_thinking_menu(cx)));
+    let mut wrap = div().relative().child(button);
+    if page.thinking_menu {
+        let close = ui::cbk(cx, |page, _, cx| page.close_thinking_menu(cx));
+        let mut panel = ui::menu_panel(ElementId::from("chat-thinking-menu"), &p, close).w(px(200.));
+        for (i, choice) in thinking_choices(&capabilities).into_iter().enumerate() {
+            let row = ui::menu_row(ElementId::from(("chat-thinking-choice", i)), &p)
+                .justify_between()
+                .on_click(ui::click_cb(ui::cbk(cx, move |page, _, cx| page.set_thinking(choice, cx))))
+                .child(
+                    ui::text(choice_name(choice, &capabilities, c), 13., FontWeight::NORMAL, p.text)
+                        .line_height(relative(1.)),
+                )
+                .children((current == Some(choice)).then(|| ui::icon(Ic::Check, 14., p.accent_text)));
+            panel = panel.child(row);
+        }
+        wrap = wrap.child(div().absolute().left_0().bottom(px(34.)).child(deferred(panel).with_priority(1)));
+    }
+    Some(wrap)
+}
+
+fn choice_name(choice: &str, capabilities: &ThinkingCapabilities, c: &Ctx) -> SharedString {
+    match choice {
+        THINKING_OFF => c.t(Tr::ChatThinkingOff),
+        THINKING_ON => c.t(Tr::ChatThinkingOn),
+        key => {
+            capabilities.levels.iter().find(|level| level.key == key).map_or(key, |level| level.name).to_owned().into()
+        }
+    }
 }
 
 /// A 28 pt pill on the sub surface, glyph and label muted.

@@ -122,6 +122,7 @@ impl ServerHandler for DitoMcp {
                     temperature: arguments.get("temperature").and_then(Value::as_f64).map(|t| t as f32),
                     top_p: None,
                     max_tokens: arguments.get("max_tokens").and_then(Value::as_u64).and_then(|n| u32::try_from(n).ok()),
+                    thinking: None,
                 };
                 match generate(&self.shared, &request, &ChatCancel::default()).await {
                     Ok(reply) => Ok(text_result(reply, false)),

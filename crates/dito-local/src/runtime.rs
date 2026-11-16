@@ -51,11 +51,13 @@ pub trait LlmRuntime: Send + Sync {
     /// Replies to a conversation, passing each piece to `on_piece` as it is decoded and returning their concatenation.
     /// Unlike [`LlmRuntime::generate`], a raised `stop` and an exhausted token budget both return the text so far, and
     /// `sampling.max_tokens` is the only cap, since a chat answer does not run about as long as its input. A runtime
-    /// without streaming keeps this default and answers in one piece.
+    /// without streaming keeps this default and answers in one piece. `think` switches the model's thinking for this
+    /// reply; unset keeps what the model was loaded with.
     fn chat(
         &self,
         messages: &[ChatMessage],
         sampling: &Sampling,
+        _think: Option<bool>,
         on_piece: &mut dyn FnMut(&str),
         stop: &AtomicBool,
     ) -> Result<String, RuntimeError> {

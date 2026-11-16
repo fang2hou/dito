@@ -44,6 +44,11 @@ impl ChatPage {
         self.open_picker(window, cx);
     }
 
+    pub(crate) fn pose_thinking_menu(&mut self, cx: &mut Context<Self>) {
+        self.thinking_menu = true;
+        cx.notify();
+    }
+
     pub(crate) fn pose_attach(&mut self, attachment: Attachment, cx: &mut Context<Self>) {
         self.pending.push(attachment);
         cx.notify();
@@ -72,6 +77,7 @@ impl ChatPage {
     pub(crate) fn pose_reset(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.pending.clear();
         self.picker = None;
+        self.thinking_menu = false;
         self.menu = None;
         self.notice = None;
         self.composer.update(cx, |state, cx| state.set_value("", window, cx));

@@ -13,7 +13,7 @@ use aws_sdk_bedrockruntime::types::{
 use aws_smithy_types::{Document, Number};
 use serde_json::Value;
 
-use super::{CANCEL_POLL, ChatCancel, ChatDelta, ChatRequest, ChatRole, TextModel, TextRequest};
+use super::{CANCEL_POLL, ChatCancel, ChatDelta, ChatRequest, ChatRole, TextModel, TextRequest, Thinking};
 use crate::config::CloudTextParams;
 use crate::error::{ErrorKind, ProviderError, ProviderResult};
 
@@ -182,6 +182,10 @@ impl BedrockEngine {
             temperature: req.temperature.or(self.params.temperature),
             top_p: req.top_p.or(self.params.top_p),
             max_tokens: req.max_tokens.or(self.params.max_tokens),
+            reasoning_effort: match &req.thinking {
+                Some(Thinking::Level(level)) => level.clone().into(),
+                _ => self.params.reasoning_effort.clone(),
+            },
             ..self.params.clone()
         };
         let mut call = self.client.converse_stream().model_id(&self.model_id);

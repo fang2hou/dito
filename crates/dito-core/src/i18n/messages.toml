@@ -633,6 +633,9 @@ chat.history = { ja = "チャット履歴", en = "Chat history", zh = "聊天记
 chat.history_open = { ja = "履歴", en = "History", zh = "记录", zh_hant = "記錄", ko = "기록", mn = "Түүх", fr = "Historique" }
 chat.rename = { ja = "名前を変更", en = "Rename", zh = "重命名", zh_hant = "重新命名", ko = "이름 변경", mn = "Нэр өөрчлөх", fr = "Renommer" }
 chat.actions = { ja = "チャットの操作", en = "Chat actions", zh = "聊天操作", zh_hant = "聊天操作", ko = "채팅 작업", mn = "Чатын үйлдэл", fr = "Actions du chat" }
+chat.thinking = { ja = "思考", en = "Thinking", zh = "思考", zh_hant = "思考", ko = "사고", mn = "Бодолт", fr = "Réflexion" }
+chat.thinking_off = { ja = "オフ", en = "Off", zh = "关闭", zh_hant = "關閉", ko = "끔", mn = "Унтраалттай", fr = "Désactivée" }
+chat.thinking_on = { ja = "オン", en = "On", zh = "开启", zh_hant = "開啟", ko = "켬", mn = "Асаалттай", fr = "Activée" }
 chat.generating = { ja = "生成中", en = "Generating", zh = "生成中", zh_hant = "產生中", ko = "생성 중", mn = "Үүсгэж байна", fr = "Génération" }
 chat.waiting_reading = { ja = "内容を読んでいます", en = "Reading it through", zh = "正在阅读内容", zh_hant = "正在閱讀內容", ko = "내용을 읽고 있어요", mn = "Агуулгыг уншиж байна", fr = "Lecture du contenu" }
 chat.waiting_thinking = { ja = "考えをまとめています", en = "Gathering thoughts", zh = "正在整理思路", zh_hant = "正在整理思緒", ko = "생각을 정리하고 있어요", mn = "Бодлоо цэгцэлж байна", fr = "Mise en ordre des idées" }

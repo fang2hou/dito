@@ -31,6 +31,7 @@ The `config.toml` shapes so far, one migration each (`MIGRATIONS` in `migrate.rs
 | 10 | The default `transcription.title_template` becomes the language-agnostic English instruction; user-edited instructions stay unchanged |
 | 11 | `general.display_language` adds `zh_hant`, `ko`, `mn`, and `fr`; existing values stay unchanged, and the version bump lets older builds report `NewerSchema` cleanly |
 | 12 | The Local API service gains its `local_api` table: `enabled` (off), `port` (17841), `api_any_token` (off) and `mcp_any_token` (on). The access token is a secret and stays in the Keychain |
+| 13 | The chat tool gains its `chat` table: `thinking` maps a text model (`local:` with the catalog id, `cloud:` with the configuration id) to its thinking choice. It starts empty and nothing is rewritten |
 
 Version 3 keeps the Keychain accounts `polish.azure` and `polish.compat` working by giving the migrated configurations the ids `azure`, `bedrock` and `compat`; every later configuration has a random id suffix, so the key of a removed one is never picked up by a new one.
 

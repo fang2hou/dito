@@ -3,15 +3,78 @@
 
 use std::path::Path;
 
-use crate::provider::{ChatMessage, ChatRequest, ChatRole};
+use crate::provider::{
+    ChatMessage, ChatRequest, ChatRole, TextModelCapabilities, Thinking, ThinkingCapabilities, ThinkingLevel,
+};
 use crate::store::{Attachment, Author, ChatMessageRow, MessageState};
 
-/// A file larger than this is refused instead of being sent in pieces.
-pub const MAX_FILE_BYTES: u64 = 64 * 1024;
+/// How much one request may carry, by where the text model runs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Limits {
+    /// A file larger than this is refused instead of being sent in pieces.
+    pub file_bytes: u64,
+    /// The oldest turns are left out of a request once the conversation is longer than this many characters. The
+    /// last user turn always stays, whatever its length.
+    pub context_chars: usize,
+}
 
-/// The oldest turns are left out of a request once the conversation is longer than this many characters. The last
-/// user turn always stays, whatever its length.
-pub const MAX_CONTEXT_CHARS: usize = 32_000;
+impl Limits {
+    /// A cloud model reads far more than a person attaches by hand; the provider refuses what is past its window.
+    pub const CLOUD: Self = Self { file_bytes: 2 * 1024 * 1024, context_chars: 500_000 };
+
+    /// A local model reads about 128,000 characters in a wait a person accepts, well inside its window; a model
+    /// with a smaller window gets what its window holds beside the reply, at up to a token per character.
+    pub fn local(capabilities: Option<&TextModelCapabilities>) -> Self {
+        const CHARS: usize = 128_000;
+        const REPLY_TOKENS: u32 = 8192;
+        let window = capabilities.map_or(CHARS, |c| c.context_window_tokens.saturating_sub(REPLY_TOKENS) as usize);
+        Self { file_bytes: 512 * 1024, context_chars: CHARS.min(window) }
+    }
+}
+
+/// The thinking levels offered for a cloud model: the efforts the OpenAI-compatible and Bedrock requests name alike.
+/// It cannot be switched off from here, and nothing is preselected unless the configuration names one of them.
+pub const CLOUD_THINKING: ThinkingCapabilities = ThinkingCapabilities {
+    can_disable: false,
+    levels: &[ThinkingLevel::LOW, ThinkingLevel::MEDIUM, ThinkingLevel::HIGH],
+    default_level: None,
+};
+
+pub const THINKING_OFF: &str = "off";
+pub const THINKING_ON: &str = "on";
+
+/// The choices a model offers, in menu order: `off` when it can be disabled, then its levels, or `on` when it only
+/// switches.
+pub fn thinking_choices(capabilities: &ThinkingCapabilities) -> Vec<&'static str> {
+    let mut choices = Vec::new();
+    if capabilities.can_disable {
+        choices.push(THINKING_OFF);
+    }
+    if capabilities.levels.is_empty() {
+        choices.push(THINKING_ON);
+    }
+    choices.extend(capabilities.levels.iter().map(|level| level.key));
+    choices
+}
+
+/// The saved choice when the model still offers it, else the model's default level, else off when it can be
+/// disabled. `None` leaves the request to the engine's configuration.
+pub fn thinking_choice(capabilities: &ThinkingCapabilities, saved: Option<&str>) -> Option<&'static str> {
+    let choices = thinking_choices(capabilities);
+    let pick = |key: &str| choices.iter().copied().find(|choice| *choice == key);
+    saved
+        .and_then(pick)
+        .or_else(|| capabilities.default_level.and_then(pick))
+        .or_else(|| capabilities.can_disable.then_some(THINKING_OFF))
+}
+
+pub fn thinking_request(choice: Option<&str>) -> Option<Thinking> {
+    match choice? {
+        THINKING_OFF => Some(Thinking::Off),
+        THINKING_ON => Some(Thinking::On),
+        level => Some(Thinking::Level(level.to_owned())),
+    }
+}
 
 const TITLE_CHARS: usize = 24;
 
@@ -28,12 +91,12 @@ pub enum FileError {
 }
 
 /// Reads a plain text, Markdown or source file for attaching.
-pub fn read_text_file(path: &Path) -> Result<Attachment, FileError> {
+pub fn read_text_file(path: &Path, max_bytes: u64) -> Result<Attachment, FileError> {
     let meta = std::fs::metadata(path).map_err(|_| FileError::Unreadable)?;
     if !meta.is_file() {
         return Err(FileError::Unreadable);
     }
-    if meta.len() > MAX_FILE_BYTES {
+    if meta.len() > max_bytes {
         return Err(FileError::TooLarge);
     }
     let bytes = std::fs::read(path).map_err(|_| FileError::Unreadable)?;
@@ -105,7 +168,7 @@ pub fn user_turn(text: &str, attachments: &[Attachment], date: impl Fn(i64) -> S
 
 /// The request for the conversation so far, ending with a user turn. Replies that failed, never started or were
 /// stopped before saying anything are left out; a stopped reply keeps what it wrote.
-pub fn request_for(messages: &[ChatMessageRow], date: impl Fn(i64) -> String + Copy) -> ChatRequest {
+pub fn request_for(messages: &[ChatMessageRow], date: impl Fn(i64) -> String + Copy, max_chars: usize) -> ChatRequest {
     let mut turns: Vec<ChatMessage> = messages
         .iter()
         .filter(|m| match m.author {
@@ -124,7 +187,7 @@ pub fn request_for(messages: &[ChatMessageRow], date: impl Fn(i64) -> String + C
     let mut keep_from = turns.len().saturating_sub(1);
     for (i, turn) in turns.iter().enumerate().rev() {
         total += turn.content.chars().count();
-        if total > MAX_CONTEXT_CHARS && i < keep_from {
+        if total > max_chars && i < keep_from {
             break;
         }
         keep_from = i;
@@ -141,6 +204,8 @@ pub fn request_for(messages: &[ChatMessageRow], date: impl Fn(i64) -> String + C
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const MAX: usize = 32_000;
 
     fn row(author: Author, content: &str, state: MessageState, attachments: Vec<Attachment>) -> ChatMessageRow {
         ChatMessageRow { id: 0, author, content: content.into(), state, error: None, attachments, model: None, ts: 0 }
@@ -187,7 +252,7 @@ mod tests {
             user("three"),
             reply("", MessageState::Generating),
         ];
-        let req = request_for(&messages, day);
+        let req = request_for(&messages, day, MAX);
         let roles: Vec<_> = req.messages.iter().map(|m| (m.role, m.content.as_str())).collect();
         assert_eq!(
             roles,
@@ -203,7 +268,7 @@ mod tests {
 
     #[test]
     fn a_long_conversation_loses_its_oldest_turns_and_never_starts_on_a_reply() {
-        let big = "あ".repeat(MAX_CONTEXT_CHARS / 2 + 1);
+        let big = "あ".repeat(MAX / 2 + 1);
         let messages = [
             user("old question"),
             reply(&big, MessageState::Done),
@@ -211,11 +276,11 @@ mod tests {
             reply("answer", MessageState::Done),
             user("last"),
         ];
-        let req = request_for(&messages, day);
+        let req = request_for(&messages, day, MAX);
         let turns: Vec<_> = req.messages.iter().skip(1).map(|m| (m.role, m.content.chars().count())).collect();
         assert_eq!(turns, [(ChatRole::User, big.chars().count()), (ChatRole::Assistant, 6), (ChatRole::User, 4)]);
 
-        let only = request_for(&[user(&"a".repeat(MAX_CONTEXT_CHARS * 2))], day);
+        let only = request_for(&[user(&"a".repeat(MAX * 2))], day, MAX);
         assert_eq!(only.messages.len(), 2, "the last user turn stays however long it is");
     }
 
@@ -242,18 +307,52 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let ok = dir.path().join("main.rs");
         std::fs::write(&ok, "fn main() {}\n").unwrap();
-        let Ok(Attachment::File { name, bytes, text }) = read_text_file(&ok) else { panic!("text file") };
+        let Ok(Attachment::File { name, bytes, text }) = read_text_file(&ok, 64) else { panic!("text file") };
         assert_eq!((name.as_str(), bytes, text.as_str()), ("main.rs", 13, "fn main() {}\n"));
 
         let binary = dir.path().join("a.bin");
         std::fs::write(&binary, [0u8, 1, 2]).unwrap();
-        assert_eq!(read_text_file(&binary).err(), Some(FileError::NotText));
+        assert_eq!(read_text_file(&binary, 64).err(), Some(FileError::NotText));
         let latin = dir.path().join("l.txt");
         std::fs::write(&latin, [0xE9u8]).unwrap();
-        assert_eq!(read_text_file(&latin).err(), Some(FileError::NotText));
+        assert_eq!(read_text_file(&latin, 64).err(), Some(FileError::NotText));
         let big = dir.path().join("big.txt");
-        std::fs::write(&big, vec![b'a'; MAX_FILE_BYTES as usize + 1]).unwrap();
-        assert_eq!(read_text_file(&big).err(), Some(FileError::TooLarge));
-        assert_eq!(read_text_file(&dir.path().join("missing")).err(), Some(FileError::Unreadable));
+        std::fs::write(&big, vec![b'a'; 65]).unwrap();
+        assert_eq!(read_text_file(&big, 64).err(), Some(FileError::TooLarge));
+        assert_eq!(read_text_file(&dir.path().join("missing"), 64).err(), Some(FileError::Unreadable));
+    }
+
+    #[test]
+    fn a_thinking_choice_is_the_saved_one_while_offered_then_the_default_then_off() {
+        let switch = ThinkingCapabilities { can_disable: true, levels: &[], default_level: None };
+        assert_eq!(thinking_choices(&switch), ["off", "on"]);
+        assert_eq!(thinking_choice(&switch, None), Some("off"));
+        assert_eq!(thinking_choice(&switch, Some("on")), Some("on"));
+        assert_eq!(thinking_choice(&switch, Some("xhigh")), Some("off"), "a choice of another model is dropped");
+
+        let levels = ThinkingCapabilities {
+            can_disable: true,
+            levels: &[ThinkingLevel::LOW, ThinkingLevel::XHIGH],
+            default_level: Some("xhigh"),
+        };
+        assert_eq!(thinking_choices(&levels), ["off", "low", "xhigh"]);
+        assert_eq!(thinking_choice(&levels, None), Some("xhigh"));
+        assert_eq!(thinking_request(Some("low")), Some(Thinking::Level("low".into())));
+
+        assert_eq!(thinking_choice(&CLOUD_THINKING, None), None, "a cloud model keeps its configuration");
+        assert_eq!(thinking_request(None), None);
+        assert_eq!(thinking_request(Some("off")), Some(Thinking::Off));
+    }
+
+    #[test]
+    fn a_local_model_reads_128000_characters_unless_its_window_is_smaller() {
+        assert_eq!(Limits::local(None).context_chars, 128_000);
+        let small = TextModelCapabilities {
+            context_window_tokens: 32_768,
+            max_output_tokens: None,
+            recommended_output_tokens: None,
+            thinking: None,
+        };
+        assert_eq!(Limits::local(Some(&small)).context_chars, 24_576);
     }
 }

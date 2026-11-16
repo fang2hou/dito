@@ -33,6 +33,9 @@ fn backend() -> Result<&'static LlamaBackend, RuntimeError> {
 /// Qwen hybrid-thinking checkpoints answer directly when the assistant turn opens with an empty think block.
 const EMPTY_THINK_BLOCK: &str = "<think>\n\n</think>\n\n";
 
+/// The open think block the chat templates write when thinking is on.
+const OPEN_THINK_BLOCK: &str = "<think>\n";
+
 /// The seed of a polish reply: the same input and sampling give the same text.
 const POLISH_SEED: u32 = 1234;
 
@@ -264,10 +267,10 @@ impl Chat {
             messages.push(message("assistant", example.written)?);
         }
         messages.push(message("user", user)?);
-        self.apply_template(&messages)
+        self.apply_template(&messages, None)
     }
 
-    fn render_chat(&self, messages: &[ChatMessage]) -> Result<String, RuntimeError> {
+    fn render_chat(&self, messages: &[ChatMessage], think: Option<bool>) -> Result<String, RuntimeError> {
         let messages = messages
             .iter()
             .map(|m| {
@@ -279,15 +282,19 @@ impl Chat {
                 LlamaChatMessage::new(role.into(), m.content.clone()).map_err(RuntimeError::engine)
             })
             .collect::<Result<Vec<_>, _>>()?;
-        self.apply_template(&messages)
+        self.apply_template(&messages, think)
     }
 
-    fn apply_template(&self, messages: &[LlamaChatMessage]) -> Result<String, RuntimeError> {
+    /// `think` is a reply's own choice; unset keeps what the model was loaded with.
+    fn apply_template(&self, messages: &[LlamaChatMessage], think: Option<bool>) -> Result<String, RuntimeError> {
         let mut prompt = self.model.apply_chat_template(&self.template, messages, true).map_err(|error| {
             RuntimeError::engine(format!("the model's chat template could not be applied: {error}"))
         })?;
-        if self.disable_thinking {
-            prompt.push_str(EMPTY_THINK_BLOCK);
+        match think {
+            Some(true) => prompt.push_str(OPEN_THINK_BLOCK),
+            Some(false) => prompt.push_str(EMPTY_THINK_BLOCK),
+            None if self.disable_thinking => prompt.push_str(EMPTY_THINK_BLOCK),
+            None => {}
         }
         Ok(prompt)
     }
@@ -358,6 +365,7 @@ impl LlmRuntime for Chat {
         &self,
         messages: &[ChatMessage],
         sampling: &Sampling,
+        think: Option<bool>,
         on_piece: &mut dyn FnMut(&str),
         stop: &AtomicBool,
     ) -> Result<String, RuntimeError> {
@@ -366,7 +374,7 @@ impl LlmRuntime for Chat {
             return Ok(String::new());
         }
         backend()?;
-        let prompt = self.render_chat(messages)?;
+        let prompt = self.render_chat(messages, think)?;
         let tokens = self.tokenize_prompt(&prompt);
         let room = (self.model.n_ctx_train() as usize).saturating_sub(tokens.len());
         let budget = sampling.max_tokens.unwrap_or(CHAT_BUDGET).min(u32::try_from(room).unwrap_or(u32::MAX));
@@ -398,7 +406,7 @@ impl LlmRuntime for Chat {
 
         let seed = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.subsec_nanos());
         let mut sampler = sampler(sampling, seed);
-        let mut filter = ThinkFilter::new(!self.disable_thinking);
+        let mut filter = ThinkFilter::new(think.unwrap_or(!self.disable_thinking));
         let mut reply = String::new();
         let mut show = |text: &str| {
             if !text.is_empty() {
@@ -417,12 +425,20 @@ impl LlmRuntime for Chat {
             stop,
             &mut |piece| show(&filter.push(piece)),
         );
-        match outcome {
-            Ok(_) => show(&filter.finish()),
-            Err(RuntimeError::Cancelled) => {}
+        let unfinished_thought = match outcome {
+            // With thinking asked for, what is still held was never closed: thoughts, not an answer.
+            Ok(_) if think == Some(true) => !filter.finish().is_empty(),
+            Ok(_) => {
+                show(&filter.finish());
+                false
+            }
+            Err(RuntimeError::Cancelled) => false,
             Err(error) => return Err(error),
-        }
+        };
         self.keep_chat_session(session);
+        if unfinished_thought && reply.is_empty() {
+            return Err(RuntimeError::engine("the model used its whole reply on thinking and never answered"));
+        }
         Ok(reply)
     }
 
@@ -678,7 +694,7 @@ mod tests {
 
         let stop = AtomicBool::new(false);
         let mut pieces: Vec<String> = Vec::new();
-        let reply = chat.chat(&messages, &sampling, &mut |p| pieces.push(p.to_string()), &stop).unwrap();
+        let reply = chat.chat(&messages, &sampling, None, &mut |p| pieces.push(p.to_string()), &stop).unwrap();
         eprintln!("CHAT_STREAM {reply}");
         assert!(pieces.len() > 3, "{} pieces", pieces.len());
         assert_eq!(pieces.concat(), reply);
@@ -689,6 +705,7 @@ mod tests {
             .chat(
                 &messages,
                 &sampling,
+                None,
                 &mut |p| {
                     pieces.push(p.to_string());
                     if pieces.len() == 2 {

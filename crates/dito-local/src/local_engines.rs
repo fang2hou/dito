@@ -12,7 +12,8 @@ use dito_core::factory::LocalBackend;
 use dito_core::health::EngineStatus;
 use dito_core::intent::Decision;
 use dito_core::provider::{
-    AsrRequest, ChatCancel, ChatDelta, ChatRequest, Router, TextModel, TextRequest, Transcriber, Transcript,
+    AsrRequest, ChatCancel, ChatDelta, ChatMessage, ChatRequest, ChatRole, Router, TextModel, TextRequest, Thinking,
+    Transcriber, Transcript,
 };
 use dito_core::trace_log;
 
@@ -202,6 +203,8 @@ struct LocalLlm {
     rt: Arc<dyn LlmRuntime>,
     usage: Arc<Usage>,
     sampling: Sampling,
+    /// The catalog id picks the wording of a thinking level.
+    model_id: String,
 }
 
 struct LocalRouter {
@@ -301,7 +304,16 @@ impl TextModel for LocalLlm {
             max_tokens: req.max_tokens.or(self.sampling.max_tokens),
             ..self.sampling
         };
-        let (rt, messages) = (self.rt.clone(), req.messages.clone());
+        let (rt, mut messages) = (self.rt.clone(), req.messages.clone());
+        let think = req.thinking.as_ref().map(|thinking| *thinking != Thinking::Off);
+        if let Some(Thinking::Level(level)) = &req.thinking
+            && let Some(instruction) = crate::catalog::reasoning_instruction(&self.model_id, level)
+        {
+            match messages.iter_mut().find(|m| m.role == ChatRole::System) {
+                Some(system) => system.content = format!("{instruction}\n\n{}", system.content),
+                None => messages.insert(0, ChatMessage::new(ChatRole::System, instruction)),
+            }
+        }
         let stop = Arc::new(AtomicBool::new(false));
         let _cancel = StopOnDrop(stop.clone());
         let (pieces, mut received) = tokio::sync::mpsc::unbounded_channel::<String>();
@@ -310,6 +322,7 @@ impl TextModel for LocalLlm {
             rt.chat(
                 &messages,
                 &sampling,
+                think,
                 &mut |piece| {
                     let _ = pieces.send(piece.to_string());
                 },
@@ -377,6 +390,7 @@ impl LocalBackend for LocalEngines {
                 rt,
                 usage: self.usage_for(model_id),
                 sampling: recommended.with_params(params),
+                model_id: model_id.to_string(),
             })),
             _ => Err(ProviderError::new(ErrorKind::Unavailable, format!("{model_id} is not a language model"))),
         }

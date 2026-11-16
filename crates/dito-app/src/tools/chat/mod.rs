@@ -19,9 +19,10 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use dito_core::chat::{self, FileError, MAX_FILE_BYTES};
+use dito_core::chat::{self, FileError, Limits};
 use dito_core::config::Source;
 use dito_core::i18n::{Lang, Tr, fmt};
+use dito_core::provider::ThinkingCapabilities;
 use dito_core::store::{
     Attachment, Author, ChatMessageRow, ChatSummary, MessageState, NewChatMessage, TranscriptSummary,
 };
@@ -77,6 +78,9 @@ pub(crate) struct ChatPage {
     rename: Option<sidebar::Rename>,
     picker: Option<picker::Picker>,
     text_menu: Option<TextMenu>,
+    thinking_menu: bool,
+    /// When a press outside closed the thinking menu, so the press on its own pill does not open it again.
+    thinking_closed: Option<Instant>,
     switching: Option<Switching>,
     /// Esc closes the picker, the menu, the rename field and the drawer, from anywhere in the window.
     _escape: Subscription,
@@ -87,6 +91,16 @@ pub(crate) struct ChatPage {
 struct TextMenu {
     at: Point<Pixels>,
     text: String,
+}
+
+/// What the chat needs to know about the text model in use.
+struct ModelFacts {
+    /// Names the model in `chat.thinking` of the configuration.
+    key: String,
+    limits: Limits,
+    thinking: Option<ThinkingCapabilities>,
+    /// The reasoning effort a cloud configuration names, which is the choice until another is saved.
+    configured: Option<String>,
 }
 
 struct Switching {
@@ -141,6 +155,8 @@ impl ChatPage {
             rename: None,
             picker: None,
             text_menu: None,
+            thinking_menu: false,
+            thinking_closed: None,
             switching: None,
             _escape: escape,
         };
@@ -185,10 +201,12 @@ impl ChatPage {
             || self.menu.is_some()
             || self.rename.is_some()
             || self.text_menu.is_some()
+            || self.thinking_menu
             || self.drawer;
         if open {
             self.picker = None;
             self.text_menu = None;
+            self.thinking_menu = false;
             self.menu = None;
             self.rename = None;
             self.drawer = false;
@@ -198,6 +216,62 @@ impl ChatPage {
 
     fn generating(&self) -> bool {
         self.generation.is_some()
+    }
+
+    fn model_facts(&self) -> ModelFacts {
+        let cfg = self.st.cfg.get();
+        let engine = &cfg.text_model;
+        match engine.source {
+            Source::Local => {
+                let capabilities = self.st.models.spec(&engine.local_model).and_then(|spec| spec.text_capabilities);
+                ModelFacts {
+                    key: format!("local:{}", engine.local_model),
+                    limits: Limits::local(capabilities.as_ref()),
+                    thinking: capabilities.and_then(|c| c.thinking),
+                    configured: None,
+                }
+            }
+            Source::Provider => {
+                let active = engine.active_text();
+                ModelFacts {
+                    key: format!("cloud:{}", active.as_ref().map_or("", |t| t.id.as_str())),
+                    limits: Limits::CLOUD,
+                    thinking: Some(chat::CLOUD_THINKING),
+                    configured: active.map(|t| t.params.reasoning_effort.as_str().to_owned()),
+                }
+            }
+        }
+    }
+
+    /// The choice saved for this model, else the effort its cloud configuration names, else the model's default.
+    fn thinking_choice(&self, facts: &ModelFacts) -> Option<&'static str> {
+        let capabilities = facts.thinking.as_ref()?;
+        let cfg = self.st.cfg.get();
+        let saved = cfg.chat.thinking.get(&facts.key).map(String::as_str).or(facts.configured.as_deref());
+        chat::thinking_choice(capabilities, saved)
+    }
+
+    fn toggle_thinking_menu(&mut self, cx: &mut Context<Self>) {
+        let just_closed = self.thinking_closed.take().is_some_and(|at| at.elapsed() < Duration::from_millis(200));
+        self.thinking_menu = !self.thinking_menu && !just_closed;
+        cx.notify();
+    }
+
+    fn close_thinking_menu(&mut self, cx: &mut Context<Self>) {
+        if self.thinking_menu {
+            self.thinking_menu = false;
+            self.thinking_closed = Some(Instant::now());
+            cx.notify();
+        }
+    }
+
+    fn set_thinking(&mut self, choice: &'static str, cx: &mut Context<Self>) {
+        let key = self.model_facts().key;
+        crate::services::save_config(&self.st, move |cfg| {
+            cfg.chat.thinking.insert(key, choice.to_owned());
+        });
+        self.thinking_menu = false;
+        cx.notify();
     }
 
     fn model_label(&self) -> String {
@@ -403,7 +477,9 @@ impl ChatPage {
 
     /// Adds the reply's row and starts the request for the conversation as it stands.
     fn begin_reply(&mut self, chat_id: i64, cx: &mut Context<Self>) {
-        let request = chat::request_for(&self.rows, self.date_label());
+        let facts = self.model_facts();
+        let mut request = chat::request_for(&self.rows, self.date_label(), facts.limits.context_chars);
+        request.thinking = chat::thinking_request(self.thinking_choice(&facts));
         let model = self.model_label();
         let ts = now();
         let placeholder = NewChatMessage {
@@ -510,10 +586,11 @@ impl ChatPage {
     fn add_files(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let result =
             cx.prompt_for_paths(PathPromptOptions { files: true, directories: false, multiple: true, prompt: None });
+        let max_bytes = self.model_facts().limits.file_bytes;
         cx.spawn_in(window, async move |this, cx| {
             let Ok(Ok(Some(paths))) = result.await else { return };
             for path in paths {
-                let read = cx.background_executor().spawn(async move { chat::read_text_file(&path) }).await;
+                let read = cx.background_executor().spawn(async move { chat::read_text_file(&path, max_bytes) }).await;
                 let done = this.update(cx, |page, cx| page.attach_file(read, cx));
                 if done.is_err() {
                     break;
@@ -532,7 +609,7 @@ impl ChatPage {
             }
             Err(FileError::TooLarge) => {
                 let lang = self.lang();
-                let limit = files::size_label(MAX_FILE_BYTES);
+                let limit = files::size_label(self.model_facts().limits.file_bytes);
                 self.notice = Some(fmt::chat_file_too_large(lang, &limit));
                 cx.notify();
             }

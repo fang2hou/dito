@@ -132,6 +132,13 @@ pub async fn run(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
         shot(cx, dir, &format!("chat-attachments-{tag}.png")).await;
         on_chat(cx, |w, app, chat| chat.update(app, |p, cx| p.pose_picker(w, cx)));
         shot(cx, dir, &format!("chat-picker-{tag}.png")).await;
+        on_chat(cx, |w, app, chat| {
+            chat.update(app, |p, cx| {
+                p.pose_reset(w, cx);
+                p.pose_thinking_menu(cx);
+            })
+        });
+        shot(cx, dir, &format!("chat-thinking-{tag}.png")).await;
         on_chat(cx, |w, app, chat| chat.update(app, |p, cx| p.pose_reset(w, cx)));
 
         on_chat(cx, |_, app, chat| chat.update(app, |p, cx| p.pose_menu(p.pose_sessions()[0], cx)));

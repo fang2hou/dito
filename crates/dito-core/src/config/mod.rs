@@ -1,5 +1,6 @@
 //! Persisted settings.
 
+mod chat;
 mod cloud_asr;
 mod cloud_text;
 mod data_dir;
@@ -15,6 +16,7 @@ mod settings;
 mod store;
 mod transcription;
 
+pub use chat::ChatSettings;
 pub use cloud_asr::{CloudAsrConfiguration, CloudAsrConfigurations, CloudAsrTemplate};
 pub use cloud_text::{
     CloudTextConfiguration, CloudTextConfigurations, CloudTextParams, CloudTextTarget, CloudTextTemplate,

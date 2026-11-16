@@ -3,7 +3,9 @@
 use async_trait::async_trait;
 use serde_json::{Number, Value, json};
 
-use super::{CANCEL_POLL, ChatCancel, ChatDelta, ChatRequest, ChatRole, TextModel, TextRequest, default_timeout};
+use super::{
+    CANCEL_POLL, ChatCancel, ChatDelta, ChatRequest, ChatRole, TextModel, TextRequest, Thinking, default_timeout,
+};
 use crate::config::CloudTextParams;
 use crate::error::{ErrorKind, ProviderError, ProviderResult};
 
@@ -123,6 +125,9 @@ impl OpenAiEngine {
         }
         if !params.reasoning_effort.as_str().trim().is_empty() {
             body["reasoning_effort"] = params.reasoning_effort.as_str().into();
+        }
+        if let Some(Thinking::Level(level)) = chat.and_then(|c| c.thinking.as_ref()) {
+            body["reasoning_effort"] = level.as_str().into();
         }
         for (key, value) in &params.extra {
             body[key.as_str()] = value.clone();

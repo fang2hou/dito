@@ -9,7 +9,7 @@ use crate::prompts::{AppTarget, default_set};
 
 /// Version of the persisted shape that this build reads and writes. Raise it together with appending one function to
 /// `MIGRATIONS`, and never edit or renumber a shipped migration: files in the field have already passed through it.
-pub const SCHEMA_VERSION: u32 = 12;
+pub const SCHEMA_VERSION: u32 = 13;
 
 const VERSION_KEY: &str = "schema_version";
 
@@ -28,6 +28,7 @@ const MIGRATIONS: [fn(&mut Table); SCHEMA_VERSION as usize] = [
     english_title_template,
     display_locales,
     local_api_settings,
+    chat_settings,
 ];
 
 /// The title instruction version 9 shipped as its default, kept here because the migrations that wrote it and
@@ -336,6 +337,10 @@ fn local_api_settings(table: &mut Table) {
     settings.entry("api_any_token").or_insert(false.into());
     settings.entry("mcp_any_token").or_insert(true.into());
 }
+
+/// 12 to 13: the chat tool gains its `chat` table, which starts empty. Nothing is rewritten; the version bump lets an
+/// older build refuse the file instead of dropping the table.
+fn chat_settings(_table: &mut Table) {}
 
 #[cfg(test)]
 mod tests {

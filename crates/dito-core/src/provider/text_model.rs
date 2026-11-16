@@ -39,6 +39,15 @@ impl ChatMessage {
     }
 }
 
+/// How hard a model thinks before it answers. A level is the `key` of one of the model's
+/// [`ThinkingLevel`](super::ThinkingLevel)s.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Thinking {
+    Off,
+    On,
+    Level(String),
+}
+
 /// A multi-turn conversation. Unset sampling fields take the engine's configured parameters.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct ChatRequest {
@@ -46,6 +55,8 @@ pub struct ChatRequest {
     pub temperature: Option<f32>,
     pub top_p: Option<f32>,
     pub max_tokens: Option<u32>,
+    /// Unset keeps what the engine is configured to do.
+    pub thinking: Option<Thinking>,
 }
 
 /// Stops a streaming reply. Engines check it between tokens and return what they have so far.

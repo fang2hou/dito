@@ -174,6 +174,7 @@ impl ChatCompletionRequest {
             temperature: self.temperature,
             top_p: self.top_p,
             max_tokens: self.max_completion_tokens.or(self.max_tokens),
+            thinking: None,
         })
     }
 }
