@@ -5,7 +5,7 @@ use std::time::Duration;
 use gpui_kit::*;
 
 use super::input::redraw;
-use super::{demo, hud, local_api, onboarding, pages, startup, text_model_form, tile_row, wordbook};
+use super::{demo, hud, local_api, onboarding, pages, readme_film, startup, text_model_form, tile_row, wordbook};
 use crate::settings::{self, Page};
 use crate::state::{AppGlobal, AppState};
 
@@ -136,6 +136,9 @@ async fn render_app_shots(st: &Arc<AppState>, dir: &Path, groups: &Groups, cx: &
 }
 
 async fn render_preview_shots(st: &Arc<AppState>, dir: &Path, groups: &Groups, cx: &mut AsyncApp) {
+    if groups.selects("readmefilm") {
+        readme_film::run(st, dir, cx).await;
+    }
     if groups.selects("hudinteractions") {
         hud::hud_interaction_shots(st, dir, cx).await;
     }
