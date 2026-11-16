@@ -1,6 +1,25 @@
 //! The models Dito can run on-device. Sizes and SHA-256 come from the Hugging Face file listings.
 
 use dito_core::config::LocalTextParams;
+use dito_core::provider::{TextModelCapabilities, ThinkingCapabilities, ThinkingLevel};
+
+pub const QWEN35_TEXT_CAPABILITIES: TextModelCapabilities = TextModelCapabilities {
+    context_window_tokens: 262_144,
+    max_output_tokens: None,
+    recommended_output_tokens: Some(32_768),
+    thinking: Some(ThinkingCapabilities { can_disable: true, levels: &[], default_level: None }),
+};
+
+pub const QWEN38_TEXT_CAPABILITIES: TextModelCapabilities = TextModelCapabilities {
+    context_window_tokens: 262_144,
+    max_output_tokens: None,
+    recommended_output_tokens: None,
+    thinking: Some(ThinkingCapabilities {
+        can_disable: true,
+        levels: &[ThinkingLevel::LOW, ThinkingLevel::MEDIUM, ThinkingLevel::XHIGH],
+        default_level: Some("xhigh"),
+    }),
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ModelKind {
@@ -24,6 +43,7 @@ pub struct ModelSpec {
     pub id: String,
     pub name: String,
     pub kind: ModelKind,
+    pub text_capabilities: Option<TextModelCapabilities>,
     /// Millions of parameters of the original model, which orders the Models page from small to large.
     pub parameters_m: u32,
     pub quantization: Quantization,
@@ -172,6 +192,7 @@ pub fn default_catalog() -> Vec<ModelSpec> {
             parameters_m: 2349,
             quantization: Quantization::Q8_0,
             kind: ModelKind::Asr,
+            text_capabilities: None,
             files: vec![
                 file(
                     "Qwen3-ASR-1.7B-Q8_0.gguf",
@@ -202,6 +223,7 @@ pub fn default_catalog() -> Vec<ModelSpec> {
             parameters_m: 938,
             quantization: Quantization::Q8_0,
             kind: ModelKind::Asr,
+            text_capabilities: None,
             files: vec![
                 file(
                     "Qwen3-ASR-0.6B-Q8_0.gguf",
@@ -230,6 +252,7 @@ pub fn default_catalog() -> Vec<ModelSpec> {
             parameters_m: 234,
             quantization: Quantization { label: "INT8", source_bits: 32, bits: (8, 8) },
             kind: ModelKind::Asr,
+            text_capabilities: None,
             files: vec![
                 file(
                     "model.int8.onnx",
@@ -259,6 +282,7 @@ pub fn default_catalog() -> Vec<ModelSpec> {
             parameters_m: 616,
             quantization: Quantization { label: "INT4/8", source_bits: 32, bits: (4, 8) },
             kind: ModelKind::Asr,
+            text_capabilities: None,
             files: vec![
                 file(
                     "encoder.quantized.onnx",
@@ -319,6 +343,7 @@ pub fn default_catalog() -> Vec<ModelSpec> {
             parameters_m: 2038,
             quantization: Quantization::Q8_0,
             kind: ModelKind::Asr,
+            text_capabilities: None,
             files: vec![
                 file(
                     "Confucius4-R2T2-Q8_0.gguf",
@@ -351,6 +376,7 @@ pub fn default_catalog() -> Vec<ModelSpec> {
             parameters_m: 1543,
             quantization: Quantization::Q5_K_M,
             kind: ModelKind::Asr,
+            text_capabilities: None,
             files: vec![file(
                 "whisper-large-v3-Q5_K_M.gguf",
                 &format!(
@@ -370,6 +396,7 @@ pub fn default_catalog() -> Vec<ModelSpec> {
             parameters_m: 800,
             quantization: Quantization::Q8_0,
             kind: ModelKind::Asr,
+            text_capabilities: None,
             files: vec![file(
                 "Fun-ASR-MLT-Nano-2512-Q8_0.gguf",
                 &format!(
@@ -390,6 +417,7 @@ pub fn default_catalog() -> Vec<ModelSpec> {
             parameters_m: 809,
             quantization: Quantization::Q5_K_M,
             kind: ModelKind::Asr,
+            text_capabilities: None,
             files: vec![file(
                 "whisper-large-v3-turbo-Q5_K_M.gguf",
                 &format!(
@@ -408,6 +436,7 @@ pub fn default_catalog() -> Vec<ModelSpec> {
             parameters_m: 2000,
             quantization: Quantization::Q4_K_M,
             kind: ModelKind::Text,
+            text_capabilities: Some(QWEN35_TEXT_CAPABILITIES),
             files: vec![file(
                 "Qwen3.5-2B-Q4_K_M.gguf",
                 &format!("{hf}/unsloth/Qwen3.5-2B-GGUF/resolve/main/Qwen3.5-2B-Q4_K_M.gguf"),
@@ -428,6 +457,7 @@ pub fn default_catalog() -> Vec<ModelSpec> {
             parameters_m: 4000,
             quantization: Quantization::Q4_K_M,
             kind: ModelKind::Text,
+            text_capabilities: Some(QWEN35_TEXT_CAPABILITIES),
             files: vec![file(
                 "Qwen3.5-4B-Q4_K_M.gguf",
                 &format!("{hf}/unsloth/Qwen3.5-4B-GGUF/resolve/main/Qwen3.5-4B-Q4_K_M.gguf"),
@@ -451,6 +481,7 @@ pub fn default_catalog() -> Vec<ModelSpec> {
             parameters_m: 9000,
             quantization: Quantization::Q4_K_M,
             kind: ModelKind::Text,
+            text_capabilities: Some(QWEN35_TEXT_CAPABILITIES),
             files: vec![file(
                 "Qwen3.5-9B-Q4_K_M.gguf",
                 &format!("{hf}/unsloth/Qwen3.5-9B-GGUF/resolve/main/Qwen3.5-9B-Q4_K_M.gguf"),
@@ -465,6 +496,29 @@ pub fn default_catalog() -> Vec<ModelSpec> {
             },
             language_focus: None,
         },
+        ModelSpec {
+            id: "qwen3.8-27b-instruct".into(),
+            name: "Qwen3.8-27B".into(),
+            parameters_m: 27000,
+            quantization: Quantization { label: "UD-Q4_K_M", source_bits: 16, bits: (3, 8) },
+            kind: ModelKind::Text,
+            text_capabilities: Some(QWEN38_TEXT_CAPABILITIES),
+            files: vec![file(
+                "Qwen3.8-27B-UD-Q4_K_M.gguf",
+                &format!(
+                    "{hf}/unsloth/Qwen3.8-27B-GGUF/resolve/4af51b3542f775b0a8e4b310bfb3f17e01c306c9/Qwen3.8-27B-UD-Q4_K_M.gguf"
+                ),
+                16_564_259_744,
+                Some("1bce504dfecd84153666928a41d8a66706f0158d3a317bc5196b72819d7dc529"),
+            )],
+            memory_mb: 20000,
+            format: ModelFormat::Chat {
+                model: "Qwen3.8-27B-UD-Q4_K_M.gguf",
+                disable_thinking: true,
+                sampling: Sampling::POLISH,
+            },
+            language_focus: None,
+        },
         // Silero VAD v5 as published with sherpa-onnx; cuts transcription audio into utterances.
         ModelSpec {
             id: SILERO_VAD.into(),
@@ -472,6 +526,7 @@ pub fn default_catalog() -> Vec<ModelSpec> {
             parameters_m: 1,
             quantization: Quantization { label: "INT8", source_bits: 32, bits: (8, 8) },
             kind: ModelKind::Vad,
+            text_capabilities: None,
             files: vec![file(
                 "silero_vad.onnx",
                 "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad.onnx",
@@ -528,6 +583,7 @@ mod tests {
     #[test]
     fn catalog_layouts_reference_declared_files_and_match_the_task() {
         for spec in default_catalog() {
+            assert_eq!(spec.text_capabilities.is_some(), spec.kind == ModelKind::Text);
             for name in spec.format.files() {
                 assert!(spec.files.iter().any(|f| f.name == name), "{}: missing {name}", spec.id);
             }

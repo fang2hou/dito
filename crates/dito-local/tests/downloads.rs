@@ -24,6 +24,7 @@ fn spec(id: &str, url: &str, data: &[u8], good_hash: bool) -> ModelSpec {
         id: id.into(),
         name: id.into(),
         kind: ModelKind::Asr,
+        text_capabilities: None,
         files: vec![FileSpec {
             name: "m.bin".into(),
             url: format!("{url}/files/{id}"),
