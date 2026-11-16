@@ -11,11 +11,13 @@ Dictation handles whatever the user says, often at work. Requiring a cloud accou
 
 Speech recognition and polishing each run either on the Mac or through a provider, chosen separately. Local is the default and the complete flow works without any account.
 
-- Local runtimes are llama.cpp (Metal), sherpa-onnx and transcribe.cpp (Metal), linked into one binary behind `RuntimeLoader`.
+- Local runtimes are llama.cpp (Metal), sherpa-onnx and transcribe.cpp (Metal), linked into one binary behind `RuntimeLoader`. Nemotron Transcribe uses a private NeMo-Speech.cpp worker behind the same interface because its ggml version is incompatible with the linked runtimes.
 - llama.cpp and transcribe.cpp each vendor ggml, and a static link keeps one copy for both. This is allowed only while the two pins vendor the same ggml release (0.26.0 for `llama-cpp-sys-2` 0.1.160 and `transcribe-cpp` 0.4.2, with an identical `ggml.h`). transcribe.cpp's copy adds small patches and one registry function, so it is the copy that links.
 - When a local engine is unavailable, the app says so and shows red; it never returns placeholder text.
 - A stop request reports `Stopping` while the runtime is released outside the UI thread, then `Stopped`. A load that finishes after a stop request cannot restore the stopped runtime.
 - Nothing downloads until the user asks; models in use start at launch, and a model the user stopped stays stopped.
+- A process-backed model has the same download and engine states as an embedded model. Its pinned runtime archive downloads with its weights, is verified before extraction, and needs no manual installation, endpoint or provider configuration. The app owns the worker, waits for authenticated readiness, cancels startup when stopped, and closes the worker on unload or quit even while callers retain handles. A pipe guard cleans up after an abrupt app exit.
+- All worktrees of the development build use the same development model directory unless the owner explicitly chooses another folder. A per-model file lock serializes downloads across app instances; a waiter reuses files completed by the first downloader.
 
 ## Alternatives Considered
 
@@ -53,7 +55,7 @@ Local models stop being competitive, or the app targets machines that can't run 
 
 ## Model catalog extension
 
-Catalog entries declare an inference layout and exact file roles, separately from the backend library. SenseVoice and NeMo TDT use sherpa-onnx; Qwen ASR (including the Confucius4-R2T2 fine-tune) and chat use llama.cpp; a single-file speech GGUF of any family transcribe.cpp runs (Whisper, Fun-ASR Nano) uses the `TranscribeCpp` layout. Another checkpoint of a supported layout adds a catalog entry with pinned files, sizes, hashes and display metadata. A new architecture adds a runtime adapter, without changing downloads or engine lifecycle management.
+Catalog entries declare an inference layout and exact file roles, separately from the backend library. SenseVoice and NeMo TDT use sherpa-onnx; Qwen ASR (including the Confucius4-R2T2 fine-tune) and chat use llama.cpp; a single-file speech GGUF of any family transcribe.cpp runs (Whisper, Fun-ASR Nano) uses the `TranscribeCpp` layout. `NemoSpeech` names the decoder, encoder and runtime archive for managed NeMo-Speech.cpp inference. Another checkpoint of a supported layout adds a catalog entry with pinned files, sizes, hashes and display metadata. A new architecture adds a runtime adapter, without changing the user-facing download or engine lifecycle.
 
 Text model specifications also declare native context limits, any separately published output ceiling, output-length guidance and thinking capabilities. Thinking levels carry a protocol `key` and a display `name`, and only supported levels are listed. Unknown separate output limits remain unset rather than being inferred from examples. These facts do not change the current direct-answer runtime policy; future callers can use them to choose request settings independently.
 

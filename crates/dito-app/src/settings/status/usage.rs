@@ -46,7 +46,11 @@ impl Reading {
                 ModelReading { role, usage: st.local.usage(&id), id, name }
             })
             .collect();
-        Self { at: Instant::now(), process: process_usage(), models }
+        let mut process = process_usage();
+        let workers = st.local.worker_usage();
+        process.cpu = process.cpu.saturating_add(workers.cpu);
+        process.memory_bytes = process.memory_bytes.saturating_add(workers.memory_bytes);
+        Self { at: Instant::now(), process, models }
     }
 }
 

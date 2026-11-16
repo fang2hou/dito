@@ -8,10 +8,11 @@ publish.workspace = true
 workspace = true
 
 [features]
-default = ["llama", "sherpa", "transcribe"]
+default = ["llama", "sherpa", "transcribe", "nemo"]
 llama = ["dep:llama-cpp-2", "dep:llama-cpp-sys-2", "dep:encoding_rs"]
 sherpa = ["dep:sherpa-onnx-sys", "dep:serde_json"]
 transcribe = ["dep:transcribe-cpp"]
+nemo = ["dep:reqwest", "dep:tokio", "dep:base64", "dep:serde_json"]
 
 [dependencies]
 dito-core = { path = "../dito-core" }
@@ -23,6 +24,9 @@ llama-cpp-sys-2 = { version = "=0.1.161", optional = true }
 sherpa-onnx-sys = { version = "=2.0.1", optional = true }
 serde_json = { workspace = true, optional = true }
 transcribe-cpp = { version = "=0.4.2", optional = true }
+reqwest = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true }
+base64 = { version = "0.22", optional = true }
 
 [dev-dependencies]
 dito-audio = { path = "../dito-audio" }
@@ -37,3 +41,7 @@ required-features = ["llama"]
 [[example]]
 name = "intent_decide"
 required-features = ["llama"]
+
+[[example]]
+name = "managed_asr_e2e"
+required-features = ["nemo"]

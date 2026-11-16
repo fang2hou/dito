@@ -11,7 +11,7 @@ Dito is a macOS dictation app. A global shortcut starts a recording; the audio i
 - `dito-core`: config, i18n, prompts, the dictation controller and pipeline, the audio clip and its WAV encoding, cloud providers, the SQLite store (history, wordbook, stats), the secrets trait, the text insertion policy, and intent routing for voice commands (router prompt, fitted heads, decision; see [INTENT_ROUTING.md](INTENT_ROUTING.md)).
 - `dito-audio`: microphone capture, resampling to 16 kHz mono, device transport detection.
 - `dito-local`: local model catalog, downloads, model state and the local engines; runtimes plug in through `RuntimeLoader`.
-- `dito-runtimes`: llama.cpp (Metal) and sherpa-onnx bindings behind `dito-local`'s traits.
+- `dito-runtimes`: llama.cpp (Metal), sherpa-onnx and transcribe.cpp bindings, plus a managed NeMo-Speech.cpp worker, behind `dito-local`'s traits. Process-backed models use the same catalog and lifecycle; the app owns and stops their workers.
 - `dito-platform`: macOS integration: event tap and shortcut machine, permissions, text insertion, Keychain, music mute, window helpers, login item.
 - `dito-testkit`: an in-process mock server for cloud APIs and downloads.
 - `dito-app`: the GPUI app: HUD, settings pages, onboarding, menu bar, shared `ui` controls, theme and motion.

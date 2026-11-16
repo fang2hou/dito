@@ -1,6 +1,6 @@
 //! Loading and running local models behind the core `Transcriber` / `TextModel` traits.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -26,15 +26,15 @@ use crate::runtime_error::RuntimeError;
 
 #[derive(Clone)]
 enum Slot {
-    Loading,
-    Stopping,
+    Loading(Arc<AtomicBool>),
+    Stopping(Arc<AtomicBool>),
     Asr(Arc<dyn AsrRuntime>),
     Llm(Arc<dyn LlmRuntime>),
     Failed(String),
 }
 
-/// Models run inside the app's process, so the kernel reports no figures of their own: a model is charged the
-/// process CPU time spent while it works and the memory the process gained while it loaded.
+/// Embedded models are charged the app CPU time spent while they work and its memory gain at load.
+/// Process-backed models instead report their worker's kernel figures.
 #[derive(Default)]
 struct Usage {
     cpu_ns: AtomicU64,
@@ -57,7 +57,7 @@ fn cpu_now_ns() -> u64 {
 pub struct LocalEngines {
     manager: ModelManager,
     loader: Arc<dyn RuntimeLoader>,
-    slots: Mutex<HashMap<String, Slot>>,
+    slots: Arc<Mutex<HashMap<String, Slot>>>,
     load_lock: tokio::sync::Mutex<()>,
     usage: Mutex<HashMap<String, Arc<Usage>>>,
 }
@@ -67,7 +67,7 @@ impl LocalEngines {
         Arc::new(Self {
             manager,
             loader,
-            slots: Mutex::default(),
+            slots: Arc::default(),
             load_lock: tokio::sync::Mutex::new(()),
             usage: Mutex::default(),
         })
@@ -82,6 +82,12 @@ impl LocalEngines {
     }
 
     pub fn usage(&self, id: &str) -> EngineUsage {
+        if let Some(Slot::Asr(runtime)) = self.slots.lock().expect("engine state mutex poisoned").get(id)
+            && let Some(pid) = runtime.process_id()
+        {
+            let usage = crate::process_usage_for(pid);
+            return EngineUsage { cpu: usage.cpu, memory_bytes: usage.memory_bytes };
+        }
         let usage = self.usage_for(id);
         let since = usage.working_since_ns.load(Ordering::Relaxed);
         let in_flight = if since == 0 { 0 } else { cpu_now_ns().saturating_sub(since) };
@@ -91,25 +97,52 @@ impl LocalEngines {
         }
     }
 
+    pub fn worker_usage(&self) -> crate::ProcessUsage {
+        let pids: HashSet<_> = self
+            .slots
+            .lock()
+            .expect("engine state mutex poisoned")
+            .values()
+            .filter_map(|slot| match slot {
+                Slot::Asr(runtime) if runtime.failure().is_none() => runtime.process_id(),
+                _ => None,
+            })
+            .collect();
+        pids.into_iter().fold(crate::ProcessUsage::default(), |mut total, pid| {
+            let usage = crate::process_usage_for(pid);
+            total.cpu = total.cpu.saturating_add(usage.cpu);
+            total.memory_bytes = total.memory_bytes.saturating_add(usage.memory_bytes);
+            total
+        })
+    }
+
     /// The runtime is reloaded on next use.
     pub fn unload(&self, id: &str) {
         let old = {
             let mut slots = self.slots.lock().expect("engine state mutex poisoned");
-            if matches!(slots.get(id), None | Some(Slot::Stopping)) {
+            if matches!(slots.get(id), None | Some(Slot::Stopping(_))) {
                 return;
             }
-            slots.insert(id.to_string(), Slot::Stopping)
+            let token = match slots.get(id) {
+                Some(Slot::Loading(stop)) => stop.clone(),
+                _ => Arc::new(AtomicBool::new(true)),
+            };
+            slots.insert(id.to_string(), Slot::Stopping(token))
         };
-        if matches!(old, Some(Slot::Loading)) {
+        if let Some(Slot::Loading(stop)) = &old {
+            stop.store(true, Ordering::Relaxed);
             // The loader completes the stop after releasing any runtime it produced.
             trace_log!(model = id, "model unload requested while it loads, the loader finishes the stop");
             return;
         }
         // Runtime destruction may wait for Metal. Keep status reads and the UI responsive.
         let started = Instant::now();
+        if let Some(Slot::Asr(runtime)) = &old {
+            runtime.shutdown();
+        }
         drop(old);
         let mut slots = self.slots.lock().expect("engine state mutex poisoned");
-        if matches!(slots.get(id), Some(Slot::Stopping)) {
+        if matches!(slots.get(id), Some(Slot::Stopping(_))) {
             slots.remove(id);
         }
         trace_log!(model = id, unload_ms = started.elapsed().as_millis() as u64, "model unloaded");
@@ -118,7 +151,14 @@ impl LocalEngines {
     /// Call before quitting: llama.cpp's Metal backend asserts at process exit if a model is still resident.
     pub fn unload_all(&self) {
         trace_log!("every model is unloaded");
-        self.slots.lock().expect("engine state mutex poisoned").clear();
+        let slots = std::mem::take(&mut *self.slots.lock().expect("engine state mutex poisoned"));
+        for slot in slots.values() {
+            match slot {
+                Slot::Loading(stop) => stop.store(true, Ordering::Relaxed),
+                Slot::Asr(runtime) => runtime.shutdown(),
+                _ => {}
+            }
+        }
     }
 
     pub async fn restart(&self, id: &str) -> EngineStatus {
@@ -143,31 +183,57 @@ impl LocalEngines {
         }
         let _guard = self.load_lock.lock().await;
         let existing = self.slots.lock().expect("engine state mutex poisoned").get(id).cloned();
+        if let Some(Slot::Asr(runtime)) = &existing
+            && let Some(error) = runtime.failure()
+        {
+            return Err(ProviderError::new(ErrorKind::Unavailable, error));
+        }
         if let Some(slot @ (Slot::Asr(_) | Slot::Llm(_))) = existing {
             return Ok(slot);
         }
+        let stop = Arc::new(AtomicBool::new(false));
         {
             let mut slots = self.slots.lock().expect("engine state mutex poisoned");
-            if matches!(slots.get(id), Some(Slot::Stopping)) {
+            if matches!(slots.get(id), Some(Slot::Stopping(_))) {
                 return Err(ProviderError::new(ErrorKind::Unavailable, "model is stopping"));
             }
-            slots.insert(id.to_string(), Slot::Loading);
+            slots.insert(id.to_string(), Slot::Loading(stop.clone()));
         }
         let (loader, dir) = (self.loader.clone(), self.manager.model_dir(id));
         let memory_before = footprint_bytes();
         let started = Instant::now();
         trace_log!(model = id, kind = ?spec.kind, "model load started");
-        let loaded = tokio::task::spawn_blocking(move || match spec.kind {
-            ModelKind::Asr => loader.load_asr(&spec, &dir).map(Slot::Asr),
-            ModelKind::Text => loader.load_llm(&spec, &dir).map(Slot::Llm),
-            ModelKind::Vad => Err(RuntimeError::engine("a voice activity detector is not an engine")),
+        let finished = Arc::new(AtomicBool::new(false));
+        let mut cancellation = LoadCancellation {
+            slots: self.slots.clone(),
+            id: id.to_owned(),
+            stop: stop.clone(),
+            finished: finished.clone(),
+            armed: true,
+        };
+        let completion = LoadCompletion { slots: self.slots.clone(), id: id.to_owned(), stop: stop.clone(), finished };
+        let (loaded, _completion) = tokio::task::spawn_blocking(move || {
+            let loaded = match spec.kind {
+                ModelKind::Asr => loader.load_asr_cancellable(&spec, &dir, &stop).map(Slot::Asr),
+                ModelKind::Text => loader.load_llm(&spec, &dir).map(Slot::Llm),
+                ModelKind::Vad => Err(RuntimeError::engine("a voice activity detector is not an engine")),
+            };
+            if stop.load(Ordering::Relaxed) {
+                if let Ok(Slot::Asr(runtime)) = &loaded {
+                    runtime.shutdown();
+                }
+                drop(loaded);
+                return (Err(RuntimeError::Cancelled), completion);
+            }
+            (loaded, completion)
         })
         .await
         .map_err(|e| ProviderError::new(ErrorKind::Other, e.to_string()))?;
+        cancellation.armed = false;
         let load_ms = started.elapsed().as_millis() as u64;
         let mut slots = self.slots.lock().expect("engine state mutex poisoned");
-        if !matches!(slots.get(id), Some(Slot::Loading)) {
-            let stopping = matches!(slots.get(id), Some(Slot::Stopping));
+        if !matches!(slots.get(id), Some(Slot::Loading(_))) {
+            let stopping = matches!(slots.get(id), Some(Slot::Stopping(_)));
             trace_log!(model = id, load_ms, stopping, "model load discarded, it was stopped meanwhile");
             drop(slots);
             drop(loaded);
@@ -190,6 +256,52 @@ impl LocalEngines {
                 slots.insert(id.to_string(), Slot::Failed(msg.clone()));
                 Err(ProviderError::new(ErrorKind::Unavailable, msg))
             }
+        }
+    }
+}
+
+// Dropping the caller must cancel startup too; otherwise its abandoned slot stays Loading forever.
+struct LoadCancellation {
+    slots: Arc<Mutex<HashMap<String, Slot>>>,
+    id: String,
+    stop: Arc<AtomicBool>,
+    finished: Arc<AtomicBool>,
+    armed: bool,
+}
+
+impl Drop for LoadCancellation {
+    fn drop(&mut self) {
+        if !self.armed {
+            return;
+        }
+        self.stop.store(true, Ordering::Relaxed);
+        let mut slots = self.slots.lock().expect("engine state mutex poisoned");
+        if matches!(slots.get(&self.id), Some(Slot::Loading(stop)) if Arc::ptr_eq(stop, &self.stop)) {
+            if self.finished.load(Ordering::Acquire) {
+                slots.remove(&self.id);
+            } else {
+                slots.insert(self.id.clone(), Slot::Stopping(self.stop.clone()));
+            }
+        }
+    }
+}
+
+struct LoadCompletion {
+    slots: Arc<Mutex<HashMap<String, Slot>>>,
+    id: String,
+    stop: Arc<AtomicBool>,
+    finished: Arc<AtomicBool>,
+}
+
+impl Drop for LoadCompletion {
+    fn drop(&mut self) {
+        self.finished.store(true, Ordering::Release);
+        if !self.stop.load(Ordering::Relaxed) {
+            return;
+        }
+        let mut slots = self.slots.lock().expect("engine state mutex poisoned");
+        if matches!(slots.get(&self.id), Some(Slot::Stopping(stop)) if Arc::ptr_eq(stop, &self.stop)) {
+            slots.remove(&self.id);
         }
     }
 }
@@ -411,9 +523,10 @@ impl LocalBackend for LocalEngines {
         }
         match self.slots.lock().expect("engine state mutex poisoned").get(model_id) {
             None => EngineStatus::Stopped,
-            Some(Slot::Loading) => EngineStatus::Loading,
-            Some(Slot::Stopping) => EngineStatus::Stopping,
-            Some(Slot::Asr(_) | Slot::Llm(_)) => EngineStatus::Running,
+            Some(Slot::Loading(_)) => EngineStatus::Loading,
+            Some(Slot::Stopping(_)) => EngineStatus::Stopping,
+            Some(Slot::Asr(runtime)) => runtime.failure().map_or(EngineStatus::Running, EngineStatus::Failed),
+            Some(Slot::Llm(_)) => EngineStatus::Running,
             Some(Slot::Failed(e)) => EngineStatus::Failed(e.clone()),
         }
     }

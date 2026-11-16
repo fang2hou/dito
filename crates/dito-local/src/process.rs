@@ -14,6 +14,20 @@ pub fn process_usage() -> ProcessUsage {
     ProcessUsage { cpu: cpu_time(), memory_bytes: footprint_bytes() }
 }
 
+pub fn process_usage_for(pid: u32) -> ProcessUsage {
+    // SAFETY: the V2 layout is plain data and proc_pid_rusage writes only to this buffer.
+    let mut info: libc::rusage_info_v2 = unsafe { std::mem::zeroed() };
+    // SAFETY: the buffer matches RUSAGE_INFO_V2; an exited or inaccessible PID returns an error.
+    let status = unsafe { libc::proc_pid_rusage(pid as i32, libc::RUSAGE_INFO_V2, (&raw mut info).cast()) };
+    if status != 0 {
+        return ProcessUsage::default();
+    }
+    ProcessUsage {
+        cpu: Duration::from_nanos(info.ri_user_time.saturating_add(info.ri_system_time)),
+        memory_bytes: info.ri_phys_footprint,
+    }
+}
+
 pub(crate) fn cpu_time() -> Duration {
     // SAFETY: `libc::rusage` is plain data for which all-zero bytes are valid.
     let mut usage: libc::rusage = unsafe { std::mem::zeroed() };

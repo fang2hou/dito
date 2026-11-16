@@ -100,6 +100,17 @@ async fn downloads_verifies_and_marks_installed() {
 }
 
 #[tokio::test]
+async fn managers_sharing_a_directory_download_each_file_only_once() {
+    let r = rig(&[("shared", 200_000, true)]).await;
+    let other = ModelManager::with_catalog(r.mgr.catalog().to_vec(), r.cfg.clone());
+    r.mgr.start_download("shared").unwrap();
+    other.start_download("shared").unwrap();
+    until(&r.mgr, "shared", |s| *s == ModelState::Installed).await;
+    until(&other, "shared", |s| *s == ModelState::Installed).await;
+    assert_eq!(r.srv.requests().iter().filter(|request| request.path == "files/shared").count(), 1);
+}
+
+#[tokio::test]
 async fn a_cut_connection_fails_then_resumes_from_the_partial_bytes() {
     let r = rig(&[("a", 300_000, true)]).await;
     r.srv.behavior(|b| b.cut_download_after = Some(100_000));

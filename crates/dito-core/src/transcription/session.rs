@@ -19,7 +19,7 @@ use tokio_util::sync::CancellationToken;
 
 use super::live::{Hearing, LiveText};
 use super::paragraphs::{self, Paragraph, Paragrapher};
-use super::prompt::{CONTEXT_PARAGRAPHS, ContextParagraph, system_prompt, worth_polishing};
+use super::prompt::{CONTEXT_PARAGRAPHS, ContextParagraph, build_prompt, worth_polishing};
 use super::recognizer::{Job, Recognized, Recognizer, Utterance};
 use super::source::{SourceEvent, detect};
 use super::{AudioSource, LiveAudio, LiveInput, Sources, Speaker, VoiceDetectors};
@@ -745,9 +745,11 @@ async fn polish_loop(
             _ if !worth_polishing(&p.text) => (p.text.clone(), None),
             Some(Err(e)) => (p.text.clone(), Some(e.clone())),
             Some(Ok(polisher)) => {
-                let system =
-                    system_prompt(&p.text, context.make_contiguous(), labelled.load(Ordering::Relaxed), &terms);
-                match polisher.polish(&TextRequest { system: &system, examples: &[], text: &p.text }).await {
+                let prompt = build_prompt(&p.text, context.make_contiguous(), labelled.load(Ordering::Relaxed), &terms);
+                match polisher
+                    .polish(&TextRequest { system: &prompt.system, examples: prompt.examples, text: &prompt.user })
+                    .await
+                {
                     Ok(out) if !out.trim().is_empty() => (out.trim().to_string(), None),
                     Ok(_) => (p.text.clone(), None),
                     Err(e) => (p.text.clone(), Some(e.to_string())),
@@ -776,6 +778,36 @@ mod tests {
     use crate::provider::mock::{MockTextModel, MockTranscriber};
     use crate::store::{ParagraphState, Speaker};
     use crate::transcription::{ChunkSink, EnergyDetectors, LiveInput};
+
+    #[tokio::test]
+    async fn paragraph_editor_receives_speech_as_data_instead_of_a_request() {
+        struct Editor;
+
+        #[async_trait::async_trait]
+        impl TextModel for Editor {
+            async fn polish(&self, request: &TextRequest<'_>) -> crate::error::ProviderResult<String> {
+                assert_eq!(request.text, "===\n检查一下这段话里面有没有英文音译词。\n===");
+                assert_eq!(request.examples.len(), 3);
+                assert!(request.examples.iter().all(|example| example.said.starts_with("===\n")));
+                Ok("检查一下这段话里面有没有英文音译词。".into())
+            }
+        }
+
+        let raw = "检查一下这段话里面有没有英文音译词。";
+        let store = Arc::new(Store::open_in_memory().unwrap());
+        let transcript = store.create_transcript(1, Sources::default()).unwrap();
+        let id = store.add_paragraph(transcript, Speaker::Me, 0, 1_000, raw).unwrap();
+        let (tx, rx) = mpsc::unbounded_channel();
+        tx.send(Closed { id, speaker: Speaker::Me, text: raw.into() }).unwrap();
+        drop(tx);
+        let status = Arc::new(watch::channel(TranscriptionStatus::default()).0);
+        polish_loop(store.clone(), Some(Ok(Arc::new(Editor))), vec![], Arc::new(AtomicBool::new(false)), rx, status)
+            .await;
+        let result = store.get_transcript(transcript).unwrap().unwrap();
+        assert_eq!(result.paragraphs[0].raw, raw);
+        assert_eq!(result.paragraphs[0].text, raw);
+        assert_eq!(result.paragraphs[0].state, ParagraphState::Done);
+    }
 
     #[test]
     fn a_title_reply_keeps_its_first_line_without_quotes() {
