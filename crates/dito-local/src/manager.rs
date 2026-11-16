@@ -287,6 +287,23 @@ impl ModelManager {
     async fn run_download(&self, spec: &ModelSpec, cancel: &CancellationToken) -> Result<(), DlError> {
         let dir = self.model_dir(&spec.id);
         tokio::fs::create_dir_all(&dir).await?;
+        let lock = std::fs::File::options().create(true).append(true).open(dir.join(".download.lock"))?;
+        loop {
+            if cancel.is_cancelled() {
+                return Err(DlError::Cancelled);
+            }
+            match lock.try_lock() {
+                Ok(()) => break,
+                Err(std::fs::TryLockError::WouldBlock) => tokio::select! {
+                    _ = cancel.cancelled() => return Err(DlError::Cancelled),
+                    _ = tokio::time::sleep(std::time::Duration::from_millis(100)) => {},
+                },
+                Err(error) => return Err(DlError::Io(error.to_string())),
+            }
+        }
+        if self.scan(spec) == ModelState::Installed {
+            return Ok(());
+        }
         let total = spec.total_size();
         let already = match self.scan(spec) {
             ModelState::Paused { done, .. } => done,

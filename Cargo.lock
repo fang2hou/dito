@@ -2416,12 +2416,14 @@ dependencies = [
 name = "dito-runtimes"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
  "dito-audio",
  "dito-core",
  "dito-local",
  "encoding_rs",
  "llama-cpp-2",
  "llama-cpp-sys-2",
+ "reqwest",
  "serde",
  "serde_json",
  "sherpa-onnx-sys",

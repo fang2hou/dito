@@ -1,7 +1,7 @@
 //! Hardware smoke test of transcription with the app's own parts: the system audio tap, Silero VAD, the local speech
 //! and polish models, and the session actor. Play something on the Mac while it runs.
 //!
-//!   cargo run --release -p dito-runtimes --example transcription_e2e -- [seconds] [--mic | --mic-only] [--models DIR] [--file WAV]
+//!   cargo run --release -p dito-runtimes --example transcription_e2e -- [seconds] [--mic | --mic-only] [--models DIR] [--file WAV] [--config TOML]
 //!
 //! Models come from the app's models folder (Silero VAD included); the app's config and history are not touched,
 //! and polishing always runs on the local model. Run it from an app bundle that has `NSAudioCaptureUsageDescription`:
@@ -131,7 +131,13 @@ async fn main() {
         args.iter().position(|a| a == "--models").and_then(|i| args.get(i + 1)).map(std::path::PathBuf::from);
     let file = args.iter().position(|a| a == "--file").and_then(|i| args.get(i + 1)).map(std::path::PathBuf::from);
 
-    let app_config = ConfigStore::open(default_data_dir().join("config.toml")).expect("app config");
+    let config_path = args
+        .iter()
+        .position(|a| a == "--config")
+        .and_then(|i| args.get(i + 1))
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| default_data_dir().join("config.toml"));
+    let app_config = ConfigStore::open(config_path).expect("app config");
     let dir = std::env::temp_dir().join("dito-transcription-e2e");
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();

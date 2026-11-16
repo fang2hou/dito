@@ -21,6 +21,17 @@ pub struct AsrOutput {
 }
 
 pub trait AsrRuntime: Send + Sync {
+    /// Process-backed engines release their worker even when a caller still holds an engine handle.
+    fn shutdown(&self) {}
+
+    fn failure(&self) -> Option<String> {
+        None
+    }
+
+    fn process_id(&self) -> Option<u32> {
+        None
+    }
+
     /// `stop` is raised when the caller no longer wants the result, for example when the dictation is cancelled. Check
     /// it between decoding steps with `Ordering::Relaxed` and return [`RuntimeError::Cancelled`] at once: a runtime
     /// that ignores it keeps the model busy to the end, and the next dictation waits behind the abandoned one.
@@ -58,6 +69,15 @@ pub trait LlmRuntime: Send + Sync {
 pub trait RuntimeLoader: Send + Sync {
     fn load_asr(&self, spec: &ModelSpec, dir: &Path) -> Result<Arc<dyn AsrRuntime>, RuntimeError>;
     fn load_llm(&self, spec: &ModelSpec, dir: &Path) -> Result<Arc<dyn LlmRuntime>, RuntimeError>;
+
+    fn load_asr_cancellable(
+        &self,
+        spec: &ModelSpec,
+        dir: &Path,
+        _stop: &AtomicBool,
+    ) -> Result<Arc<dyn AsrRuntime>, RuntimeError> {
+        self.load_asr(spec, dir)
+    }
 }
 
 pub struct NoRuntime;
