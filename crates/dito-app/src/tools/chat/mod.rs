@@ -57,6 +57,8 @@ pub(crate) struct ChatPage {
     sessions: Vec<ChatSummary>,
     /// `None` is a new chat, which is saved once its first message is sent.
     current: Option<i64>,
+    /// The unsaved new chat exists, shown or not.
+    draft_open: bool,
     rows: Vec<ChatMessageRow>,
     docs: HashMap<i64, Rc<Document>>,
     composer: Entity<TextareaState>,
@@ -74,9 +76,17 @@ pub(crate) struct ChatPage {
     menu_closed: Option<(i64, Instant)>,
     rename: Option<sidebar::Rename>,
     picker: Option<picker::Picker>,
+    text_menu: Option<TextMenu>,
     switching: Option<Switching>,
     /// Esc closes the picker, the menu, the rename field and the drawer, from anywhere in the window.
     _escape: Subscription,
+}
+
+/// The menu a secondary click opens over selected conversation text. It keeps the text, because the press on its row
+/// may end the selection before the click arrives.
+struct TextMenu {
+    at: Point<Pixels>,
+    text: String,
 }
 
 struct Switching {
@@ -114,6 +124,7 @@ impl ChatPage {
             active: false,
             sessions: Vec::new(),
             current: None,
+            draft_open: true,
             rows: Vec::new(),
             docs: HashMap::new(),
             composer,
@@ -129,6 +140,7 @@ impl ChatPage {
             menu_closed: None,
             rename: None,
             picker: None,
+            text_menu: None,
             switching: None,
             _escape: escape,
         };
@@ -169,9 +181,14 @@ impl ChatPage {
     }
 
     fn dismiss_overlays(&mut self, cx: &mut Context<Self>) {
-        let open = self.picker.is_some() || self.menu.is_some() || self.rename.is_some() || self.drawer;
+        let open = self.picker.is_some()
+            || self.menu.is_some()
+            || self.rename.is_some()
+            || self.text_menu.is_some()
+            || self.drawer;
         if open {
             self.picker = None;
+            self.text_menu = None;
             self.menu = None;
             self.rename = None;
             self.drawer = false;
@@ -219,6 +236,7 @@ impl ChatPage {
 
     fn replace_messages(&mut self, chat: Option<i64>) {
         self.current = chat;
+        self.draft_open |= chat.is_none();
         self.rows.clear();
         self.docs.clear();
         let Some(id) = chat else { return };
@@ -340,6 +358,7 @@ impl ChatPage {
                 match self.st.store.create_chat(&title, ts) {
                     Ok(id) => {
                         self.current = Some(id);
+                        self.draft_open = false;
                         id
                     }
                     Err(e) => {
@@ -640,11 +659,51 @@ impl ChatPage {
             window.request_animation_frame();
         }
         let main = self.main_column(&c, window, cx);
-        let mut root = div().size_full().relative().flex().bg(p.bg).child(main);
+        let mut root = div()
+            .size_full()
+            .relative()
+            .flex()
+            .bg(p.bg)
+            // The message field usually holds the focus, and its own Copy would answer first with nothing to copy.
+            .capture_key_down(cx.listener(|_, ev: &KeyDownEvent, window, cx| {
+                let copy = ev.keystroke.modifiers.platform && ev.keystroke.key == "c";
+                if copy && copy_selection(window, cx) {
+                    cx.stop_propagation();
+                }
+            }))
+            .child(main);
         if !self.compact {
             root = root.child(sidebar::panel(self, &c, cx, false));
         }
-        root.children(sidebar::drawer(self, &c, window, cx))
+        root.children(sidebar::drawer(self, &c, window, cx)).children(self.text_menu_view(&c, cx))
+    }
+
+    fn open_text_menu(&mut self, ev: &MouseDownEvent, window: &mut Window, cx: &mut Context<Self>) {
+        let text = selected_text(window, cx);
+        if text.is_empty() {
+            return;
+        }
+        self.text_menu = Some(TextMenu { at: ev.position, text });
+        cx.notify();
+    }
+
+    fn text_menu_view(&self, c: &Ctx, cx: &mut Context<Self>) -> Option<impl IntoElement + use<>> {
+        let menu = self.text_menu.as_ref()?;
+        let p = c.p;
+        let close = ui::cbk(cx, |page, _, cx| {
+            page.text_menu = None;
+            cx.notify();
+        });
+        let copy = ui::menu_row(ElementId::from("chat-text-menu-copy"), &p)
+            .on_click(ui::click_cb(ui::cbk(cx, |page, _, cx| {
+                if let Some(menu) = page.text_menu.take() {
+                    cx.write_to_clipboard(ClipboardItem::new_string(menu.text));
+                }
+                cx.notify();
+            })))
+            .child(ui::text(c.t(Tr::HudCopy), 13., FontWeight::NORMAL, p.text).line_height(relative(1.)));
+        let panel = ui::menu_panel(ElementId::from("chat-text-menu"), &p, close).w(px(160.)).child(copy);
+        Some(deferred(anchored().position(menu.at).snap_to_window_with_margin(px(8.)).child(panel)).with_priority(2))
     }
 
     fn main_column(&mut self, c: &Ctx, window: &mut Window, cx: &mut Context<Self>) -> Div {
@@ -671,6 +730,7 @@ impl ChatPage {
             .flex()
             .flex_col()
             .px(px(PAGE_PAD_X))
+            .on_mouse_down(MouseButton::Right, cx.listener(Self::open_text_menu))
             .child(ui::drag_area("chat-drag").absolute().top_0().left_0().right_0().h(px(TOOLBAR_TOP)))
             .child(div().h(px(TOOLBAR_TOP)).flex_none())
             .child(toolbar)
@@ -736,4 +796,17 @@ impl ChatPage {
                     .child(ui::text(source, 12., FontWeight::NORMAL, p.muted).line_height(px(18.))),
             )
     }
+}
+
+fn selected_text(window: &mut Window, cx: &mut App) -> String {
+    gpui_kit::base::TextSelection::selected_text(window, cx).trim().to_owned()
+}
+
+fn copy_selection(window: &mut Window, cx: &mut App) -> bool {
+    let text = selected_text(window, cx);
+    if text.is_empty() {
+        return false;
+    }
+    cx.write_to_clipboard(ClipboardItem::new_string(text));
+    true
 }

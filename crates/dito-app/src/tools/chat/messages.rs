@@ -11,14 +11,18 @@ use gpui_kit::*;
 use super::switch::{Phase, Pose, Poses, turns};
 use super::{ChatPage, markdown_view};
 use crate::assets::Ic;
-use crate::settings::Ctx;
+use crate::settings::{Ctx, Edge, edge_fade};
 use crate::theme::Palette;
 use crate::ui::{self, CircleAppearance, CircleSize};
 
 const BUBBLE_MAX_W: f32 = 410.;
 const TURN_GAP: f32 = 28.;
+const EDGE_FADE: f32 = 28.;
 const SWEEP_MS: f32 = 1600.;
 const BAND_SHARE: f32 = 0.4;
+const WAIT_FIRST_MS: f32 = 3000.;
+const WAIT_SLOT_MS: f32 = 4000.;
+const WAIT_FADE_MS: f32 = 240.;
 
 pub(super) fn viewport(page: &ChatPage, c: &Ctx, cx: &mut Context<ChatPage>) -> AnyElement {
     let p = c.p;
@@ -67,10 +71,14 @@ pub(super) fn viewport(page: &ChatPage, c: &Ctx, cx: &mut Context<ChatPage>) -> 
         scrolled: -f32::from(page.scroll.offset().y),
     };
     let overflowing = extent.max > 0.;
+    let top_fade = (extent.scrolled / EDGE_FADE).clamp(0., 1.);
+    let bottom_fade = ((extent.max - extent.scrolled) / EDGE_FADE).clamp(0., 1.);
     let mut area = shell
         .id(hover_id.clone())
         .on_hover(ui::hover_tracker(hover_id.clone()))
         .child(scroll)
+        .children((top_fade > 0.001).then(|| edge_fade(Edge::Top, p.bg, EDGE_FADE, 0.).opacity(top_fade)))
+        .children((bottom_fade > 0.001).then(|| edge_fade(Edge::Bottom, p.bg, EDGE_FADE, 0.).opacity(bottom_fade)))
         .child(ui::overlay_thumb("chat-thumb", &p, ui::is_hovered(&hover_id), extent, 0.));
     if overflowing && !page.at_bottom() && poses.is_none() {
         area = area.child(jump_pill(c, cx));
@@ -180,7 +188,9 @@ fn reply(
         );
     if live {
         let elapsed = page.generation.as_ref().map_or(0., |g| g.started.elapsed().as_secs_f32() * 1000.);
-        head = head.child(generating_label(&c.t(Tr::ChatGenerating), &p, elapsed));
+        let waiting = doc.is_none_or(|d| d.blocks().next().is_none());
+        let (label, fade) = status_phrase(waiting, elapsed);
+        head = head.child(generating_label(&c.t(label), &p, elapsed).opacity(fade));
     } else if matches!(row.state, MessageState::Stopped | MessageState::Failed) {
         let (label, dot) = if row.state == MessageState::Stopped {
             (c.t(Tr::ChatStopped), p.muted)
@@ -228,6 +238,20 @@ fn retry_button(c: &Ctx, cx: &mut Context<ChatPage>) -> impl IntoElement {
     .aria_label(label)
     .on_click(ui::click_cb(ui::cbk(cx, |page, _, cx| page.retry(cx))))
     .child(ui::tip_above(&p, &id))
+}
+
+/// Before the first words arrive, a long read of the conversation looks like a hang, so the status changes its words
+/// every few seconds and fades each new line in. Once the reply is being written it says so and stays.
+fn status_phrase(waiting: bool, elapsed_ms: f32) -> (Tr, f32) {
+    const PHRASES: [Tr; 4] =
+        [Tr::ChatWaitingReading, Tr::ChatWaitingThinking, Tr::ChatWaitingPatience, Tr::ChatWaitingWorking];
+    if !waiting || elapsed_ms < WAIT_FIRST_MS {
+        return (Tr::ChatGenerating, 1.);
+    }
+    let since = elapsed_ms - WAIT_FIRST_MS;
+    let slot = (since / WAIT_SLOT_MS) as usize % PHRASES.len();
+    let fade = if ui::Motion::system().is_reduced() { 1. } else { (since % WAIT_SLOT_MS / WAIT_FADE_MS).min(1.) };
+    (PHRASES[slot], fade)
 }
 
 /// The label is muted; an accent band 40 percent of its width sweeps left to right, linear, on a loop. Reduce Motion

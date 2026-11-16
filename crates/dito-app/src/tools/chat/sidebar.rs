@@ -160,8 +160,8 @@ pub(super) fn panel(page: &ChatPage, c: &Ctx, cx: &mut Context<ChatPage>, in_dra
     let mut list = div().w_full().flex().flex_col().gap(px(4.)).px(px(14.)).pt(px(12.)).pb(px(12.));
     if in_drawer {
         list = list.child(new_chat_row(c, cx));
-    } else if page.current.is_none() {
-        list = list.child(draft_row(c));
+    } else if page.draft_open || page.current.is_none() {
+        list = list.child(draft_row(page.current.is_none(), c, cx));
     }
     for session in &page.sessions {
         list = list.child(session_row(page, session.id, &session.title, c, cx));
@@ -215,10 +215,12 @@ fn label(text: String, selected: bool, p: &Palette) -> Div {
     .truncate()
 }
 
-/// The unsaved new chat, shown selected while nothing has been sent in it.
-fn draft_row(c: &Ctx) -> Stateful<Div> {
+/// The unsaved new chat. It keeps its row while another chat is shown, until its first message makes it a session.
+fn draft_row(selected: bool, c: &Ctx, cx: &mut Context<ChatPage>) -> Stateful<Div> {
     let p = c.p;
-    row_shell(ElementId::from("chat-draft"), true, &p).child(label(c.t(Tr::ChatEmptyTitle).to_string(), true, &p))
+    row_shell(ElementId::from("chat-draft"), selected, &p)
+        .on_click(ui::click_cb(ui::cbk(cx, |page, _, cx| page.new_chat(cx))))
+        .child(label(c.t(Tr::ChatEmptyTitle).to_string(), selected, &p))
 }
 
 fn new_chat_row(c: &Ctx, cx: &mut Context<ChatPage>) -> Stateful<Div> {
@@ -263,7 +265,7 @@ fn actions_button(id: i64, open: bool, page: &ChatPage, c: &Ctx, cx: &mut Contex
         button_id.clone(),
         Ic::MoreV,
         CircleSize::Compact,
-        13.,
+        14.,
         CircleAppearance { background: None, foreground: p.text, border: None, hover: Some(p.border_strong) },
     )
     .cursor_pointer()
@@ -282,7 +284,14 @@ fn actions_button(id: i64, open: bool, page: &ChatPage, c: &Ctx, cx: &mut Contex
         cx.notify();
     })));
     let menu = (open && page.menu.as_ref().is_some_and(|m| m.id == id)).then(|| menu_panel(id, page, c, cx));
-    button.children(menu)
+    // Clicks on the button or its menu must not reach the row, which would open the chat and close the menu.
+    div()
+        .id(ElementId::from(("chat-session-actions-wrap", id as usize)))
+        .relative()
+        .flex_none()
+        .on_click(ui::click_cb(ui::cbk(cx, |_: &mut ChatPage, _, cx| cx.stop_propagation())))
+        .child(button)
+        .children(menu)
 }
 
 fn menu_panel(id: i64, page: &ChatPage, c: &Ctx, cx: &mut Context<ChatPage>) -> Div {

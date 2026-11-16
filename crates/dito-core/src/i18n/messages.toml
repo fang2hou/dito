@@ -630,6 +630,10 @@ chat.history_open = { ja = "履歴", en = "History", zh = "记录" }
 chat.rename = { ja = "名前を変更", en = "Rename", zh = "重命名" }
 chat.actions = { ja = "チャットの操作", en = "Chat actions", zh = "聊天操作" }
 chat.generating = { ja = "生成中", en = "Generating", zh = "生成中" }
+chat.waiting_reading = { ja = "内容を読んでいます", en = "Reading it through", zh = "正在阅读内容" }
+chat.waiting_thinking = { ja = "考えをまとめています", en = "Gathering thoughts", zh = "正在整理思路" }
+chat.waiting_patience = { ja = "もう少しお待ちください", en = "Just a little longer", zh = "请再稍等一下" }
+chat.waiting_working = { ja = "まだがんばっています", en = "Still working on it", zh = "还在努力中" }
 chat.stopped = { ja = "停止しました", en = "Stopped", zh = "已停止" }
 chat.failed = { ja = "応答できませんでした", en = "No reply", zh = "未能回复" }
 chat.retry = { ja = "もう一度生成", en = "Generate again", zh = "重新生成" }

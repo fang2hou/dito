@@ -55,7 +55,9 @@ pub(super) fn view(page: &ChatPage, c: &Ctx, window: &mut Window, cx: &mut Conte
         .child(div().h(px(12.)).flex_none())
         .child(actions(page, c, cx));
     if let Some(open) = &page.picker {
-        shell = shell.child(div().absolute().left(px(14.)).bottom(px(44.)).child(picker::view(open, c, cx)));
+        shell = shell.child(
+            div().absolute().left(px(14.)).bottom(px(44.)).child(deferred(picker::view(open, c, cx)).with_priority(1)),
+        );
     }
     shell
 }
