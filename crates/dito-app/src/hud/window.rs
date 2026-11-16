@@ -40,8 +40,12 @@ struct HudWindow {
 
 impl Global for HudWindow {}
 
-fn window_options(st: &AppState, cx: &App) -> Option<WindowOptions> {
-    let display = pointer_location()
+fn window_options(st: &AppState, cx: &mut App) -> Option<WindowOptions> {
+    let anchor = crate::onboarding::try_anchor(cx);
+    tracing::debug!(?anchor, "opening HUD at its active target");
+    let display = anchor
+        .map(|p| (f32::from(p.x), f32::from(p.y)))
+        .or_else(pointer_location)
         .and_then(|(x, y)| cx.displays().into_iter().find(|display| display.bounds().contains(&point(px(x), px(y)))))
         .or_else(|| cx.primary_display())?;
     let screen = display.bounds();
@@ -50,11 +54,13 @@ fn window_options(st: &AppState, cx: &App) -> Option<WindowOptions> {
     // below the capsule reserves the countdown; shifting the window down by the same amount keeps the capsule at its
     // existing screen position.
     let (ww, wh) = (WIN_W + 2. * WIN_PAD, WIN_H + 2. * WIN_PAD);
-    let origin = point(
-        screen.origin.x + (screen.size.width - px(ww)) / 2.,
-        visible.origin.y + visible.size.height - px(wh) + px(WIN_PAD + 5.)
-            - px(st.cfg.get().general.hud_clearance() as f32),
-    );
+    let origin = anchor.map(|p| point(p.x - px(ww / 2.), p.y - px(wh - 45.))).unwrap_or_else(|| {
+        point(
+            screen.origin.x + (screen.size.width - px(ww)) / 2.,
+            visible.origin.y + visible.size.height - px(wh) + px(WIN_PAD + 5.)
+                - px(st.cfg.get().general.hud_clearance() as f32),
+        )
+    });
     Some(WindowOptions {
         window_bounds: Some(WindowBounds::Windowed(Bounds::new(origin, size(px(ww), px(wh))))),
         titlebar: None,
@@ -179,14 +185,23 @@ impl Placement {
         if !pointer.button_down {
             native.set_click_through(!interactive);
         }
-        let movement = match current.0 {
-            // A drag that crosses screens moves the HUD only once the button is released.
-            HudPosition::Centered if pointer.button_down => None,
-            HudPosition::Centered => native.center_above_dock(clearance),
-            HudPosition::Pointer => {
-                let contact =
-                    if interactive || pointer.button_down { PointerContact::OnControls } else { PointerContact::Away };
-                native.follow_pointer(&mut self.follow, contact)
+        let anchor = crate::onboarding::try_anchor(cx);
+        let movement = if let Some(anchor) = anchor {
+            self.follow = HudFollowState::default();
+            native.anchor_capsule(f32::from(anchor.x), f32::from(anchor.y))
+        } else {
+            match current.0 {
+                // A drag that crosses screens moves the HUD only once the button is released.
+                HudPosition::Centered if pointer.button_down => None,
+                HudPosition::Centered => native.center_above_dock(clearance),
+                HudPosition::Pointer => {
+                    let contact = if interactive || pointer.button_down {
+                        PointerContact::OnControls
+                    } else {
+                        PointerContact::Away
+                    };
+                    native.follow_pointer(&mut self.follow, contact)
+                }
             }
         };
         (movement, key, interval)

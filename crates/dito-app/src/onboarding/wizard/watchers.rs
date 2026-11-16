@@ -2,7 +2,6 @@ use std::time::Duration;
 
 use dito_core::config::RecordMode;
 use dito_core::controller::HudState;
-use dito_core::store::HistoryFilter;
 use dito_platform::{Status, permissions};
 use gpui_kit::*;
 
@@ -40,9 +39,8 @@ impl Onboarding {
                 self.seen[1] = true;
                 self.seen[2] |= hold;
             }
-            HudState::Inserted | HudState::Copied => {
+            HudState::Inserted if self.tried_ok => {
                 self.seen[2] = true;
-                self.tried_ok = true;
             }
             _ => {}
         }
@@ -64,11 +62,6 @@ impl Onboarding {
 
     fn apply_polled(&mut self, perms: [Status; 3], cx: &mut Context<Self>) {
         self.perms = perms;
-        if self.step == Step::Try && self.tried_text.is_none() {
-            let filter = HistoryFilter { since_ts: Some(self.started_at), limit: Some(1), ..Default::default() };
-            self.tried_text =
-                self.st.store.list_history(&filter).ok().and_then(|v| v.first().map(|e| e.final_text().to_string()));
-        }
         cx.notify();
     }
 }

@@ -73,6 +73,9 @@ pub fn serve_own_window_inserts(st: &AppState, cx: &mut App) {
 
 /// The HUD's own editors are left out: a command's result goes back to the app it was started from.
 fn paste_into_focused_field(request: &Request, cx: &mut App) -> bool {
+    if crate::onboarding::insert_try(&request.text, &request.claimed, cx) {
+        return true;
+    }
     let windows = [
         crate::tools::handle(cx).map(|(window, _)| AnyWindowHandle::from(window)),
         crate::settings::handle(cx).map(|(window, _)| AnyWindowHandle::from(window)),

@@ -1,17 +1,72 @@
 //! Opening the wizard window.
 
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
+use dito_platform::system::HudNativeWindow;
 use gpui_kit::prelude::*;
 use gpui_kit::*;
+use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 
 use crate::state::AppState;
 use crate::ui::Root;
 
-use super::Onboarding;
+use super::{Onboarding, Step};
 
-pub struct WizardWindow(pub WindowHandle<Root>);
+pub struct WizardWindow(pub WindowHandle<Root>, pub WeakEntity<Onboarding>);
 impl Global for WizardWindow {}
+
+/// The editor owns its bounds; the HUD only borrows an anchor while this field is the active target.
+pub(crate) fn try_anchor(cx: &mut App) -> Option<Point<Pixels>> {
+    let (handle, view) = cx.try_global::<WizardWindow>().map(|w| (w.0, w.1.clone()))?;
+    handle
+        .update(cx, |_, window, cx| {
+            view.update(cx, |view, cx| {
+                if view.step != Step::Try
+                    || !window.is_window_active()
+                    || !view.try_input.read(cx).focus_handle(cx).contains_focused(window, cx)
+                {
+                    return None;
+                }
+                let rect = view.try_bounds.get()?;
+                let handle = HasWindowHandle::window_handle(window).ok()?;
+                let RawWindowHandle::AppKit(handle) = handle.as_raw() else { return None };
+                // SAFETY: the window borrow keeps its NSView alive through the conversion.
+                let native = unsafe { HudNativeWindow::from_ns_view(handle.ns_view) }?;
+                let (x, y) = native.point_on_screen(f32::from(rect.center().x), f32::from(rect.bottom() - px(16.)))?;
+                Some(point(px(x), px(y)))
+            })
+            .ok()
+            .flatten()
+        })
+        .ok()
+        .flatten()
+}
+
+pub(crate) fn insert_try(text: &str, claimed: &AtomicBool, cx: &mut App) -> bool {
+    let Some((handle, view)) = cx.try_global::<WizardWindow>().map(|w| (w.0, w.1.clone())) else {
+        return false;
+    };
+    handle
+        .update(cx, |_, window, cx| {
+            view.update(cx, |view, cx| {
+                if view.step != Step::Try
+                    || !window.is_window_active()
+                    || !view.try_input.read(cx).focus_handle(cx).contains_focused(window, cx)
+                    || claimed.swap(true, Ordering::SeqCst)
+                {
+                    return false;
+                }
+                view.try_input.update(cx, |field, cx| field.replace(text.to_owned(), window, cx));
+                view.tried_ok = true;
+                view.seen = [true; 3];
+                cx.notify();
+                true
+            })
+            .unwrap_or(false)
+        })
+        .unwrap_or(false)
+}
 
 #[cfg(feature = "screenshots")]
 pub fn open_with_view(st: Arc<AppState>, cx: &mut App) -> Option<(WindowHandle<Root>, Entity<Onboarding>)> {
@@ -68,11 +123,13 @@ pub fn open(st: Arc<AppState>, cx: &mut App) {
         ..Default::default()
     };
     let foreground = !st.opts.is_headless();
+    let mut view_slot = None;
     match cx.open_window(opts, |window, cx| {
         let view = cx.new(|cx| Onboarding::new(st, window, cx));
+        view_slot = Some(view.downgrade());
         cx.new(|cx| Root::new(view, window, cx))
     }) {
-        Ok(h) => cx.set_global(WizardWindow(h)),
+        Ok(h) => cx.set_global(WizardWindow(h, view_slot.expect("the wizard view is built with its window"))),
         Err(e) => tracing::error!("could not open onboarding: {e}"),
     }
     if foreground {
