@@ -8,6 +8,7 @@ mod error;
 mod general;
 mod hud;
 mod list;
+mod local_api;
 mod migrate;
 mod restore;
 mod settings;
@@ -29,6 +30,7 @@ pub use general::{
     PreferredLanguage, RecordMode,
 };
 pub use hud::HudPosition;
+pub use local_api::{DEFAULT_LOCAL_API_PORT, LocalApiSettings};
 pub use migrate::SCHEMA_VERSION;
 pub use restore::{ParseProblem, parse_problem, restore_defaults};
 pub use settings::Config;

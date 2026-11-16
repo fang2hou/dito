@@ -15,6 +15,9 @@ serde_json.workspace = true
 toml.workspace = true
 tokio.workspace = true
 tokio-util = "0.7"
+futures-util.workspace = true
+axum = { version = "0.8", default-features = false, features = ["multipart", "json", "tokio", "http1"] }
+rmcp = { version = "3", default-features = false, features = ["server", "macros", "transport-streamable-http-server"] }
 reqwest.workspace = true
 rusqlite.workspace = true
 tracing.workspace = true

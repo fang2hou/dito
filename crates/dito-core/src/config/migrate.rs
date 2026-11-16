@@ -9,7 +9,7 @@ use crate::prompts::{AppTarget, default_set};
 
 /// Version of the persisted shape that this build reads and writes. Raise it together with appending one function to
 /// `MIGRATIONS`, and never edit or renumber a shipped migration: files in the field have already passed through it.
-pub const SCHEMA_VERSION: u32 = 10;
+pub const SCHEMA_VERSION: u32 = 11;
 
 const VERSION_KEY: &str = "schema_version";
 
@@ -26,6 +26,7 @@ const MIGRATIONS: [fn(&mut Table); SCHEMA_VERSION as usize] = [
     tools_shortcut,
     transcription_titles,
     english_title_template,
+    local_api_settings,
 ];
 
 /// The title instruction version 9 shipped as its default, kept here because the migrations that wrote it and
@@ -319,10 +320,37 @@ fn english_title_template(table: &mut Table) {
     }
 }
 
+/// 10 to 11: the Local API service gains its settings, written out with their defaults (off, port 17841, the API
+/// checks the token, MCP accepts any) so an older build refuses the file instead of dropping them.
+fn local_api_settings(table: &mut Table) {
+    let settings = table.entry("local_api").or_insert_with(|| Table::new().into());
+    let Some(settings) = settings.as_table_mut() else { return };
+    settings.entry("enabled").or_insert(false.into());
+    settings.entry("port").or_insert(17841.into());
+    settings.entry("api_any_token").or_insert(false.into());
+    settings.entry("mcp_any_token").or_insert(true.into());
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::config::{CloudAsrConfigurations, Config};
+
+    #[test]
+    fn version_ten_gains_the_local_api_settings_written_out_with_their_defaults() {
+        let mut legacy = parse("schema_version = 10\nonboarded = true\n");
+        assert_eq!(upgrade(&mut legacy), Ok(10));
+        assert_eq!(legacy["local_api"]["enabled"].as_bool(), Some(false));
+        assert_eq!(legacy["local_api"]["port"].as_integer(), Some(17841));
+        assert_eq!(legacy["local_api"]["api_any_token"].as_bool(), Some(false));
+        assert_eq!(legacy["local_api"]["mcp_any_token"].as_bool(), Some(true));
+        assert_eq!(legacy.try_into::<Config>().unwrap().local_api, crate::config::LocalApiSettings::default());
+
+        let mut partial = parse("schema_version = 10\n[local_api]\nport = 9000\n");
+        assert_eq!(upgrade(&mut partial), Ok(10));
+        assert_eq!(partial["local_api"]["port"].as_integer(), Some(9000), "a value already there is kept");
+        assert_eq!(partial["local_api"]["mcp_any_token"].as_bool(), Some(true));
+    }
 
     #[test]
     fn version_nine_moves_only_the_old_default_title_instruction_to_the_english_one() {

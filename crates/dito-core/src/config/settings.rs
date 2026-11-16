@@ -4,8 +4,8 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    CloudAsrConfigurations, DEFAULT_TEXT_LOCAL, EngineConfig, General, PolishConfig, ReasoningEffort, SCHEMA_VERSION,
-    Source, TranscriptionSettings,
+    CloudAsrConfigurations, DEFAULT_TEXT_LOCAL, EngineConfig, General, LocalApiSettings, PolishConfig, ReasoningEffort,
+    SCHEMA_VERSION, Source, TranscriptionSettings,
 };
 use crate::prompts::Prompts;
 
@@ -23,6 +23,7 @@ pub struct Config {
     pub onboarded: bool,
     pub models_dir: Option<PathBuf>,
     pub transcription: TranscriptionSettings,
+    pub local_api: LocalApiSettings,
 }
 
 impl Default for Config {
@@ -38,6 +39,7 @@ impl Default for Config {
             onboarded: false,
             models_dir: None,
             transcription: TranscriptionSettings::default(),
+            local_api: LocalApiSettings::default(),
         }
     }
 }
