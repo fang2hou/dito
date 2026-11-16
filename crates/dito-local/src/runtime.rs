@@ -10,6 +10,7 @@ use std::sync::atomic::AtomicBool;
 use dito_core::intent::{Reading, Request};
 /// A demonstration turn of a polish request, as the engines receive it.
 pub use dito_core::provider::Example;
+use dito_core::provider::{ChatMessage, ChatRole};
 
 use crate::catalog::{ModelSpec, Sampling};
 use crate::runtime_error::RuntimeError;
@@ -46,6 +47,36 @@ pub trait LlmRuntime: Send + Sync {
         sampling: &Sampling,
         stop: &AtomicBool,
     ) -> Result<String, RuntimeError>;
+
+    /// Replies to a conversation, passing each piece to `on_piece` as it is decoded and returning their concatenation.
+    /// Unlike [`LlmRuntime::generate`], a raised `stop` and an exhausted token budget both return the text so far, and
+    /// `sampling.max_tokens` is the only cap, since a chat answer does not run about as long as its input. A runtime
+    /// without streaming keeps this default and answers in one piece.
+    fn chat(
+        &self,
+        messages: &[ChatMessage],
+        sampling: &Sampling,
+        on_piece: &mut dyn FnMut(&str),
+        stop: &AtomicBool,
+    ) -> Result<String, RuntimeError> {
+        let system: Vec<&str> =
+            messages.iter().filter(|m| m.role == ChatRole::System).map(|m| m.content.as_str()).collect();
+        let mut dialogue = String::new();
+        let turns: Vec<&ChatMessage> = messages.iter().filter(|m| m.role != ChatRole::System).collect();
+        let (last, earlier) = turns.split_last().map(|(l, e)| (l.content.as_str(), e)).unwrap_or(("", &[]));
+        for m in earlier {
+            let who = if m.role == ChatRole::User { "User" } else { "Assistant" };
+            dialogue.push_str(&format!("{who}: {}\n\n", m.content));
+        }
+        dialogue.push_str(last);
+        let reply = match self.generate(&system.join("\n\n"), &[], &dialogue, sampling, stop) {
+            Ok(reply) => reply.trim().to_string(),
+            Err(RuntimeError::Cancelled) => return Ok(String::new()),
+            Err(error) => return Err(error),
+        };
+        on_piece(&reply);
+        Ok(reply)
+    }
 
     /// One prompt pass with nothing generated: the logits of the request's options at the answer position and the
     /// hidden states it names (see [`dito_core::intent`]). `stop` works as in [`AsrRuntime::transcribe`]. A runtime

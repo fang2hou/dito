@@ -80,6 +80,77 @@ pub(crate) fn strip_think(s: &str) -> String {
     }
 }
 
+const THINK_OPEN: &str = "<think>";
+const THINK_CLOSE: &str = "</think>";
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ThinkState {
+    /// Inside a block; the answer starts after its closing tag. `unmarked` blocks were opened by the prompt template,
+    /// so a stream that never closes one is plain text, as for [`strip_think`].
+    Thinking {
+        unmarked: bool,
+    },
+    /// At the start of the answer: leading whitespace is dropped and an opening tag may follow.
+    Lead,
+    Body,
+}
+
+/// [`strip_think`] for text that arrives piece by piece. Everything before the first closing tag of an unmarked block
+/// is held back, so a thinking model shows nothing until it answers.
+pub(crate) struct ThinkFilter {
+    state: ThinkState,
+    held: String,
+}
+
+impl ThinkFilter {
+    /// `in_think` when the prompt left the assistant turn inside an open block.
+    pub(crate) fn new(in_think: bool) -> Self {
+        let state = if in_think { ThinkState::Thinking { unmarked: true } } else { ThinkState::Lead };
+        Self { state, held: String::new() }
+    }
+
+    /// The text that can be shown now. Trailing whitespace waits for the next piece, since the answer may end there.
+    pub(crate) fn push(&mut self, piece: &str) -> String {
+        self.held.push_str(piece);
+        let mut shown = String::new();
+        loop {
+            match self.state {
+                ThinkState::Thinking { .. } => {
+                    let Some(at) = self.held.find(THINK_CLOSE) else { break };
+                    self.held.drain(..at + THINK_CLOSE.len());
+                    self.state = ThinkState::Lead;
+                }
+                ThinkState::Lead => {
+                    let blank = self.held.len() - self.held.trim_start().len();
+                    self.held.drain(..blank);
+                    if self.held.starts_with(THINK_OPEN) {
+                        self.held.drain(..THINK_OPEN.len());
+                        self.state = ThinkState::Thinking { unmarked: false };
+                    } else if THINK_OPEN.starts_with(self.held.as_str()) {
+                        break;
+                    } else {
+                        self.state = ThinkState::Body;
+                    }
+                }
+                ThinkState::Body => {
+                    let end = self.held.trim_end().len();
+                    shown.extend(self.held.drain(..end));
+                    break;
+                }
+            }
+        }
+        shown
+    }
+
+    /// What is still held when the text ends.
+    pub(crate) fn finish(self) -> String {
+        match self.state {
+            ThinkState::Thinking { unmarked: true } | ThinkState::Lead => self.held.trim().to_string(),
+            ThinkState::Thinking { unmarked: false } | ThinkState::Body => String::new(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -127,5 +198,34 @@ mod tests {
     fn think_blocks_are_removed() {
         assert_eq!(strip_think("<think>\nhmm\n</think>\n\n明日の会議。"), "明日の会議。");
         assert_eq!(strip_think("  plain  "), "plain");
+    }
+
+    #[test]
+    fn the_think_filter_shows_what_strip_think_keeps_however_the_text_is_cut() {
+        let cases = [
+            ("<think>\nhmm\n</think>\n\n明日の会議。", false),
+            ("  plain answer \n", false),
+            ("plain <b>answer</b>\n\n", false),
+            ("<thi", false),
+            ("hmm, so\n</think>\n\nthe answer", true),
+            ("no closing tag at all", true),
+            ("a</think>b</think>c", true),
+        ];
+        for (text, in_think) in cases {
+            let chars: Vec<String> = text.chars().map(String::from).collect();
+            for pieces in [vec![text.to_string()], chars] {
+                let mut filter = ThinkFilter::new(in_think);
+                let mut shown: String = pieces.iter().map(|p| filter.push(p)).collect();
+                shown.push_str(&filter.finish());
+                assert_eq!(shown, strip_think(text), "{text:?} in {} pieces", pieces.len());
+            }
+        }
+    }
+
+    #[test]
+    fn the_think_filter_drops_a_block_that_never_closes() {
+        let mut filter = ThinkFilter::new(false);
+        let shown = filter.push("<think>still thinking");
+        assert_eq!((shown.as_str(), filter.finish().as_str()), ("", ""));
     }
 }

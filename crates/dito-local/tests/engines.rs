@@ -11,7 +11,7 @@ use dito_core::error::ErrorKind;
 use dito_core::factory::LocalBackend;
 use dito_core::health::EngineStatus;
 use dito_core::intent::{Intent, Reading, Request};
-use dito_core::provider::{AsrRequest, Example, TextRequest};
+use dito_core::provider::{AsrRequest, ChatCancel, ChatMessage, ChatRequest, ChatRole, Example, TextRequest};
 use dito_local::catalog::{FileSpec, ModelFormat, ModelKind, ModelSpec, Sampling};
 use dito_local::{
     AsrOutput, AsrRuntime, LlmRuntime, LocalEngines, ModelManager, NoRuntime, RuntimeError, RuntimeLoader,
@@ -405,4 +405,76 @@ async fn output_cut_off_at_the_token_limit_is_a_bad_response_not_a_result() {
     let transcriber = engine.transcriber("asr").await.unwrap();
     let heard = transcriber.transcribe(&AsrRequest { clip: &clip, language: None, hotwords: &[] }).await;
     assert_eq!(heard.err().unwrap().kind, ErrorKind::BadResponse);
+}
+
+/// Emits a piece every few milliseconds until it is stopped, and reports the sampling it was given.
+struct Streaming(Arc<std::sync::Mutex<Option<Sampling>>>);
+impl AsrRuntime for Streaming {
+    fn transcribe(&self, _: &[f32], _: Option<&str>, _: &[String], _: &AtomicBool) -> Result<AsrOutput, RuntimeError> {
+        unreachable!("a text model test")
+    }
+}
+impl LlmRuntime for Streaming {
+    fn generate(&self, _: &str, _: &[Example], _: &str, _: &Sampling, _: &AtomicBool) -> Result<String, RuntimeError> {
+        unreachable!("chat does not go through generate")
+    }
+
+    fn chat(
+        &self,
+        _: &[dito_core::provider::ChatMessage],
+        sampling: &Sampling,
+        on_piece: &mut dyn FnMut(&str),
+        stop: &AtomicBool,
+    ) -> Result<String, RuntimeError> {
+        *self.0.lock().unwrap() = Some(*sampling);
+        let mut reply = String::new();
+        for i in 0..400 {
+            if stop.load(Ordering::Relaxed) {
+                break;
+            }
+            let piece = format!("{} ", i % 10);
+            on_piece(&piece);
+            reply.push_str(&piece);
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        Ok(reply)
+    }
+}
+
+#[tokio::test]
+async fn a_local_chat_streams_its_pieces_with_the_request_sampling_and_stops_on_cancel() {
+    let seen = Arc::new(std::sync::Mutex::new(None));
+    let (engine, _dir) = engine_with(Streaming(seen.clone()));
+    let params = LocalTextParams { top_p: Some(0.5), ..NO_PARAMS };
+    let text_model = engine.text_model("llm", &params).await.unwrap();
+    let request = ChatRequest {
+        messages: vec![ChatMessage::new(ChatRole::User, "hi")],
+        temperature: Some(0.9),
+        max_tokens: Some(7),
+        ..ChatRequest::default()
+    };
+
+    let cancel = ChatCancel::default();
+    let mut pieces: Vec<String> = Vec::new();
+    let reply = text_model
+        .chat(
+            &request,
+            &mut |piece| {
+                pieces.push(piece.to_string());
+                if pieces.len() == 3 {
+                    cancel.cancel();
+                }
+            },
+            &cancel,
+        )
+        .await
+        .unwrap();
+    assert!(pieces.len() >= 3 && pieces.len() < 100, "{} pieces", pieces.len());
+    assert_eq!(reply, pieces.concat(), "the reply is what was streamed");
+    let sampling = seen.lock().unwrap().expect("the runtime was called");
+    assert_eq!(
+        (sampling.temperature, sampling.top_p, sampling.max_tokens),
+        (0.9, Some(0.5), Some(7)),
+        "the request replaces the configuration field by field and the rest is kept"
+    );
 }
