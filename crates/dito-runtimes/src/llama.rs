@@ -1,7 +1,8 @@
 use std::num::NonZeroU32;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock, Weak};
+use std::time::{Duration, Instant};
 
 use dito_core::intent::{Pool, Reading, Request};
 use dito_core::provider::{ChatMessage, ChatRole};
@@ -38,6 +39,22 @@ const POLISH_SEED: u32 = 1234;
 /// How many tokens a chat reply may take when neither the request nor the configuration caps it.
 const CHAT_BUDGET: u32 = 4096;
 
+/// Room a kept chat context leaves beyond the reply, so the next question of the same conversation fits without a new
+/// context.
+const CHAT_HEADROOM: u32 = 4096;
+
+/// How long a chat context is kept after its last use. A follow-up inside this time reads only what is new instead
+/// of the whole conversation; after it the memory of the context (gigabytes for a long document) is given back.
+const CHAT_SESSION_TTL: Duration = Duration::from_secs(10 * 60);
+
+/// The sequence a reply is generated in, and the one that keeps the conversation as it was before the reply opened.
+const TURN_SEQUENCE: i32 = 0;
+const RESIDENT_SEQUENCE: i32 = 1;
+
+/// How many of a prompt's last tokens stay out of the resident sequence: more than the assistant header and the
+/// empty think block, which the next turn's prompt replaces with the reply.
+const RESIDENT_TAIL: usize = 32;
+
 /// A prompt is decoded in batches of this many tokens, so a long conversation never exceeds the context's batch size.
 const PROMPT_BATCH: usize = 512;
 
@@ -67,7 +84,75 @@ fn sampler(sampling: &Sampling, seed: u32) -> LlamaSampler {
     LlamaSampler::chain_simple(chain)
 }
 
+/// The context of the last chat, kept so the next turn continues from where this one's prompt ended. The Qwen 3.5
+/// checkpoints keep recurrent state that cannot be rolled back to an earlier position, so the context holds the
+/// conversation twice: the resident sequence stops just before the reply opens and is never generated into, and each
+/// turn starts as a copy of it. The two share their cells, so the copy costs no second read.
+struct ChatSession {
+    ctx: LlamaContext<'static>,
+    /// The prompt tokens the resident sequence holds from position zero.
+    resident: Vec<LlamaToken>,
+    used: Instant,
+}
+
+impl ChatSession {
+    /// Makes the resident sequence what the turn sequence holds now.
+    fn checkpoint(&mut self, tokens: &[LlamaToken]) -> Result<(), RuntimeError> {
+        self.ctx.clear_kv_cache_seq(Some(RESIDENT_SEQUENCE as u32), None, None).map_err(RuntimeError::engine)?;
+        self.ctx.copy_kv_cache_seq(TURN_SEQUENCE, RESIDENT_SEQUENCE, None, None).map_err(RuntimeError::engine)?;
+        self.resident = tokens.to_vec();
+        Ok(())
+    }
+
+    fn decode(
+        &mut self,
+        batch: &mut LlamaBatch,
+        tokens: &[LlamaToken],
+        from: usize,
+        to: usize,
+    ) -> Result<(), RuntimeError> {
+        batch.clear();
+        let last = tokens.len() - 1;
+        for (position, token) in tokens.iter().copied().enumerate().take(to).skip(from) {
+            batch.add(token, position as i32, &[TURN_SEQUENCE], position == last).map_err(RuntimeError::engine)?;
+        }
+        self.ctx.decode(batch).map_err(RuntimeError::engine)
+    }
+}
+
+// SAFETY: a llama.cpp context is not bound to the thread that created it. The session lives behind a mutex, so one
+// thread uses it at a time.
+unsafe impl Send for ChatSession {}
+
+#[derive(Default)]
+struct SessionSlot {
+    session: Option<ChatSession>,
+    /// A thread is waiting to drop the session when it expires.
+    reaper: bool,
+}
+
+fn reap_expired(slot: Weak<Mutex<SessionSlot>>) {
+    let mut wait = CHAT_SESSION_TTL;
+    loop {
+        std::thread::sleep(wait);
+        let Some(slot) = slot.upgrade() else { return };
+        let Ok(mut slot) = slot.lock() else { return };
+        let idle = slot.session.as_ref().map(|s| s.used.elapsed());
+        match idle {
+            Some(idle) if idle < CHAT_SESSION_TTL => wait = CHAT_SESSION_TTL - idle,
+            _ => {
+                slot.session = None;
+                slot.reaper = false;
+                return;
+            }
+        }
+    }
+}
+
 pub struct Chat {
+    /// The kept chat context borrows `model`. [`Drop`] empties the slot first, because the thread that expires it
+    /// may hold the slot a moment longer than this value lives.
+    session: Arc<Mutex<SessionSlot>>,
     /// The context decisions are read from, created on the first [`LlmRuntime::read`] and kept with the router's
     /// prompt prefix decoded. Declared before `model` so it is dropped first.
     reader: Mutex<Option<Reader>>,
@@ -76,6 +161,15 @@ pub struct Chat {
     template: LlamaChatTemplate,
     gate: Mutex<()>,
     disable_thinking: bool,
+}
+
+impl Drop for Chat {
+    fn drop(&mut self) {
+        match self.session.lock() {
+            Ok(mut slot) => slot.session = None,
+            Err(poisoned) => poisoned.into_inner().session = None,
+        }
+    }
 }
 
 impl Chat {
@@ -88,7 +182,59 @@ impl Chat {
                 path.display()
             ))
         })?;
-        Ok(Self { reader: Mutex::new(None), model, template, gate: Mutex::new(()), disable_thinking })
+        Ok(Self {
+            session: Arc::default(),
+            reader: Mutex::new(None),
+            model,
+            template,
+            gate: Mutex::new(()),
+            disable_thinking,
+        })
+    }
+
+    /// The kept context with the turn sequence holding the first tokens of this prompt, and how many it holds;
+    /// a new context holding none when the kept one expired, is too small or belongs to another conversation.
+    fn chat_session(&self, tokens: &[LlamaToken], budget: u32) -> Result<(ChatSession, usize), RuntimeError> {
+        let needed = tokens.len() as u32 + budget;
+        let kept = self.session.lock().map_err(|_| RuntimeError::LockPoisoned("chat session lock"))?.session.take();
+        if let Some(mut session) = kept.filter(|s| s.used.elapsed() < CHAT_SESSION_TTL && s.ctx.n_ctx() >= needed) {
+            let held = session.resident.len();
+            if held < tokens.len() && tokens.starts_with(&session.resident) {
+                session.ctx.clear_kv_cache_seq(Some(TURN_SEQUENCE as u32), None, None).map_err(RuntimeError::engine)?;
+                session
+                    .ctx
+                    .copy_kv_cache_seq(RESIDENT_SEQUENCE, TURN_SEQUENCE, None, None)
+                    .map_err(RuntimeError::engine)?;
+                return Ok((session, held));
+            }
+            session.ctx.clear_kv_cache();
+            session.resident.clear();
+            return Ok((session, 0));
+        }
+        let n_ctx = needed.saturating_add(CHAT_HEADROOM).min(self.model.n_ctx_train()).max(needed).max(1024);
+        let threads = std::thread::available_parallelism().map(|n| n.get() as i32).unwrap_or(4);
+        let params = LlamaContextParams::default()
+            .with_n_ctx(NonZeroU32::new(n_ctx))
+            .with_n_seq_max(2)
+            .with_kv_unified(true)
+            .with_n_threads(threads)
+            .with_n_threads_batch(threads);
+        let ctx = self.model.new_context(backend()?, params).map_err(RuntimeError::engine)?;
+        // SAFETY: the context borrows `self.model`. It only ever lives in a local of `chat` or in `self.session`,
+        // which `Drop for Chat` empties before the model is freed.
+        let ctx = unsafe { std::mem::transmute::<LlamaContext<'_>, LlamaContext<'static>>(ctx) };
+        Ok((ChatSession { ctx, resident: Vec::new(), used: Instant::now() }, 0))
+    }
+
+    fn keep_chat_session(&self, mut session: ChatSession) {
+        session.used = Instant::now();
+        let Ok(mut slot) = self.session.lock() else { return };
+        slot.session = Some(session);
+        if !slot.reaper {
+            slot.reaper = true;
+            let weak = Arc::downgrade(&self.session);
+            std::thread::spawn(move || reap_expired(weak));
+        }
     }
 
     fn token_ids(&self, prompt: &str) -> Vec<i32> {
@@ -219,7 +365,7 @@ impl LlmRuntime for Chat {
         if stop.load(Ordering::Relaxed) {
             return Ok(String::new());
         }
-        let backend = backend()?;
+        backend()?;
         let prompt = self.render_chat(messages)?;
         let tokens = self.tokenize_prompt(&prompt);
         let room = (self.model.n_ctx_train() as usize).saturating_sub(tokens.len());
@@ -227,24 +373,25 @@ impl LlmRuntime for Chat {
         if tokens.is_empty() || budget == 0 {
             return Err(RuntimeError::engine("the conversation does not fit the model's context"));
         }
-        let n_ctx = (tokens.len() as u32 + budget).max(1024);
-        let threads = std::thread::available_parallelism().map(|n| n.get() as i32).unwrap_or(4);
-        let params = LlamaContextParams::default()
-            .with_n_ctx(NonZeroU32::new(n_ctx))
-            .with_n_threads(threads)
-            .with_n_threads_batch(threads);
-        let mut ctx = self.model.new_context(backend, params).map_err(RuntimeError::engine)?;
+        let (mut session, held) = self.chat_session(&tokens, budget)?;
 
+        // The next turn renders this prompt again up to where the reply opens, so the resident sequence stops short
+        // of the last tokens.
+        let resident_end = tokens.len().saturating_sub(RESIDENT_TAIL).max(held);
         let mut batch = LlamaBatch::new(PROMPT_BATCH, 1);
-        let last = tokens.len() - 1;
-        for (start, window) in tokens.chunks(PROMPT_BATCH).enumerate().map(|(i, w)| (i * PROMPT_BATCH, w)) {
-            batch.clear();
-            for (offset, token) in window.iter().copied().enumerate() {
-                let position = start + offset;
-                batch.add(token, position as i32, &[0], position == last).map_err(RuntimeError::engine)?;
+        let mut at = held;
+        while at < tokens.len() {
+            let stage_end = if at < resident_end { resident_end } else { tokens.len() };
+            let to = (at + PROMPT_BATCH).min(stage_end);
+            session.decode(&mut batch, &tokens, at, to)?;
+            at = to;
+            let stopped = stop.load(Ordering::Relaxed);
+            if at == resident_end || (stopped && at < resident_end) {
+                session.checkpoint(&tokens[..at])?;
             }
-            ctx.decode(&mut batch).map_err(RuntimeError::engine)?;
-            if stop.load(Ordering::Relaxed) {
+            if stopped {
+                // What was read stays, so asking again continues from here.
+                self.keep_chat_session(session);
                 return Ok(String::new());
             }
         }
@@ -262,7 +409,7 @@ impl LlmRuntime for Chat {
         let prompt_len = tokens.len() as i32;
         let outcome = generate_text(
             &self.model,
-            &mut ctx,
+            &mut session.ctx,
             &mut sampler,
             &mut batch,
             prompt_len,
@@ -275,6 +422,7 @@ impl LlmRuntime for Chat {
             Err(RuntimeError::Cancelled) => {}
             Err(error) => return Err(error),
         }
+        self.keep_chat_session(session);
         Ok(reply)
     }
 
