@@ -13,7 +13,7 @@ use aws_sdk_bedrockruntime::types::{
 use aws_smithy_types::{Document, Number};
 use serde_json::Value;
 
-use super::{ChatCancel, ChatDelta, ChatRequest, ChatRole, TextModel, TextRequest};
+use super::{CANCEL_POLL, ChatCancel, ChatDelta, ChatRequest, ChatRole, TextModel, TextRequest};
 use crate::config::CloudTextParams;
 use crate::error::{ErrorKind, ProviderError, ProviderResult};
 
@@ -217,7 +217,22 @@ impl BedrockEngine {
         let mut out = call.send().await.map_err(classify)?;
         let mut reply = String::new();
         while !cancel.is_cancelled() {
-            let Some(event) = out.stream.recv().await.map_err(classify)? else { break };
+            let event = {
+                let next = out.stream.recv();
+                tokio::pin!(next);
+                let mut tick = tokio::time::interval(CANCEL_POLL);
+                loop {
+                    tokio::select! {
+                        event = &mut next => break event.map_err(classify)?,
+                        _ = tick.tick() => {
+                            if cancel.is_cancelled() {
+                                break None;
+                            }
+                        }
+                    }
+                }
+            };
+            let Some(event) = event else { break };
             // Reasoning deltas of adaptive thinking are not part of the reply.
             if let ConverseStreamOutput::ContentBlockDelta(delta) = event
                 && let Some(ContentBlockDelta::Text(piece)) = delta.delta()

@@ -423,3 +423,20 @@ async fn a_stream_retries_without_reasoning_effort_and_reports_http_errors() {
     let err = engine.chat(&question("ok"), &mut |_| {}, &ChatCancel::default()).await.unwrap_err();
     assert_eq!(err.kind, ErrorKind::RateLimit);
 }
+
+#[tokio::test]
+async fn cancelling_stops_a_stream_that_is_waiting_for_the_next_chunk() {
+    let srv = MockServer::start().await.unwrap();
+    srv.behavior(|b| b.chat_chunk_delay = Duration::from_secs(20));
+    let engine = factory(None).text_model(&mock_cfg(&srv.url)).await.unwrap().unwrap();
+    let cancel = ChatCancel::default();
+    let stop = cancel.clone();
+    tokio::spawn(async move {
+        tokio::time::sleep(Duration::from_millis(150)).await;
+        stop.cancel();
+    });
+    let started = std::time::Instant::now();
+    let reply = engine.chat(&question("um a reply that never arrives"), &mut |_| {}, &cancel).await.unwrap();
+    assert!(reply.is_empty());
+    assert!(started.elapsed() < Duration::from_secs(5), "Stop waited {:?} for the server", started.elapsed());
+}
