@@ -490,6 +490,16 @@ impl ModelsPage {
         cx.notify();
     }
 
+    /// The Tools window points at this tab when the user opens the text model behind a chat.
+    pub(crate) fn show_text(&mut self, cx: &mut Context<Self>) {
+        ui::dismiss_tips(&self.motion.handle());
+        self.tab = Tab::Role(Role::Text);
+        self.menu = None;
+        self.select = None;
+        self.cloud_text.tiles.close_menu();
+        cx.notify();
+    }
+
     /// One model, one source: the detector has no switcher beside its title.
     fn vad_header(&self, c: &Ctx) -> Div {
         div()

@@ -90,6 +90,12 @@ impl Settings {
         cx.notify();
     }
 
+    /// Shows the Models page with the text model tab selected.
+    pub fn show_text(&mut self, cx: &mut Context<Self>) {
+        self.set_page(Page::Models, cx);
+        self.models.update(cx, |models, cx| models.show_text(cx));
+    }
+
     /// Shows the Models page with the speech-detection tab selected.
     pub fn show_vad(&mut self, cx: &mut Context<Self>) {
         self.set_page(Page::Models, cx);

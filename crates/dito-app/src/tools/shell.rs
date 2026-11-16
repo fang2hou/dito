@@ -131,6 +131,7 @@ impl Tools {
     pub(super) fn on_window_closed(&mut self, cx: &mut Context<Self>) {
         self.set_pages_active(None, cx);
         self.transcription.update(cx, |page, _| page.reset_motion());
+        self.chat.update(cx, |page, _| page.reset_motion());
         self.chrome.reset_motion();
     }
 }
@@ -180,6 +181,11 @@ impl Tools {
             ToolsPage::Chat => self.chat.clone().into(),
             ToolsPage::LocalApi => self.local_api.clone().into(),
         };
+        // The chat page lays out its own edges: the sidebar is flush right and the composer reaches 28 pt from the
+        // sides, so the page gutters and the wordmark would sit on its controls.
+        if page == ToolsPage::Chat {
+            return div().flex_1().h_full().relative().overflow_hidden().child(view);
+        }
         div()
             .flex_1()
             .h_full()

@@ -29,7 +29,7 @@ pub(super) enum Block {
 }
 
 fn options() -> Options {
-    Options::ENABLE_TABLES | Options::ENABLE_STRIKETHROUGH | Options::ENABLE_CJK_FRIENDLY_EMPHASIS
+    Options::ENABLE_TABLES | Options::ENABLE_STRIKETHROUGH | Options::ENABLE_TASKLISTS
 }
 
 enum Frame {
@@ -118,7 +118,7 @@ pub(super) fn parse(src: &str) -> Vec<Block> {
                 b.flush_implicit();
                 b.push_block(Block::Rule);
             }
-            Event::TaskListMarker(done) => b.push_text(if done { "☑ " } else { "☐ " }, false),
+            Event::TaskListMarker(done) => b.push_text(if done { "\u{2611} " } else { "\u{2610} " }, false),
             Event::Html(text) | Event::InlineHtml(text) => b.push_text(&text, false),
             _ => {}
         }
@@ -275,7 +275,7 @@ pub(super) fn stable_prefix(src: &str) -> usize {
 }
 
 /// A reply's blocks: the part before a stable boundary is parsed once, only the tail is parsed again as text arrives.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub(super) struct Document {
     seen: usize,
     stable_len: usize,
@@ -322,11 +322,11 @@ mod tests {
 
     #[test]
     fn inline_styles_nest_and_cjk_emphasis_closes_before_a_particle() {
-        let blocks = parse("今週中に**3つの作業**を終えます。`config.toml` と [手順](https://x.test)。");
+        let blocks = parse("\u{4eca}\u{9031}\u{4e2d}\u{306b}**3\u{3064}\u{306e}\u{4f5c}\u{696d}**\u{3092}\u{7d42}\u{3048}\u{307e}\u{3059}\u{3002}`config.toml` \u{3068} [\u{624b}\u{9806}](https://x.test)\u{3002}");
         let [Block::Paragraph(spans)] = blocks.as_slice() else { panic!("one paragraph: {blocks:?}") };
-        assert!(spans.iter().any(|s| s.style.bold && s.text == "3つの作業"));
+        assert!(spans.iter().any(|s| s.style.bold && s.text == "3\u{3064}\u{306e}\u{4f5c}\u{696d}"));
         assert!(spans.iter().any(|s| s.style.code && s.text == "config.toml"));
-        assert!(spans.iter().any(|s| s.style.link.as_deref() == Some("https://x.test") && s.text == "手順"));
+        assert!(spans.iter().any(|s| s.style.link.as_deref() == Some("https://x.test") && s.text == "\u{624b}\u{9806}"));
     }
 
     #[test]
@@ -366,7 +366,7 @@ mod tests {
 
     #[test]
     fn a_streamed_document_matches_parsing_the_whole_text_at_every_step() {
-        let text = "# 見出し\n\n本文 **強調**\n\n- a\n- b\n\n```rs\nlet x = 1;\n\nlet y = 2;\n```\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n終わり";
+        let text = "# \u{898b}\u{51fa}\u{3057}\n\n\u{672c}\u{6587} **\u{5f37}\u{8abf}**\n\n- a\n- b\n\n```rs\nlet x = 1;\n\nlet y = 2;\n```\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n\u{7d42}\u{308f}\u{308a}";
         let mut doc = Document::default();
         for end in text.char_indices().map(|(i, _)| i).chain([text.len()]) {
             doc.update(&text[..end]);

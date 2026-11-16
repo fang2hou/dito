@@ -88,7 +88,7 @@ pub use scroll_thumb::{ScrollExtent, overlay_thumb};
 pub use segmented::{SegContent, SegOption, SegStyle, seg, seg_with};
 pub use select::{SelectItem, select, select_form, select_form_disabled, select_items, select_multi, select_trigger};
 pub use select_badge::SelectBadge;
-pub use selectable::{selectable_spans, selectable_text};
+pub use selectable::{selectable_runs, selectable_spans, selectable_text};
 pub use shimmer::{ShimmerInk, shimmer_text};
 pub use switch::switch;
 pub use test_state::{ErrorPlacement, TestState, test_summary};
@@ -106,4 +106,4 @@ pub use gpui_kit::component::input::{Editor, EditorState, InputEvent, InputState
 pub use gpui_kit::component::scroll::{Scrollbar, ScrollbarHandle, ScrollbarMode};
 pub use gpui_kit::component::{Root, Theme};
 
-pub(crate) use menu_panel::{float as float_menu, menu_panel, menu_row, menu_separator};
+pub(crate) use menu_panel::{float as float_menu, menu_panel, menu_row, menu_row_staying, menu_separator};

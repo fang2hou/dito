@@ -53,6 +53,13 @@ pub fn open_vad_models(st: Arc<AppState>, cx: &mut App) {
     view.update(cx, |settings, cx| settings.show_vad(cx));
 }
 
+/// Opens Settings on the Models page with the text model tab selected: where the model behind the chat lives.
+pub fn open_text_model(st: Arc<AppState>, cx: &mut App) {
+    open(st, Page::Models, cx);
+    let Some(view) = cx.try_global::<SettingsHandle>().map(|h| h.view.clone()) else { return };
+    view.update(cx, |settings, cx| settings.show_text(cx));
+}
+
 pub fn open(st: Arc<AppState>, page: Page, cx: &mut App) {
     let foreground = !st.opts.is_headless();
     if !show_in_existing_window(Some(page), foreground, cx) {

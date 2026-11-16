@@ -30,7 +30,7 @@ pub use page::Page;
 pub use page_layout::{content_width, page, page_fill};
 #[cfg(feature = "screenshots")]
 pub use shell::Settings;
-pub use window::{global_state, is_open, open, open_vad_models};
+pub use window::{global_state, is_open, open, open_text_model, open_vad_models};
 #[cfg(feature = "screenshots")]
 pub use window::{handle, page_motion, shell_motion};
 

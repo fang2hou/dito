@@ -46,6 +46,23 @@ pub fn selectable_spans(
     }
 }
 
+/// Selectable text whose runs carry their own fonts, for text that mixes faces (a reply's inline code). `runs` cover
+/// `s` end to end. Same contract as [`selectable_text`]: the window must be rooted in `Root`.
+pub fn selectable_runs(
+    p: &Palette,
+    id: impl Into<ElementId>,
+    s: impl Into<SharedString>,
+    runs: Vec<TextRun>,
+) -> impl IntoElement {
+    let s: SharedString = s.into();
+    Spans {
+        id: id.into(),
+        styled: StyledText::new(s.clone()).with_runs(runs),
+        text: s,
+        selection: hex_alpha(p.accent, 0.3),
+    }
+}
+
 /// [`SelectableText`] with highlights: the same registration and painting, which the base type does not expose.
 struct Spans {
     id: ElementId,
