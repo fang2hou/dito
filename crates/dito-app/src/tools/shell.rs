@@ -77,6 +77,8 @@ pub struct Tools {
 }
 
 #[cfg(feature = "screenshots")]
+mod local_api_probe;
+#[cfg(feature = "screenshots")]
 mod probe;
 
 impl Tools {

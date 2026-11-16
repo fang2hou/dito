@@ -6,6 +6,7 @@ mod hud;
 #[cfg(feature = "mock")]
 mod inline_asr;
 mod input;
+mod local_api;
 mod onboarding;
 mod pages;
 mod runner;

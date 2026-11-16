@@ -615,6 +615,68 @@ transcription.readiness_system_audio = { ja = "通話相手の声や Mac で再�
 transcription.readiness_vad_title = { ja = "発話検出モデル（Silero VAD）", en = "Speech detection model (Silero VAD)", zh = "发话检测模型（Silero VAD）" }
 transcription.readiness_vad = { ja = "連続する音声から発話の区間を切り出して音声認識へ渡すために必要です。", en = "Needed to cut speech out of the continuous audio and pass it to speech recognition.", zh = "用于从连续音频中切出发言片段并交给语音识别。" }
 
+local_api.tab_api = { ja = "API", en = "API", zh = "API" }
+local_api.tab_mcp = { ja = "MCP", en = "MCP", zh = "MCP" }
+local_api.check = { ja = "接続を確認", en = "Check connection", zh = "检查连接" }
+local_api.checking = { ja = "確認中", en = "Checking", zh = "正在检查" }
+local_api.check_ok = { ja = "接続できました", en = "Connected", zh = "连接成功" }
+local_api.check_unreachable = { ja = "接続できません", en = "Cannot connect", zh = "无法连接" }
+local_api.check_unauthorized = { ja = "トークンが違います", en = "Token rejected", zh = "令牌不正确" }
+local_api.off_title = { ja = "ローカル API はオフです", en = "Local API is off", zh = "本地 API 已关闭" }
+local_api.off_hint = { ja = "右上のスイッチをオンにすると、この Mac のアプリからインストール済みのモデルを使えます。", en = "Turn on the switch at the top right to let apps on this Mac use your installed models.", zh = "打开右上角的开关后，这台 Mac 上的应用就能使用已安装的模型。" }
+local_api.port_unavailable = { ja = "ポートを待ち受けできません。別のアプリが使っているかもしれません。設定でポートを変えてください。", en = "Cannot listen on the port. Another app may be using it. Change the port in the settings.", zh = "无法监听该端口，可能已被其他应用占用。请在设置中更换端口。" }
+local_api.service_switch = { ja = "ローカル API を有効にする", en = "Turn the Local API on", zh = "启用本地 API" }
+local_api.base_url = { ja = "ベース URL", en = "Base URL", zh = "基础 URL" }
+local_api.access_token = { ja = "アクセストークン", en = "Access token", zh = "访问令牌" }
+local_api.any_token = { ja = "任意のトークンを受け付けます", en = "Any token is accepted", zh = "接受任意令牌" }
+local_api.model_ids = { ja = "モデル ID", en = "Model IDs", zh = "模型 ID" }
+local_api.role_text = { ja = "テキスト", en = "Text", zh = "文本" }
+local_api.role_speech = { ja = "音声認識", en = "Speech", zh = "语音识别" }
+local_api.copy = { ja = "コピー", en = "Copy", zh = "复制" }
+local_api.endpoints = { ja = "エンドポイント", en = "Endpoints", zh = "端点" }
+local_api.copy_spec = { ja = "仕様をコピー", en = "Copy specification", zh = "复制规范" }
+local_api.endpoint_models = { ja = "モデルの一覧", en = "List the models", zh = "模型列表" }
+local_api.endpoint_chat = { ja = "テキスト生成、ストリーミング対応", en = "Text generation, streaming supported", zh = "文本生成，支持流式输出" }
+local_api.endpoint_transcriptions = { ja = "音声ファイルの書き起こし", en = "Transcribe an audio file", zh = "转写音频文件" }
+local_api.mcp_url = { ja = "接続 URL", en = "Connection URL", zh = "连接 URL" }
+local_api.mcp_auth = { ja = "認証", en = "Authentication", zh = "认证" }
+local_api.mcp_example = { ja = "クライアント設定の例 (Streamable HTTP)", en = "Client configuration example (Streamable HTTP)", zh = "客户端配置示例 (Streamable HTTP)" }
+local_api.mcp_items = { ja = "ツールとリソース", en = "Tools and resources", zh = "工具和资源" }
+local_api.kind_tool = { ja = "ツール", en = "Tool", zh = "工具" }
+local_api.kind_resource = { ja = "リソース", en = "Resource", zh = "资源" }
+local_api.tool_generate = { ja = "ローカルモデルでテキストを生成", en = "Generate text with the local model", zh = "用本地模型生成文本" }
+local_api.tool_list_models = { ja = "ローカルモデルの一覧", en = "List the local models", zh = "本地模型列表" }
+local_api.resource_models = { ja = "モデル ID、機能、対応形式", en = "Model IDs, capabilities and supported formats", zh = "模型 ID、功能和支持的格式" }
+local_api.settings_title = { ja = "ローカル API の設定", en = "Local API settings", zh = "本地 API 设置" }
+local_api.port = { ja = "ポート", en = "Port", zh = "端口" }
+local_api.port_hint = { ja = "127.0.0.1 でのみ待ち受けます。変更すると再起動します。", en = "Listens on 127.0.0.1 only. Changing it restarts the service.", zh = "仅在 127.0.0.1 上监听。更改后会重新启动服务。" }
+local_api.token_hint = { ja = "API と MCP で共通です。自由に書き換えられます。", en = "Shared by the API and MCP. You can edit it freely.", zh = "API 和 MCP 共用，可以随意修改。" }
+local_api.generate_token = { ja = "新しいトークンを生成", en = "Generate a new token", zh = "生成新令牌" }
+local_api.copy_token = { ja = "トークンをコピー", en = "Copy the token", zh = "复制令牌" }
+local_api.api_any_token = { ja = "API で任意のトークンを受け付ける", en = "Accept any token for the API", zh = "API 接受任意令牌" }
+local_api.api_any_token_hint = { ja = "オンにすると、トークンを確かめずに接続します。", en = "When on, requests are served without checking the token.", zh = "开启后，不校验令牌即可连接。" }
+local_api.mcp_any_token = { ja = "MCP で任意のトークンを受け付ける", en = "Accept any token for MCP", zh = "MCP 接受任意令牌" }
+local_api.mcp_any_token_hint = { ja = "MCP クライアントがトークンなしで接続できます。", en = "MCP clients can connect without a token.", zh = "MCP 客户端无需令牌即可连接。" }
+local_api.ref_auth = { ja = "認証", en = "Authentication", zh = "认证" }
+local_api.ref_token_placeholder = { ja = "<アクセストークン>", en = "<access token>", zh = "<访问令牌>" }
+local_api.ref_model = { ja = "モデル", en = "Model", zh = "模型" }
+local_api.ref_request = { ja = "リクエスト", en = "Request", zh = "请求" }
+local_api.ref_response = { ja = "レスポンス", en = "Response", zh = "响应" }
+local_api.ref_response_json = { ja = "レスポンス (stream が false のとき)", en = "Response (when stream is false)", zh = "响应 (stream 为 false 时)" }
+local_api.ref_response_stream = { ja = "レスポンス (stream が true のとき)", en = "Response (when stream is true)", zh = "响应 (stream 为 true 时)" }
+local_api.ref_input_schema = { ja = "入力スキーマ", en = "Input schema", zh = "输入架构" }
+local_api.ref_example = { ja = "呼び出し例", en = "Example", zh = "调用示例" }
+local_api.ref_no_auth = { ja = "不要", en = "Not needed", zh = "无需" }
+local_api.doc_title = { ja = "ローカル API の仕様", en = "Local API specification", zh = "本地 API 规范" }
+local_api.sample_message = { ja = "こんにちは", en = "Hello", zh = "你好" }
+local_api.sample_prompt = { ja = "要点を 3 行でまとめてください。", en = "Summarize the key points in three lines.", zh = "请用三行概括要点。" }
+local_api.describe_models = { ja = "Dito が使っているテキストモデルと音声認識モデルの一覧を返します。", en = "Returns the text and speech models Dito is set to.", zh = "返回 Dito 当前使用的文本模型和语音识别模型。" }
+local_api.describe_chat = { ja = "OpenAI 互換のテキスト生成です。stream を true にすると、Server-Sent Events で少しずつ返します。", en = "OpenAI-compatible text generation. With stream set to true, the reply arrives piece by piece as Server-Sent Events.", zh = "兼容 OpenAI 的文本生成。stream 为 true 时，以 Server-Sent Events 逐步返回。" }
+local_api.describe_transcriptions = { ja = "OpenAI 互換の書き起こしです。WAV ファイルを multipart/form-data の file として送ります。", en = "OpenAI-compatible transcription. Send a WAV file as the file field of a multipart/form-data request.", zh = "兼容 OpenAI 的转写。以 multipart/form-data 的 file 字段发送 WAV 文件。" }
+local_api.describe_generate = { ja = "ローカルのテキストモデルで、メッセージに対する返答を生成します。", en = "Generates a reply to a message with the local text model.", zh = "用本地文本模型为消息生成回复。" }
+local_api.describe_list_models = { ja = "使えるモデルと、インストール済みのほかのモデルを返します。", en = "Returns the models in use and the other installed models.", zh = "返回正在使用的模型和其他已安装的模型。" }
+local_api.describe_resource = { ja = "モデル ID、機能、対応形式を JSON で返します。", en = "Returns the model IDs, capabilities and supported formats as JSON.", zh = "以 JSON 返回模型 ID、功能和支持的格式。" }
+
 [fmt.using_model]
 ja = "{model} を使用中"
 en = "Using {model}"

@@ -7,7 +7,11 @@ pub(crate) mod transcription;
 mod window;
 
 #[cfg(feature = "screenshots")]
+pub(crate) use local_api::LocalApiPose;
+#[cfg(feature = "screenshots")]
 pub use shell::Tools;
+#[cfg(feature = "screenshots")]
+pub(crate) use shell::ToolsPage;
 #[cfg(feature = "screenshots")]
 pub use window::{handle, page_motion, shell_motion};
 pub use window::{is_open, open};

@@ -4,6 +4,7 @@ mod appearance_seg;
 mod banner;
 mod button;
 mod callbacks;
+mod code_block;
 mod config_tiles;
 mod copy_button;
 mod dialog;
@@ -16,6 +17,7 @@ mod inputs;
 mod layout;
 mod menu_button;
 mod menu_panel;
+mod method_label;
 mod modal;
 mod motion;
 mod params;
@@ -47,10 +49,14 @@ pub use button::{
     circle_control_with_glyph, close_button, disabled_button, disabled_icon_button, disabled_icon_button_with,
     icon_button, icon_button_with, status_disc,
 };
-pub use callbacks::{Cb, cbk, cbk_copy, cbk_idx, click_cb};
+pub use callbacks::{Cb, CopyCb, ToggleCb, cbk, cbk_copy, cbk_idx, click_cb};
+pub use code_block::code_block;
 pub use config_tiles::{ConfigTile, TilePlus, TileRowState, cbk_id, cbk_move, tile_row};
-pub use copy_button::{copy_button, copy_button_with};
-pub use dialog::{ConfirmStyle, DialogAnswer, confirm_dialog, confirm_dialog_with_header, tool_settings_dialog};
+pub use copy_button::{copy_button, copy_button_with, ghost_copy_button};
+pub use dialog::{
+    ConfirmStyle, DialogAnswer, ToolDialogHeader, confirm_dialog, confirm_dialog_with_header, tool_settings_dialog,
+    tool_settings_dialog_with,
+};
 pub use form_footer::{FooterTrash, TestButton, form_footer};
 pub use format::{error_line, error_summary, fmt_bytes, fmt_eta, history_target_label};
 pub use glass::{prepare as prepare_card_backdrop, wordmark as page_wordmark};
@@ -67,6 +73,7 @@ pub use inputs::{
 };
 pub use layout::{StatusTone, card, drag_area, group, page_title, row, row_described, status_chip, status_tag, tag};
 pub use menu_button::menu_button;
+pub use method_label::{MethodKind, MethodSize, method_label};
 pub use modal::modal_layer;
 pub use motion::Motion;
 pub use params::{ParamField, parameter_block};
