@@ -6,12 +6,24 @@ use gpui_kit::*;
 use crate::theme::Palette;
 
 pub fn is_cjk(s: &str) -> bool {
-    s.chars().any(|c| matches!(c, '\u{3000}'..='\u{9fff}' | '\u{ff00}'..='\u{ffef}'))
+    s.chars().any(|c| {
+        matches!(
+            c,
+            '\u{1100}'..='\u{11ff}'
+                | '\u{3000}'..='\u{9fff}'
+                | '\u{ac00}'..='\u{d7af}'
+                | '\u{ff00}'..='\u{ffef}'
+        )
+    })
+}
+
+fn is_cyrillic(s: &str) -> bool {
+    s.chars().any(|c| matches!(c, '\u{0400}'..='\u{052f}'))
 }
 
 static LANGUAGE: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
 
-/// Language-dependent typography reads it: the CJK typeface (see [`cjk_family`]).
+/// Language-dependent typography reads it: the CJK or script typeface (see [`cjk_family`]).
 pub fn set_ui_language(lang: dito_core::i18n::Lang) {
     LANGUAGE.store(
         dito_core::i18n::Lang::ALL.iter().position(|l| *l == lang).unwrap_or(0) as u8,
@@ -20,15 +32,37 @@ pub fn set_ui_language(lang: dito_core::i18n::Lang) {
 }
 
 pub fn ui_language() -> dito_core::i18n::Lang {
-    dito_core::i18n::Lang::ALL[LANGUAGE.load(std::sync::atomic::Ordering::Relaxed) as usize % 3]
+    let all = dito_core::i18n::Lang::ALL;
+    all[LANGUAGE.load(std::sync::atomic::Ordering::Relaxed) as usize % all.len()]
 }
 
 pub fn cjk_family() -> &'static str {
-    if ui_language() == dito_core::i18n::Lang::Zh { "IBM Plex Sans SC" } else { "M PLUS 1p" }
+    use dito_core::i18n::Lang;
+    match ui_language() {
+        Lang::Zh => "IBM Plex Sans SC",
+        Lang::ZhHant => "PingFang TC",
+        Lang::Ko => "Apple SD Gothic Neo",
+        Lang::Mn => "Helvetica Neue",
+        Lang::Ja | Lang::En | Lang::Fr => "M PLUS 1p",
+    }
 }
 
 pub fn family_for(s: &str) -> &'static str {
-    if is_cjk(s) { cjk_family() } else { "Outfit" }
+    use dito_core::i18n::Lang;
+    if is_cjk(s) {
+        if s.chars().any(|c| matches!(c, '\u{ac00}'..='\u{d7af}' | '\u{1100}'..='\u{11ff}')) {
+            return "Apple SD Gothic Neo";
+        }
+        return match ui_language() {
+            Lang::Zh => "IBM Plex Sans SC",
+            Lang::ZhHant => "PingFang TC",
+            _ => "M PLUS 1p",
+        };
+    }
+    if is_cyrillic(s) {
+        return "Helvetica Neue";
+    }
+    "Outfit"
 }
 
 pub fn text(s: impl Into<SharedString>, size: f32, weight: FontWeight, color: Hsla) -> Div {

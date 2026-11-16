@@ -65,7 +65,7 @@ How a command is decided is in [INTENT_ROUTING.md](INTENT_ROUTING.md); how it is
 
 | Term | Meaning | JA | EN | ZH | Code | Avoid |
 | --- | --- | --- | --- | --- | --- | --- |
-| Display language | The UI locale of menus, settings, and the HUD, shown as a self-name including script variant (such as Simplified or Traditional Chinese) | 表示言語（日本語, English, 简体中文） | Display language (日本語, English, 简体中文) | 界面语言（日本語, English, 简体中文） | `DisplayLanguage`, `Lang::native_name` | conflating UI script variants with speech language |
+| Display language | The UI locale of menus, settings, and the HUD, shown as a self-name including script variant (such as Simplified or Traditional Chinese) | 表示言語（日本語, English, 简体中文, 繁體中文, 한국어, Монгол, Français） | Display language (日本語, English, 简体中文, 繁體中文, 한국어, Монгол, Français) | 界面语言（日本語, English, 简体中文, 繁體中文, 한국어, Монгол, Français） | `DisplayLanguage`, `Lang::native_name` | conflating UI script variants with speech language |
 | HUD | The floating capsule that shows live dictation and command state | HUD | HUD | HUD | `hud/`, `HudState`, `HudView` | overlay, toast |
 | HUD state | For dictation: hidden, listening, transcribing, polishing, inserted, copied, error; command adds thinking, working, its windows, and replaced | — | — | — | `HudState` | |
 | Tools window | The standalone workspace window outside Settings that hosts Dito's interactive tools (meeting transcription first, future tools alongside it in the `ツール` sidebar) | ツールウィンドウ（メニュー: ツールを開く） | Tools window (menu: Open Tools) | 工具窗口（菜单: 打开工具） | `tools/` | feature window, transcription window |

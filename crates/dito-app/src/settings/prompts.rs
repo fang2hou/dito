@@ -66,12 +66,13 @@ impl PromptsPage {
     pub fn new(st: Arc<AppState>, window: &mut Window, cx: &mut Context<Self>) -> Self {
         services::watch_config(&st, cx);
         let cfg = st.cfg.get();
-        let (lang, initial_target) = (cfg.general.lang(), AppTarget::General);
+        let ui_lang = cfg.general.lang();
+        let (lang, initial_target) = (ui_lang.prompt_language(), AppTarget::General);
         let set = cfg.prompts.set(lang);
         let base = textarea(window, cx, &set.base);
         let instruction = textarea(window, cx, &set.app_rules(&initial_target).instruction);
         let try_in = textarea(window, cx, dito_core::i18n::sample_utterance(lang));
-        let placeholder = SharedString::from(lang.tr(Tr::PromptsPreviewPlaceholder));
+        let placeholder = SharedString::from(ui_lang.tr(Tr::PromptsPreviewPlaceholder));
         let try_out = cx.new(|cx| TextareaState::new(window, cx).placeholder(placeholder));
         for ent in [&base, &instruction, &try_in, &try_out] {
             let handle = ent.read(cx).focus_handle(cx);
@@ -113,7 +114,7 @@ impl PromptsPage {
             samples: Vec::new(),
             try_in,
             try_out,
-            placeholder_lang: lang,
+            placeholder_lang: ui_lang,
             try_state: Try::Idle,
             drafts: cfg.prompts.clone(),
             apps: app_choices(&cfg.prompts),

@@ -17,7 +17,7 @@ const EXEMPT: &[(&str, &str)] = &[
     ("dev/shots/chat.rs", "*"),
     // Configuration names the polish form shots type into the form (user content, not UI copy).
     ("dev/shots/text_model_form.rs", "*"),
-    // List separator chosen per language in code (the ideographic comma, only for Japanese).
+    // List separator chosen per language in code (the ideographic comma, for Japanese and Chinese).
     ("settings/models/page.rs", "、"),
 ];
 
@@ -59,7 +59,13 @@ fn workspace_rust_files() -> Vec<PathBuf> {
 }
 
 fn has_cjk(s: &str) -> bool {
-    s.chars().any(|c| ('\u{3000}'..='\u{30ff}').contains(&c) || ('\u{4e00}'..='\u{9fff}').contains(&c))
+    s.chars().any(|c| {
+        ('\u{0400}'..='\u{052f}').contains(&c)
+            || ('\u{1100}'..='\u{11ff}').contains(&c)
+            || ('\u{3000}'..='\u{30ff}').contains(&c)
+            || ('\u{4e00}'..='\u{9fff}').contains(&c)
+            || ('\u{ac00}'..='\u{d7af}').contains(&c)
+    })
 }
 
 #[test]

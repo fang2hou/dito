@@ -19,10 +19,10 @@ pub(super) fn model_labels(c: &Ctx, spec: &ModelSpec) -> Div {
     // A detector is language agnostic, which the multilingual code states as well as it does for a speech model.
     if matches!(spec.kind, ModelKind::Asr | ModelKind::Vad) {
         let (code, tip) = match spec.language_focus {
-            None => ("MULT", Tr::ModelsLabelMultilingualTip),
             Some(Lang::Ja) => ("JA", Tr::ModelsLabelJapaneseTip),
             Some(Lang::En) => ("EN", Tr::ModelsLabelEnglishTip),
-            Some(Lang::Zh) => ("ZH", Tr::ModelsLabelChineseTip),
+            Some(Lang::Zh | Lang::ZhHant) => ("ZH", Tr::ModelsLabelChineseTip),
+            None | Some(Lang::Ko | Lang::Mn | Lang::Fr) => ("MULT", Tr::ModelsLabelMultilingualTip),
         };
         labels.push(("language", code.to_string(), c.lang.tr(tip).to_string()));
     }
@@ -68,12 +68,14 @@ fn parameters_label(millions: u32) -> String {
 
 fn parameters_tip(lang: Lang, millions: u32) -> String {
     let count = match lang {
-        Lang::En if millions >= 1000 => {
+        Lang::En | Lang::Mn | Lang::Fr if millions >= 1000 => {
             fmt::model_parameters_count_billions(lang, &one_decimal(f64::from(millions) / 1000.))
         }
-        Lang::En => fmt::model_parameters_count(lang, &two_digits(millions).to_string()),
-        // Japanese and Chinese count in units of a hundred million.
-        Lang::Ja | Lang::Zh => fmt::model_parameters_count(lang, &two_figures(f64::from(millions) / 100.)),
+        Lang::En | Lang::Mn | Lang::Fr => fmt::model_parameters_count(lang, &two_digits(millions).to_string()),
+        // Japanese, Chinese, and Korean count in units of a hundred million.
+        Lang::Ja | Lang::Zh | Lang::ZhHant | Lang::Ko => {
+            fmt::model_parameters_count(lang, &two_figures(f64::from(millions) / 100.))
+        }
     };
     fmt::model_parameters_tip(lang, &count, &parameters_label(millions))
 }

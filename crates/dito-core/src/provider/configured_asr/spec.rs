@@ -3,10 +3,10 @@ use crate::i18n::Lang;
 /// An API key is never part of a request JSON (it lives in the Keychain and the JSON refers to it as `{{api_key}}`),
 /// and recordings never enter this text.
 pub fn configuration_spec(language: Lang, name: &str, request_json: &str) -> String {
-    let guide = match language {
+    let guide = match language.prompt_language() {
         Lang::Ja => include_str!("../asr-help/ja.md"),
-        Lang::En => include_str!("../asr-help/en.md"),
         Lang::Zh => include_str!("../asr-help/zh.md"),
+        _ => include_str!("../asr-help/en.md"),
     };
     format!(
         "<dito_speech_model_config_spec>\n{guide}\n{name}\n\n```json\n{request_json}\n```\n</dito_speech_model_config_spec>"

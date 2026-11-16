@@ -107,4 +107,4 @@ Design decisions that aren't visible in a single screen. Timings and sizes thems
 
 ## Known Gaps
 
-- The display language follows the system by default; the goal is Japanese by default with English and 简体中文 selectable.
+- The display language follows the system by default; the goal is Japanese by default with English, 简体中文, 繁體中文, 한국어, Монгол, and Français selectable.

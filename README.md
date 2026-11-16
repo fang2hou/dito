@@ -6,7 +6,7 @@ Dictation for macOS: press a shortcut, speak, and polished text appears at your 
 
 </div>
 
-Dito records your voice, turns it into text on your Mac or through a cloud provider, optionally polishes it with a language model, and types it into whatever app has focus. The interface is in Japanese, with English and Simplified Chinese available. Dito is in early, fast-moving development.
+Dito records your voice, turns it into text on your Mac or through a cloud provider, optionally polishes it with a language model, and types it into whatever app has focus. The interface is in Japanese, with English, Simplified Chinese, Traditional Chinese, Korean, Mongolian, and French available. Dito is in early, fast-moving development.
 
 ## 🚀 Usage / Quick Start
 

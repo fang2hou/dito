@@ -83,10 +83,15 @@ pub enum DisplayLanguage {
     Ja,
     En,
     Zh,
+    ZhHant,
+    Ko,
+    Mn,
+    Fr,
 }
 
 impl DisplayLanguage {
-    pub const ALL: [DisplayLanguage; 4] = [Self::System, Self::Ja, Self::En, Self::Zh];
+    pub const ALL: [DisplayLanguage; 8] =
+        [Self::System, Self::Ja, Self::En, Self::Zh, Self::ZhHant, Self::Ko, Self::Mn, Self::Fr];
 
     pub fn resolve(self) -> Lang {
         match self {
@@ -94,6 +99,10 @@ impl DisplayLanguage {
             Self::Ja => Lang::Ja,
             Self::En => Lang::En,
             Self::Zh => Lang::Zh,
+            Self::ZhHant => Lang::ZhHant,
+            Self::Ko => Lang::Ko,
+            Self::Mn => Lang::Mn,
+            Self::Fr => Lang::Fr,
         }
     }
 }
