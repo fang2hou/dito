@@ -20,6 +20,8 @@ The polish prompt follows the same rule (2026-11-12, measured in `bench/POLISH_P
 
 The command tools (rewrite, translate, summarize, reply, answer) follow the same scaffold: the same sections, the selected text between `===` lines, three demonstration turns per tool, and the instruction as the last block of the final user turn. Only the purpose, the language-type rule, the extra constraints, the output rule and the demonstrations differ by tool (`bench/POLISH_PROMPT.md`).
 
+Meeting paragraphs use a fixed English cleanup scaffold regardless of interface or transcript language, a fenced current paragraph, and three demonstration turns in Chinese, Japanese and English. Vocabulary and prior paragraphs are escaped read-only references, separate from the current speech. Questions and instructions in speech stay in the transcript instead of becoming requests to the editor.
+
 Meeting titles use a fixed English system prompt and a fenced transcript. The display language is context, and the title follows the main language spoken in the transcript. The editable title prompt controls style and format.
 
 ## Alternatives Considered
