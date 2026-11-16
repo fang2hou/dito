@@ -742,9 +742,8 @@ impl ChatPage {
             .flex()
             .bg(p.bg)
             // The message field usually holds the focus, and its own Copy would answer first with nothing to copy.
-            .capture_key_down(cx.listener(|_, ev: &KeyDownEvent, window, cx| {
-                let copy = ev.keystroke.modifiers.platform && ev.keystroke.key == "c";
-                if copy && copy_selection(window, cx) {
+            .capture_action(cx.listener(|_, _: &gpui_kit::base::input::Copy, window, cx| {
+                if copy_selection(window, cx) {
                     cx.stop_propagation();
                 }
             }))

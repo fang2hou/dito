@@ -57,6 +57,7 @@ pub fn launch(st: Arc<AppState>, cx: &mut App) {
     autostart_local_models(&st);
     follow_shortcuts(&st);
     open_tools_on_press(&st, cx);
+    crate::services::serve_own_window_inserts(&st, cx);
     hud::run(st.clone(), cx);
     menubar::run(st.clone(), cx);
     open_first_window(&st, cx);

@@ -12,8 +12,9 @@ pub(crate) use local_api::LocalApiPose;
 pub use shell::Tools;
 #[cfg(feature = "screenshots")]
 pub(crate) use shell::ToolsPage;
-#[cfg(feature = "screenshots")]
-pub use window::{handle, page_motion, shell_motion};
+pub use window::handle;
 pub use window::{is_open, open};
+#[cfg(feature = "screenshots")]
+pub use window::{page_motion, shell_motion};
 
 pub(crate) use window::bring_to_front;

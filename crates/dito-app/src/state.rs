@@ -47,6 +47,8 @@ pub struct AppState {
     pub dictation: DictationHandle,
     pub transcription: TranscriptionHandle,
     pub local_api: LocalApi,
+    /// Dictation aimed at one of Dito's own text fields, answered on the UI thread.
+    pub own_inserts: crate::services::OwnWindowInserts,
     pub recorder: Arc<dyn Recorder>,
     pub capture: Option<Arc<Capture>>,
     pub player: Player,
@@ -106,6 +108,7 @@ impl AppState {
         let capture = open_capture(&opts, &cfg);
         let recorder = pick_recorder(&opts, capture.as_ref())?;
         let sink: Arc<dyn Sink> = if opts.log_sink { Arc::new(LogSink) } else { Arc::new(MacSink) };
+        let (sink, own_inserts) = crate::services::own_window_sink(sink);
         let engines: Arc<dyn Engines> = factory.clone();
         let microphone_cfg = cfg.clone();
         let transcription = transcription::spawn(TranscriptionDeps {
@@ -149,6 +152,7 @@ impl AppState {
             dictation,
             transcription,
             local_api,
+            own_inserts,
             recorder,
             capture,
             player: Player::default(),
