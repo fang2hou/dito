@@ -12,7 +12,10 @@ use dito_core::factory::{EngineFactory, Engines};
 use dito_core::pipeline::CancellationToken;
 use dito_core::pipeline::{self, PipelineError, PipelineJob};
 use dito_core::prompts::AppTarget;
-use dito_core::provider::{AsrRequest, TestOutcome, TextRequest, test_text_model, test_transcriber};
+use dito_core::provider::{
+    AsrRequest, ChatCancel, ChatMessage, ChatRequest, ChatRole, TestOutcome, TextRequest, test_text_model,
+    test_transcriber,
+};
 use dito_core::secrets::{MemorySecrets, SecretStore, text_account};
 use dito_testkit::{MockServer, mock_cloud_asr_config};
 use serde_json::json;
@@ -350,4 +353,90 @@ async fn full_pipeline_over_http_with_polish_outage_still_delivers_raw_text() {
     .unwrap();
     assert_eq!(out.text(), "えーと 明日の3時に会議があります");
     assert!(out.polish_error.is_some());
+}
+
+fn question(text: &str) -> ChatRequest {
+    ChatRequest {
+        messages: vec![ChatMessage::new(ChatRole::System, "s"), ChatMessage::new(ChatRole::User, text)],
+        ..ChatRequest::default()
+    }
+}
+
+#[tokio::test]
+async fn a_streamed_chat_arrives_in_pieces_that_add_up_to_the_reply() {
+    let srv = MockServer::start().await.unwrap();
+    srv.behavior(|b| b.chat_chunk_delay = Duration::ZERO);
+    let mut cfg = mock_cfg(&srv.url);
+    active(&mut cfg).params.temperature = Some(0.3);
+    let engine = factory(None).text_model(&cfg).await.unwrap().unwrap();
+    let mut pieces: Vec<String> = Vec::new();
+    let request = ChatRequest { temperature: Some(0.8), max_tokens: Some(64), ..question("um hello there my friend") };
+    let reply =
+        engine.chat(&request, &mut |piece| pieces.push(piece.to_string()), &ChatCancel::default()).await.unwrap();
+    assert_eq!(reply, "hello there my friend.");
+    assert!(pieces.len() > 1, "{pieces:?}");
+    assert_eq!(pieces.concat(), reply);
+    let body = srv.requests()[0].body.clone().unwrap();
+    assert_eq!(body["stream"], json!(true));
+    assert_eq!(body["temperature"], json!(0.8), "the request wins over the configuration");
+    assert_eq!(body["max_completion_tokens"], json!(64));
+}
+
+#[tokio::test]
+async fn cancelling_a_stream_returns_the_text_so_far() {
+    let srv = MockServer::start().await.unwrap();
+    srv.behavior(|b| b.chat_chunk_delay = Duration::from_millis(5));
+    let engine = factory(None).text_model(&mock_cfg(&srv.url)).await.unwrap().unwrap();
+    let cancel = ChatCancel::default();
+    let mut pieces: Vec<String> = Vec::new();
+    let reply = engine
+        .chat(
+            &question("um this is a fairly long answer to cut short"),
+            &mut |piece| {
+                pieces.push(piece.to_string());
+                cancel.cancel();
+            },
+            &cancel,
+        )
+        .await
+        .unwrap();
+    assert_eq!(pieces.len(), 1);
+    assert_eq!(reply, pieces[0]);
+    assert!(engine.chat(&question("hi"), &mut |_| panic!("no delta after cancel"), &cancel).await.unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn a_stream_retries_without_reasoning_effort_and_reports_http_errors() {
+    let srv = MockServer::start().await.unwrap();
+    srv.behavior(|b| {
+        b.reject_reasoning_effort = true;
+        b.chat_chunk_delay = Duration::ZERO;
+    });
+    let mut cfg = mock_cfg(&srv.url);
+    active(&mut cfg).params.reasoning_effort = ReasoningEffort::High;
+    let engine = factory(None).text_model(&cfg).await.unwrap().unwrap();
+    let reply = engine.chat(&question("ok"), &mut |_| {}, &ChatCancel::default()).await.unwrap();
+    assert_eq!(reply, "ok.");
+    assert_eq!(srv.requests().len(), 2);
+
+    srv.behavior(|b| b.fail_status = Some(429));
+    let err = engine.chat(&question("ok"), &mut |_| {}, &ChatCancel::default()).await.unwrap_err();
+    assert_eq!(err.kind, ErrorKind::RateLimit);
+}
+
+#[tokio::test]
+async fn cancelling_stops_a_stream_that_is_waiting_for_the_next_chunk() {
+    let srv = MockServer::start().await.unwrap();
+    srv.behavior(|b| b.chat_chunk_delay = Duration::from_secs(20));
+    let engine = factory(None).text_model(&mock_cfg(&srv.url)).await.unwrap().unwrap();
+    let cancel = ChatCancel::default();
+    let stop = cancel.clone();
+    tokio::spawn(async move {
+        tokio::time::sleep(Duration::from_millis(150)).await;
+        stop.cancel();
+    });
+    let started = std::time::Instant::now();
+    let reply = engine.chat(&question("um a reply that never arrives"), &mut |_| {}, &cancel).await.unwrap();
+    assert!(reply.is_empty());
+    assert!(started.elapsed() < Duration::from_secs(5), "Stop waited {:?} for the server", started.elapsed());
 }

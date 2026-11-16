@@ -5,7 +5,7 @@ use std::time::Duration;
 use gpui_kit::*;
 
 use super::input::redraw;
-use super::{demo, hud, onboarding, pages, startup, text_model_form, tile_row, wordbook};
+use super::{demo, hud, local_api, onboarding, pages, startup, text_model_form, tile_row, wordbook};
 use crate::settings::{self, Page};
 use crate::state::{AppGlobal, AppState};
 
@@ -82,6 +82,12 @@ async fn render_app_shots(st: &Arc<AppState>, dir: &Path, groups: &Groups, cx: &
     }
     if groups.runs_by_default("tools") {
         pages::tools_shots(st, dir, cx).await;
+    }
+    if groups.selects("localapi") {
+        local_api::local_api_shots(st, dir, cx).await;
+    }
+    if groups.selects("chat") {
+        super::chat::run(st, dir, cx).await;
     }
     if groups.selects("transcriptfilm") {
         super::transcript_film::run(st, dir, cx).await;

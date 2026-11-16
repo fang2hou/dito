@@ -9,12 +9,14 @@ use crate::config::EngineLabels;
 use crate::prompts::AppTarget;
 
 mod activity;
+mod chats;
 mod model;
 mod rows;
 mod schema;
 mod transcripts;
 
 pub use activity::{Period, civil, heat_quartiles, heat_step, local_day, month_span, shown_days, week_start};
+pub use chats::{Attachment, Author, Chat, ChatMessageRow, ChatSummary, MessageState, NewChatMessage};
 pub use model::*;
 use rows::{SELECT_HISTORY, row_to_entry};
 use schema::{SCHEMA_VERSION, encode, migrate, user_version};
@@ -47,7 +49,9 @@ impl Store {
         }
         conn.execute_batch("PRAGMA journal_mode = WAL;")?;
         migrate(&mut conn, applied)?;
-        Ok(Self { conn: Mutex::new(conn), tz_offset_secs })
+        let store = Self { conn: Mutex::new(conn), tz_offset_secs };
+        store.recover_chats()?;
+        Ok(store)
     }
 
     fn conn(&self) -> MutexGuard<'_, Connection> {
@@ -757,6 +761,27 @@ mod tests {
             assert_eq!(user_version(&reopened.conn()).unwrap(), SCHEMA_VERSION, "a current database opens unchanged");
             assert_eq!(reopened.list_history(&HistoryFilter::default()).unwrap().len(), 1);
         }
+    }
+
+    #[test]
+    fn a_version_six_database_gains_the_chat_tables_and_keeps_its_transcripts() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("h.db");
+        {
+            let old = Connection::open(&path).unwrap();
+            for migration in &MIGRATIONS[..6] {
+                old.execute_batch(migration).unwrap();
+            }
+            old.execute("INSERT INTO transcripts (started_ts, title, with_mic) VALUES (7, 'weekly', 0)", ()).unwrap();
+            old.pragma_update(None, "user_version", 6).unwrap();
+        }
+
+        let s = Store::open(&path, 0).unwrap();
+        assert_eq!(user_version(&s.conn()).unwrap(), SCHEMA_VERSION);
+        assert_eq!(s.list_transcripts().unwrap()[0].title, "weekly");
+        assert!(s.list_chats().unwrap().is_empty());
+        let chat = s.create_chat("first", 1).unwrap();
+        assert_eq!(s.get_chat(chat).unwrap().unwrap().summary.title, "first");
     }
 
     #[test]

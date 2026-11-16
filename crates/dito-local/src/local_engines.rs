@@ -11,7 +11,10 @@ use dito_core::error::{ErrorKind, ProviderError, ProviderResult};
 use dito_core::factory::LocalBackend;
 use dito_core::health::EngineStatus;
 use dito_core::intent::Decision;
-use dito_core::provider::{AsrRequest, Router, TextModel, TextRequest, Transcriber, Transcript};
+use dito_core::provider::{
+    AsrRequest, ChatCancel, ChatDelta, ChatMessage, ChatRequest, ChatRole, Router, TextModel, TextRequest, Thinking,
+    Transcriber, Transcript,
+};
 use dito_core::trace_log;
 
 use crate::catalog::{ModelKind, Sampling};
@@ -312,6 +315,8 @@ struct LocalLlm {
     rt: Arc<dyn LlmRuntime>,
     usage: Arc<Usage>,
     sampling: Sampling,
+    /// The catalog id picks the wording of a thinking level.
+    model_id: String,
 }
 
 struct LocalRouter {
@@ -345,6 +350,8 @@ impl Drop for StopOnDrop {
         self.0.store(true, Ordering::Relaxed);
     }
 }
+
+const CANCEL_POLL: Duration = Duration::from_millis(25);
 
 /// Output that used the whole token budget is cut off mid-text and would be typed as if it were complete.
 fn runtime_failure(error: RuntimeError) -> ProviderError {
@@ -394,6 +401,71 @@ impl TextModel for LocalLlm {
         }
         Ok(text)
     }
+
+    /// The runtime decodes on a blocking thread and sends each piece over a channel, so `on_delta` runs here. The
+    /// cancel flag is copied to the runtime's stop flag on a short tick, which also reaches a call that is still waiting
+    /// for the model or reading the prompt.
+    async fn chat(&self, req: &ChatRequest, on_delta: ChatDelta<'_>, cancel: &ChatCancel) -> ProviderResult<String> {
+        if cancel.is_cancelled() {
+            return Ok(String::new());
+        }
+        let _working = Working::new(&self.usage);
+        let sampling = Sampling {
+            temperature: req.temperature.unwrap_or(self.sampling.temperature),
+            top_p: req.top_p.or(self.sampling.top_p),
+            max_tokens: req.max_tokens.or(self.sampling.max_tokens),
+            ..self.sampling
+        };
+        let (rt, mut messages) = (self.rt.clone(), req.messages.clone());
+        let think = req.thinking.as_ref().map(|thinking| *thinking != Thinking::Off);
+        if let Some(Thinking::Level(level)) = &req.thinking
+            && let Some(instruction) = crate::catalog::reasoning_instruction(&self.model_id, level)
+        {
+            match messages.iter_mut().find(|m| m.role == ChatRole::System) {
+                Some(system) => system.content = format!("{instruction}\n\n{}", system.content),
+                None => messages.insert(0, ChatMessage::new(ChatRole::System, instruction)),
+            }
+        }
+        let stop = Arc::new(AtomicBool::new(false));
+        let _cancel = StopOnDrop(stop.clone());
+        let (pieces, mut received) = tokio::sync::mpsc::unbounded_channel::<String>();
+        let blocking_stop = stop.clone();
+        let task = tokio::task::spawn_blocking(move || {
+            rt.chat(
+                &messages,
+                &sampling,
+                think,
+                &mut |piece| {
+                    let _ = pieces.send(piece.to_string());
+                },
+                &blocking_stop,
+            )
+        });
+        let mut tick = tokio::time::interval(CANCEL_POLL);
+        let mut reply = String::new();
+        loop {
+            tokio::select! {
+                piece = received.recv() => {
+                    let Some(piece) = piece else { break };
+                    on_delta(&piece);
+                    reply.push_str(&piece);
+                }
+                _ = tick.tick() => {
+                    if cancel.is_cancelled() {
+                        stop.store(true, Ordering::Relaxed);
+                    }
+                }
+            }
+        }
+        match task.await.map_err(|e| ProviderError::new(ErrorKind::Other, e.to_string()))? {
+            Ok(_) | Err(RuntimeError::Cancelled) => {}
+            Err(error) => return Err(runtime_failure(error)),
+        }
+        if reply.is_empty() && !cancel.is_cancelled() {
+            return Err(ProviderError::new(ErrorKind::BadResponse, "empty model output"));
+        }
+        Ok(reply)
+    }
 }
 
 #[async_trait]
@@ -430,6 +502,7 @@ impl LocalBackend for LocalEngines {
                 rt,
                 usage: self.usage_for(model_id),
                 sampling: recommended.with_params(params),
+                model_id: model_id.to_string(),
             })),
             _ => Err(ProviderError::new(ErrorKind::Unavailable, format!("{model_id} is not a language model"))),
         }

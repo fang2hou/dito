@@ -30,6 +30,8 @@ The `config.toml` shapes so far, one migration each (`MIGRATIONS` in `migrate.rs
 | 9 | Transcription gains generated titles: `transcription.auto_title` (on) and `transcription.title_template` (the default instruction) are written into an existing `transcription` table |
 | 10 | The default `transcription.title_template` becomes the language-agnostic English instruction; user-edited instructions stay unchanged |
 | 11 | `general.display_language` adds `zh_hant`, `ko`, `mn`, and `fr`; existing values stay unchanged, and the version bump lets older builds report `NewerSchema` cleanly |
+| 12 | The Local API service gains its `local_api` table: `enabled` (off), `port` (17841), `api_any_token` (off) and `mcp_any_token` (on). The access token is a secret and stays in the Keychain |
+| 13 | The chat tool gains its `chat` table: `thinking` maps a text model (`local:` with the catalog id, `cloud:` with the configuration id) to its thinking choice. It starts empty and nothing is rewritten |
 
 Version 3 keeps the Keychain accounts `polish.azure` and `polish.compat` working by giving the migrated configurations the ids `azure`, `bedrock` and `compat`; every later configuration has a random id suffix, so the key of a removed one is never picked up by a new one.
 
@@ -41,8 +43,11 @@ The SQLite store counts its migrations in `PRAGMA user_version` (`MIGRATIONS` in
 | 2 | `history` gains the engine labels `asr_engine` and `polish_engine` |
 | 3 | The wordbook table is renamed in place and keeps its rows |
 | 4 | `history` gains `asr_ms` and `polish_ms` (step times), `source` (the text a command worked on) and `command` (the details of a command run as JSON); all nullable, so earlier rows are unchanged |
+| 7 | Chat conversations: `chats` and `chat_messages`. A message keeps the files and meetings it carried as a JSON list in `attachments`, with their text copied in |
 
 Version 4 stores the details of a command in one JSON column, `CommandDetails`. Its shape is a persisted shape like any column: a change to it is a new migration of the stored JSON, and `CommandDetails` gets no serde defaults to paper over old rows. A row whose details a build cannot read (written by a newer build) still lists, without them.
+
+`chat_messages.attachments` follows the same rule: the `Attachment` shape gets no serde defaults, a change to it is a new migration of the stored JSON, and a message whose attachments a build cannot read still lists, without them. A reply found `generating` when the store opens was cut short and is set to `stopped` with its words.
 
 ## Alternatives Considered
 

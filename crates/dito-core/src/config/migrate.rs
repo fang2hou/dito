@@ -9,7 +9,7 @@ use crate::prompts::{AppTarget, default_set};
 
 /// Version of the persisted shape that this build reads and writes. Raise it together with appending one function to
 /// `MIGRATIONS`, and never edit or renumber a shipped migration: files in the field have already passed through it.
-pub const SCHEMA_VERSION: u32 = 11;
+pub const SCHEMA_VERSION: u32 = 13;
 
 const VERSION_KEY: &str = "schema_version";
 
@@ -27,6 +27,8 @@ const MIGRATIONS: [fn(&mut Table); SCHEMA_VERSION as usize] = [
     transcription_titles,
     english_title_template,
     display_locales,
+    local_api_settings,
+    chat_settings,
 ];
 
 /// The title instruction version 9 shipped as its default, kept here because the migrations that wrote it and
@@ -325,6 +327,21 @@ fn english_title_template(table: &mut Table) {
 /// version bump lets an older build report a newer format cleanly instead of a parse error.
 fn display_locales(_table: &mut Table) {}
 
+/// 11 to 12: the Local API service gains its settings, written out with their defaults (off, port 17841, the API
+/// checks the token, MCP accepts any) so an older build refuses the file instead of dropping them.
+fn local_api_settings(table: &mut Table) {
+    let settings = table.entry("local_api").or_insert_with(|| Table::new().into());
+    let Some(settings) = settings.as_table_mut() else { return };
+    settings.entry("enabled").or_insert(false.into());
+    settings.entry("port").or_insert(17841.into());
+    settings.entry("api_any_token").or_insert(false.into());
+    settings.entry("mcp_any_token").or_insert(true.into());
+}
+
+/// 12 to 13: the chat tool gains its `chat` table, which starts empty. Nothing is rewritten; the version bump lets an
+/// older build refuse the file instead of dropping the table.
+fn chat_settings(_table: &mut Table) {}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -348,6 +365,22 @@ mod tests {
                 toml::from_str(&format!("schema_version = 11\n[general]\ndisplay_language = '{raw}'\n")).unwrap();
             assert_eq!(parsed.general.display_language, expected);
         }
+    }
+
+    #[test]
+    fn version_eleven_gains_the_local_api_settings_written_out_with_their_defaults() {
+        let mut legacy = parse("schema_version = 11\nonboarded = true\n");
+        assert_eq!(upgrade(&mut legacy), Ok(11));
+        assert_eq!(legacy["local_api"]["enabled"].as_bool(), Some(false));
+        assert_eq!(legacy["local_api"]["port"].as_integer(), Some(17841));
+        assert_eq!(legacy["local_api"]["api_any_token"].as_bool(), Some(false));
+        assert_eq!(legacy["local_api"]["mcp_any_token"].as_bool(), Some(true));
+        assert_eq!(legacy.try_into::<Config>().unwrap().local_api, crate::config::LocalApiSettings::default());
+
+        let mut partial = parse("schema_version = 11\n[local_api]\nport = 9000\n");
+        assert_eq!(upgrade(&mut partial), Ok(11));
+        assert_eq!(partial["local_api"]["port"].as_integer(), Some(9000), "a value already there is kept");
+        assert_eq!(partial["local_api"]["mcp_any_token"].as_bool(), Some(true));
     }
 
     #[test]

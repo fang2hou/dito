@@ -27,7 +27,6 @@ struct ToolsCloseWatch {
 
 impl Global for ToolsCloseWatch {}
 
-#[cfg(feature = "screenshots")]
 pub fn handle(cx: &App) -> Option<(WindowHandle<Root>, Entity<Tools>)> {
     cx.try_global::<ToolsHandle>().map(|h| (h.window, h.view.clone()))
 }

@@ -32,6 +32,7 @@ dito-testkit = { path = "../dito-testkit", optional = true }
 gpui-kit = "0.9"
 ttf-parser = "0.25"
 raw-window-handle = "0.6"
+pulldown-cmark = { version = "0.13", default-features = false }
 anyhow.workspace = true
 tokio.workspace = true
 tracing.workspace = true

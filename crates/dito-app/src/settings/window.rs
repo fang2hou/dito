@@ -26,7 +26,6 @@ struct SettingsCloseWatch {
 
 impl Global for SettingsCloseWatch {}
 
-#[cfg(feature = "screenshots")]
 pub fn handle(cx: &App) -> Option<(WindowHandle<Root>, Entity<Settings>)> {
     cx.try_global::<SettingsHandle>().map(|h| (h.window, h.view.clone()))
 }
@@ -51,6 +50,13 @@ pub fn open_vad_models(st: Arc<AppState>, cx: &mut App) {
     open(st, Page::Models, cx);
     let Some(view) = cx.try_global::<SettingsHandle>().map(|h| h.view.clone()) else { return };
     view.update(cx, |settings, cx| settings.show_vad(cx));
+}
+
+/// Opens Settings on the Models page with the text model tab selected: where the model behind the chat lives.
+pub fn open_text_model(st: Arc<AppState>, cx: &mut App) {
+    open(st, Page::Models, cx);
+    let Some(view) = cx.try_global::<SettingsHandle>().map(|h| h.view.clone()) else { return };
+    view.update(cx, |settings, cx| settings.show_text(cx));
 }
 
 pub fn open(st: Arc<AppState>, page: Page, cx: &mut App) {

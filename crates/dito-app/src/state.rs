@@ -9,6 +9,7 @@ use dito_core::audio::AudioClip;
 use dito_core::config::{ConfigStore, default_data_dir};
 use dito_core::controller::{self, Deps, DictationHandle, Env, Recorder, RecorderError, SelectionSource, Sink};
 use dito_core::factory::{EngineFactory, Engines};
+use dito_core::local_api::{self, LocalApi};
 use dito_core::secrets::{MemorySecrets, SecretStore};
 use dito_core::store::Store;
 use dito_core::transcription::{self, TranscriptionDeps, TranscriptionHandle, VoiceDetector, VoiceDetectors};
@@ -33,6 +34,7 @@ use crate::logbook::LogBook;
 use crate::mac_focus_warmer::MacFocusWarmer;
 use crate::mac_selection::MacSelection;
 use crate::opts::Opts;
+use crate::services::InstalledCatalog;
 
 pub struct AppState {
     pub opts: Opts,
@@ -44,6 +46,9 @@ pub struct AppState {
     pub secrets: Arc<dyn SecretStore>,
     pub dictation: DictationHandle,
     pub transcription: TranscriptionHandle,
+    pub local_api: LocalApi,
+    /// Dictation aimed at one of Dito's own text fields, answered on the UI thread.
+    pub own_inserts: crate::services::OwnWindowInserts,
     pub recorder: Arc<dyn Recorder>,
     pub capture: Option<Arc<Capture>>,
     pub player: Player,
@@ -103,6 +108,7 @@ impl AppState {
         let capture = open_capture(&opts, &cfg);
         let recorder = pick_recorder(&opts, capture.as_ref())?;
         let sink: Arc<dyn Sink> = if opts.log_sink { Arc::new(LogSink) } else { Arc::new(MacSink) };
+        let (sink, own_inserts) = crate::services::own_window_sink(sink);
         let engines: Arc<dyn Engines> = factory.clone();
         let microphone_cfg = cfg.clone();
         let transcription = transcription::spawn(TranscriptionDeps {
@@ -112,6 +118,15 @@ impl AppState {
             config: cfg.clone(),
             store: store.clone(),
         });
+        let local_api = LocalApi::spawn(
+            local_api::Deps {
+                cfg: cfg.clone(),
+                secrets: secrets.clone(),
+                backend: factory.clone(),
+                installed: Arc::new(InstalledCatalog(models.clone())),
+            },
+            rt,
+        );
         let dictation = controller::spawn(Deps {
             env: Env {
                 recorder: recorder.clone(),
@@ -136,6 +151,8 @@ impl AppState {
             secrets,
             dictation,
             transcription,
+            local_api,
+            own_inserts,
             recorder,
             capture,
             player: Player::default(),

@@ -130,16 +130,46 @@ pub fn tool_settings_dialog(
     content: AnyElement,
     on_close: Cb,
 ) -> AnyElement {
+    tool_settings_dialog_with(window, p, id, focus, ToolDialogHeader::titled(480., title), content, on_close)
+}
+
+/// The header of a tool settings dialog: its width and the title with the two optional slots of the design, one before
+/// the title (a Method Label) and the actions beside the close button.
+pub struct ToolDialogHeader {
+    pub width: f32,
+    pub title: SharedString,
+    pub leading: Option<AnyElement>,
+    pub actions: Option<AnyElement>,
+}
+
+impl ToolDialogHeader {
+    pub fn titled(width: f32, title: impl Into<SharedString>) -> Self {
+        Self { width, title: title.into(), leading: None, actions: None }
+    }
+}
+
+pub fn tool_settings_dialog_with(
+    window: &Window,
+    p: &Palette,
+    id: &'static str,
+    focus: &FocusHandle,
+    header: ToolDialogHeader,
+    content: AnyElement,
+    on_close: Cb,
+) -> AnyElement {
     let escape = on_close.clone();
+    let ToolDialogHeader { width, title, leading, actions } = header;
     let header = div()
         .w_full()
         .flex()
         .items_center()
         .gap(px(12.))
+        .children(leading)
         .child(div().flex_1().min_w(px(0.)).child(text(title, 20., FontWeight::BOLD, p.text)))
+        .children(actions)
         .child(super::button::close_button(ElementId::from((ElementId::from(id), "close")), p, on_close));
     let body = div()
-        .w(px(480.))
+        .w(px(width))
         .max_w(window.viewport_size().width - px(48.))
         .p(px(28.))
         .rounded(px(20.))

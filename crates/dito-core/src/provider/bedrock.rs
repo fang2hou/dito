@@ -7,12 +7,13 @@ use aws_config::{BehaviorVersion, Region};
 use aws_sdk_bedrockruntime::Client;
 use aws_sdk_bedrockruntime::error::{ProvideErrorMetadata, SdkError};
 use aws_sdk_bedrockruntime::types::{
-    ContentBlock, ConversationRole, InferenceConfiguration, Message, SystemContentBlock,
+    ContentBlock, ContentBlockDelta, ConversationRole, ConverseStreamOutput, InferenceConfiguration, Message,
+    SystemContentBlock,
 };
 use aws_smithy_types::{Document, Number};
 use serde_json::Value;
 
-use super::{TextModel, TextRequest};
+use super::{CANCEL_POLL, ChatCancel, ChatDelta, ChatRequest, ChatRole, TextModel, TextRequest, Thinking};
 use crate::config::CloudTextParams;
 use crate::error::{ErrorKind, ProviderError, ProviderResult};
 
@@ -169,6 +170,87 @@ impl BedrockEngine {
         }
         Ok(text)
     }
+
+    /// Consecutive turns of one role share a message, since Converse wants the roles to alternate.
+    async fn converse_stream(
+        &self,
+        req: &ChatRequest,
+        on_delta: ChatDelta<'_>,
+        cancel: &ChatCancel,
+    ) -> ProviderResult<String> {
+        let params = CloudTextParams {
+            temperature: req.temperature.or(self.params.temperature),
+            top_p: req.top_p.or(self.params.top_p),
+            max_tokens: req.max_tokens.or(self.params.max_tokens),
+            reasoning_effort: match &req.thinking {
+                Some(Thinking::Level(level)) => level.clone().into(),
+                _ => self.params.reasoning_effort.clone(),
+            },
+            ..self.params.clone()
+        };
+        let mut call = self.client.converse_stream().model_id(&self.model_id);
+        let mut turns: Vec<(ConversationRole, Vec<&str>)> = Vec::new();
+        for m in &req.messages {
+            let role = match m.role {
+                ChatRole::System => {
+                    call = call.system(SystemContentBlock::Text(m.content.clone()));
+                    continue;
+                }
+                ChatRole::User => ConversationRole::User,
+                ChatRole::Assistant => ConversationRole::Assistant,
+            };
+            match turns.last_mut() {
+                Some((last, texts)) if *last == role => texts.push(&m.content),
+                _ => turns.push((role, vec![&m.content])),
+            }
+        }
+        for (role, texts) in turns {
+            let message = texts
+                .into_iter()
+                .fold(Message::builder().role(role), |b, text| b.content(ContentBlock::Text(text.to_string())))
+                .build()
+                .map_err(|e| ProviderError::new(ErrorKind::Other, e.to_string()))?;
+            call = call.messages(message);
+        }
+        if let Some(config) = inference_config(&self.model_id, &params) {
+            call = call.inference_config(config);
+        }
+        if let Some(fields) = additional_fields(&self.model_id, &params) {
+            call = call.additional_model_request_fields(fields);
+        }
+        let mut out = call.send().await.map_err(classify)?;
+        let mut reply = String::new();
+        while !cancel.is_cancelled() {
+            let event = {
+                let next = out.stream.recv();
+                tokio::pin!(next);
+                let mut tick = tokio::time::interval(CANCEL_POLL);
+                loop {
+                    tokio::select! {
+                        event = &mut next => break event.map_err(classify)?,
+                        _ = tick.tick() => {
+                            if cancel.is_cancelled() {
+                                break None;
+                            }
+                        }
+                    }
+                }
+            };
+            let Some(event) = event else { break };
+            // Reasoning deltas of adaptive thinking are not part of the reply.
+            if let ConverseStreamOutput::ContentBlockDelta(delta) = event
+                && let Some(ContentBlockDelta::Text(piece)) = delta.delta()
+                && !piece.is_empty()
+            {
+                on_delta(piece);
+                reply.push_str(piece);
+            }
+        }
+        if reply.is_empty() && !cancel.is_cancelled() {
+            return Err(ProviderError::new(ErrorKind::BadResponse, "no text in Converse output"));
+        }
+        Ok(reply)
+    }
 }
 
 #[async_trait]
@@ -181,6 +263,15 @@ impl TextModel for BedrockEngine {
         }
         turns.push((ConversationRole::User, req.text));
         self.converse(Some(req.system), &turns).await
+    }
+
+    /// Streams through ConverseStream. A reply that stops at the token limit is returned as it stands, since its text
+    /// is already on screen; one with no text at all is an error.
+    async fn chat(&self, req: &ChatRequest, on_delta: ChatDelta<'_>, cancel: &ChatCancel) -> ProviderResult<String> {
+        if cancel.is_cancelled() {
+            return Ok(String::new());
+        }
+        self.converse_stream(req, on_delta, cancel).await
     }
 }
 

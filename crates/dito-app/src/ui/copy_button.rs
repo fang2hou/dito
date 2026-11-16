@@ -107,6 +107,9 @@ impl CopyRun {
     }
 }
 
+/// How long a ghost Copy shows its check before it is a copy glyph again.
+const GHOST_HOLD: Duration = Duration::from_millis(1500);
+
 #[derive(Clone)]
 struct Look {
     id: ElementId,
@@ -211,6 +214,47 @@ pub fn copy_button_with(id: impl Into<ElementId>, p: &Palette, size: CircleSize,
             }
         })
         .child(layer)
+}
+
+/// The ghost Copy of `design:components` (Compact 24, 14 pt glyph, no fill or border): the glyph turns into a check for
+/// 1.5 s after a successful copy, then returns to Copy. The motion of [`copy_button`] is for the filled circle.
+pub fn ghost_copy_button(id: impl Into<ElementId>, p: &Palette, size: CircleSize, on_copy: CopyCb) -> Stateful<Div> {
+    let id = id.into();
+    let scope = scope::motion_scope();
+    let (_, glyph) = size.dimensions();
+    let (resting, confirmed) = (p.muted, p.text);
+    let latest = scope.registry().and_then(|reg| reg.borrow().copies.get(&id).copied());
+    let face = match latest.filter(|run| run.start.elapsed() < GHOST_HOLD) {
+        None => icon(Ic::Copy, glyph, resting).into_any_element(),
+        Some(run) => {
+            let remaining = GHOST_HOLD.saturating_sub(run.start.elapsed()) + Duration::from_millis(16);
+            div()
+                .child(icon(Ic::Check, glyph, confirmed))
+                .with_animation(
+                    (id.clone(), SharedString::from(format!("ghost-{}", run.key))),
+                    Animation::new(remaining),
+                    move |_, _| {
+                        let glyph_now = if run.start.elapsed() < GHOST_HOLD {
+                            icon(Ic::Check, glyph, confirmed)
+                        } else {
+                            icon(Ic::Copy, glyph, resting)
+                        };
+                        div().child(glyph_now)
+                    },
+                )
+                .into_any_element()
+        }
+    };
+    let key = id.clone();
+    circle_shell(id, size, CircleAppearance { background: None, foreground: resting, border: None, hover: Some(p.seg) })
+        .cursor_pointer()
+        .on_click(move |_, window, cx| {
+            if on_copy(window, cx) {
+                begin_run(&scope, &key);
+                window.refresh();
+            }
+        })
+        .child(face)
 }
 
 #[cfg(test)]
