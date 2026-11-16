@@ -12,7 +12,7 @@
   Language: <strong>English</strong> / <a href="README.ja.md">日本語</a> / <a href="README.zh-CN.md">简体中文</a>
 </p>
 
-Dito records your voice, turns it into text on your Mac or through a cloud provider, optionally polishes it with a language model, and types it into whatever app has focus. Speech recognition and the text model each run locally or in the cloud, chosen separately, and nothing leaves your Mac unless you choose a cloud provider. The interface is Japanese by default, with English, Simplified Chinese, Traditional Chinese, Korean, Mongolian, and French selectable. Dito is in early, fast-moving development.
+Dito turns your voice into polished text and types it into whatever app has focus. Everything can run on your Mac, and nothing leaves it unless you choose a cloud provider. Dito is in early, fast-moving development.
 
 ## Install
 
@@ -82,6 +82,7 @@ Chat uses the text model you already run for polishing, so a conversation can st
 | **Never loses a dictation** | A failed polish inserts the transcript; silence and very short clips are dropped quietly |
 | **Stays out of the way** | No window at launch, a HUD that never takes focus, Reduce Motion respected |
 | **History and Stats** | Search, play back, re-transcribe, and re-polish earlier results; time saved, characters, and speaking speed |
+| **Seven interface languages** | Japanese by default, with English, Simplified Chinese, Traditional Chinese, Korean, Mongolian, and French selectable |
 | **Private by default** | History, audio, and models stay on your Mac; cloud API keys live in the macOS Keychain, never in files |
 
 ## Models
