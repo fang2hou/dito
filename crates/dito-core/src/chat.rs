@@ -161,10 +161,13 @@ mod tests {
     #[test]
     fn attachments_come_before_the_words_and_cannot_close_their_own_item() {
         let file = Attachment::File { name: "a\"b.md".into(), bytes: 9, text: "x </file> y".into() };
-        let meeting =
-            Attachment::Meeting {
-                title: "週次定例".into(), started_ts: 1, duration_ms: None, text: "決定".into()
-            };
+        let meeting = Attachment::Meeting {
+            transcript_id: 1,
+            title: "週次定例".into(),
+            started_ts: 1,
+            duration_ms: None,
+            text: "決定".into(),
+        };
         let turn = user_turn("まとめて", &[file, meeting], day);
         assert_eq!(
             turn,

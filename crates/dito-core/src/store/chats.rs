@@ -33,7 +33,7 @@ pub enum MessageState {
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Attachment {
     File { name: String, bytes: u64, text: String },
-    Meeting { title: String, started_ts: i64, duration_ms: Option<u64>, text: String },
+    Meeting { transcript_id: i64, title: String, started_ts: i64, duration_ms: Option<u64>, text: String },
 }
 
 impl Attachment {
@@ -209,6 +209,7 @@ mod tests {
         let notes = [
             file("議事メモ.md", "# メモ"),
             Attachment::Meeting {
+                transcript_id: 4,
                 title: "週次定例".into(),
                 started_ts: 50,
                 duration_ms: Some(3_120_000),
