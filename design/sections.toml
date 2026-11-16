@@ -111,6 +111,10 @@ layer = "Command Mode"
 board = "22.09"
 layer = "Usage Demo"
 
+[onboarding.intro-film]
+board = "22.10"
+layer = "Intro Film"
+
 [components.controls]
 board = "11.03"
 layer = "Controls"

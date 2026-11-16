@@ -168,7 +168,7 @@ impl AppState {
 const CONFIG_FILE: &str = "config.toml";
 const DB_FILE: &str = "dito.db";
 
-fn data_dir(opts: &Opts) -> PathBuf {
+pub(crate) fn data_dir(opts: &Opts) -> PathBuf {
     match &opts.data_dir {
         Some(dir) => dir.clone(),
         None if opts.mock => std::env::temp_dir().join("dito-mock"),

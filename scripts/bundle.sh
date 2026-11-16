@@ -12,6 +12,10 @@ cp "target/$profile/dito" "$app/Contents/MacOS/dito"
 
 scripts/icon.sh compile "$app/Contents/Resources"
 
+# The first-run intro film, one file per language (played from Contents/Resources/intro).
+mkdir -p "$app/Contents/Resources/intro"
+cp assets/intro/*.mp4 "$app/Contents/Resources/intro/"
+
 # Localize the system permission prompt (it reads InfoPlist.strings, not our UI code).
 for lproj in en zh; do
   text=$([ "$lproj" = en ] \

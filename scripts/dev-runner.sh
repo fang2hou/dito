@@ -94,6 +94,9 @@ PLIST
   # LaunchServices starts the app with a clean environment, so the log filter is handed over explicitly.
   env_args=()
   if [[ -n "${RUST_LOG:-}" ]]; then env_args=(--env "RUST_LOG=$RUST_LOG"); fi
+  # The wrapper has no film files of its own: the app plays them from the checkout.
+  env_args+=(--env "DITO_INTRO_DIR=$(cd "$(dirname "$0")/.." && pwd)/assets/intro")
+  if [[ -n "${DITO_INTRO:-}" ]]; then env_args+=(--env "DITO_INTRO=$DITO_INTRO"); fi
   open -W -n "$app" --stdout "$log" ${env_args[@]+"${env_args[@]}"} --args "$@"
   rc=$?
   cleanup

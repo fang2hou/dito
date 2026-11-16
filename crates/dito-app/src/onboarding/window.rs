@@ -69,7 +69,11 @@ pub fn open(st: Arc<AppState>, cx: &mut App) {
     };
     let foreground = !st.opts.is_headless();
     match cx.open_window(opts, |window, cx| {
-        let view = cx.new(|cx| Onboarding::new(st, window, cx));
+        let view = cx.new(|cx| {
+            let mut wizard = Onboarding::new(st, window, cx);
+            wizard.begin_intro(cx);
+            wizard
+        });
         cx.new(|cx| Root::new(view, window, cx))
     }) {
         Ok(h) => cx.set_global(WizardWindow(h)),

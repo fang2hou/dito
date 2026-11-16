@@ -18,8 +18,10 @@ impl Render for Onboarding {
 impl Onboarding {
     fn render_scoped(&mut self, window: &mut Window, cx: &mut Context<Self>) -> Div {
         let c = crate::settings::Ctx::new(&self.st, cx);
-        theme::apply(&c.p, cx);
-        let p = c.p;
+        // The welcome page, with or after the film, wears the film's dark look.
+        let on_welcome = self.step == Step::Welcome && self.slide.is_none();
+        let p = if on_welcome { self.welcome_ctx(&c, cx).p } else { c.p };
+        theme::apply(&p, cx);
         ui::set_ui_language(c.lang);
 
         let slide = self.slide.as_ref().map(|s| (s.from, s.forward, s.motion, s.at.elapsed().as_secs_f32()));
@@ -32,14 +34,16 @@ impl Onboarding {
             .font_family(crate::ui::cjk_family())
             .capture_any_mouse_down(|_, window, cx| window.blur(cx));
 
+        // The film is the topmost layer; it is None once the film is over.
+        let film = self.intro_layer(window, cx);
         let Some((from, forward, motion, t)) = slide else {
-            return root.child(self.page(self.step, &c, cx, None));
+            return root.child(self.page(self.step, &c, cx, None)).children(film);
         };
         if t >= transition::total(motion) {
             self.slide = None;
             // The page is drawn again as a new element tree: hover state must be read afresh from the pointer.
             self.reset_motion();
-            return root.child(self.page(self.step, &c, cx, None));
+            return root.child(self.page(self.step, &c, cx, None)).children(film);
         }
         window.request_animation_frame();
 
@@ -52,13 +56,15 @@ impl Onboarding {
         let arriving = self.page(self.step, &c, cx, Some(v.art_dx));
         root.child(div().id("page-leaving").absolute().size_full().left(px(v.out_dx)).opacity(v.out_a).child(leaving))
             .child(div().id("page-arriving").absolute().size_full().left(px(v.in_dx)).opacity(v.in_a).child(arriving))
+            .children(film)
     }
 
     /// `art_dx` offsets the art panel while the page slides in.
     fn page(&mut self, step: Step, c: &crate::settings::Ctx, cx: &mut Context<Self>, art_dx: Option<f32>) -> Div {
         let p = c.p;
         if step == Step::Welcome {
-            return steps::welcome(self, c, cx);
+            let welcome = self.welcome_ctx(c, cx);
+            return steps::welcome(self, &welcome, cx).bg(welcome.p.bg);
         }
         let current = std::mem::replace(&mut self.step, step);
         let steps::StepPage { title, desc, body } = steps::StepPage::current(self, c, cx);

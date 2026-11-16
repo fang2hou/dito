@@ -10,8 +10,9 @@ hooks = [
   { id = "check-toml" },
   { id = "check-json" },
   { id = "check-yaml" },
-  { id = "check-added-large-files", exclude = "^bench/results/" },
+  { id = "check-added-large-files", exclude = "^(bench/results|assets/intro)/" },
   { id = "check-added-large-files", alias = "check-added-large-results", name = "check for added large files (bench results, 8 MB)", files = "^bench/results/", args = ["--maxkb=8192"] },
+  { id = "check-added-large-files", alias = "check-added-large-intro", name = "check for added large files (intro films, 24 MB)", files = "^assets/intro/", args = ["--maxkb=24576"] },
 ]
 
 [[repos]]

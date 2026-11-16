@@ -11,6 +11,7 @@ use crate::settings::{self, Page};
 use crate::state::AppState;
 use crate::ui::{self, InputEvent, InputState, Motion, TestState};
 
+use super::intro::Intro;
 use super::step::{Step, can_continue};
 use super::transition::Slide;
 use super::window::WizardWindow;
@@ -54,6 +55,10 @@ pub struct Onboarding {
     /// The leaving step's scope, used only while a slide runs. The owner is retained for the whole wizard so the page
     /// sliding out keeps its state; it resets on a step change and when the slide ends.
     pub(super) leaving_motion: ui::MotionScope,
+    /// The first-run film, while it plays.
+    pub(super) intro: Option<Intro>,
+    /// The film was shown in this window, so the welcome page keeps its dark look to match it.
+    pub(super) intro_played: bool,
 }
 
 impl Onboarding {
@@ -96,6 +101,8 @@ impl Onboarding {
             slide: None,
             motion: ui::MotionScope::new(),
             leaving_motion: ui::MotionScope::new(),
+            intro: None,
+            intro_played: false,
             st,
             step: Step::Welcome,
         }
