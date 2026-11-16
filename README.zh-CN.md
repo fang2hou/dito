@@ -12,7 +12,7 @@
   Language: <a href="README.md">English</a> / <a href="README.ja.md">日本語</a> / <strong>简体中文</strong>
 </p>
 
-Dito 把你的声音变成润色后的文字，直接输入到当前使用的应用里。全部流程都可以在 Mac 上完成，除非你选择云端服务，否则数据不会离开 Mac。Dito 还处于早期开发阶段，变化很快。
+Dito 把你的声音变成润色后的文字，直接输入到当前使用的应用里。全部流程都可以在 Mac 上完成，除非你选择云端服务，否则数据不会离开 Mac。
 
 ## 安装
 

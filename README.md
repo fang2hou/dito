@@ -12,7 +12,7 @@
   Language: <strong>English</strong> / <a href="README.ja.md">日本語</a> / <a href="README.zh-CN.md">简体中文</a>
 </p>
 
-Dito turns your voice into polished text and types it into whatever app has focus. Everything can run on your Mac, and nothing leaves it unless you choose a cloud provider. Dito is in early, fast-moving development.
+Dito turns your voice into polished text and types it into whatever app has focus. Everything can run on your Mac, and nothing leaves it unless you choose a cloud provider.
 
 ## Install
 
