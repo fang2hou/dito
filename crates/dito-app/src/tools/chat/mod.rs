@@ -75,6 +75,8 @@ pub(crate) struct ChatPage {
     rename: Option<sidebar::Rename>,
     picker: Option<picker::Picker>,
     switching: Option<Switching>,
+    /// Esc closes the picker, the menu, the rename field and the drawer, from anywhere in the window.
+    _escape: Subscription,
 }
 
 struct Switching {
@@ -99,6 +101,13 @@ impl ChatPage {
             _ => {}
         })
         .detach();
+        let owner = window.window_handle();
+        let weak = cx.entity().downgrade();
+        let escape = cx.intercept_keystrokes(move |event, window, cx| {
+            if window.window_handle() == owner && event.keystroke.key == "escape" {
+                let _ = weak.update(cx, |page, cx| page.dismiss_overlays(cx));
+            }
+        });
         let mut page = Self {
             st,
             motion: ui::MotionScope::new(),
@@ -121,6 +130,7 @@ impl ChatPage {
             rename: None,
             picker: None,
             switching: None,
+            _escape: escape,
         };
         page.reload_sessions();
         page
@@ -133,10 +143,14 @@ impl ChatPage {
         if active {
             if !was {
                 self.reload_sessions();
-                self.menu = None;
             }
-            cx.notify();
+        } else {
+            self.menu = None;
+            self.picker = None;
+            self.rename = None;
+            self.drawer = false;
         }
+        cx.notify();
     }
 
     pub(crate) fn reset_motion(&mut self) {
@@ -152,6 +166,17 @@ impl ChatPage {
             tracing::warn!("could not list chats: {e}");
             Vec::new()
         });
+    }
+
+    fn dismiss_overlays(&mut self, cx: &mut Context<Self>) {
+        let open = self.picker.is_some() || self.menu.is_some() || self.rename.is_some() || self.drawer;
+        if open {
+            self.picker = None;
+            self.menu = None;
+            self.rename = None;
+            self.drawer = false;
+            cx.notify();
+        }
     }
 
     fn generating(&self) -> bool {

@@ -35,6 +35,8 @@ The inline Cloud ASR editor keeps one draft per configuration, by configuration 
 
 The Prompt page owns grouped history per editor, language and application. Committed input updates drafts, idle tasks are revision guarded, and IME marked text is excluded. Toolbar and native editing actions use the same grouped history. Draft autosave waits for 3 s idle or an actual editor exit. An untouched editor cannot flush another editor's active draft. Autosave failures retain drafts and expose a retryable unsaved state; scoped resets require confirmation and remain undoable.
 
+The Chat page owns the conversation on screen, its pending attachments and the reply being written. A reply runs as a runtime task that writes into a shared buffer and stores its own outcome, so it is saved even if the window goes away. The page reads the buffer on a 33 ms timer held by the view, which bounds redraws and Markdown parsing however fast an engine streams, and the timer ends with the reply or the view. Leaving a chat, deleting it or closing the window stops the reply, and it keeps the words it had as stopped. Sessions and messages load synchronously from the store in handlers, never in render.
+
 ## Pitfalls
 
 Moves that look reasonable but go against this decision:

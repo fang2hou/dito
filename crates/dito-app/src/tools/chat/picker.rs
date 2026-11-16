@@ -1,4 +1,4 @@
-//! The meeting picker above 会議を追加: a search field, meetings grouped by day, and the count with the primary add
+//! The meeting picker above the Add meeting action: a search field, meetings grouped by day, and the count with the primary add
 //! (`design:tools/chat`, 23.05.5).
 
 use dito_core::i18n::{Tr, fmt};

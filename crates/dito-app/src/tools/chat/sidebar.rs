@@ -32,11 +32,9 @@ impl ChatPage {
         let title = self.sessions.iter().find(|s| s.id == id).map(|s| s.title.clone()).unwrap_or_default();
         let input = cx.new(|cx| InputState::new(window, cx).default_value(title));
         cx.subscribe_in(&input, window, move |page: &mut Self, state, ev: &InputEvent, _, cx| match ev {
-            InputEvent::PressEnter { .. } | InputEvent::Blur => {
-                if page.rename.as_ref().is_some_and(|r| r.id == id) {
-                    let value = state.read(cx).value().to_string();
-                    page.rename_chat(id, &value, cx);
-                }
+            InputEvent::PressEnter { .. } | InputEvent::Blur if page.rename.as_ref().is_some_and(|r| r.id == id) => {
+                let value = state.read(cx).value().to_string();
+                page.rename_chat(id, &value, cx);
             }
             _ => {}
         })
