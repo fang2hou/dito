@@ -28,7 +28,7 @@ const DENSE_FRAME: Duration = Duration::from_millis(16);
 const DENSE_FOR: Duration = Duration::from_millis(2_500);
 
 /// Plays the script like a system audio tap: 100 ms blocks in real time, and nothing at all once it is over.
-struct Talk(Vec<f32>);
+pub(super) struct Talk(pub(super) Vec<f32>);
 
 struct Playing(Arc<AtomicBool>);
 impl LiveInput for Playing {}

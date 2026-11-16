@@ -46,6 +46,10 @@ run = "scripts/check.sh fast"
 description = "Fast checks plus compile checks of every build flavor"
 run = "scripts/check.sh full"
 
+[tasks."readme:assets"]
+description = "Regenerate the README animations from the screenshot build (see scripts/readme-assets.py)"
+run = "python scripts/readme-assets.py"
+
 [tasks."check:design"]
 description = "Check shared icon geometry in the saved FigCraft design"
 run = "python scripts/check-design-icons.py"

@@ -4,17 +4,17 @@ Terms are defined in [GLOSSARY.md](GLOSSARY.md). This document keeps the design 
 
 ## Overview
 
-Dito is a macOS dictation app. A global shortcut starts a recording; the audio is transcribed (locally or by a cloud provider), optionally polished by a language model, and typed into the app that has focus. A floating HUD shows the progress; a settings window, a menu bar item and an onboarding wizard surround it. The code is a Cargo workspace: a platform-free core, macOS adapters, local model runtimes and a GPUI app on top.
+Dito is a macOS dictation app. A global shortcut starts a recording; the audio is transcribed (locally or by a cloud provider), optionally polished by a language model, and typed into the app that has focus. A floating HUD shows the progress; a settings window, a Tools window (meeting transcription, chat, and the Local API), a menu bar item and an onboarding wizard surround it. The code is a Cargo workspace: a platform-free core, macOS adapters, local model runtimes and a GPUI app on top.
 
 ## Codebase Map
 
-- `dito-core`: config, i18n, prompts, the dictation controller and pipeline, the audio clip and its WAV encoding, cloud providers, the SQLite store (history, wordbook, stats), the secrets trait, the text insertion policy, and intent routing for voice commands (router prompt, fitted heads, decision; see [INTENT_ROUTING.md](INTENT_ROUTING.md)).
-- `dito-audio`: microphone capture, resampling to 16 kHz mono, device transport detection.
+- `dito-core`: config, i18n, prompts, the dictation controller and pipeline, meeting transcription, chat, the loopback Local API and MCP server, the audio clip and its WAV encoding, cloud providers, the SQLite store (history, wordbook, stats, transcripts, chats), the secrets trait, the text insertion policy, and intent routing for voice commands (router prompt, fitted heads, decision; see [INTENT_ROUTING.md](INTENT_ROUTING.md)).
+- `dito-audio`: microphone and system audio capture, resampling to 16 kHz mono, device transport detection.
 - `dito-local`: local model catalog, downloads, model state and the local engines; runtimes plug in through `RuntimeLoader`.
 - `dito-runtimes`: llama.cpp (Metal), sherpa-onnx and transcribe.cpp bindings, plus a managed NeMo-Speech.cpp worker, behind `dito-local`'s traits. Process-backed models use the same catalog and lifecycle; the app owns and stops their workers.
 - `dito-platform`: macOS integration: event tap and shortcut machine, permissions, text insertion, Keychain, music mute, window helpers, login item.
 - `dito-testkit`: an in-process mock server for cloud APIs and downloads.
-- `dito-app`: the GPUI app: HUD, settings pages, onboarding, menu bar, shared `ui` controls, theme and motion.
+- `dito-app`: the GPUI app: HUD, settings pages, the Tools window, onboarding, menu bar, shared `ui` controls, theme and motion.
 
 ## Dictation Flow
 

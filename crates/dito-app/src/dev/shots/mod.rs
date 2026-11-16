@@ -10,6 +10,7 @@ mod input;
 mod local_api;
 mod onboarding;
 mod pages;
+mod readme_film;
 mod runner;
 mod startup;
 mod text_model_form;

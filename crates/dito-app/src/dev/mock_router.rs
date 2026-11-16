@@ -14,7 +14,7 @@ const REPLY: &[&str] = &["返信", "返事", "回复", "回一下", "reply", "wr
 const ACTION: &[&str] = &["送って", "送信", "保存", "開いて", "検索", "send", "save", "open", "search"];
 const TRANSLATE: &[&str] = &["翻訳", "英語", "translate"];
 const SUMMARIZE: &[&str] = &["要約", "まとめ", "summarize"];
-const REWRITE: &[&str] = &["書き換え", "丁寧", "短く", "rewrite"];
+const REWRITE: &[&str] = &["書き換え", "丁寧", "短く", "rewrite", "改写", "改得"];
 const POLISH: &[&str] = &["整形", "直して", "polish"];
 const QUESTION: &[&str] = &["なぜ", "what", "how"];
 
