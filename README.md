@@ -1,115 +1,120 @@
 <p align="center">
-  <img src="assets/icon/AppIcon-1024.png" alt="Dito" width="112">
-</p>
-
-<h1 align="center">Dito</h1>
-
-<p align="center">
-  <strong>Dictation for macOS. Press a shortcut, speak, and polished text appears at your cursor.</strong>
+  <img src="assets/readme/header.png" alt="Dito" width="440">
 </p>
 
 <p align="center">
-  Language: <strong>English</strong> / <a href="README.ja.md">日本語</a> / <a href="README.zh-CN.md">简体中文</a>
+  <strong>A local-first voice assistant for macOS</strong>
 </p>
 
-Dito turns your voice into polished text and types it into whatever app has focus. Everything can run on your Mac, and nothing leaves it unless you choose a cloud provider.
+<p align="center">
+  Language: <strong>English</strong> / <a href="README.ja.md">日本語</a> / <a href="README.zh-CN.md">简体中文</a> / <a href="README.ko.md">한국어</a>
+</p>
+
+Dictation, polishing, rewriting, translation, summaries, replies, Q&A, and meeting transcription for macOS.  
+Dito runs local models by default, so your history, audio, and models stay on your Mac.  
+You can also connect cloud models and customize prompts when needed.
+
+> [!NOTE]
+> Dito is in active early development and does not publish prebuilt binaries yet. Build and install it from source with the single script below.
 
 ## Install
 
-**Download**: get the zipped app from the [latest release](../../releases/latest), move `Dito.app` to `Applications`, and open it. Requires an Apple Silicon Mac with macOS 13 or later (system audio transcription needs 14.6).
+Requires an Apple Silicon Mac with macOS 13 or later (macOS 14.6 or later for system audio capture).
 
-**Build from source**: in a checkout, run:
+### Prerequisites
+
+> [!TIP]
+> If the tools below aren't installed yet, install [Homebrew](https://brew.sh/) and run the install script; it will walk you through installing anything missing.
+
+1. [Rust](https://www.rust-lang.org/learn/get-started) 1.98 or later
+2. CMake
+3. [Apple Command Line Tools](https://developer.apple.com/xcode/features/) (if shader compilation reports a missing Metal toolchain, run `bash scripts/setup-macos.sh`)
+
+### Build and install
+
+From the repository root, run:
 
 ```bash
 bash scripts/install-local.sh
 ```
 
-The script checks CMake and Rust (installing them with Homebrew and rustup after asking), builds and signs the app with a local `dito-dev` identity, and installs it to `~/Applications/Dito.app`. Building needs the Xcode Command Line Tools and the Xcode Metal toolchain (`bash scripts/setup-macos.sh` installs it). Run the same command again after pulling an update. Details are in [INSTALL.md](INSTALL.md).
+## Features
 
-**Try it without touching your apps**: run against a mock cloud and a synthetic microphone with [mise](https://mise.jdx.dev/):
+### 1. Dictation
 
-```bash
-mise install
-mise run dev:mock
-```
+Press your shortcut, speak, and press it again. Dito transcribes your speech and inserts the polished text at the cursor.
 
-**First launch**: Dito lives in the menu bar and opens no window by itself, except a short setup on the first run.
-
-1. Allow **Microphone** and **Accessibility** when asked. Accessibility lets Dito type into other apps.
-2. In **Models**, download a local model or add a cloud configuration.
-3. Put the cursor in any text field, press the right **⌘** key, speak, and press it again.
-
-<details>
-<summary>Permissions after an update</summary>
-
-Release builds are ad-hoc signed, so macOS asks for both permissions again after each update. Building from source with your own signing identity avoids this; see [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md).
-
-</details>
-
-## What it does
-
-### 1. Speak instead of type, in any app
-
-Press the right ⌘, speak, and press it again. The speech is transcribed, polished, and typed at the cursor, by key input or paste with automatic fallback, and your clipboard is restored afterwards. A small capsule shows the live waveform and never takes focus. If polishing fails, the raw transcript is inserted; if there is nowhere to type, the text goes to the clipboard; every result stays in History.
+Configure the speech model, text model, wordbook, and prompts, including per-app polish rules.  
+You can also extract domain terms from existing documents into your wordbook to improve recognition accuracy.
 
 <p align="center"><img src="assets/readme/dictation-en.webp" alt="The HUD listens, transcribes, polishes, and the sentence appears at the cursor" width="720"></p>
 
-### 2. Tell Dito what to do with selected text
+### 2. Commands
 
-Select text in any app, press ⇧ and the right ⌘, and say what you want: polish, rewrite, translate, summarize, reply, or ask a question. A rewrite replaces the selection; a reply or an answer opens a small window to confirm or copy. A command needs a local text model, which also decides what you asked for.
+Select text in any app, press your shortcut, and speak an instruction: polish, rewrite, translate, summarize, reply, or ask a question.
+
+A classifier fitted to small local models routes your instruction offline.  
+When you prefer not to speak, hover over the HUD to type the instruction instead.
 
 <p align="center"><img src="assets/readme/command-en.webp" alt="A selected sentence is rewritten by voice and replaced in place" width="720"></p>
 
-### 3. Transcribe a meeting
+### 3. Meeting Transcription
 
-The Tools window records what your Mac plays (system audio, macOS 14.6 or later), your microphone, or both, and writes a transcript as people speak. Speech is cut into utterances by a voice activity model and recognized with the engine you chose for dictation. Each paragraph is polished with the two before it as context, and a finished meeting gets a short title. Paragraphs are editable, and a transcript can be copied as text.
+From the Tools window, record system audio, your microphone, or both and get a live transcript. When recording stops, Dito polishes each paragraph in context and generates a title. Paragraphs can be edited in place or copied as text.
 
 <p align="center"><img src="assets/readme/meeting-en.webp" alt="A meeting is transcribed live in the Tools window and polished after it stops" width="720"></p>
 
-### 4. Chat with a model on your Mac
+### 4. Chat and Local API
 
-Chat uses the text model you already run for polishing, so a conversation can stay on-device. Attach a file or a finished meeting transcript and ask about it; answers stream in with Markdown, code, and tables, and every conversation is kept in its history. The same models can be lent to other apps through an opt-in Local API on the loopback address, with an OpenAI-compatible endpoint and MCP.
+Chat uses your selected text model, supports attaching files or completed meeting transcripts, and streams replies with Markdown, code, and tables. With a local model selected, conversations never leave your Mac. Enable the Local API to expose local models to other apps on your Mac via an OpenAI-compatible HTTP endpoint and MCP.
 
 <p align="center"><img src="assets/readme/chat-en.webp" alt="A question about the next meeting is answered by a local model, streaming as a list" width="720"></p>
 
-## And the rest
+### More features
 
 | | |
 | --- | --- |
-| **Polishing that follows the app** | Separate writing styles for Slack, Teams, and any app you add, on top of shared rules per language |
-| **Wordbook** | Words Dito should spell as written, passed to speech recognition as hotwords and optionally to polishing; import, export, and find words in pasted text or files |
-| **Local or cloud, per stage** | On-device speech and text models, or your own cloud configurations from templates |
-| **Never loses a dictation** | A failed polish inserts the transcript; silence and very short clips are dropped quietly |
-| **Stays out of the way** | No window at launch, a HUD that never takes focus, Reduce Motion respected |
-| **History and Stats** | Search, play back, re-transcribe, and re-polish earlier results; time saved, characters, and speaking speed |
-| **Seven interface languages** | Japanese by default, with English, Simplified Chinese, Traditional Chinese, Korean, Mongolian, and French selectable |
-| **Private by default** | History, audio, and models stay on your Mac; cloud API keys live in the macOS Keychain, never in files |
+| **Per-app polish rules** | Layer app-specific rules and writing examples on top of common rules per language |
+| **Wordbook** | Import and export hotwords, or extract candidate terms from pasted text, files, or another AI's output |
+| **Local and cloud per stage** | Choose a local model or a cloud configuration independently for speech recognition and text processing |
+| **History and reruns** | Falls back to the raw transcript if polishing fails; keeps every result and recording in History so you can re-transcribe or re-polish with another model |
+| **Stats and 7 UI languages** | Tracks time saved, character count, and speaking speed; UI available in Japanese, English, Simplified Chinese, Traditional Chinese, Korean, Mongolian, and French |
+| **Local storage** | History, audio, and models stay on your Mac; cloud API keys are stored in the macOS Keychain, never in config files |
 
 ## Models
 
-| Stage | On your Mac | In the cloud |
-| --- | --- | --- |
-| Speech recognition | Qwen3-ASR 1.7B (default) and 0.6B, SenseVoice Small, and optional downloads such as Whisper large-v3 | FunASR, Qwen ASR, OpenRouter, or your own request in a JSON editor |
-| Text (polish, commands, chat) | Qwen3.5 Instruct 2B, 4B, and 9B | Azure OpenAI, Amazon Bedrock, or any OpenAI-compatible service |
-| Speech detection (meetings) | Silero VAD | none |
+> [!NOTE]
+> Local models are downloaded and managed on demand inside Dito, with resumable downloads and SHA-256 verification.
 
-Nothing downloads until you ask, and downloads resume and are verified.
-
-## Use
-
-| To | Do |
-| --- | --- |
-| Dictate | Press the right ⌘, speak, press it again |
-| Cancel while recording | Esc or the × on the HUD |
-| Finish early | The ✓ on the HUD |
-| Stop transcription or polishing | The Stop button on the HUD |
-| Dictate while holding the key | Choose Hold mode in **General** |
-| Edit selected text by voice | Select it, press ⇧ and the right ⌘, say what to do |
-| Open the Tools window | Control, Option, and T, or the menu bar icon |
-| Teach Dito your words | **Wordbook** |
-| Change how text is polished per app | **Prompts** |
-
-Recordings stop after 5 minutes and are still processed. Settings, history, recorded audio, and downloaded models live in `~/Library/Application Support/com.fang2hou.Dito`.
+- Speech recognition (ASR)
+  - Local models
+    - Qwen3-ASR 1.7B (default)
+    - Qwen3-ASR 0.6B
+    - SenseVoice Small
+    - Haas-ja v1.0
+    - Confucius4-R2T2
+    - Fun-ASR-MLT-Nano-2512
+    - Whisper large-v3
+    - Whisper large-v3-turbo
+    - Nemotron 3.5 Transcribe 30B-A4B
+  - Cloud
+    - FunASR
+    - Qwen ASR
+    - OpenRouter
+    - Custom HTTP requests (configured in the built-in JSON editor)
+- Text processing (polish, commands, chat)
+  - Local models
+    - Qwen3.5 Instruct 2B
+    - Qwen3.5 Instruct 4B
+    - Qwen3.5 Instruct 9B (default)
+    - Qwen3.8 27B
+  - Cloud
+    - Azure OpenAI
+    - Amazon Bedrock
+    - Any OpenAI-compatible API
+- Speech detection (meetings)
+  - Local models
+    - Silero VAD
 
 ## Development
 
@@ -119,10 +124,10 @@ mise run dev:mock            # whole app with mock cloud, microphone, and data
 mise run dev                 # real microphone, models, and providers
 mise run check               # format check and fast tests
 mise run lint:rust           # clippy, also with the mock and screenshots features
-mise run readme:assets       # regenerate the README animations
+mise run readme:assets       # regenerate the README animations (build the screenshot binary first)
 ```
 
-Dito is a Rust workspace on [GPUI](https://www.gpui.rs/). The UI design in `design/dito.figcraft` leads, and the code follows it.
+Dito is a Rust workspace built on [GPUI](https://www.gpui.rs/). UI design in `design/dito.figcraft` leads, and the code follows it.
 
 | Goal | Read |
 | --- | --- |
@@ -134,10 +139,6 @@ Dito is a Rust workspace on [GPUI](https://www.gpui.rs/). The UI design in `desi
 | UI and motion design | [design/README.md](design/README.md) |
 | Work with an AI coding agent | [AGENTS.md](AGENTS.md) |
 
-## Contributing
-
-Branch from `develop` as `<type>/<kebab-name>`, open a pull request into `develop` with a Conventional Commit title, and run `mise run check` and `mise run lint:rust` first. The full flow is in [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md).
-
 ## License
 
-[MIT](LICENSE). Bundled fonts and icons keep their own licenses: IBM Plex Sans SC (`crates/dito-app/assets/fonts/IBMPlexSansSC-LICENSE.txt`) and Lucide (`crates/dito-app/assets/icons/LUCIDE-LICENSE.txt`). Downloaded models are governed by their own licenses.
+[MIT](LICENSE)

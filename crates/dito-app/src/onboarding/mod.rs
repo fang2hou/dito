@@ -12,6 +12,7 @@ mod wizard;
 use step::Step;
 #[cfg(feature = "screenshots")]
 pub use window::open_with_view;
+pub(crate) use window::{insert_try, try_anchor};
 pub use window::{is_open, open, restart};
 #[cfg(feature = "screenshots")]
 pub use wizard::Onboarding;

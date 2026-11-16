@@ -1,3 +1,5 @@
+use std::cell::Cell;
+use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -9,7 +11,7 @@ use gpui_kit::*;
 use crate::services;
 use crate::settings::{self, Page};
 use crate::state::AppState;
-use crate::ui::{self, InputEvent, InputState, Motion, TestState};
+use crate::ui::{self, InputEvent, InputState, Motion, TestState, TextareaState};
 
 use super::intro::Intro;
 use super::step::{Step, can_continue};
@@ -44,8 +46,9 @@ pub struct Onboarding {
     pub(super) perms: [Status; 3],
     pub(super) capturing: bool,
     pub(super) seen: [bool; 3],
-    pub(super) started_at: i64,
-    pub(super) tried_text: Option<String>,
+    pub(super) try_input: Entity<TextareaState>,
+    pub(super) try_bounds: Rc<Cell<Option<Bounds<Pixels>>>>,
+    pub(super) focus_try: bool,
     pub(super) tried_ok: bool,
     pub(super) prepare_started: bool,
     /// Also covers the welcome page opening into the first step.
@@ -67,6 +70,11 @@ impl Onboarding {
         let cfg = st.cfg.get();
         let configurations = cfg.asr.cloud_asr.clone().unwrap_or_default();
         let [endpoint, deployment, key] = Self::connection_inputs(&st, &configurations, window, cx);
+        let try_input =
+            cx.new(|cx| TextareaState::new(window, cx).placeholder(cfg.general.lang().tr(Tr::OnboardingTrySpeaking)));
+        let focus = try_input.read(cx).focus_handle(cx).clone();
+        cx.on_focus_in(&focus, window, |_, _, cx| cx.notify()).detach();
+        cx.on_focus_out(&focus, window, |_, _, _, cx| cx.notify()).detach();
         for input in [&endpoint, &deployment, &key] {
             cx.subscribe_in(input, window, |this: &mut Self, _, ev: &InputEvent, _, cx| {
                 if matches!(ev, InputEvent::Change) {
@@ -94,8 +102,9 @@ impl Onboarding {
             perms: PERMS.map(permissions::status),
             capturing: false,
             seen: [false; 3],
-            started_at: crate::timefmt::now(),
-            tried_text: None,
+            try_input,
+            try_bounds: Rc::default(),
+            focus_try: false,
             tried_ok: false,
             prepare_started: false,
             slide: None,
@@ -158,10 +167,9 @@ impl Onboarding {
         }
         self.step = step;
         if step == Step::Try {
-            self.started_at = crate::timefmt::now();
             self.seen = [false; 3];
-            self.tried_text = None;
             self.tried_ok = false;
+            self.focus_try = true;
         }
         if step == Step::Prepare {
             // Nothing is downloaded until the user asks; a download that is already running (they stepped back and

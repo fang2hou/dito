@@ -23,6 +23,13 @@ impl Onboarding {
         let p = if on_welcome { self.welcome_ctx(&c, cx).p } else { c.p };
         theme::apply(&p, cx);
         ui::set_ui_language(c.lang);
+        if self.step == Step::Try
+            && self.focus_try
+            && self.slide.as_ref().is_none_or(|s| s.at.elapsed().as_secs_f32() >= transition::total(s.motion))
+        {
+            self.focus_try = false;
+            self.try_input.read(cx).focus_handle(cx).focus(window, cx);
+        }
 
         let slide = self.slide.as_ref().map(|s| (s.from, s.forward, s.motion, s.at.elapsed().as_secs_f32()));
         let root = div()
@@ -31,8 +38,7 @@ impl Onboarding {
             .overflow_hidden()
             .bg(p.bg)
             .text_color(p.text)
-            .font_family(crate::ui::cjk_family())
-            .capture_any_mouse_down(|_, window, cx| window.blur(cx));
+            .font_family(crate::ui::cjk_family());
 
         // The film is the topmost layer; it is None once the film is over.
         let film = self.intro_layer(window, cx);

@@ -1,6 +1,6 @@
 //! Frames for the README animations, filmed from the real HUD, Tools window and chat page. Opt-in:
-//! `DITO_SHOTS_ONLY=readmefilm`, with `DITO_FILM_LANG` (`ja`, `en`, `zh`) and `DITO_FILM_THEME` (`dark`, `light`).
-//! Frames are named `<scene>-<milliseconds since the scene began>.png` and assembled by `scripts/readme-assets.sh`.
+//! `DITO_SHOTS_ONLY=readmefilm`, with `DITO_FILM_LANG` (`ja`, `en`, `zh`, `ko`) and `DITO_FILM_THEME` (`dark`, `light`).
+//! Frames are named `<scene>-<milliseconds since the scene began>.png` and assembled by `scripts/readme-assets.py`.
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -63,6 +63,24 @@ fn words(code: &str) -> Words {
             ],
             question: "Summarize what we need to do before the next meeting in three points.",
             answer: "Before the next meeting, there are three things to do:\n\n1. **Update the proposal**\n   Add the cost breakdown and the scope of work.\n2. **Line up the prototype checks**\n   Share each owner's results.\n3. **Confirm the next date**\n   Collect candidates and ask the attendees.",
+        },
+        "ko" => Words {
+            lang: Lang::Ko,
+            display: DisplayLanguage::Ko,
+            notes: "메모",
+            typed: "다음 주 수요일에 회의 시간을 잡을 수 있을까요?",
+            greeting: "김민수 님,",
+            rough: "아, 자료 아직 안 끝났는데 아마 내일쯤 될 것 같아요",
+            polished: "자료 정리가 아직 끝나지 않아 내일 완료할 예정입니다.",
+            instruction: "정중하게 다시 써 줘",
+            meeting: [
+                ("주간 회의를 시작하겠습니다.", 2.4, 0.6),
+                ("오늘은 출시 계획을 확인하겠습니다.", 3.2, 0.6),
+                ("스테이징 환경에는 목요일에 반영할 예정입니다.", 3.4, 0.6),
+                ("결제 관련 테스트만 남아 있습니다.", 2.8, 0.0),
+            ],
+            question: "다음 회의 전까지 할 일을 세 가지로 정리해 줘.",
+            answer: "다음 회의 전까지 할 일은 세 가지입니다:\n\n1. **제안서 업데이트**\n   비용 내역과 작업 범위를 추가합니다.\n2. **시제품 점검 항목 정리**\n   담당자별 점검 결과를 공유합니다.\n3. **다음 회의 일정 확정**\n   가능한 날짜를 모아 참석자에게 확인합니다.",
         },
         "zh" => Words {
             lang: Lang::Zh,
@@ -275,6 +293,7 @@ async fn command(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp, w: &Words, p
     let mut pressed = false;
     let mut finished = false;
     let mut replaced: Option<Instant> = None;
+    let mut chose = false;
     while film.start.elapsed() < Duration::from_secs(25) {
         let t = film.start.elapsed();
         if !pressed && t >= Duration::from_millis(900) {
@@ -288,6 +307,11 @@ async fn command(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp, w: &Words, p
         }
         if finished && replaced.is_none() && matches!(hud_state(st), HudState::Replaced) {
             replaced = Some(Instant::now());
+        }
+        if finished && !chose && t >= Duration::from_millis(6000) && matches!(hud_state(st), HudState::Choosing { .. })
+        {
+            st.dictation.send(Command::Choose(dito_core::intent::Intent::Rewrite));
+            chose = true;
         }
         set_editor(cx, editor, lines(replaced.is_none()), false);
         composite(cx, editor, &film);
@@ -330,7 +354,10 @@ async fn meeting(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp, w: &Words) {
     };
     on_tools_window(cx, |win, app, view| {
         let handle = handle.clone();
-        view.update(app, |t, cx| t.follow_transcription(handle, win, cx));
+        view.update(app, |t, cx| {
+            t.assume_transcription_ready(true, cx);
+            t.follow_transcription(handle, win, cx);
+        });
     });
     on_tools_window(cx, |_, app, view| view.update(app, |t, cx| t.pose_transcription_start_pressed(cx)));
     handle.start(Sources { system: true, microphone: false });

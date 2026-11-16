@@ -60,28 +60,28 @@ fn progress_row(w: &Onboarding, c: &Ctx) -> Div {
 
 fn input_field(w: &Onboarding, c: &Ctx) -> Div {
     let p = &c.p;
-    let caret = || div().mt(px(5.)).w(px(2.)).h(px(24.)).flex_none().rounded(px(1.)).bg(p.accent);
-    // An empty field shows the caret before the placeholder, as a real text field does.
+    let bounds = w.try_bounds.clone();
     let input = div()
         .w_full()
         .flex_1()
-        .px(px(18.))
-        .py(px(14.))
-        .rounded(px(12.))
-        .bg(p.input_bg)
-        .border_1()
-        .border_color(p.accent)
-        .flex()
-        .flex_wrap()
-        .items_start();
-    let input = match &w.tried_text {
-        Some(s) => input
-            .child(text(s.clone(), 16., FontWeight::NORMAL, p.text).line_height(relative(1.7)))
-            .child(caret().ml(px(2.))),
-        None => input
-            .child(caret().mr(px(2.)))
-            .child(text(c.t(Tr::OnboardingTrySpeaking), 16., FontWeight::NORMAL, p.muted).line_height(relative(1.7))),
-    };
+        .relative()
+        .child(
+            ui::text_area(
+                &w.try_input,
+                ui::TextAreaStyle {
+                    bg: p.input_bg,
+                    edge: Some(p.border_strong),
+                    radius: 12.,
+                    text_size: 16.,
+                    line_height: 27.,
+                    pad: [18., 16., 18., 16.],
+                    fill: true,
+                    reserve_bottom: 65.,
+                },
+            )
+            .focus_ring(p.accent),
+        )
+        .child(canvas(move |rect, _, _| bounds.set(Some(rect)), |_, _, _, _| ()).absolute().inset_0());
     div()
         .w_full()
         .flex_1()

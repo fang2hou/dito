@@ -81,8 +81,11 @@ impl Default for OceanFrame {
     }
 }
 
-/// Just under one 60 Hz frame, so a 60 Hz display still redraws on every refresh.
-const MIN_REDRAW_S: f32 = 0.016;
+/// Between one and two 120 Hz frames, so the ceiling is 60 redraws a second and a late frame callback cannot push
+/// the next redraw to the refresh after it.
+const MIN_REDRAW_S: f32 = 0.011;
+/// Quiet water drifts this far in about 27 ms: every second refresh at 60 Hz, with the same room for a late callback.
+const QUIET_PHASE_STEP: f32 = 0.036;
 
 pub(crate) struct Waveform {
     calibration_left: f32,
@@ -173,7 +176,7 @@ impl Waveform {
         let frame = self.frame;
         let last = self.last_drawn;
         // Quiet drift needs about 30 frames per second. With reduced motion, redraw only for changes in ink.
-        if (!reduced && frame.phase - last.phase >= 0.044)
+        if (!reduced && frame.phase - last.phase >= QUIET_PHASE_STEP)
             || (frame.level - last.level).abs() >= 0.02
             || (frame.level > 0.2 && (frame.cadence - last.cadence).abs() >= 0.08)
         {
@@ -226,6 +229,9 @@ fn drift(t: f32, seed: u32) -> f32 {
     let f = t - cell;
     mix(random(cell as i32), random(cell as i32 + 1), f * f * (3. - 2. * f))
 }
+
+/// A dot squeezed below this by the capsule edge is too faint to draw.
+const MIN_DOT_RADIUS: f32 = 0.2;
 
 /// Appends the dot as a triangle fan. A convex hexagon needs no tessellator, which was the largest per-frame cost.
 fn dot(path: &mut Option<Path<Pixels>>, center: Point<Pixels>, radius: Pixels) {
@@ -315,8 +321,9 @@ pub(super) fn ocean(
                         * stretch_y
                         - (1. - ((x - w * 0.5) / (w * 0.5)).powi(2)).max(0.) * (entry.height - 1.).max(0.) / 0.16 * 1.5;
                     let edge = (x - w * 0.5).abs() - (w * 0.5 - half);
-                    let from_edge = half - 1. - edge.max(0.).hypot(y - half);
-                    if from_edge <= 0. {
+                    // The canvas already sits inside the capsule's border, so its own edge is the clip.
+                    let from_edge = half - edge.max(0.).hypot(y - half);
+                    if from_edge < MIN_DOT_RADIUS {
                         continue;
                     }
                     let crest = (0.5 + 0.5 * height).clamp(0., 1.);
@@ -339,8 +346,9 @@ pub(super) fn ocean(
                     let shade = (exposure * (SHADES - 1) as f32).round() as usize;
                     let mut paint_dot = |radius: f32, opacity: f32| {
                         let band = (opacity * (BANDS - 1) as f32).round() as usize;
-                        if band > 0 && radius <= from_edge {
-                            dot(&mut paths[band][shade], center, scale.px(radius));
+                        if band > 0 {
+                            // A dot the edge would cut shrinks to fit, so the sheet reaches the border.
+                            dot(&mut paths[band][shade], center, scale.px(radius.min(from_edge)));
                         }
                     };
                     let button_radius = BTN * entry.button * 0.5;
@@ -454,6 +462,26 @@ mod tests {
             })
             .count();
         assert!((90..=120).contains(&frames), "{frames} frames in two seconds at 120 Hz");
+    }
+
+    #[test]
+    fn late_frame_callbacks_do_not_skip_redraws() {
+        for (rate, speech, expected) in [(60., true, 58..=60), (120., true, 58..=60), (60., false, 29..=30)] {
+            let mut ocean = Waveform::default();
+            let ticks = rate as usize;
+            for _ in 0..ticks {
+                ocean.advance(if speech { 0.025 } else { 0. }, 1. / rate);
+                ocean.needs_redraw(false);
+            }
+            let frames = (0..ticks)
+                .filter(|i| {
+                    let late = if i % 2 == 0 { 0.0015 } else { -0.0015 };
+                    ocean.advance(if speech { 0.025 } else { 0. }, 1. / rate + late);
+                    ocean.needs_redraw(false)
+                })
+                .count();
+            assert!(expected.contains(&frames), "{frames} frames in a second at {rate} Hz, speech {speech}");
+        }
     }
 
     #[test]

@@ -19,6 +19,8 @@ Amended a third time the same day, after a pinyin composition showed its candida
 
 When the command window closes, or goes on to a state without a text field, the panel resigns key and the remembered app gets the front and its key window back. A command that writes into that app (replacing the selection, inserting at the cursor) waits for it, 400 ms at most; `Selection::replace` still waits for the source app's keyboard focus as before. If the user has already moved to another app, nothing is handed back. While a field holds composing text, Esc belongs to the input method: the hotkey tap neither reports nor swallows it, so the composition is cancelled and the window stays; without composing text Esc closes the window as before.
 
+During the trial in `design:onboarding`, the real dictation HUD may temporarily anchor inside the focused Try It editor, centered 16 pt above its bottom edge. The editor reserves space so text and selection stay above the capsule. Its view owns the measured bounds, and the HUD borrows them only while the wizard is active and that editor is focused. Moving the wizard moves the anchor; leaving the step, hiding the wizard or focusing another target restores the configured placement without changing preferences. This remains a non-activating HUD, and recording, processing and insertion feedback share the temporary position.
+
 ## Alternatives Considered
 
 ### Normal window

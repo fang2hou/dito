@@ -175,57 +175,78 @@ pub struct TextAreaStyle {
 
 /// A multi-line editor that keeps focus ownership here, as [`text_input`] does for one line.
 pub fn text_area(state: &Entity<TextareaState>, style: TextAreaStyle) -> TextArea {
-    TextArea { state: state.clone(), style }
+    TextArea { state: state.clone(), style, focus_edge: None, scope: motion_scope() }
 }
 
 #[derive(IntoElement)]
 pub struct TextArea {
     state: Entity<TextareaState>,
     style: TextAreaStyle,
+    focus_edge: Option<Hsla>,
+    scope: ScopeHandle,
+}
+
+impl TextArea {
+    pub fn focus_ring(mut self, color: Hsla) -> Self {
+        self.focus_edge = Some(color);
+        self
+    }
 }
 
 impl RenderOnce for TextArea {
-    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
-        let Self { state, style } = self;
-        let focus = state.read(cx).focus_handle(cx);
-        // The editor keeps its own padding (that of the medium input size) around the text, on top of any it is
-        // given. A side asking for less is pulled outward with a negative margin, so the text lands exactly at `pad`.
-        const EDITOR_PAD: [f32; 4] = [10., 8., 10., 8.];
-        let extra: [f32; 4] = std::array::from_fn(|i| style.pad[i] - EDITOR_PAD[i]);
-        let [l, t, r, b] = extra.map(|v| px(v.max(0.)));
-        let [ml, mt, mr, mb] = extra.map(|v| px(v.min(0.)));
-        let editor = Textarea::new(&state)
-            .appearance(false)
-            .bordered(false)
-            .text_size(px(style.text_size))
-            .font_weight(FontWeight::NORMAL)
-            .line_height(px(style.line_height))
-            .pl(l)
-            .pr(r)
-            .pt(t)
-            .pb(b)
-            .ml(ml)
-            .mr(mr)
-            .mt(mt)
-            .mb(mb);
-        let mut shell = div()
-            .id(("text-area", state.entity_id().as_u64() as usize))
-            .relative()
-            .w_full()
-            .rounded(px(style.radius))
-            .bg(style.bg)
-            .on_mouse_down_out(blur_on_outside(focus.clone()))
-            .on_mouse_down(MouseButton::Left, focus_on_click(focus));
-        if let Some(edge) = style.edge {
-            shell = shell.border_1().border_color(edge);
-        }
-        if style.fill {
-            shell.h_full().child(
-                div().absolute().top_0().left_0().right_0().bottom(px(style.reserve_bottom)).child(editor.h_full()),
-            )
-        } else {
-            shell.child(editor)
-        }
+    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+        let Self { state, style, focus_edge, scope } = self;
+        with_motion_scope(scope, move || {
+            let focus = state.read(cx).focus_handle(cx);
+            let focused = focus.contains_focused(window, cx);
+            // The editor keeps its own padding (that of the medium input size) around the text, on top of any it is
+            // given. A side asking for less is pulled outward with a negative margin, so the text lands exactly at `pad`.
+            const EDITOR_PAD: [f32; 4] = [10., 8., 10., 8.];
+            let extra: [f32; 4] = std::array::from_fn(|i| style.pad[i] - EDITOR_PAD[i]);
+            let [l, t, r, b] = extra.map(|v| px(v.max(0.)));
+            let [ml, mt, mr, mb] = extra.map(|v| px(v.min(0.)));
+            let editor = Textarea::new(&state)
+                .appearance(false)
+                .bordered(false)
+                .text_size(px(style.text_size))
+                .font_weight(FontWeight::NORMAL)
+                .line_height(px(style.line_height))
+                .pl(l)
+                .pr(r)
+                .pt(t)
+                .pb(b)
+                .ml(ml)
+                .mr(mr)
+                .mt(mt)
+                .mb(mb);
+            let mut shell = div()
+                .id(("text-area", state.entity_id().as_u64() as usize))
+                .relative()
+                .w_full()
+                .rounded(px(style.radius))
+                .bg(style.bg)
+                .on_mouse_down_out(blur_on_outside(focus.clone()))
+                .on_mouse_down(MouseButton::Left, focus_on_click(focus));
+            if let Some(on) = focus_edge {
+                shell = with_ring(
+                    shell,
+                    ("text-area-ring", state.entity_id().as_u64() as usize),
+                    focused,
+                    style.radius,
+                    style.edge.unwrap_or(on),
+                    on,
+                );
+            } else if let Some(edge) = style.edge {
+                shell = shell.border_1().border_color(edge);
+            }
+            if style.fill {
+                shell.h_full().child(
+                    div().absolute().top_0().left_0().right_0().bottom(px(style.reserve_bottom)).child(editor.h_full()),
+                )
+            } else {
+                shell.child(editor)
+            }
+        })
     }
 }
 
