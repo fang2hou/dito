@@ -9,37 +9,32 @@ How a change lands. Setup lives in [IMPLEMENTATION.md](IMPLEMENTATION.md); rules
 - No new dependency without a reason the change can't do without.
 - Nothing internal: no company or client names, internal hosts or internal documents in code, docs, the design file or sample data.
 
-## Git Flow
+## Branch Flow
+
+`main` is the only long-lived branch. It is protected: every change reaches it through a pull request that a person reviews and merges.
 
 | Branch | Purpose | Created from | Merges into |
 | --- | --- | --- | --- |
-| `main` | Released code; every commit is a release or a hotfix | none | none |
-| `develop` | Integration of finished work; the default base for pull requests | `main` | none |
-| `<type>/<kebab-name>` | One feature or change, for example `feature/menu-bar-icon` or `fix/caret-position` | `develop` | `develop` |
-| `release/<version>` | Stabilization of one release; only fixes, docs, tests and build changes | `develop` | `main`, then back into `develop` |
-| `hotfix/<name>` | Urgent fix of a released version | `main` | `main`, then back into `develop` |
+| `main` | Integration of finished work and the source of every release | none | none |
+| `<type>/<kebab-name>` | One feature or change, for example `feature/menu-bar-icon` or `fix/caret-position` | `main` | `main` |
 
 `<type>` is one of `feature`, `feat`, `fix`, `refactor`, `perf`, `docs`, `test`, `build`, `ci`, `chore`. A pull request into a topic branch is allowed, so work can be stacked.
 
-Merge strategy:
-
-- Topic branch into `develop` or a topic branch: squash merge. The pull request title becomes the commit message, so it must be a Conventional Commit.
-- `release/*` or `hotfix/*` into `main`: merge commit, never squash, so `main` stays an ancestor of `develop` after the back-merge.
-- After every merge into `main`, open a pull request from `main` into `develop` (a normal merge, not squash) so `develop` gets the release or hotfix commits. Do this before starting the next release.
+Every pull request is squash merged. The pull request title becomes the commit message, so it must be a Conventional Commit.
 
 Releasing:
 
-1. Branch `release/<version>` from `develop`, set the workspace version in `Cargo.toml`, run `mise run check:full` and `mise run bundle` locally, and open a pull request into `main`.
+1. Branch `chore/release-<version>` from `main`, set the workspace version in `Cargo.toml`, run `mise run check:full` and `mise run bundle` locally, and open a pull request into `main`.
 2. Merge it, then tag the merge commit `v<version>` on `main` and push the tag.
 3. The Release workflow verifies the tag, builds the app bundle and creates a draft GitHub release with the zipped app. The bundle is ad-hoc signed, so macOS will ask for Microphone and Accessibility again; use `mise run release:install` for a build signed with your own `dito-dev` identity.
-4. Review the draft and publish it, then open the back-merge pull request.
+4. Review the draft and publish it.
 
 ## Change Workflow
 
-1. Branch from `develop` as `<type>/<kebab-name>`.
+1. Branch from `main` as `<type>/<kebab-name>`.
 2. Implement; the commit hooks run the checks, and `mise run lint` covers everything at once.
 3. Commit with Conventional Commits in English, for example `feat(hud): pop the language selector like a tooltip` or `fix(onboarding): put the caret before the placeholder`.
-4. Open a pull request into `develop` with a Conventional Commit title. `main` and `develop` are protected; a person reviews and merges.
+4. Open a pull request into `main` with a Conventional Commit title. `main` is protected; a person reviews and merges.
 
 ## Checks
 
