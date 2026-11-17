@@ -43,7 +43,7 @@ The numbered section is normally the board itself, not a Section node wrapped ar
 | 11 Type, Space & Components | 11.01 Type, Space & Components, 11.02 Icons, 11.03 Controls, 11.04 Token Reference, 11.05 Icon System |
 | 12 Motion | 12.00 Overview, 12.01 Motion Tokens, 12.02 Controls, 12.03 Slider, 12.04 Dropdown |
 | 14 Localization | 14.01 Languages, 14.02 Localized Screens |
-| 20 Settings | 20.00 Overview, 20.01 General, 20.02 Wordbook, 20.03 Prompts, 20.04 Local Models, 20.05 Cloud Models, 20.06 History, 20.07 Stats, 20.08 Status, 20.09 Sidebar, 20.10 Startup Failure |
+| 20 Settings | 20.00 Overview, 20.01 General, 20.02 Wordbook, 20.03 Prompts, 20.04 Local Models, 20.05 Cloud Models, 20.06 History, 20.07 Stats, 20.08 Status, 20.09 Sidebar, 20.10 Startup Failure, 20.11 Compare Speech Models |
 | 21 HUD & Menu Bar | 21.00 Overview, 21.01 States, 21.02 Recording, 21.03 Errors, 21.04 Menu Bar, 21.05 HUD Motion Tokens, 21.06 HUD Processing, 21.07 Width & Pop-ups, 21.08 Follow Pointer, 21.09 HUD Buttons, 21.10 Stop Motion Preview, 21.11 HUD Elastic Motion Preview, 21.12 Command Mode |
 | 22 Onboarding | 22.00 Overview, 22.01 Welcome, 22.02 Permissions, 22.03 How to Use, 22.04 Shortcut, 22.05 Engine, 22.06 Cloud, 22.07 Try It, 22.08 Page Slide, 22.09 Usage Demo |
 | 23 Tools | 23.00 Tools Window Overview, 23.01 Transcripts, 23.02 Recording & Bottom Dock Panel, 23.03 Transcript detail & Background browsing, 23.04 Compact rail, 23.05 Chat, 23.06 Local API, 23.07 MCP |

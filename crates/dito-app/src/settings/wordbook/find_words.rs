@@ -13,7 +13,7 @@ use dito_core::word_finder::{self, Candidate, Progress, ReplyError};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
-use super::{ModalChanged, WordbookPage, chip_surface, off_main, selection_ring};
+use super::{ModalChanged, WordbookPage, off_main};
 use crate::assets::Ic;
 use crate::services::{self, WordSearchError};
 use crate::settings::Ctx;
@@ -589,7 +589,7 @@ impl WordbookPage {
             .gap(px(10.))
             .cursor_pointer()
             .on_click(ui::click_cb(cbk(cx, |this: &mut Self, _, cx| this.toggle_find_consent(cx))))
-            .child(div().pt(px(2.)).child(selection_ring(&p, ring_id, hover, chosen)))
+            .child(div().pt(px(2.)).child(ui::selection_ring(&p, ring_id, hover, chosen)))
             .child(
                 text(fmt::wordbook_find_consent(c.lang, model), 13., FontWeight::NORMAL, p.text)
                     .flex_1()
@@ -619,7 +619,7 @@ impl WordbookPage {
             if fading {
                 window.request_animation_frame();
             }
-            chip_surface(&p, chip_id, candidate.term.clone().into(), chosen)
+            ui::chip_surface(&p, chip_id, candidate.term.clone().into(), chosen)
                 .cursor_pointer()
                 .on_click(ui::click_cb(cbk(cx, move |this: &mut Self, _, cx| this.toggle_candidate(index, cx))))
                 .child(
@@ -629,7 +629,7 @@ impl WordbookPage {
                         .flex()
                         .items_center()
                         .justify_center()
-                        .child(selection_ring(&p, ring_id, hover, chosen)),
+                        .child(ui::selection_ring(&p, ring_id, hover, chosen)),
                 )
         });
         let rows = candidates.len().div_ceil(2) as f32;

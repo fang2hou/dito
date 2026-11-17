@@ -1,6 +1,7 @@
 mod action;
 mod cloud_text_form;
 mod cloud_text_tiles;
+mod compare;
 mod installed_row;
 mod local_rows;
 mod local_text_form;

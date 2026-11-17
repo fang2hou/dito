@@ -9,6 +9,7 @@ use super::hover::reset_hover_in;
 use super::modal::modal_layer;
 use super::scope::motion_scope;
 use super::typography::text;
+use crate::assets::Ic;
 use crate::theme::Palette;
 
 pub struct DialogAnswer {
@@ -60,10 +61,59 @@ pub fn confirm_dialog_with_header(
         ConfirmStyle::CompactDestructive => (524., 24., 12., BtnKind::Destructive),
     };
     let escape = cancel.on_click.clone();
+    let actions = std::iter::once(dialog_button(
+        p,
+        ElementId::from((ElementId::from(id), "cancel")),
+        BtnKind::Secondary,
+        None,
+        cancel,
+    ))
+    .chain(confirm.map(|confirm| {
+        dialog_button(p, ElementId::from((ElementId::from(id), "confirm")), confirm_kind, None, confirm)
+    }))
+    .map(IntoElement::into_any_element)
+    .collect();
+    shell(window, p, id, focus, Frame { width, padding, action_gap }, header, content, actions, escape)
+}
+
+/// A Standard dialog whose answers the caller builds, for answers a [`DialogAnswer`] cannot express (an icon, more
+/// than two). `escape` is what Escape does; make each answer with [`dialog_button`].
+#[allow(clippy::too_many_arguments)]
+pub fn dialog_with_actions(
+    window: &Window,
+    p: &Palette,
+    id: &'static str,
+    focus: &FocusHandle,
+    header: AnyElement,
+    content: Vec<AnyElement>,
+    actions: Vec<AnyElement>,
+    escape: Option<Cb>,
+) -> AnyElement {
+    shell(window, p, id, focus, Frame { width: 620., padding: 28., action_gap: 10. }, header, content, actions, escape)
+}
+
+struct Frame {
+    width: f32,
+    padding: f32,
+    action_gap: f32,
+}
+
+#[allow(clippy::too_many_arguments)]
+fn shell(
+    window: &Window,
+    p: &Palette,
+    id: &'static str,
+    focus: &FocusHandle,
+    frame: Frame,
+    header: AnyElement,
+    content: Vec<AnyElement>,
+    actions: Vec<AnyElement>,
+    escape: Option<Cb>,
+) -> AnyElement {
     let body = div()
-        .w(px(width))
+        .w(px(frame.width))
         .max_w(window.viewport_size().width - px(48.))
-        .p(px(padding))
+        .p(px(frame.padding))
         .rounded(px(20.))
         .border_1()
         .border_color(p.border_strong)
@@ -73,17 +123,7 @@ pub fn confirm_dialog_with_header(
         .gap(px(16.))
         .child(header)
         .children(content)
-        .child(
-            div()
-                .w_full()
-                .flex()
-                .justify_end()
-                .gap(px(action_gap))
-                .child(answer(p, ElementId::from((ElementId::from(id), "cancel")), BtnKind::Secondary, cancel))
-                .children(confirm.map(|confirm| {
-                    answer(p, ElementId::from((ElementId::from(id), "confirm")), confirm_kind, confirm)
-                })),
-        );
+        .child(div().w_full().flex().justify_end().gap(px(frame.action_gap)).children(actions));
     modal_layer(id, focus)
         .on_key_down(move |event: &KeyDownEvent, window, cx| {
             if event.keystroke.key == "escape"
@@ -97,10 +137,17 @@ pub fn confirm_dialog_with_header(
         .into_any_element()
 }
 
-fn answer(p: &Palette, id: ElementId, kind: BtnKind, answer: DialogAnswer) -> Stateful<Div> {
+/// One answer of a dialog; `None` in `answer.on_click` shows it as unavailable.
+pub fn dialog_button(
+    p: &Palette,
+    id: ElementId,
+    kind: BtnKind,
+    lead: Option<Ic>,
+    answer: DialogAnswer,
+) -> Stateful<Div> {
     let DialogAnswer { label, on_click } = answer;
     let Some(on_click) = on_click else {
-        return disabled_button(id, p, &label, kind, BtnSize::Regular, None, None);
+        return disabled_button(id, p, &label, kind, BtnSize::Regular, lead, None);
     };
     // The dialog goes away under the pointer, which never reports the end of the hover. Forget it here so the next
     // dialog does not open with this button lit.
@@ -110,7 +157,7 @@ fn answer(p: &Palette, id: ElementId, kind: BtnKind, answer: DialogAnswer) -> St
         p,
         &label,
         kind,
-        None,
+        lead,
         std::rc::Rc::new(move |window, cx| {
             reset_hover_in(scope.clone(), &hovered);
             on_click(window, cx);

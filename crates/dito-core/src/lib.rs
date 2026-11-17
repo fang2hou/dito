@@ -1,5 +1,6 @@
 //! Dito core: OS-independent logic (config, prompts, providers, pipeline, stores).
 
+pub mod asr_compare;
 pub mod audio;
 pub mod chat;
 pub mod command;

@@ -1,5 +1,6 @@
 //! Bridge between the global shortcut tap and the UI: capture mode for the shortcut field, and Esc handling.
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -67,6 +68,8 @@ pub struct Hotkeys {
     pub capture: watch::Sender<CaptureState>,
     /// Set when the tap could not start (missing permission).
     pub unavailable: watch::Sender<bool>,
+    /// While set, presses that would start a dictation or a command are dropped; releases and Escape still pass.
+    starts_paused: AtomicBool,
 }
 
 impl Default for Hotkeys {
@@ -84,6 +87,7 @@ impl Hotkeys {
             tools_pressed: watch::channel(0).0,
             capture: watch::channel(CaptureState::Idle).0,
             unavailable: watch::channel(false).0,
+            starts_paused: AtomicBool::new(false),
         }
     }
 
@@ -206,6 +210,15 @@ impl Hotkeys {
         });
     }
 
+    /// The model comparison records with the dictation microphone, so no dictation may start meanwhile.
+    pub fn pause_starts(&self, paused: bool) {
+        self.starts_paused.store(paused, Ordering::Relaxed);
+    }
+
+    fn starts_paused(&self) -> bool {
+        self.starts_paused.load(Ordering::Relaxed)
+    }
+
     pub fn set_swallow_escape(&self, on: bool) {
         if let Some(s) = self.service.lock().unwrap().as_ref() {
             s.set_swallow_escape(on);
@@ -231,6 +244,7 @@ pub fn spawn_dispatcher(
             let hud = dictation.hud();
             while let Ok(action) = rx.recv() {
                 match action {
+                    Action::ShortcutDown | Action::CommandDown if hotkeys.starts_paused() => {}
                     Action::ShortcutDown => {
                         let config = cfg.get();
                         let general = &config.general;

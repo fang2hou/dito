@@ -19,6 +19,8 @@ const EXEMPT: &[(&str, &str)] = &[
     ("dev/shots/chat.rs", "*"),
     // Configuration names the polish form shots type into the form (user content, not UI copy).
     ("dev/shots/text_model_form.rs", "*"),
+    // The transcripts the model comparison shots show as stand-in results (user content).
+    ("dev/shots/compare.rs", "*"),
     // List separator chosen per language in code (the ideographic comma, for Japanese and Chinese).
     ("settings/models/page.rs", "、"),
 ];
