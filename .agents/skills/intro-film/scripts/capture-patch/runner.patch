@@ -1,0 +1,21 @@
+--- a/crates/dito-app/src/dev/shots/runner.rs
++++ b/crates/dito-app/src/dev/shots/runner.rs
+@@ -5,7 +5,7 @@
+ use gpui_kit::*;
+ 
+ use super::input::redraw;
+-use super::{demo, hud, local_api, onboarding, pages, readme_film, startup, text_model_form, tile_row, wordbook};
++use super::{demo, hud, intro_film, local_api, onboarding, pages, readme_film, startup, text_model_form, tile_row, wordbook};
+ use crate::settings::{self, Page};
+ use crate::state::{AppGlobal, AppState};
+ 
+@@ -136,6 +136,9 @@
+ }
+ 
+ async fn render_preview_shots(st: &Arc<AppState>, dir: &Path, groups: &Groups, cx: &mut AsyncApp) {
++    if groups.selects("introfilm") {
++        intro_film::run(st, dir, cx).await;
++    }
+     if groups.selects("readmefilm") {
+         readme_film::run(st, dir, cx).await;
+     }

@@ -1,0 +1,14 @@
+--- a/crates/dito-app/src/dev/shots/pages.rs
++++ b/crates/dito-app/src/dev/shots/pages.rs
+@@ -37,7 +37,10 @@
+ 
+ pub async fn page_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
+     for appearance in [Appearance::Light, Appearance::Dark] {
+-        services::save_config(st, |c| c.general.appearance = appearance);
++        services::save_config(st, |c| {
++            c.general.appearance = appearance;
++            c.general.display_language = DisplayLanguage::Ja;
++        });
+         for page in Page::ALL {
+             open_page(st, page, cx);
+             cx.background_executor().timer(Duration::from_millis(900)).await;

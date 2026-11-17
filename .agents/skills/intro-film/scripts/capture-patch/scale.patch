@@ -1,0 +1,11 @@
+--- a/crates/dito-app/src/hud/scale.rs
++++ b/crates/dito-app/src/hud/scale.rs
+@@ -3,7 +3,7 @@
+ use gpui_kit::Pixels;
+ 
+ /// The FigCraft geometry is authored at 1x, in whole design points.
+-pub const HUD_SCALE: f32 = 1.;
++pub const HUD_SCALE: f32 = 4.;
+ 
+ /// The HUD window and every preview (the setup wizard's usage demo, the settings style preview) draw at the same
+ /// size.

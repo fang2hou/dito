@@ -1,0 +1,10 @@
+--- a/crates/dito-app/src/dev/shots/mod.rs
++++ b/crates/dito-app/src/dev/shots/mod.rs
+@@ -7,6 +7,7 @@
+ #[cfg(feature = "mock")]
+ mod inline_asr;
+ mod input;
++mod intro_film;
+ mod local_api;
+ mod onboarding;
+ mod pages;
