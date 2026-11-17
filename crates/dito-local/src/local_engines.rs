@@ -41,6 +41,8 @@ struct Usage {
     /// Process CPU time when the call in flight began; 0 while idle.
     working_since_ns: AtomicU64,
     memory_bytes: AtomicU64,
+    /// The part of `memory_bytes` that is memory-mapped weights: resident, but outside the process footprint.
+    mapped_bytes: AtomicU64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -48,6 +50,8 @@ pub struct EngineUsage {
     /// Cumulative, including the call in flight.
     pub cpu: Duration,
     pub memory_bytes: u64,
+    /// The part of `memory_bytes` that is memory-mapped weights, which the process footprint does not include.
+    pub mapped_bytes: u64,
 }
 
 fn cpu_now_ns() -> u64 {
@@ -86,7 +90,7 @@ impl LocalEngines {
             && let Some(pid) = runtime.process_id()
         {
             let usage = crate::process_usage_for(pid);
-            return EngineUsage { cpu: usage.cpu, memory_bytes: usage.memory_bytes };
+            return EngineUsage { cpu: usage.cpu, memory_bytes: usage.memory_bytes, mapped_bytes: 0 };
         }
         let usage = self.usage_for(id);
         let since = usage.working_since_ns.load(Ordering::Relaxed);
@@ -94,6 +98,7 @@ impl LocalEngines {
         EngineUsage {
             cpu: Duration::from_nanos(usage.cpu_ns.load(Ordering::Relaxed) + in_flight),
             memory_bytes: usage.memory_bytes.load(Ordering::Relaxed),
+            mapped_bytes: usage.mapped_bytes.load(Ordering::Relaxed),
         }
     }
 
@@ -200,7 +205,7 @@ impl LocalEngines {
             slots.insert(id.to_string(), Slot::Loading(stop.clone()));
         }
         let (loader, dir) = (self.loader.clone(), self.manager.model_dir(id));
-        let mapped = if spec.kind == ModelKind::Text { mapped_weights_bytes(&dir) } else { 0 };
+        let mapped = mapped_weights_bytes(&dir);
         let memory_before = footprint_bytes();
         let started = Instant::now();
         trace_log!(model = id, kind = ?spec.kind, "model load started");
@@ -247,7 +252,9 @@ impl LocalEngines {
             Ok(slot) => {
                 let gained = footprint_bytes().saturating_sub(memory_before).saturating_add(mapped);
                 trace_log!(model = id, load_ms, memory_bytes = gained, "model loaded");
-                self.usage_for(id).memory_bytes.store(gained, Ordering::Relaxed);
+                let usage = self.usage_for(id);
+                usage.memory_bytes.store(gained, Ordering::Relaxed);
+                usage.mapped_bytes.store(mapped, Ordering::Relaxed);
                 slots.insert(id.to_string(), slot.clone());
                 Ok(slot)
             }
@@ -261,7 +268,7 @@ impl LocalEngines {
     }
 }
 
-/// A text model's weights are memory-mapped, so they are resident but not part of the footprint that `gained` measures.
+/// Local weights are memory-mapped, so they are resident but not part of the footprint that `gained` measures.
 fn mapped_weights_bytes(dir: &std::path::Path) -> u64 {
     let Ok(entries) = std::fs::read_dir(dir) else { return 0 };
     entries

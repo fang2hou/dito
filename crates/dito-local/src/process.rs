@@ -6,13 +6,12 @@ use std::time::Duration;
 pub struct ProcessUsage {
     /// User and system time of every thread since launch.
     pub cpu: Duration,
-    /// The resident size: every page of the process that sits in RAM now, including memory-mapped model weights,
-    /// which the physical footprint leaves out.
+    /// The physical footprint, the figure Activity Monitor shows as Memory.
     pub memory_bytes: u64,
 }
 
 pub fn process_usage() -> ProcessUsage {
-    ProcessUsage { cpu: cpu_time(), memory_bytes: resident_bytes() }
+    ProcessUsage { cpu: cpu_time(), memory_bytes: footprint_bytes() }
 }
 
 pub fn process_usage_for(pid: u32) -> ProcessUsage {
@@ -25,7 +24,7 @@ pub fn process_usage_for(pid: u32) -> ProcessUsage {
     }
     ProcessUsage {
         cpu: Duration::from_nanos(info.ri_user_time.saturating_add(info.ri_system_time)),
-        memory_bytes: info.ri_resident_size,
+        memory_bytes: info.ri_phys_footprint,
     }
 }
 
@@ -40,19 +39,10 @@ pub(crate) fn cpu_time() -> Duration {
     time(usage.ru_utime) + time(usage.ru_stime)
 }
 
-/// Private dirty memory only: a loaded model's weights are memory-mapped and never show up here.
 pub(crate) fn footprint_bytes() -> u64 {
     // SAFETY: `libc::rusage_info_v2` is plain data for which all-zero bytes are valid.
     let mut info: libc::rusage_info_v2 = unsafe { std::mem::zeroed() };
     // SAFETY: the buffer is a writable `rusage_info_v2`, the layout the V2 flavor fills.
     let status = unsafe { libc::proc_pid_rusage(libc::getpid(), libc::RUSAGE_INFO_V2, (&raw mut info).cast()) };
     if status == 0 { info.ri_phys_footprint } else { 0 }
-}
-
-pub(crate) fn resident_bytes() -> u64 {
-    // SAFETY: `libc::rusage_info_v2` is plain data for which all-zero bytes are valid.
-    let mut info: libc::rusage_info_v2 = unsafe { std::mem::zeroed() };
-    // SAFETY: the buffer is a writable `rusage_info_v2`, the layout the V2 flavor fills.
-    let status = unsafe { libc::proc_pid_rusage(libc::getpid(), libc::RUSAGE_INFO_V2, (&raw mut info).cast()) };
-    if status == 0 { info.ri_resident_size } else { 0 }
 }
