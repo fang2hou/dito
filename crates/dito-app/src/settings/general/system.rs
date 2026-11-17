@@ -25,13 +25,6 @@ impl GeneralPage {
             vec![
                 ui::row_described(
                     &p,
-                    c.t(Tr::GeneralToolsShortcut),
-                    c.t(Tr::GeneralToolsShortcutHint),
-                    self.shortcut_field(c, cx, ShortcutTarget::Tools),
-                    false,
-                ),
-                ui::row_described(
-                    &p,
                     c.t(Tr::GeneralLaunchAtLogin),
                     c.t(Tr::GeneralLaunchAtLoginHint),
                     self.launch_at_login_switch(&p),
@@ -46,6 +39,13 @@ impl GeneralPage {
                 ),
                 ui::row_described(
                     &p,
+                    c.t(Tr::GeneralDisplayLanguage),
+                    c.t(Tr::GeneralDisplayLanguageHint),
+                    self.display_language_select(c, cx),
+                    false,
+                ),
+                ui::row_described(
+                    &p,
                     c.t(Tr::GeneralAppearance),
                     c.t(Tr::GeneralAppearanceHint),
                     self.appearance_seg(c),
@@ -53,9 +53,9 @@ impl GeneralPage {
                 ),
                 ui::row_described(
                     &p,
-                    c.t(Tr::GeneralDisplayLanguage),
-                    c.t(Tr::GeneralDisplayLanguageHint),
-                    self.display_language_select(c, cx),
+                    c.t(Tr::GeneralToolsShortcut),
+                    c.t(Tr::GeneralToolsShortcutHint),
+                    self.shortcut_field(c, cx, ShortcutTarget::Tools),
                     true,
                 ),
             ],
@@ -71,13 +71,6 @@ impl GeneralPage {
             vec![
                 ui::row_described(
                     &p,
-                    c.t(Tr::GeneralHudLanguageShortcuts),
-                    c.t(Tr::GeneralHudLanguageShortcutsHint),
-                    self.hud_language_select(c, cx),
-                    false,
-                ),
-                ui::row_described(
-                    &p,
                     c.t(Tr::GeneralHudAppearance),
                     c.t(Tr::GeneralHudAppearanceHint),
                     self.hud_appearance_control(c, cx),
@@ -88,9 +81,16 @@ impl GeneralPage {
                     c.t(Tr::GeneralHudPosition),
                     c.t(Tr::GeneralHudPositionHint),
                     self.hud_position_seg(c),
-                    self.st.cfg.get().general.hud_position == HudPosition::Pointer,
+                    false,
                 ),
                 self.hud_height_row(c),
+                ui::row_described(
+                    &p,
+                    c.t(Tr::GeneralHudLanguageShortcuts),
+                    c.t(Tr::GeneralHudLanguageShortcutsHint),
+                    self.hud_language_select(c, cx),
+                    true,
+                ),
             ],
         )
     }
@@ -253,7 +253,7 @@ impl GeneralPage {
             let row = div().relative().w_full().h(px(64. * v)).overflow_hidden();
             if v > 0.001 {
                 // Fade the finished control against its surface, not each overlapping primitive.
-                row.child(ui::row_described(&p, height_title.clone(), height_hint.clone(), hud_height.clone(), true))
+                row.child(ui::row_described(&p, height_title.clone(), height_hint.clone(), hud_height.clone(), false))
                     .child(div().absolute().inset_0().bg(p.card.opacity(1. - v)))
             } else {
                 row
