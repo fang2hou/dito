@@ -14,7 +14,7 @@
 Dito 优先使用本地模型，所有历史、音频和模型都留在你的 Mac 上，不必担心数据外泄。  
 你也可以按需接入云端模型、修改提示词，满足不同的自定义需求。
 
-https://github.com/user-attachments/assets/fcf097e3-8cc7-4532-9127-f3363c4ce1c7
+https://github.com/user-attachments/assets/07a4853a-fd79-4747-b3f1-251a711681ee
 
 > [!NOTE]
 > Dito 目前处于快速迭代的早期阶段，暂不提供预编译安装包，需从源码构建。构建和安装已简化为一条命令，按下方步骤运行脚本即可完成。

@@ -14,7 +14,7 @@
 로컬 모델을 우선 사용하며, 기록과 오디오, 모델은 Mac에 저장됩니다.  
 필요에 따라 클라우드 모델을 연결하거나 프롬프트를 수정할 수도 있습니다.
 
-https://github.com/user-attachments/assets/832e0753-c1c2-4ddb-802c-2a454389563a
+https://github.com/user-attachments/assets/78cb98f7-a4bb-4eb6-afc2-925a7c93b92c
 
 > [!NOTE]
 > Dito는 현재 개발 초기 단계로, 빠르게 개선하고 있습니다. 아직 빌드된 설치 파일은 제공하지 않으므로 소스에서 직접 빌드해야 합니다. 아래 스크립트 하나로 빌드와 설치를 진행할 수 있습니다.
