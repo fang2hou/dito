@@ -46,10 +46,11 @@ fn tier_cards(w: &Onboarding, c: &Ctx, cx: &mut Context<Onboarding>, phase: Prep
                 .id(card_id.clone())
                 .flex_1()
                 .min_w_0()
+                .min_h(px(171.))
                 .p(px(18.))
                 .flex()
                 .flex_col()
-                .gap(px(8.))
+                .gap(px(6.))
                 .rounded(px(16.))
                 .when(!locked, |d| d.cursor_pointer())
                 .bg(if on { p.accent_soft } else { p.card })
@@ -67,7 +68,12 @@ fn tier_cards(w: &Onboarding, c: &Ctx, cx: &mut Context<Onboarding>, phase: Prep
                     p.text,
                 )))
                 .child(text(ui::fmt_bytes(w.models_bytes(&[tier.asr, tier.polish])), 13., FontWeight::MEDIUM, p.text))
-                .child(text(c.t(tier.desc), 12., FontWeight::NORMAL, p.muted).whitespace_nowrap()),
+                .child(
+                    text(c.t(tier.desc), 12., FontWeight::NORMAL, p.muted)
+                        .w_full()
+                        .whitespace_normal()
+                        .line_height(px(19.2)),
+                ),
         );
     }
     tiers

@@ -96,6 +96,31 @@ fn installed_manager() -> (ModelManager, tempfile::TempDir) {
 }
 
 #[tokio::test]
+async fn warming_after_download_starts_both_models_and_reuses_loaded_runtimes() {
+    let (mgr, _dir) = installed_manager();
+    for id in ["asr", "llm"] {
+        std::fs::remove_file(mgr.model_dir(id).join("f")).unwrap();
+    }
+    mgr.refresh();
+    let fake = Arc::new(Fake { loads: AtomicUsize::new(0), fail: false });
+    let engines = LocalEngines::new(mgr.clone(), fake.clone());
+    for id in ["asr", "llm"] {
+        engines.warm(id).await;
+        assert_eq!(engines.status(id), EngineStatus::NotInstalled);
+        std::fs::write(mgr.model_dir(id).join("f"), b"abc").unwrap();
+    }
+    assert_eq!(fake.loads.load(Ordering::SeqCst), 0);
+    mgr.refresh();
+    for _ in 0..2 {
+        for id in ["asr", "llm"] {
+            engines.warm(id).await;
+            assert_eq!(engines.status(id), EngineStatus::Running);
+        }
+    }
+    assert_eq!(fake.loads.load(Ordering::SeqCst), 2);
+}
+
+#[tokio::test]
 async fn loads_lazily_once_and_runs_inference_off_the_async_thread() {
     let (mgr, _d) = installed_manager();
     let fake = Arc::new(Fake { loads: AtomicUsize::new(0), fail: false });
