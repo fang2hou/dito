@@ -26,7 +26,6 @@ use crate::ui;
 
 const EDITOR_W: f32 = 720.;
 const EDITOR_H: f32 = 340.;
-const HUD_WINDOW_H: i64 = 428;
 const HUD_WINDOW_W: i64 = 360;
 const FRAME: Duration = Duration::from_millis(66);
 
@@ -226,8 +225,10 @@ fn composite(cx: &mut AsyncApp, editor: WindowHandle<Editor>, film: &Film) {
     if let Some(hud) = cx.update(|cx| crate::hud::live_window(cx))
         && let Some(layer) = render(cx, hud)
     {
-        let x = (frame.width() as i64 - HUD_WINDOW_W) / 2;
-        let y = frame.height() as i64 - HUD_WINDOW_H + 24;
+        // The window renders at the display's scale, so the placement scales with the captured layer.
+        let scale = layer.width() as f64 / HUD_WINDOW_W as f64;
+        let x = (frame.width() as i64 - layer.width() as i64) / 2;
+        let y = frame.height() as i64 - layer.height() as i64 + (24. * scale) as i64;
         image::imageops::overlay(&mut frame, &layer, x, y);
     }
     film.push(frame);
