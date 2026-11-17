@@ -200,6 +200,7 @@ impl LocalEngines {
             slots.insert(id.to_string(), Slot::Loading(stop.clone()));
         }
         let (loader, dir) = (self.loader.clone(), self.manager.model_dir(id));
+        let mapped = if spec.kind == ModelKind::Text { mapped_weights_bytes(&dir) } else { 0 };
         let memory_before = footprint_bytes();
         let started = Instant::now();
         trace_log!(model = id, kind = ?spec.kind, "model load started");
@@ -244,7 +245,7 @@ impl LocalEngines {
         }
         match loaded {
             Ok(slot) => {
-                let gained = footprint_bytes().saturating_sub(memory_before);
+                let gained = footprint_bytes().saturating_sub(memory_before).saturating_add(mapped);
                 trace_log!(model = id, load_ms, memory_bytes = gained, "model loaded");
                 self.usage_for(id).memory_bytes.store(gained, Ordering::Relaxed);
                 slots.insert(id.to_string(), slot.clone());
@@ -258,6 +259,17 @@ impl LocalEngines {
             }
         }
     }
+}
+
+/// A text model's weights are memory-mapped, so they are resident but not part of the footprint that `gained` measures.
+fn mapped_weights_bytes(dir: &std::path::Path) -> u64 {
+    let Ok(entries) = std::fs::read_dir(dir) else { return 0 };
+    entries
+        .flatten()
+        .filter(|entry| entry.path().extension().is_some_and(|ext| ext == "gguf"))
+        .filter_map(|entry| entry.metadata().ok())
+        .map(|meta| meta.len())
+        .sum()
 }
 
 // Dropping the caller must cancel startup too; otherwise its abandoned slot stays Loading forever.
@@ -529,5 +541,22 @@ impl LocalBackend for LocalEngines {
             Some(Slot::Llm(_)) => EngineStatus::Running,
             Some(Slot::Failed(e)) => EngineStatus::Failed(e.clone()),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::mapped_weights_bytes;
+
+    #[test]
+    fn mapped_weights_count_only_gguf_files() {
+        let dir = std::env::temp_dir().join(format!("dito-mapped-weights-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("model.gguf"), [0u8; 100]).unwrap();
+        std::fs::write(dir.join("other.gguf"), [0u8; 50]).unwrap();
+        std::fs::write(dir.join(".download.lock"), []).unwrap();
+        assert_eq!(mapped_weights_bytes(&dir), 150);
+        assert_eq!(mapped_weights_bytes(&dir.join("missing")), 0);
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 }
