@@ -1,6 +1,7 @@
 //! The model comparison dialog (`design:settings/compare-models`). The user picks up to five speech models,
 //! local or cloud, records a sentence each round, rates the blind results, and ends on a ranking of their own.
 
+use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -20,6 +21,7 @@ use super::page::{ModalChanged, ModelsPage};
 use crate::assets::Ic;
 use crate::services::{self, Heard};
 use crate::settings::Ctx;
+use crate::state::AppState;
 use crate::ui::{self, BtnKind, DialogAnswer, cbk, text};
 
 const DIALOG: &str = "models-compare";
@@ -27,6 +29,9 @@ const OPEN: &str = "models-compare-open";
 const LEVEL_BARS: usize = 24;
 const LEVEL_EVERY: Duration = Duration::from_millis(50);
 const CHIP_GAP: f32 = 6.;
+/// How long the list of models that can take part is reused before the Keychain is read again; the header button is
+/// drawn on every frame and only needs to know whether two can.
+const CHOICES_FRESH: Duration = Duration::from_secs(2);
 
 /// A model that can take part, with the name the dialog shows for it.
 #[derive(Clone)]
@@ -51,6 +56,39 @@ struct Shown {
     rating: Option<Rating>,
 }
 
+/// The microphone and the paused dictation shortcut of one round. Letting it go releases both, whether the round moves
+/// on to rating, the dialog closes or the settings window goes away mid-recording.
+struct MicHold {
+    st: Arc<AppState>,
+    recording: bool,
+}
+
+impl MicHold {
+    fn start(st: &Arc<AppState>) -> Result<Self, dito_core::controller::RecorderError> {
+        st.hotkeys.pause_starts(true);
+        // Built before the start so that a failed start still unpauses the shortcut when it drops.
+        let mut hold = Self { st: st.clone(), recording: false };
+        st.recorder.start()?;
+        hold.recording = true;
+        Ok(hold)
+    }
+
+    /// The shortcut stays paused until the hold is dropped, so no dictation starts while the round is recognized.
+    fn stop(&mut self) -> AudioClip {
+        self.recording = false;
+        self.st.recorder.stop()
+    }
+}
+
+impl Drop for MicHold {
+    fn drop(&mut self) {
+        if self.recording {
+            self.st.recorder.stop();
+        }
+        self.st.hotkeys.pause_starts(false);
+    }
+}
+
 enum Stage {
     Closed,
     Choose,
@@ -58,10 +96,12 @@ enum Stage {
     Recording {
         started: Instant,
         levels: VecDeque<f32>,
+        mic: MicHold,
         _tick: Task<()>,
     },
     /// Dropping the task stops the round.
     Recognizing {
+        _mic: MicHold,
         _task: Task<()>,
     },
     Rate,
@@ -77,6 +117,7 @@ pub(super) struct Compare {
     round: u32,
     shown: Vec<Shown>,
     error: Option<Tr>,
+    cached_choices: RefCell<Option<(Instant, Vec<Choice>)>>,
 }
 
 impl Compare {
@@ -90,13 +131,23 @@ impl Compare {
             round: 1,
             shown: Vec::new(),
             error: None,
+            cached_choices: RefCell::new(None),
         }
     }
 }
 
 impl ModelsPage {
-    /// Downloaded local models from small to large, then the saved cloud configurations in their tile order.
     fn compare_choices(&self) -> Vec<Choice> {
+        if let Some((at, choices)) = &*self.compare.cached_choices.borrow()
+            && at.elapsed() < CHOICES_FRESH
+        {
+            return choices.clone();
+        }
+        self.read_compare_choices()
+    }
+
+    /// Downloaded local models from small to large, then the saved cloud configurations in their tile order.
+    fn read_compare_choices(&self) -> Vec<Choice> {
         let cfg = self.st.cfg.get();
         let snapshot = self.snapshot();
         let local = self
@@ -122,7 +173,9 @@ impl ModelsPage {
                 },
             }
         });
-        local.chain(cloud).collect()
+        let choices: Vec<Choice> = local.chain(cloud).collect();
+        *self.compare.cached_choices.borrow_mut() = Some((Instant::now(), choices.clone()));
+        choices
     }
 
     fn compare_name(&self, contender: &Contender) -> String {
@@ -135,7 +188,7 @@ impl ModelsPage {
     }
 
     fn open_compare(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let choices = self.compare_choices();
+        let choices = self.read_compare_choices();
         let available: Vec<Contender> = choices
             .iter()
             .filter(|choice| choice.unavailable.is_none())
@@ -157,10 +210,6 @@ impl ModelsPage {
         if matches!(self.compare.stage, Stage::Closed) {
             return;
         }
-        if matches!(self.compare.stage, Stage::Recording { .. }) {
-            self.st.recorder.stop();
-        }
-        self.st.hotkeys.pause_starts(false);
         self.compare.stage = Stage::Closed;
         self.compare.shown.clear();
         window.blur(cx);
@@ -198,15 +247,16 @@ impl ModelsPage {
             cx.notify();
             return;
         }
-        self.st.hotkeys.pause_starts(true);
-        if let Err(error) = self.st.recorder.start() {
-            tracing::warn!("model comparison: the microphone could not start: {error}");
-            self.st.hotkeys.pause_starts(false);
-            self.compare.error = Some(Tr::CompareMicrophoneFailed);
-            self.compare.stage = Stage::Ready;
-            cx.notify();
-            return;
-        }
+        let mic = match MicHold::start(&self.st) {
+            Ok(mic) => mic,
+            Err(error) => {
+                tracing::warn!("model comparison: the microphone could not start: {error}");
+                self.compare.error = Some(Tr::CompareMicrophoneFailed);
+                self.compare.stage = Stage::Ready;
+                cx.notify();
+                return;
+            }
+        };
         let tick = cx.spawn(async move |this, cx| {
             loop {
                 cx.background_executor().timer(LEVEL_EVERY).await;
@@ -225,18 +275,21 @@ impl ModelsPage {
         });
         self.compare.error = None;
         self.compare.shown.clear();
-        self.compare.stage =
-            Stage::Recording { started: Instant::now(), levels: VecDeque::from(vec![0.; LEVEL_BARS]), _tick: tick };
+        self.compare.stage = Stage::Recording {
+            started: Instant::now(),
+            levels: VecDeque::from(vec![0.; LEVEL_BARS]),
+            mic,
+            _tick: tick,
+        };
         cx.notify();
     }
 
     fn stop_compare_recording(&mut self, cx: &mut Context<Self>) {
-        if !matches!(self.compare.stage, Stage::Recording { .. }) {
+        let Stage::Recording { mut mic, .. } = std::mem::replace(&mut self.compare.stage, Stage::Ready) else {
             return;
-        }
-        let clip = self.st.recorder.stop();
+        };
+        let clip = mic.stop();
         if clip.is_effectively_silent() {
-            self.st.hotkeys.pause_starts(false);
             self.compare.error = Some(Tr::CompareNoSpeech);
             self.compare.stage = Stage::Ready;
             cx.notify();
@@ -249,7 +302,7 @@ impl ModelsPage {
             .map(|index| Shown { contender: chosen[index].clone(), answer: Answer::Waiting, rating: None })
             .collect();
         let task = self.recognize_round(Arc::new(clip), cx);
-        self.compare.stage = Stage::Recognizing { _task: task };
+        self.compare.stage = Stage::Recognizing { _mic: mic, _task: task };
         cx.notify();
     }
 
@@ -287,7 +340,6 @@ impl ModelsPage {
             }
             let _ = this.update(cx, |this, cx| {
                 if matches!(this.compare.stage, Stage::Recognizing { .. }) {
-                    this.st.hotkeys.pause_starts(false);
                     this.compare.stage = Stage::Rate;
                     cx.notify();
                 }
@@ -353,7 +405,8 @@ impl ModelsPage {
 }
 
 impl ModelsPage {
-    /// The page header action of the speech recognition tab, on either source; it needs two models that can take part.
+    /// The action in the speech recognition card header, beside the source switch on either source; it needs two models
+    /// that can take part.
     pub(super) fn compare_entry(&self, c: &Ctx, cx: &mut Context<Self>) -> AnyElement {
         let p = &c.p;
         let label = c.t(Tr::CompareOpen);
@@ -801,8 +854,14 @@ impl ModelsPage {
                         rating: None,
                     })
                     .collect();
-                self.compare.stage =
-                    if recognizing { Stage::Recognizing { _task: Task::ready(()) } } else { Stage::Rate };
+                self.compare.stage = if recognizing {
+                    Stage::Recognizing {
+                        _mic: MicHold { st: self.st.clone(), recording: false },
+                        _task: Task::ready(()),
+                    }
+                } else {
+                    Stage::Rate
+                };
                 cx.notify();
             }
             "compare-rate" => {

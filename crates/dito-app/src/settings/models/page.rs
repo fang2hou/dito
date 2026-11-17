@@ -405,8 +405,7 @@ impl ModelsPage {
             }
         };
 
-        let compare = (self.tab == Tab::Role(Role::Asr)).then(|| self.compare_entry(&c, cx));
-        let status = local.then(|| {
+        let actions = local.then(|| {
             ui::button(
                 "to-status",
                 &p,
@@ -420,8 +419,6 @@ impl ModelsPage {
             )
             .into_any_element()
         });
-        let actions = (compare.is_some() || status.is_some())
-            .then(|| div().flex().items_center().gap(px(10.)).children(compare).children(status).into_any_element());
 
         let tips = self.motion.handle();
         div()
@@ -547,7 +544,14 @@ impl ModelsPage {
                     .child(text(title, 17., FontWeight::BOLD, p.text))
                     .child(text(desc, 13., FontWeight::NORMAL, p.muted)),
             )
-            .child(source_seg)
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap(px(10.))
+                    .children((role == Role::Asr).then(|| self.compare_entry(c, cx)))
+                    .child(source_seg),
+            )
     }
 
     fn local_models(&self, c: &Ctx, cx: &mut Context<Self>, role: Role, mut card: Div) -> Div {

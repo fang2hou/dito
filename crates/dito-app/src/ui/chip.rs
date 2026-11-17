@@ -1,5 +1,5 @@
-//! The word chip of `design:settings/wordbook` and its selection marker, shared by every list of chips to choose
-//! from.
+//! The word chip of the wordbook and its selection marker (`design:settings/wordbook/find-words`), shared by every
+//! list of chips to choose from.
 
 use gpui_kit::prelude::*;
 use gpui_kit::*;
