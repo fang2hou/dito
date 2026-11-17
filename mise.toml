@@ -102,7 +102,7 @@ description = "Check a commit message file follows Conventional Commits (used by
 run = "cog verify --ignore-merge-commits --ignore-fixup-commits --file"
 
 [tasks."ci:flow"]
-description = "Check a pull request against the Git Flow branch rules (HEAD_REF, BASE_REF)"
+description = "Check a pull request against the branch rules (HEAD_REF, BASE_REF)"
 run = "scripts/check-flow.sh"
 
 [tasks."ci:pr-title"]
