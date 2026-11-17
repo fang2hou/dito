@@ -46,12 +46,14 @@ fn should_play(seen: bool, headless: bool, reduced_motion: bool, env: Option<&st
     }
 }
 
-/// The film of the UI language: Japanese, English or Simplified Chinese, and English for every other language.
+/// The film of the UI language: Japanese, Simplified Chinese (also for Traditional Chinese), Korean, and English for
+/// every other language.
 fn film_name(lang: Lang) -> &'static str {
     match lang {
         Lang::Ja => "dito-intro-ja.mp4",
-        Lang::Zh => "dito-intro-zh.mp4",
-        _ => "dito-intro-en.mp4",
+        Lang::Zh | Lang::ZhHant => "dito-intro-zh.mp4",
+        Lang::Ko => "dito-intro-ko.mp4",
+        Lang::En | Lang::Mn | Lang::Fr => "dito-intro-en.mp4",
     }
 }
 
@@ -195,7 +197,9 @@ mod tests {
     fn every_language_has_a_film() {
         assert_eq!(film_name(Lang::Ja), "dito-intro-ja.mp4");
         assert_eq!(film_name(Lang::Zh), "dito-intro-zh.mp4");
-        for lang in [Lang::En, Lang::ZhHant, Lang::Ko, Lang::Mn, Lang::Fr] {
+        assert_eq!(film_name(Lang::ZhHant), "dito-intro-zh.mp4");
+        assert_eq!(film_name(Lang::Ko), "dito-intro-ko.mp4");
+        for lang in [Lang::En, Lang::Mn, Lang::Fr] {
             assert_eq!(film_name(lang), "dito-intro-en.mp4");
         }
     }
