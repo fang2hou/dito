@@ -14,7 +14,7 @@ Dictation, polishing, rewriting, translation, summaries, replies, Q&A, and meeti
 Dito runs local models by default, so your history, audio, and models stay on your Mac.  
 You can also connect cloud models and customize prompts when needed.
 
-https://github.com/user-attachments/assets/cb727f8a-7bcd-4234-b71a-737d1441a967
+https://github.com/user-attachments/assets/831d9d6f-c7f4-43d9-8620-2d760d91b9c2
 
 > [!NOTE]
 > Dito is in active early development and does not publish prebuilt binaries yet. Build and install it from source with the single script below.
