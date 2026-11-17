@@ -46,7 +46,7 @@ jobs:
         uses: jdx/mise-action@v5
         with:
           install: false
-      - name: Check the source and target branches follow Git Flow
+      - name: Check the source and target branches follow the branch rules
         env:
           HEAD_REF: ${{ github.head_ref }}
           BASE_REF: ${{ github.base_ref }}

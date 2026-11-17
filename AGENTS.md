@@ -59,7 +59,7 @@ Always:
 - Change code only after the user has reviewed the design section in FigCraft and approved it, then make the code match it and name the section in your reply.
 - After adding an icon or changing an icon's shape, run the `icon-keylines` skill (`.agents/skills/icon-keylines`) so its optical size and centering follow the shared rule.
 - Run `./scripts/check.sh fast` and `mise run lint:rust` before handing work back; the commit hooks run both.
-- Follow Git Flow (`docs/CONTRIBUTING.md`): branch from `develop` as `<type>/<kebab-name>` (for example `feat/menu-bar-icon`), open pull requests into `develop` with a Conventional Commit title, and never target `main` except from `release/*` or `hotfix/*`. CI rejects other branch names and titles.
+- Follow the main-only flow (`docs/CONTRIBUTING.md`): branch from `main` as `<type>/<kebab-name>` (for example `feat/menu-bar-icon`), open pull requests into `main` with a Conventional Commit title, and never push to `main` directly. CI rejects other branch names and titles.
 - Keep screen copy identical to the `ja` values in `messages.toml`.
 
 Never:
