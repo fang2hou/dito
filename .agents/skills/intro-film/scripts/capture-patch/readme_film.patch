@@ -1,0 +1,30 @@
+--- a/crates/dito-app/src/dev/shots/readme_film.rs
++++ b/crates/dito-app/src/dev/shots/readme_film.rs
+@@ -28,7 +28,7 @@
+ const EDITOR_H: f32 = 340.;
+ const HUD_WINDOW_H: i64 = 428;
+ const HUD_WINDOW_W: i64 = 360;
+-const FRAME: Duration = Duration::from_millis(66);
++const FRAME: Duration = Duration::from_millis(33);
+ 
+ struct Words {
+     lang: Lang,
+@@ -205,9 +205,18 @@
+ 
+ fn composite(cx: &mut AsyncApp, editor: WindowHandle<Editor>, film: &Film) {
+     let Some(mut frame) = render(cx, editor) else { return };
++    if std::env::var("DITO_FILM_HUD_ONLY").is_ok() && cx.update(|cx| crate::hud::live_window(cx)).is_none() {
++        film.push_tagged(frame, "-ed");
++        return;
++    }
+     if let Some(hud) = cx.update(|cx| crate::hud::live_window(cx))
+         && let Some(layer) = render(cx, hud)
+     {
++        if std::env::var("DITO_FILM_HUD_ONLY").is_ok() {
++            film.push_tagged(frame.clone(), "-ed");
++            film.push(layer);
++            return;
++        }
+         let x = (frame.width() as i64 - HUD_WINDOW_W) / 2;
+         let y = frame.height() as i64 - HUD_WINDOW_H + 24;
+         image::imageops::overlay(&mut frame, &layer, x, y);

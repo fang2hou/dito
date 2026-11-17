@@ -2,6 +2,7 @@
 
 mod components;
 pub(crate) mod demo;
+mod intro;
 mod step;
 mod steps;
 mod transition;

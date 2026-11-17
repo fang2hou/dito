@@ -4,6 +4,7 @@ mod applications;
 mod frontmost;
 mod hud_follow;
 mod hud_window;
+mod intro_video;
 mod keychain;
 mod locale;
 mod login_item;
@@ -21,6 +22,7 @@ pub use hud_window::{
     FramelessWindow, HudKeyChange, HudNativeWindow, HudPointer, HudWindowMove, give_front_back, pointer_location,
     source_app_in_front,
 };
+pub use intro_video::{IntroVideo, bundle_resources};
 pub use keychain::KeychainSecrets;
 pub use locale::system_language;
 pub use login_item::{launch_at_login_enabled, set_launch_at_login};

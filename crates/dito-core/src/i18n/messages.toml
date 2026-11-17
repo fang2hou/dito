@@ -477,6 +477,7 @@ onboarding.step.try = { ja = "試す", en = "Try", zh = "试一试", zh_hant = "
 onboarding.back = { ja = "戻る", en = "Back", zh = "返回", zh_hant = "返回", ko = "뒤로", mn = "Буцах", fr = "Retour" }
 onboarding.continue = { ja = "続ける", en = "Continue", zh = "继续", zh_hant = "繼續", ko = "계속", mn = "Үргэлжлүүлэх", fr = "Continuer" }
 onboarding.get_started = { ja = "はじめる", en = "Get started", zh = "开始", zh_hant = "開始使用", ko = "시작하기", mn = "Эхлэх", fr = "Commencer" }
+onboarding.intro_skip = { ja = "スキップ", en = "Skip", zh = "跳过", zh_hant = "跳過", ko = "건너뛰기", mn = "Алгасах", fr = "Passer" }
 onboarding.done = { ja = "完了", en = "Done", zh = "完成", zh_hant = "完成", ko = "완료", mn = "Дууссан", fr = "Terminé" }
 onboarding.run_again = { ja = "やり直す", en = "Run again", zh = "重新开始", zh_hant = "重新開始", ko = "다시 실행", mn = "Дахин хийх", fr = "Recommencer" }
 onboarding.tagline = { ja = "想いを、そのまま文字へ。", en = "From thought to text, effortlessly.", zh = "所想即所写，从未如此简单。", zh_hant = "所想即所寫，從未如此簡單。", ko = "생각을 그대로 글로.", mn = "Бодлоо шууд текст болгоно.", fr = "De la pensée au texte, sans effort." }

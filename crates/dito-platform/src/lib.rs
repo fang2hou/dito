@@ -11,4 +11,4 @@ pub use audio::MacMusicMute;
 pub use hotkey::{Action, HotkeyError, HotkeyService, Shortcut};
 pub use insert::{FieldText, MacSink, Selection, capture_selection, warm_focus};
 pub use permissions::{Permission, Status};
-pub use system::{KeychainSecrets, MacFrontmost, Player, local_utc_offset_secs, physical_memory_bytes};
+pub use system::{IntroVideo, KeychainSecrets, MacFrontmost, Player, local_utc_offset_secs, physical_memory_bytes};

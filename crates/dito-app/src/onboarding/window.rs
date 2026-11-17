@@ -125,7 +125,11 @@ pub fn open(st: Arc<AppState>, cx: &mut App) {
     let foreground = !st.opts.is_headless();
     let mut view_slot = None;
     match cx.open_window(opts, |window, cx| {
-        let view = cx.new(|cx| Onboarding::new(st, window, cx));
+        let view = cx.new(|cx| {
+            let mut wizard = Onboarding::new(st, window, cx);
+            wizard.begin_intro(cx);
+            wizard
+        });
         view_slot = Some(view.downgrade());
         cx.new(|cx| Root::new(view, window, cx))
     }) {
