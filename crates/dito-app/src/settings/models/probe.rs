@@ -153,6 +153,7 @@ impl ModelsPage {
                 }
                 cx.notify();
             }
+            compare if compare.starts_with("compare-") => self.probe_compare(compare, arg, text, window, cx),
             other => panic!("unknown Models probe step {other:?}"),
         }
     }
@@ -163,6 +164,7 @@ impl ModelsPage {
         let name = cloud[CloudTextField::Name].read(cx);
         ModelsProbe {
             save_failed: self.save_failed,
+            compare: self.compare_stage_name(),
             menu_open: self.cloud_text.tiles.menu_open(),
             name_focused: name.focus_handle(cx).is_focused(window),
             name_selection: name.selected_range(),
@@ -194,6 +196,8 @@ impl ModelsPage {
 
 pub struct ModelsProbe {
     pub save_failed: bool,
+    /// The stage of the model comparison dialog, `closed` when it is not open.
+    pub compare: &'static str,
     pub menu_open: bool,
     pub name_focused: bool,
     pub name_selection: std::ops::Range<usize>,

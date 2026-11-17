@@ -4,6 +4,7 @@ mod appearance_seg;
 mod banner;
 mod button;
 mod callbacks;
+mod chip;
 mod code_block;
 mod config_tiles;
 mod copy_button;
@@ -50,12 +51,13 @@ pub use button::{
     icon_button, icon_button_with, status_disc,
 };
 pub use callbacks::{Cb, CopyCb, ToggleCb, cbk, cbk_copy, cbk_idx, click_cb};
+pub use chip::{chip_surface, selection_ring};
 pub use code_block::{code_block, code_block_with};
 pub use config_tiles::{ConfigTile, TilePlus, TileRowState, cbk_id, cbk_move, tile_row};
 pub use copy_button::{copy_button, copy_button_with, ghost_copy_button};
 pub use dialog::{
-    ConfirmStyle, DialogAnswer, ToolDialogHeader, confirm_dialog, confirm_dialog_with_header, tool_settings_dialog,
-    tool_settings_dialog_with,
+    ConfirmStyle, DialogAnswer, ToolDialogHeader, confirm_dialog, confirm_dialog_with_header, dialog_button,
+    dialog_with_actions, tool_settings_dialog, tool_settings_dialog_with,
 };
 pub use form_footer::{FooterTrash, TestButton, form_footer};
 pub use format::{error_line, error_summary, fmt_bytes, fmt_eta, history_target_label};
@@ -71,7 +73,9 @@ pub use inputs::{
     TextAreaStyle, blur_on_outside, field, focus_on_click, form_field, new_input, notify_on_focus, ring_overlay,
     text_area, text_input, with_ring,
 };
-pub use layout::{StatusTone, card, drag_area, group, page_title, row, row_described, status_chip, status_tag, tag};
+pub use layout::{
+    StatusTone, card, drag_area, group, page_title, row, row_described, source_label, status_chip, status_tag, tag,
+};
 pub use menu_button::menu_button;
 pub use method_label::{MethodKind, MethodSize, method_label};
 pub use modal::modal_layer;

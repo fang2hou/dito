@@ -13,6 +13,7 @@ use gpui_kit::prelude::*;
 use gpui_kit::*;
 
 use super::cloud_text_form::CloudTextForm;
+use super::compare::Compare;
 use super::local_text_form::LocalTextForm;
 use super::text_field_rules::{CloudTextField, LocalTextField, settled_cloud_text_name};
 use crate::assets::Ic;
@@ -94,6 +95,7 @@ pub struct ModelsPage {
     pub(super) select: Option<&'static str>,
     pub(super) cloud_text: CloudTextPanel,
     pub(super) local_text: LocalTextForm,
+    pub(super) compare: Compare,
     /// The last save on this page failed: the banner above the card says so until it is closed or a save works. The
     /// cloud speech editor reports its saves here too.
     pub(super) save_failed: bool,
@@ -143,6 +145,7 @@ impl ModelsPage {
             select: None,
             cloud_text,
             local_text,
+            compare: Compare::new(cx),
             save_failed: false,
             aws_profiles,
             last_status: String::new(),
@@ -197,7 +200,8 @@ impl ModelsPage {
     }
 
     pub(in crate::settings) fn overlay(&mut self, window: &mut Window, cx: &mut Context<Self>) -> Option<AnyElement> {
-        self.cloud_text_delete_dialog(window, cx)
+        self.compare_overlay(window, cx)
+            .or_else(|| self.cloud_text_delete_dialog(window, cx))
             .or_else(|| self.editor.update(cx, |editor, cx| editor.overlay(window, cx)))
     }
 
@@ -540,7 +544,14 @@ impl ModelsPage {
                     .child(text(title, 17., FontWeight::BOLD, p.text))
                     .child(text(desc, 13., FontWeight::NORMAL, p.muted)),
             )
-            .child(source_seg)
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap(px(10.))
+                    .children((role == Role::Asr).then(|| self.compare_entry(c, cx)))
+                    .child(source_seg),
+            )
     }
 
     fn local_models(&self, c: &Ctx, cx: &mut Context<Self>, role: Role, mut card: Div) -> Div {
@@ -569,7 +580,7 @@ impl ModelsPage {
         list
     }
 
-    fn snapshot(&self) -> Snapshot {
+    pub(super) fn snapshot(&self) -> Snapshot {
         #[cfg(feature = "screenshots")]
         if let Some(preview) = self.preview_snapshot.clone() {
             return preview;

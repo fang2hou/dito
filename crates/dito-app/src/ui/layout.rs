@@ -2,8 +2,9 @@ use gpui_kit::prelude::*;
 use gpui_kit::*;
 
 use super::button::CONTROL_H;
-use super::primitives::white;
+use super::primitives::{icon, white};
 use super::typography::text;
+use crate::assets::Ic;
 use crate::theme::{Palette, Tint};
 
 pub fn card(p: &Palette) -> Div {
@@ -73,6 +74,23 @@ pub fn row_described(
 pub fn group(p: &Palette, title: impl Into<SharedString>, rows: Vec<Div>) -> Div {
     let c = card(p).children(rows);
     div().w_full().flex().flex_col().gap(px(10.)).child(text(title, 13., FontWeight::BOLD, p.muted)).child(c)
+}
+
+/// The Local Source and Cloud Source labels of `design:components`: where a model runs, placed right after its name.
+pub fn source_label(p: &Palette, local: bool, label: impl Into<SharedString>) -> Div {
+    div()
+        .h(px(24.))
+        .px(px(9.))
+        .flex_none()
+        .flex()
+        .items_center()
+        .gap(px(6.))
+        .rounded_full()
+        .bg(p.card)
+        .border_1()
+        .border_color(p.border_strong)
+        .child(icon(if local { Ic::Cpu } else { Ic::Globe }, 14., p.muted))
+        .child(text(label, 12., FontWeight::MEDIUM, p.muted).line_height(px(18.)))
 }
 
 pub fn tag(p: &Palette, label: impl Into<SharedString>, tint: Tint) -> Div {

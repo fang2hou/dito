@@ -76,6 +76,7 @@ The sidebar groups pages under 設定 (Settings) and 利用状況 (Activity). It
 - Local speech recognition: Qwen3-ASR 1.7B (default, most accurate) and 0.6B, both with hotwords; SenseVoice Small (fastest). Optional downloads to compare: Confucius4-R2T2, Fun-ASR-MLT-Nano-2512, whisper-large-v3 and whisper-large-v3-turbo (all with hotwords), and Haas-ja v1.0.
 - Local text processing: Qwen3.5 Instruct 2B, 4B, 9B (default), and Qwen3.8 27B.
 - Each local model lists from small to large and carries labels for its parameter count, quantization, language (speech models) and download size. Hovering a label explains it in everyday words (`design:settings/local-models/labels`).
+- 聞き比べる compares speech models on the user's own voice: the user picks up to five from downloaded local models and saved cloud configurations, each round records once and every chosen model transcribes it with its name hidden, the user marks results 良い or いまいち for as many rounds as they like, and ending shows a personal ranking with 使用する on the winner (`design:settings/compare-models`).
 - Nothing downloads until the user asks; downloads resume and are verified. Models in use start at launch.
 
 ## Menu Bar

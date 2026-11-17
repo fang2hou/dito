@@ -33,7 +33,6 @@ use self::generation::{Finished, Generation};
 use self::markdown::Document;
 use self::switch::{Phase, Switch};
 use crate::app_shell::{RAIL_COLLAPSE, RAIL_EXPAND};
-use crate::assets::Ic;
 use crate::settings::{self, Ctx};
 use crate::state::AppState;
 use crate::timefmt::{hhmm, local_day, now, ymd};
@@ -838,10 +837,8 @@ impl ChatPage {
         let p = c.p;
         let id = ElementId::from("chat-model-button");
         let cfg = self.st.cfg.get();
-        let (source_icon, source) = match cfg.text_model.source {
-            Source::Local => (Ic::Cpu, c.t(Tr::ModelsLocal)),
-            Source::Provider => (Ic::Globe, c.t(Tr::ModelsProvider)),
-        };
+        let local = cfg.text_model.source == Source::Local;
+        let source = c.t(if local { Tr::ModelsLocal } else { Tr::ModelsProvider });
         div()
             .id(id.clone())
             .relative()
@@ -857,20 +854,7 @@ impl ChatPage {
             .on_click(ui::click_cb(ui::cbk(cx, |page, _, cx| page.open_model_settings(cx))))
             .child(ui::hover_fill(&id, Some(12.), p.seg))
             .child(ui::text(self.model_label(), 13., FontWeight::MEDIUM, p.text).line_height(px(18.)))
-            .child(
-                div()
-                    .h(px(24.))
-                    .px(px(9.))
-                    .flex()
-                    .items_center()
-                    .gap(px(6.))
-                    .rounded_full()
-                    .bg(p.card)
-                    .border_1()
-                    .border_color(p.border_strong)
-                    .child(ui::icon(source_icon, 14., p.muted))
-                    .child(ui::text(source, 12., FontWeight::NORMAL, p.muted).line_height(px(18.))),
-            )
+            .child(ui::source_label(&p, local, source))
     }
 }
 

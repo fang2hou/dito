@@ -656,9 +656,9 @@ impl WordbookPage {
             let word = word.clone();
             move |this: &mut Self, _, cx| this.toggle_word(&word, cx)
         }));
-        let ring = selection_ring(p, ring_id, hover, chosen).opacity(opacity);
+        let ring = ui::selection_ring(p, ring_id, hover, chosen).opacity(opacity);
         let marker = div().id(hit_id).size(px(24.)).flex_none().flex().items_center().justify_center().child(ring);
-        let mut chip = chip_surface(p, chip_id, word, chosen);
+        let mut chip = ui::chip_surface(p, chip_id, word, chosen);
         if selecting && !self.deleting {
             chip = chip.cursor_pointer().on_click(toggle);
         } else if !selecting && !self.deleting {
@@ -666,51 +666,6 @@ impl WordbookPage {
         }
         chip.child(marker)
     }
-}
-
-/// The 16 pt selection marker of a word chip: `hover` fills the inside of its outline, `chosen` turns it into the
-/// solid disc with a check.
-fn selection_ring(p: &Palette, id: ElementId, hover: f32, chosen: f32) -> Stateful<Div> {
-    let hover_fill = Hsla { a: hover, ..p.seg };
-    div()
-        .id(id.clone())
-        .size(px(16.))
-        .flex_none()
-        .flex()
-        .items_center()
-        .justify_center()
-        .rounded_full()
-        .border_1()
-        .border_color(Hsla { a: p.muted.a * (1. - chosen), ..p.muted })
-        .bg(ui::mix_rgb(hover_fill, p.primary, chosen))
-        .on_hover(ui::hover_tracker(id))
-        .when(chosen > 0., |el| el.child(div().opacity(chosen).child(ui::icon(Ic::Check, 12., p.on_primary))))
-}
-
-/// A word chip without its marker; `chosen` blends it to the selected surface and border.
-fn chip_surface(p: &Palette, id: ElementId, word: SharedString, chosen: f32) -> Stateful<Div> {
-    div()
-        .id(id.clone())
-        .on_hover(ui::hover_tracker(id))
-        .min_w(px(0.))
-        .h(px(44.))
-        .pl(px(16.))
-        .pr(px(10.))
-        .flex()
-        .items_center()
-        .justify_between()
-        .gap(px(8.))
-        .rounded_full()
-        .bg(ui::mix_rgb(p.card, p.accent_soft, chosen))
-        .border_1()
-        .border_color(ui::mix_rgb(p.border, p.accent, chosen))
-        .child(
-            div()
-                .flex_1()
-                .min_w(px(0.))
-                .overflow_hidden()
-                .child(text(word, 14., FontWeight::MEDIUM, p.text).whitespace_nowrap().text_ellipsis()),
-        )
 }
 
 /// Fit the widest digit in the localized label, with at least three places.
