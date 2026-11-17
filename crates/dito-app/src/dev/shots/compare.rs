@@ -108,6 +108,23 @@ pub async fn compare_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
         step(cx, "compare-close", "");
     }
 
+    // design:settings/compare-models/short-window: only the middle of the dialog scrolls in a short window.
+    services::save_config(st, |c| c.general.appearance = Appearance::Light);
+    cx.update(|cx| resize_settings_window(cx, 1118., 640.));
+    step(cx, "compare-open", "");
+    step(cx, "compare-begin", "");
+    step(cx, "compare-stand-in", "rate");
+    step(cx, "compare-rate", "0:good");
+    page_shot(cx, dir, "compare-short-top.png").await;
+    for (fraction, name) in [("0.5", "middle"), ("1", "bottom")] {
+        step(cx, "compare-scroll", fraction);
+        page_shot(cx, dir, &format!("compare-short-{name}.png")).await;
+    }
+    step(cx, "compare-finish", "");
+    page_shot(cx, dir, "compare-short-ranking.png").await;
+    step(cx, "compare-close", "");
+    cx.update(|cx| resize_settings_window(cx, 1118., 978.));
+
     // A real round: the synthetic microphone records, the local models (not on disk in the mock build) fail, and the
     // two cloud configurations answer from the mock server.
     step(cx, "compare-open", "");

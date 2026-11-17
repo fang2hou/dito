@@ -73,11 +73,22 @@ pub fn confirm_dialog_with_header(
     }))
     .map(IntoElement::into_any_element)
     .collect();
-    shell(window, p, id, focus, Frame { width, padding, action_gap }, header, content, actions, escape)
+    shell(
+        window,
+        p,
+        id,
+        focus,
+        Frame { width, padding, action_gap, fits_window: false },
+        header,
+        content,
+        actions,
+        escape,
+    )
 }
 
 /// A Standard dialog whose answers the caller builds, for answers a [`DialogAnswer`] cannot express (an icon, more
-/// than two). `escape` is what Escape does; make each answer with [`dialog_button`].
+/// than two). `escape` is what Escape does; make each answer with [`dialog_button`]. It never grows past the window:
+/// give the part of `content` that may run long `flex_1` and `min_h(0)` and let it scroll.
 #[allow(clippy::too_many_arguments)]
 pub fn dialog_with_actions(
     window: &Window,
@@ -89,13 +100,26 @@ pub fn dialog_with_actions(
     actions: Vec<AnyElement>,
     escape: Option<Cb>,
 ) -> AnyElement {
-    shell(window, p, id, focus, Frame { width: 620., padding: 28., action_gap: 10. }, header, content, actions, escape)
+    shell(
+        window,
+        p,
+        id,
+        focus,
+        Frame { width: 620., padding: 28., action_gap: 10., fits_window: true },
+        header,
+        content,
+        actions,
+        escape,
+    )
 }
 
 struct Frame {
     width: f32,
     padding: f32,
     action_gap: f32,
+    /// Caps the dialog at the window height less 24 pt above and below; the content gives way by scrolling a region
+    /// of its own (`flex_1` with no minimum height).
+    fits_window: bool,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -121,9 +145,10 @@ fn shell(
         .flex()
         .flex_col()
         .gap(px(16.))
-        .child(header)
+        .when(frame.fits_window, |body| body.max_h(window.viewport_size().height - px(48.)))
+        .child(div().flex_none().child(header))
         .children(content)
-        .child(div().w_full().flex().justify_end().gap(px(frame.action_gap)).children(actions));
+        .child(div().w_full().flex_none().flex().justify_end().gap(px(frame.action_gap)).children(actions));
     modal_layer(id, focus)
         .on_key_down(move |event: &KeyDownEvent, window, cx| {
             if event.keystroke.key == "escape"

@@ -1,7 +1,7 @@
 //! The model comparison dialog (`design:settings/compare-models`). The user picks up to five speech models,
 //! local or cloud, records a sentence each round, rates the blind results, and ends on a ranking of their own.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::VecDeque;
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -21,6 +21,7 @@ use super::page::{ModalChanged, ModelsPage};
 use crate::assets::Ic;
 use crate::services::{self, Heard};
 use crate::settings::Ctx;
+use crate::settings::edge_fade::{Edge, edge_fade};
 use crate::state::AppState;
 use crate::ui::{self, BtnKind, DialogAnswer, cbk, text};
 
@@ -29,6 +30,8 @@ const OPEN: &str = "models-compare-open";
 const LEVEL_BARS: usize = 24;
 const LEVEL_EVERY: Duration = Duration::from_millis(50);
 const CHIP_GAP: f32 = 6.;
+const SCROLL: &str = "models-compare-scroll";
+const FADE: f32 = 24.;
 /// How long the list of models that can take part is reused before the Keychain is read again; the header button is
 /// drawn on every frame and only needs to know whether two can.
 const CHOICES_FRESH: Duration = Duration::from_secs(2);
@@ -118,6 +121,9 @@ pub(super) struct Compare {
     shown: Vec<Shown>,
     error: Option<Tr>,
     cached_choices: RefCell<Option<(Instant, Vec<Choice>)>>,
+    scroll: ScrollHandle,
+    /// The stage and round the scroll position belongs to; a new one starts from the top.
+    scrolled_for: Cell<(&'static str, u32)>,
 }
 
 impl Compare {
@@ -132,6 +138,8 @@ impl Compare {
             shown: Vec::new(),
             error: None,
             cached_choices: RefCell::new(None),
+            scroll: ScrollHandle::new(),
+            scrolled_for: Cell::new(("closed", 0)),
         }
     }
 }
@@ -405,6 +413,18 @@ impl ModelsPage {
 }
 
 impl ModelsPage {
+    pub(super) fn compare_stage_name(&self) -> &'static str {
+        match self.compare.stage {
+            Stage::Closed => "closed",
+            Stage::Choose => "choose",
+            Stage::Ready => "ready",
+            Stage::Recording { .. } => "recording",
+            Stage::Recognizing { .. } => "recognizing",
+            Stage::Rate => "rate",
+            Stage::Ranking(_) => "ranking",
+        }
+    }
+
     /// The action in the speech recognition card header, beside the source switch on either source; it needs two models
     /// that can take part.
     pub(super) fn compare_entry(&self, c: &Ctx, cx: &mut Context<Self>) -> AnyElement {
@@ -447,7 +467,10 @@ impl ModelsPage {
                 (
                     c.t(Tr::CompareChooseTitle),
                     format!("{count} / {MAX_CONTENDERS}"),
-                    vec![description(&c, c.t(Tr::CompareChooseDesc)), self.compare_picker(&c, window, cx)],
+                    vec![
+                        description(&c, c.t(Tr::CompareChooseDesc)),
+                        self.compare_scroll(&c, self.compare_picker(&c, window, cx), cx),
+                    ],
                     vec![
                         close_action(Tr::AsrEditorCancel),
                         action("start", BtnKind::Primary, None, answer(Tr::CompareStart, start)),
@@ -457,11 +480,12 @@ impl ModelsPage {
             Stage::Ready | Stage::Recording { .. } | Stage::Recognizing { .. } => {
                 let mut content = vec![description(&c, fmt::compare_desc(lang, &count).into())];
                 content.extend(self.compare.error.map(|error| ui::banner(&p, c.t(error), None).into_any_element()));
-                content.push(if self.compare.shown.is_empty() {
+                let main = if self.compare.shown.is_empty() {
                     self.record_panel(&c, cx)
                 } else {
                     self.compare_results(&c, false, cx)
-                });
+                };
+                content.push(self.compare_scroll(&c, main, cx));
                 (c.t(Tr::CompareTitle), round, content, vec![close_action(Tr::HudClose)])
             }
             Stage::Rate => {
@@ -471,7 +495,10 @@ impl ModelsPage {
                 (
                     c.t(Tr::CompareTitle),
                     round,
-                    vec![description(&c, c.t(Tr::CompareRateDesc)), self.compare_results(&c, true, cx)],
+                    vec![
+                        description(&c, c.t(Tr::CompareRateDesc)),
+                        self.compare_scroll(&c, self.compare_results(&c, true, cx), cx),
+                    ],
                     vec![
                         action("finish", BtnKind::Secondary, None, answer(Tr::CompareFinish, finish)),
                         action("next", BtnKind::Primary, Some(Ic::Mic), answer(Tr::CompareNextRound, Some(next))),
@@ -483,7 +510,10 @@ impl ModelsPage {
                 (
                     c.t(Tr::CompareRankingTitle),
                     fmt::compare_rounds(lang, &self.compare.board.rounds().to_string()),
-                    vec![description(&c, c.t(Tr::CompareRankingDesc)), self.compare_ranking(&c, ranking, cx)],
+                    vec![
+                        description(&c, c.t(Tr::CompareRankingDesc)),
+                        self.compare_scroll(&c, self.compare_ranking(&c, ranking, cx), cx),
+                    ],
                     vec![
                         action("again", BtnKind::Secondary, None, answer(Tr::CompareAgain, Some(again))),
                         action("done", BtnKind::Primary, None, answer(Tr::CompareDone, Some(close.clone()))),
@@ -511,6 +541,47 @@ impl ModelsPage {
                 Some(close),
             )
         }))
+    }
+
+    /// The part of a stage that may run past a short window (`design:settings/compare-models/short-window`): it scrolls
+    /// on its own while the title, description and buttons stay put.
+    fn compare_scroll(&self, c: &Ctx, content: AnyElement, cx: &mut Context<Self>) -> AnyElement {
+        let p = c.p;
+        let scroll = &self.compare.scroll;
+        let now = (self.compare_stage_name(), self.compare.round);
+        if self.compare.scrolled_for.replace(now) != now {
+            scroll.set_offset(point(px(0.), px(0.)));
+        }
+        let offset = -f32::from(scroll.offset().y);
+        let max = f32::from(scroll.max_offset().y);
+        let hover = ElementId::from((ElementId::from(SCROLL), "hover"));
+        let extent = ui::ScrollExtent { viewport: f32::from(scroll.bounds().size.height), max, scrolled: offset };
+        div()
+            .id(hover.clone())
+            .relative()
+            .w_full()
+            .flex_1()
+            .min_h(px(0.))
+            .flex()
+            .flex_col()
+            .on_hover(ui::hover_tracker(hover.clone()))
+            .child(
+                div()
+                    .id(SCROLL)
+                    .w_full()
+                    .min_h(px(0.))
+                    .overflow_y_scroll()
+                    .track_scroll(scroll)
+                    .on_scroll(cx.listener(|_, _: &ScrollEvent, _, cx| cx.notify()))
+                    .child(content),
+            )
+            .when(offset > 1., |d| {
+                d.child(edge_fade(Edge::Top, p.card, FADE, 0.))
+                    .child(div().absolute().top_0().left_0().right_0().h(px(1.)).bg(p.border))
+            })
+            .when(max - offset > 1., |d| d.child(edge_fade(Edge::Bottom, p.card, FADE, 0.)))
+            .child(ui::overlay_thumb((ElementId::from(SCROLL), "thumb"), &p, ui::is_hovered(&hover), extent, 0.))
+            .into_any_element()
     }
 
     fn compare_picker(&self, c: &Ctx, window: &Window, cx: &mut Context<Self>) -> AnyElement {
@@ -869,22 +940,16 @@ impl ModelsPage {
                 let rating = if rating == "good" { Rating::Good } else { Rating::Poor };
                 self.rate_compare_result(index.parse().expect("a result index"), rating, cx);
             }
+            "compare-scroll" => {
+                let fraction: f32 = arg.parse().expect("a scroll fraction");
+                let max = self.compare.scroll.max_offset().y;
+                self.compare.scroll.set_offset(point(px(0.), -max * fraction));
+                cx.notify();
+            }
             "compare-next" => self.next_compare_round(cx),
             "compare-finish" => self.finish_compare(cx),
             "compare-close" => self.close_compare(window, cx),
             other => panic!("unknown comparison probe step {other:?}"),
-        }
-    }
-
-    pub(super) fn compare_stage_name(&self) -> &'static str {
-        match self.compare.stage {
-            Stage::Closed => "closed",
-            Stage::Choose => "choose",
-            Stage::Ready => "ready",
-            Stage::Recording { .. } => "recording",
-            Stage::Recognizing { .. } => "recognizing",
-            Stage::Rate => "rate",
-            Stage::Ranking(_) => "ranking",
         }
     }
 }
