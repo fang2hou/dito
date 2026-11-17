@@ -63,9 +63,9 @@ A new language needs: its `Words` entry in `readme_film.rs` (Korean already exis
 | Master | viewing | HEVC 10-bit, `hvc1`, BT.709 limited, CRF 15 |
 | H.264 | compatibility | 8-bit, CRF 14, `-tune grain` |
 | App | `assets/intro/` | HEVC 8-bit, yuv420p, full range, BT.601 matrix (`smpte170m`), CRF 16, made from raw frames |
-| GitHub | README upload | H.264 two-pass at about 9.3 MB total, same resolution and frame rate, SSIM about 0.9975 |
+| GitHub | README upload | H.264 High, level 4.2, 1560 by 1080 at 60 fps, `avc1`, BT.709 limited and tagged, `faststart`, closed GOP with a keyframe every 2 s, AAC 96 kbps, two-pass from the HEVC master at about 9.3 MB total (SSIM about 0.997) |
 
-The app encode must be BT.601 full range because gpui's surface shader decodes two-plane 8-bit YCbCr with the 601 matrix and does no colour management; the decoded frame then matches the pages drawn by the same renderer (PSNR 51 dB against the real welcome capture before the alignment fix). GitHub inlines a video only from a `user-attachments` URL on its own line; the owner uploads (about 10 MB limit on a free account), then the URL goes into `README.md`, `README.ja.md`, `README.zh-CN.md` and `README.ko.md` under the intro paragraph, one per language film (Traditional Chinese has no README of its own).
+The app encode must be BT.601 full range because gpui's surface shader decodes two-plane 8-bit YCbCr with the 601 matrix and does no colour management; the decoded frame then matches the pages drawn by the same renderer (PSNR 51 dB against the real welcome capture before the alignment fix). The first GitHub upload kept the master's 2080 by 1440 size, which stalled partway in browsers and played badly on phones (probably the size and level, not confirmed); use the hardware-friendly 1560 by 1080 encode from the table. Always encode from the HEVC master, never from the app encode (full range, BT.601, already lossy), and check that every file stays under 10 MB. GitHub inlines a video only from a `user-attachments` URL on its own line; the owner uploads (about 10 MB limit on a free account), then the URL goes into `README.md`, `README.ja.md`, `README.zh-CN.md` and `README.ko.md` under the intro paragraph, one per language film (Traditional Chinese has no README of its own).
 
 ## App integration
 
