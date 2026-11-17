@@ -74,7 +74,10 @@ impl Table {
         };
         let total = Line {
             cpu: before.and_then(|b| percent(now.process.cpu.saturating_sub(b.process.cpu), b)),
-            memory_bytes: now.process.memory_bytes,
+            memory_bytes: now
+                .process
+                .memory_bytes
+                .saturating_add(now.models.iter().map(|m| m.usage.mapped_bytes).sum()),
         };
         let models: Vec<_> = now
             .models
