@@ -74,7 +74,7 @@ The sidebar groups pages under 設定 (Settings) and 利用状況 (Activity). It
 ## Models
 
 - Local speech recognition: Qwen3-ASR 1.7B (default, most accurate) and 0.6B, both with hotwords; SenseVoice Small (fastest). Optional downloads to compare: Confucius4-R2T2, Fun-ASR-MLT-Nano-2512, whisper-large-v3 and whisper-large-v3-turbo (all with hotwords), and Haas-ja v1.0.
-- Local polishing: Qwen3.5 Instruct 2B, 4B and 9B.
+- Local text processing: Qwen3.5 Instruct 2B, 4B, 9B (default), and Qwen3.8 27B.
 - Each local model lists from small to large and carries labels for its parameter count, quantization, language (speech models) and download size. Hovering a label explains it in everyday words (`design:settings/local-models/labels`).
 - Nothing downloads until the user asks; downloads resume and are verified. Models in use start at launch.
 
@@ -91,6 +91,8 @@ A waveform icon showing the engine status and today's character count, with shor
 ## Onboarding
 
 Shown on first launch and restartable from General, in seven steps: welcome, permissions (Microphone and Accessibility, plus System Audio Recording for transcription, which never blocks continuing), how to use (with a looping demo), recording shortcut, engine choice (local or provider), preparing the models or the connection, and trying a dictation. Steps slide forward and back; with Reduce Motion they cross-fade.
+
+Local setup offers three model pairs (`design:onboarding`): Ultra fast uses SenseVoice Small and Qwen3.5-2B-Instruct; Balanced uses Qwen3-ASR-1.7B and Qwen3.5-9B-Instruct; High quality uses Qwen3-ASR-1.7B and Qwen3.8-27B. A new installation selects Balanced. Nothing downloads until requested. Once both models are downloaded, Continue starts the selected pair before the dictation trial. Existing saved model choices stay unchanged.
 
 ## Behavior Details
 

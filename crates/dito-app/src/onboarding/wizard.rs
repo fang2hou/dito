@@ -200,7 +200,19 @@ impl Onboarding {
                 });
             }
             Step::Prepare => {
-                if !self.local {
+                if self.local {
+                    if self.prepare_phase() != PreparePhase::Ready {
+                        return;
+                    }
+                    let (local, ids) = (self.st.local.clone(), self.local_ids());
+                    self.st.rt.spawn(async move {
+                        // Selection notifications can arrive before the files exist. Warm again after download,
+                        // reusing any model that is already loaded.
+                        for id in ids {
+                            local.warm(&id).await;
+                        }
+                    });
+                } else {
                     self.apply_cloud_asr(cx);
                 }
             }

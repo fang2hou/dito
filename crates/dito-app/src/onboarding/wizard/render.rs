@@ -81,6 +81,7 @@ impl Onboarding {
         self.step = current;
         let left = div()
             .flex_1()
+            .min_w_0()
             .h_full()
             .px(px(56.))
             .pt(px(60.))
@@ -89,12 +90,15 @@ impl Onboarding {
             .flex_col()
             .gap(px(28.))
             .child(components::stepper(step, &p, c.lang))
-            .child(div().flex().flex_col().gap(px(10.)).child(text(title, 28., FontWeight::BOLD, p.text)).child(text(
-                desc,
-                13.,
-                FontWeight::NORMAL,
-                p.muted,
-            )))
+            .child(
+                div()
+                    .w_full()
+                    .flex()
+                    .flex_col()
+                    .gap(px(10.))
+                    .child(text(title, 28., FontWeight::BOLD, p.text))
+                    .child(text(desc, 13., FontWeight::NORMAL, p.muted)),
+            )
             .child(div().flex_1().w_full().child(body))
             .child(footer);
         let art = match art_dx {
