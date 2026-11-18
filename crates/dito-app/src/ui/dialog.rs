@@ -58,7 +58,7 @@ pub fn confirm_dialog_with_header(
 ) -> AnyElement {
     let (width, padding, action_gap, confirm_kind) = match style {
         ConfirmStyle::Standard => (620., 28., 10., BtnKind::Primary),
-        ConfirmStyle::CompactDestructive => (524., 24., 12., BtnKind::Destructive),
+        ConfirmStyle::CompactDestructive => (524., 24., 12., BtnKind::Danger),
     };
     let escape = cancel.on_click.clone();
     let actions = std::iter::once(dialog_button(

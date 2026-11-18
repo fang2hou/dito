@@ -162,7 +162,12 @@ fn send_or_stop(page: &ChatPage, c: &Ctx, cx: &mut Context<ChatPage>) -> impl In
             Ic::Stop,
             CircleSize::Small,
             14.,
-            CircleAppearance { background: Some(p.danger), foreground: ui::white(), border: None, hover: None },
+            CircleAppearance {
+                background: Some(p.button_danger_bg),
+                foreground: p.button_danger_text,
+                border: Some(p.button_danger_border),
+                hover: Some(p.button_danger_hover),
+            },
         )
         .cursor_pointer()
         .role(Role::Button)

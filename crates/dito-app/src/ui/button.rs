@@ -18,7 +18,6 @@ pub enum BtnKind {
     Primary,
     Secondary,
     Danger,
-    Destructive,
     Subtle,
 }
 
@@ -46,7 +45,6 @@ impl BtnColors {
             BtnKind::Danger => {
                 (p.button_danger_bg, p.button_danger_text, Some(p.button_danger_border), p.button_danger_hover)
             }
-            BtnKind::Destructive => (p.danger, super::primitives::white(), None, p.button_primary_hover),
             BtnKind::Subtle => (p.sub, p.text, Some(p.field_border), p.seg),
         };
         Self { bg, fg, border, tint }

@@ -46,6 +46,18 @@ pub(super) fn press_toggle(
 }
 
 pub fn menu_button(id: impl Into<ElementId>, p: &Palette, ic: Ic, open: bool, toggle: Cb) -> Stateful<Div> {
+    menu_button_on(id, p, p.input_bg, ic, open, toggle)
+}
+
+/// [`menu_button`] resting on `surface`, for a row whose neighboring circle actions use another surface.
+pub fn menu_button_on(
+    id: impl Into<ElementId>,
+    p: &Palette,
+    surface: Hsla,
+    ic: Ic,
+    open: bool,
+    toggle: Cb,
+) -> Stateful<Div> {
     let id: ElementId = id.into();
     let scope = motion_scope();
     circle_control(
@@ -53,7 +65,7 @@ pub fn menu_button(id: impl Into<ElementId>, p: &Palette, ic: Ic, open: bool, to
         ic,
         CircleSize::Regular,
         CircleAppearance {
-            background: Some(if open { p.seg } else { p.input_bg }),
+            background: Some(if open { p.seg } else { surface }),
             foreground: p.text,
             border: Some(p.border_strong),
             hover: Some(p.seg),
