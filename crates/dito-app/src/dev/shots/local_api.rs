@@ -33,6 +33,8 @@ pub async fn local_api_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) 
             ("api", LocalApiPose::Api),
             ("settings", LocalApiPose::Settings),
             ("reference-chat", LocalApiPose::Reference(1)),
+            ("hover-first", LocalApiPose::Hover(0)),
+            ("hover-last", LocalApiPose::Hover(2)),
             ("mcp", LocalApiPose::Mcp),
             ("reference-generate", LocalApiPose::Reference(3)),
         ] {

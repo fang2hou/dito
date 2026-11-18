@@ -268,13 +268,22 @@ pub(crate) enum LocalApiPose {
     Settings,
     /// The reference of the nth item, the API items first.
     Reference(usize),
+    /// The API tab with the pointer over the nth API item.
+    Hover(usize),
 }
 
 #[cfg(feature = "screenshots")]
 impl LocalApiPage {
     pub(crate) fn pose(&mut self, pose: LocalApiPose, window: &mut Window, cx: &mut Context<Self>) {
         self.dialog = None;
+        for item in Item::API.into_iter().chain(Item::MCP) {
+            ui::force_hover(&self.motion.handle(), view::item_row_id(item), false);
+        }
         match pose {
+            LocalApiPose::Hover(n) => {
+                self.tab = Tab::Api;
+                ui::force_hover(&self.motion.handle(), view::item_row_id(Item::API[n]), true);
+            }
             LocalApiPose::Api => self.tab = Tab::Api,
             LocalApiPose::Mcp => self.tab = Tab::Mcp,
             LocalApiPose::Settings => self.open_dialog(Dialog::Settings, window, cx),
