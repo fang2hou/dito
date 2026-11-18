@@ -135,6 +135,22 @@ pub fn hover_fill_if(id: &ElementId, radius: Option<f32>, color: Hsla, enabled: 
     })
 }
 
+/// A full-row fill for a row that touches its card's rounded edge: `top` and `bottom` are the corner radii of the
+/// row's own top and bottom edges, because GPUI clips children to a rectangle and would square the card's corners.
+pub fn hover_fill_edges(id: &ElementId, top: f32, bottom: f32, color: Hsla) -> AnyElement {
+    let target = if is_hovered(id) { 1. } else { 0. };
+    tweened(ElementId::from((id.clone(), "hover-fill")), target, HOVER_MS, move |v| {
+        div()
+            .absolute()
+            .inset_0()
+            .rounded_tl(px(top))
+            .rounded_tr(px(top))
+            .rounded_bl(px(bottom))
+            .rounded_br(px(bottom))
+            .bg(Hsla { a: color.a * v, ..color })
+    })
+}
+
 pub fn choice_label(id: &ElementId, p: &Palette, label: SharedString, size: f32, on: bool) -> AnyElement {
     let level = if on {
         1.

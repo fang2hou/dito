@@ -21,6 +21,8 @@ const PAGE_PAD_BOTTOM: f32 = 40.;
 const PAGE_GAP: f32 = 16.;
 const ROW_PAD_X: f32 = 20.;
 const ROW_GAP: f32 = 12.;
+/// The card's radius of 16 less its 1 pt border.
+const CARD_INNER_RADIUS: f32 = 15.;
 const LABEL_W: f32 = 132.;
 const KIND_SLOT_W: f32 = 64.;
 const PATH_W: f32 = 250.;
@@ -235,13 +237,14 @@ impl LocalApiPage {
             .child(text(c.t(title), 15., FontWeight::BOLD, p.text))
             .child(copy);
         let last = items.len() - 1;
-        let rows: Vec<_> = items.iter().enumerate().map(|(i, item)| self.item_row(c, cx, *item, i == last)).collect();
+        let rows: Vec<_> =
+            items.iter().enumerate().map(|(i, item)| self.item_row(c, cx, *item, i == 0, i == last)).collect();
         div().w_full().flex().flex_col().gap(px(PAGE_GAP)).child(head).child(card(&p).children(rows))
     }
 
-    fn item_row(&self, c: &Ctx, cx: &mut Context<Self>, item: Item, last: bool) -> Stateful<Div> {
+    fn item_row(&self, c: &Ctx, cx: &mut Context<Self>, item: Item, first: bool, last: bool) -> Stateful<Div> {
         let p = c.p;
-        let id = ElementId::from((ElementId::from("local-api-item"), item.path()));
+        let id = item_row_id(item);
         let label = item.kind_label().map_or_else(
             || SharedString::from(if item.kind() == ui::MethodKind::Get { "GET" } else { "POST" }),
             |tr| c.t(tr),
@@ -260,7 +263,12 @@ impl LocalApiPage {
             .on_click(ui::click_cb(cbk(cx, move |page: &mut Self, window, cx| {
                 page.open_dialog(Dialog::Reference(item), window, cx)
             })))
-            .child(ui::hover_fill(&id, Some(0.), p.seg))
+            .child(ui::hover_fill_edges(
+                &id,
+                if first { CARD_INNER_RADIUS } else { 0. },
+                if last { CARD_INNER_RADIUS } else { 0. },
+                p.seg,
+            ))
             .child(div().w(px(KIND_SLOT_W)).flex_none().flex().child(ui::method_label(
                 &p,
                 item.kind(),
@@ -280,6 +288,10 @@ impl LocalApiPage {
         }
         row
     }
+}
+
+pub(super) fn item_row_id(item: Item) -> ElementId {
+    ElementId::from((ElementId::from("local-api-item"), item.path()))
 }
 
 /// The page while the service is off: one title and one line on how to turn it on.

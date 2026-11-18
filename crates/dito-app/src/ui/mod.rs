@@ -66,8 +66,8 @@ pub use history_tip::history_tip;
 #[cfg(feature = "screenshots")]
 pub use hover::force_hover;
 pub use hover::{
-    HOVER_MS, choice_label, hover_fill, hover_fill_if, hover_pop, hover_pop_scaled, hover_tracker, is_hovered,
-    is_hovered_in, reset_hover, reset_hover_in,
+    HOVER_MS, choice_label, hover_fill, hover_fill_edges, hover_fill_if, hover_pop, hover_pop_scaled, hover_tracker,
+    is_hovered, is_hovered_in, reset_hover, reset_hover_in,
 };
 pub use inputs::{
     TextAreaStyle, blur_on_outside, field, focus_on_click, form_field, new_input, notify_on_focus, ring_overlay,
