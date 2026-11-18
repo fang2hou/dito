@@ -89,6 +89,9 @@ impl StatusPage {
         let view = div()
             .id("log-view")
             .track_scroll(scroll)
+            // GPUI hands a wheel event to every scroll container under the pointer, so without this the page scrolls
+            // along with the log, and takes over once the log reaches its first or last line.
+            .on_scroll(|_, _, cx| cx.stop_propagation())
             .w_full()
             .h(px(VIEW_H))
             .px(px(24.))
