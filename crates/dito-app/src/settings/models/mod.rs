@@ -1,4 +1,5 @@
 mod action;
+mod chat_card;
 mod cloud_text_form;
 mod cloud_text_tiles;
 mod compare;

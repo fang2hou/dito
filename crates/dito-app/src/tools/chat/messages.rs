@@ -187,9 +187,16 @@ fn reply(
             ui::text(row.model.clone().unwrap_or_default(), 13., FontWeight::MEDIUM, p.text).line_height(px(18.)),
         );
     if live {
-        let elapsed = page.generation.as_ref().map_or(0., |g| g.started.elapsed().as_secs_f32() * 1000.);
+        let generation = page.generation.as_ref();
+        let elapsed = generation.map_or(0., |g| g.started.elapsed().as_secs_f32() * 1000.);
         let waiting = doc.is_none_or(|d| d.blocks().next().is_none());
-        let (label, fade) = status_phrase(waiting, elapsed);
+        let (label, fade) = match generation.map(|g| g.ready()) {
+            Some(None) => (Tr::ChatLoadingModel, 1.),
+            ready => {
+                let since_ready = ready.flatten().map_or(elapsed, |at| at.elapsed().as_secs_f32() * 1000.);
+                status_phrase(waiting, since_ready)
+            }
+        };
         head = head.child(generating_label(&c.t(label), &p, elapsed).opacity(fade));
     } else if matches!(row.state, MessageState::Stopped | MessageState::Failed) {
         let (label, dot) = if row.state == MessageState::Stopped {

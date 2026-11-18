@@ -4,6 +4,10 @@
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Instant;
 
+use dito_core::config::{EngineConfig, Source};
+use dito_core::factory::LocalBackend;
+use dito_core::health::EngineStatus;
+
 use dito_core::provider::{ChatCancel, ChatRequest};
 use dito_core::store::MessageState;
 use tokio::sync::Notify;
@@ -26,6 +30,8 @@ pub(super) struct Generation {
     pub chat_id: i64,
     pub message_id: i64,
     pub started: Instant,
+    /// When the model was ready to answer; `None` while it still loads.
+    ready: Arc<Mutex<Option<Instant>>>,
     buffer: Arc<Mutex<String>>,
     seen: usize,
     cancel: ChatCancel,
@@ -39,9 +45,21 @@ impl Generation {
         let cancel = ChatCancel::default();
         let stop = Arc::new(Notify::new());
         let done = Arc::new(Mutex::new(None));
-        let task = Job { st: st.clone(), message_id, request, buffer: buffer.clone(), cancel: cancel.clone() };
+        let engine = st.cfg.get().chat_engine().into_owned();
+        let loads = engine.source == Source::Local && st.local.status(&engine.local_model) != EngineStatus::Running;
+        let ready = Arc::new(Mutex::new((!loads).then(Instant::now)));
+        let task = Job {
+            st: st.clone(),
+            engine,
+            message_id,
+            request,
+            buffer: buffer.clone(),
+            cancel: cancel.clone(),
+            ready: ready.clone(),
+        };
         let (stop_wait, done_slot) = (stop.clone(), done.clone());
         st.rt.spawn(async move {
+            let _busy = crate::services::chat_reply_started(&task.st);
             let finished = task.run(&stop_wait).await;
             let stored = task.st.store.finish_chat_message(
                 message_id,
@@ -54,7 +72,7 @@ impl Generation {
             }
             *lock(&done_slot) = Some(finished);
         });
-        Self { chat_id, message_id, started: Instant::now(), buffer, seen: 0, cancel, stop, done }
+        Self { chat_id, message_id, started: Instant::now(), ready, buffer, seen: 0, cancel, stop, done }
     }
 
     /// A reply that is being written and never ends, with `written` already on screen and the sweep `ms` into its loop.
@@ -64,6 +82,7 @@ impl Generation {
             chat_id,
             message_id,
             started: Instant::now() - std::time::Duration::from_millis(ms),
+            ready: Arc::new(Mutex::new(Some(Instant::now() - std::time::Duration::from_millis(ms)))),
             buffer: Arc::new(Mutex::new(written.to_owned())),
             seen: written.len(),
             cancel: ChatCancel::default(),
@@ -87,6 +106,10 @@ impl Generation {
         })
     }
 
+    pub fn ready(&self) -> Option<Instant> {
+        *lock(&self.ready)
+    }
+
     pub fn finished(&self) -> Option<Finished> {
         lock(&self.done).clone()
     }
@@ -100,19 +123,19 @@ impl Drop for Generation {
 
 struct Job {
     st: Arc<AppState>,
+    engine: EngineConfig,
     message_id: i64,
     request: ChatRequest,
     buffer: Arc<Mutex<String>>,
     cancel: ChatCancel,
+    ready: Arc<Mutex<Option<Instant>>>,
 }
 
 impl Job {
     async fn run(&self, stop: &Notify) -> Finished {
         let written = || lock(&self.buffer).clone();
-        let model = {
-            let cfg = self.st.cfg.get();
-            self.st.factory.text_model_for(&cfg.text_model).await
-        };
+        let model = self.st.factory.text_model_for(&self.engine).await;
+        lock(&self.ready).get_or_insert_with(Instant::now);
         let model = match model {
             Ok(model) => model,
             Err(e) => return failed(written(), &e.to_string()),

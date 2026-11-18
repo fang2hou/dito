@@ -115,6 +115,9 @@ async fn render_app_shots(st: &Arc<AppState>, dir: &Path, groups: &Groups, cx: &
     if groups.selects("models") {
         pages::model_shots(st, dir, cx).await;
     }
+    if groups.selects("chatmodel") {
+        pages::chat_model_shots(st, dir, cx).await;
+    }
     if groups.selects("compare") {
         super::compare::compare_shots(st, dir, cx).await;
     }

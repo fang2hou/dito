@@ -1,4 +1,4 @@
-//! The chat tool: conversations with the text model in use (`design:tools/chat`). The page owns its conversation, the
+//! The chat tool: conversations with the chat model in use (`design:tools/chat`). The page owns its conversation, the
 //! reply being written and every transient control; the store keeps conversations (ADR-0013, ADR-0015).
 
 mod composer;
@@ -92,7 +92,7 @@ struct TextMenu {
     text: String,
 }
 
-/// What the chat needs to know about the text model in use.
+/// What the chat needs to know about the chat model in use.
 struct ModelFacts {
     /// Names the model in `chat.thinking` of the configuration.
     key: String,
@@ -167,6 +167,13 @@ impl ChatPage {
     pub(crate) fn set_active(&mut self, active: bool, cx: &mut Context<Self>) {
         let was = self.active;
         self.active = active;
+        if active != was {
+            if active {
+                crate::services::chat_opened(&self.st);
+            } else {
+                crate::services::chat_left(&self.st);
+            }
+        }
         if active {
             if !was {
                 self.reload_sessions();
@@ -219,7 +226,7 @@ impl ChatPage {
 
     fn model_facts(&self) -> ModelFacts {
         let cfg = self.st.cfg.get();
-        let engine = &cfg.text_model;
+        let engine = cfg.chat_engine();
         match engine.source {
             Source::Local => {
                 let capabilities = self.st.models.spec(&engine.local_model).and_then(|spec| spec.text_capabilities);
@@ -275,7 +282,7 @@ impl ChatPage {
 
     fn model_label(&self) -> String {
         let cfg = self.st.cfg.get();
-        let engine = &cfg.text_model;
+        let engine = cfg.chat_engine();
         match engine.source {
             Source::Local => {
                 self.st.models.spec(&engine.local_model).map_or_else(|| engine.local_model.clone(), |s| s.name.clone())
@@ -832,12 +839,12 @@ impl ChatPage {
         bar
     }
 
-    /// The model in use and where it runs: it opens Settings at the model page, and there is no dropdown.
+    /// The chat model and where it runs: it opens Settings at its card, and there is no dropdown.
     fn model_button(&self, c: &Ctx, cx: &mut Context<Self>) -> impl IntoElement {
         let p = c.p;
         let id = ElementId::from("chat-model-button");
         let cfg = self.st.cfg.get();
-        let local = cfg.text_model.source == Source::Local;
+        let local = cfg.chat_engine().source == Source::Local;
         let source = c.t(if local { Tr::ModelsLocal } else { Tr::ModelsProvider });
         div()
             .id(id.clone())

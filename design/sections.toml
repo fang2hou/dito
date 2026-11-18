@@ -142,6 +142,11 @@ layer = "Find words with another AI"
 board = "20.04"
 layer = "Local Models"
 
+[settings.local-models.chat-model]
+board = "20.04"
+item = "20.04.8"
+layer = "Chat model"
+
 [settings.local-models.labels]
 board = "20.04"
 item = "20.04.6"
@@ -218,6 +223,11 @@ layer = "Compact rail"
 [tools.chat]
 board = "23.05"
 layer = "Chat"
+
+[tools.chat.model-loading]
+board = "23.05"
+item = "23.05.8"
+layer = ""
 
 [tools.local-api]
 board = "23.06"

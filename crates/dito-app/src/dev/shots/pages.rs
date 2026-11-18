@@ -2,7 +2,7 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use dito_core::config::{Appearance, DisplayLanguage, HudPosition, Source};
+use dito_core::config::{Appearance, ChatLoading, DisplayLanguage, HudPosition, Source};
 use dito_core::controller::{Command, HudState};
 use dito_core::factory::LocalBackend;
 use dito_core::provider::configured_asr::CloudAsrConfigurations;
@@ -544,6 +544,42 @@ pub async fn model_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
             }
         }
     }
+    services::save_config(st, |c| *c = (*original).clone());
+}
+
+/// Opt-in: `DITO_SHOTS_ONLY=chatmodel`. The chat model card (`design:settings/local-models/chat-model`) in its three
+/// states, in a window tall enough to show it under the text model card.
+pub async fn chat_model_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
+    let original = st.cfg.get();
+    for appearance in [Appearance::Light, Appearance::Dark] {
+        let tag = theme_tag(appearance);
+        for (name, same, source, loading) in [
+            ("same", true, Source::Local, ChatLoading::Always),
+            ("local", false, Source::Local, ChatLoading::WhileOpen),
+            ("cloud", false, Source::Provider, ChatLoading::Always),
+        ] {
+            services::save_config(st, |c| {
+                c.general.display_language = DisplayLanguage::Ja;
+                c.general.appearance = appearance;
+                c.text_model.source = Source::Local;
+                c.chat.same_as_text = same;
+                c.chat.source = source;
+                c.chat.local_model = "qwen3.5-4b-instruct".into();
+                c.chat.cloud_text = "compat".into();
+                c.chat.loading = loading;
+            });
+            open_page(st, Page::Models, cx);
+            cx.update(|cx| {
+                let (w, view) = settings::handle(cx).expect("settings window");
+                let _ = w.update(cx, |_, window, cx| {
+                    view.update(cx, |s, cx| s.preview_models(Role::Text, None, window, cx))
+                });
+                resize_settings_window(cx, 1120., 1500.);
+            });
+            page_shot(cx, dir, &format!("chat-model-{name}-{tag}.png")).await;
+        }
+    }
+    cx.update(|cx| resize_settings_window(cx, 1120., 860.));
     services::save_config(st, |c| *c = (*original).clone());
 }
 
