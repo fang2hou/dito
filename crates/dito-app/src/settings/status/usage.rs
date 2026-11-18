@@ -7,7 +7,6 @@ use dito_core::config::Source;
 use dito_core::factory::LocalBackend;
 use dito_core::health::EngineStatus;
 use dito_core::i18n::Tr;
-use dito_core::secrets::Role;
 use dito_local::{EngineUsage, ProcessUsage, process_usage};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
@@ -19,7 +18,8 @@ use crate::ui::{self, text};
 pub(super) const SAMPLE_EVERY: Duration = Duration::from_secs(2);
 
 struct ModelReading {
-    role: Role,
+    /// Which model it is, under its name.
+    detail: Tr,
     id: String,
     name: String,
     usage: EngineUsage,
@@ -32,18 +32,24 @@ struct Reading {
 }
 
 impl Reading {
-    /// A cloud model runs elsewhere and a stopped one holds nothing, so neither has a row.
+    /// A cloud model runs elsewhere and a stopped one holds nothing, so neither has a row. A chat model of its own
+    /// (`design:settings/status/chat-model`) has one while it is loaded.
     fn take(st: &AppState) -> Self {
         let cfg = st.cfg.get();
-        let roles = [(Role::Asr, &cfg.asr, true), (Role::Text, &cfg.text_model, cfg.polish.enabled)];
+        let roles = [
+            (Tr::StatusUsageAsrModel, &cfg.asr, true),
+            (Tr::StatusUsageTextModel, &cfg.text_model, cfg.polish.enabled),
+        ];
+        let chat = cfg.separate_chat_model().map(|id| (Tr::StatusUsageChatModel, id.to_owned()));
         let models = roles
             .into_iter()
             .filter(|(_, engine, enabled)| *enabled && engine.source == Source::Local)
-            .filter(|(_, engine, _)| st.local.status(&engine.local_model) == EngineStatus::Running)
-            .map(|(role, engine, _)| {
-                let id = engine.local_model.clone();
+            .map(|(detail, engine, _)| (detail, engine.local_model.clone()))
+            .chain(chat)
+            .filter(|(_, id)| st.local.status(id) == EngineStatus::Running)
+            .map(|(detail, id)| {
                 let name = st.models.spec(&id).map_or_else(|| id.clone(), |spec| spec.name.clone());
-                ModelReading { role, usage: st.local.usage(&id), id, name }
+                ModelReading { detail, usage: st.local.usage(&id), id, name }
             })
             .collect();
         let mut process = process_usage();
@@ -62,7 +68,7 @@ struct Line {
 
 struct Table {
     app: Line,
-    models: Vec<(Role, String, Line)>,
+    models: Vec<(Tr, String, Line)>,
     total: Line,
 }
 
@@ -87,7 +93,7 @@ impl Table {
                     let earlier = b.models.iter().find(|m| m.id == model.id)?;
                     percent(model.usage.cpu.saturating_sub(earlier.usage.cpu), b)
                 });
-                (model.role, model.name.clone(), Line { cpu, memory_bytes: model.usage.memory_bytes })
+                (model.detail, model.name.clone(), Line { cpu, memory_bytes: model.usage.memory_bytes })
             })
             .collect();
         let model_cpu: f32 = models.iter().filter_map(|(_, _, line)| line.cpu).sum();
@@ -144,12 +150,8 @@ impl UsageMeter {
             Some(c.t(Tr::StatusUsageApp)),
             &table.app,
         ));
-        for (role, name, line) in &table.models {
-            let detail = match role {
-                Role::Asr => Tr::StatusUsageAsrModel,
-                Role::Text => Tr::StatusUsageTextModel,
-            };
-            card = card.child(divider()).child(row(name.clone().into(), Some(c.t(detail)), line));
+        for (detail, name, line) in &table.models {
+            card = card.child(divider()).child(row(name.clone().into(), Some(c.t(*detail)), line));
         }
         Some(card.child(divider()).child(row(c.t(Tr::StatusUsageTotal), None, &table.total)))
     }

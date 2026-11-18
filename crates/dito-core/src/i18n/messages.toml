@@ -439,6 +439,7 @@ status.usage_title = { ja = "この Mac での使用量", en = "Usage on this Ma
 status.usage_app = { ja = "アプリ本体", en = "The app itself", zh = "应用本身", zh_hant = "App 本身", ko = "앱 자체", mn = "Апп өөрөө", fr = "L'app elle-même" }
 status.usage_asr_model = { ja = "音声認識モデル（ローカル）", en = "Speech recognition model (local)", zh = "语音识别模型（本地）", zh_hant = "語音辨識模型（本機）", ko = "음성 인식 모델(로컬)", mn = "Яриа таних загвар(локал)", fr = "Modèle de reconnaissance vocale (local)" }
 status.usage_text_model = { ja = "テキストモデル（ローカル）", en = "Text model (local)", zh = "文本模型（本地）", zh_hant = "文字模型（本機）", ko = "텍스트 모델(로컬)", mn = "Текст загвар(локал)", fr = "Modèle de texte (local)" }
+status.usage_chat_model = { ja = "チャットモデル（ローカル）", en = "Chat model (local)", zh = "聊天模型（本地）", zh_hant = "聊天模型（本機）", ko = "채팅 모델(로컬)", mn = "Чатын загвар(локал)", fr = "Modèle de chat (local)" }
 status.usage_total = { ja = "合計", en = "Total", zh = "合计", zh_hant = "總計", ko = "합계", mn = "Нийт", fr = "Total" }
 status.log_title = { ja = "ログ", en = "Log", zh = "日志", zh_hant = "日誌", ko = "로그", mn = "Лог", fr = "Journal" }
 status.log_detail = { ja = "詳しく記録する", en = "Detailed log", zh = "详细记录", zh_hant = "詳細日誌", ko = "상세 로그", mn = "Нарийвчилсан лог", fr = "Journal détaillé" }

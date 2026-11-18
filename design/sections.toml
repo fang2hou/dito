@@ -170,6 +170,11 @@ layer = "Short window"
 board = "20.08"
 layer = "Status"
 
+[settings.status.chat-model]
+board = "20.08"
+item = "20.08.5"
+layer = "Usage with a chat model"
+
 [settings.startup-failure]
 board = "20.10"
 layer = "Startup Failure"
