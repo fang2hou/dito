@@ -30,7 +30,7 @@ fn device_name(d: &Device) -> Option<String> {
 pub struct InputDevice {
     pub name: String,
     /// `false` for Bluetooth, iPhone (Continuity) and other non-wired devices: opening them has side effects, so
-    /// unless the user opts in they are only used when selected (or made the default input by the system).
+    /// unless the user opts in they are only used when selected, even while the system makes them the default input.
     pub auto_default: bool,
 }
 
@@ -70,23 +70,43 @@ pub(crate) fn device_error(error: impl std::fmt::Display) -> RecorderError {
     RecorderError::Device(error.to_string())
 }
 
-pub(crate) fn find_device(name: &str) -> Result<(Device, String), RecorderError> {
+pub(crate) fn find_device(name: &str) -> Result<Device, RecorderError> {
     let host = cpal::default_host();
-    if name.trim().is_empty() {
-        let d = host.default_input_device().ok_or(RecorderError::NoInputDevice)?;
-        let n = device_name(&d).unwrap_or_default();
-        return Ok((d, n));
-    }
     let mut it = host.input_devices().map_err(device_error)?;
-    let found = it.find(|d| device_name(d).as_deref() == Some(name));
-    match found {
-        Some(d) => Ok((d, name.to_string())),
-        None => {
-            let d = host.default_input_device().ok_or(RecorderError::NoInputDevice)?;
-            let n = device_name(&d).unwrap_or_default();
-            Ok((d, n))
-        }
+    it.find(|d| device_name(d).as_deref() == Some(name)).ok_or(RecorderError::NoInputDevice)
+}
+
+fn default_input_name() -> Option<String> {
+    cpal::default_host().default_input_device().and_then(|d| device_name(&d))
+}
+
+/// The device a recording opens. `configured` (empty means automatic) wins while it is connected; otherwise the
+/// system default is used only when automatic picking allows it, then a built-in microphone, then any other allowed
+/// device. Nothing is returned rather than open a device the user kept out of automatic picking.
+fn pick_input(
+    configured: &str,
+    default: Option<&str>,
+    devices: &[InputDevice],
+    overrides: &AutoOverrides,
+) -> Option<String> {
+    if !configured.trim().is_empty() && devices.iter().any(|d| d.name == configured) {
+        return Some(configured.to_string());
     }
+    let allowed: Vec<&InputDevice> = devices.iter().filter(|d| d.auto(overrides)).collect();
+    allowed
+        .iter()
+        .find(|d| Some(d.name.as_str()) == default)
+        .or_else(|| allowed.iter().find(|d| is_builtin_name(&d.name)))
+        .or_else(|| allowed.first())
+        .map(|d| d.name.clone())
+}
+
+pub(crate) fn resolve_input(configured: &str, overrides: &AutoOverrides) -> Result<String, RecorderError> {
+    let devices = list_input_devices();
+    if devices.is_empty() {
+        return Err(RecorderError::NoInputDevice);
+    }
+    pick_input(configured, default_input_name().as_deref(), &devices, overrides).ok_or(RecorderError::NoAutoInputDevice)
 }
 
 fn pick_switch(current: f32, probes: &[(String, f32)]) -> Option<&str> {
@@ -103,7 +123,7 @@ fn probe_one(name: String, window: Duration) -> (String, f32) {
     let peak = Arc::new(Mutex::new(0f32));
     let p2 = peak.clone();
     let build = || -> Result<cpal::Stream, RecorderError> {
-        let (device, _) = find_device(&name)?;
+        let device = find_device(&name)?;
         let stream = open_mono_stream(&device, move |mono| {
             if mono.is_empty() {
                 return;
@@ -210,14 +230,14 @@ struct Inner {
 
 impl Inner {
     fn set_notice_if_notable(&self, effective: &str) {
-        let default_name = cpal::default_host().default_input_device().and_then(|d| device_name(&d));
+        let default_name = default_input_name();
         let notable = !is_builtin_name(effective) && default_name.as_deref() != Some(effective);
         if notable {
             *self.notice.lock().expect("audio state lock") = Some((effective.to_string(), Instant::now()));
         }
     }
 
-    /// `selector` empty means the system default. Blocks until the stream is live.
+    /// `selector` names a connected device. Blocks until the stream is live.
     fn spawn_stream(&self, selector: &str, samples: Arc<Mutex<Vec<f32>>>) -> Result<(Running, String), RecorderError> {
         self.level.store(0, Ordering::Relaxed);
         let (stop_tx, stop_rx) = mpsc::channel();
@@ -255,12 +275,16 @@ impl Inner {
             }
             s.clone()
         };
-        let explicit = (!auto).then(|| configured.clone());
-        let inferred = auto && sticky.is_some();
-        let selector = sticky.clone().or(explicit).unwrap_or_default();
+        let selector = match sticky.clone().filter(|_| auto) {
+            Some(s) => s,
+            None => {
+                let overrides = self.auto_overrides.lock().expect("audio state lock").clone();
+                resolve_input(&configured, &overrides)?
+            }
+        };
         let samples = Arc::new(Mutex::new(Vec::new()));
         let (r, effective) = self.spawn_stream(&selector, samples)?;
-        if inferred {
+        if effective != configured {
             self.set_notice_if_notable(&effective);
         }
         *running = Some(r);
@@ -399,7 +423,7 @@ fn stream_thread(
     stop: mpsc::Receiver<()>,
 ) {
     let build = || -> Result<(cpal::Stream, String), RecorderError> {
-        let (device, resolved) = find_device(&device_name)?;
+        let device = find_device(&device_name)?;
         let rate = device.default_input_config().map_err(device_error)?.sample_rate();
         let mut resampler = Resampler::new(rate, SAMPLE_RATE);
         let mut out = Vec::new();
@@ -422,7 +446,7 @@ fn stream_thread(
         };
         let stream = open_mono_stream(&device, handle)?;
         stream.play().map_err(device_error)?;
-        Ok((stream, resolved))
+        Ok((stream, device_name.clone()))
     };
 
     match build() {
@@ -443,6 +467,33 @@ mod tests {
 
     fn probe(name: &str, level: f32) -> (String, f32) {
         (name.to_string(), level)
+    }
+
+    fn device(name: &str, auto_default: bool) -> InputDevice {
+        InputDevice { name: name.to_string(), auto_default }
+    }
+
+    #[test]
+    fn a_default_kept_out_of_automatic_picking_is_skipped() {
+        let devices = [device("AirPods", false), device("C922", true), device("MacBook Pro Microphone", true)];
+        let none = AutoOverrides::new();
+        assert_eq!(pick_input("", Some("C922"), &devices, &none).as_deref(), Some("C922"));
+        assert_eq!(pick_input("", Some("AirPods"), &devices, &none).as_deref(), Some("MacBook Pro Microphone"));
+        let opted_in = AutoOverrides::from([("AirPods".to_string(), true)]);
+        assert_eq!(pick_input("", Some("AirPods"), &devices, &opted_in).as_deref(), Some("AirPods"));
+    }
+
+    #[test]
+    fn only_devices_kept_out_of_automatic_picking_open_nothing() {
+        let devices = [device("AirPods", false), device("iPhone", false)];
+        assert_eq!(pick_input("", Some("AirPods"), &devices, &AutoOverrides::new()), None);
+        assert_eq!(pick_input("C922", Some("AirPods"), &devices, &AutoOverrides::new()), None, "C922 is unplugged");
+    }
+
+    #[test]
+    fn a_chosen_device_opens_even_when_kept_out_of_automatic_picking() {
+        let devices = [device("AirPods", false), device("MacBook Pro Microphone", true)];
+        assert_eq!(pick_input("AirPods", None, &devices, &AutoOverrides::new()).as_deref(), Some("AirPods"));
     }
 
     #[test]

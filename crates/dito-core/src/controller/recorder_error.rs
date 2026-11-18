@@ -2,6 +2,8 @@
 pub enum RecorderError {
     #[error("no input device")]
     NoInputDevice,
+    #[error("no connected microphone is allowed for automatic picking; choose one in Settings")]
+    NoAutoInputDevice,
     #[error("timed out opening the input device")]
     OpenTimeout,
     #[error("unsupported sample format {0}")]

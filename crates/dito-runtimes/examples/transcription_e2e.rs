@@ -155,7 +155,7 @@ async fn main() {
     let store = Arc::new(Store::open(dir.join("e2e.db"), 0).unwrap());
     let audio: Arc<dyn LiveAudio> = match file {
         Some(path) => Arc::new(WavAudio(read_wav(&path))),
-        None => Arc::new(LiveCapture::new(String::new)),
+        None => Arc::new(LiveCapture::new(Default::default)),
     };
     let handle = spawn(TranscriptionDeps {
         audio,
