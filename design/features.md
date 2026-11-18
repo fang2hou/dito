@@ -101,7 +101,7 @@ Design decisions that aren't visible in a single screen. Timings and sizes thems
 
 - **Recording limit.** Recordings stop at 5 minutes and are processed, never discarded. The countdown appears at 4:00, in its own reserved space so the HUD never moves, and turns amber for the last 10 seconds.
 - **Music mute.** Other audio is muted only while the microphone is live, and only if something is playing and the output isn't already muted. When recording stops, the previous state is restored, not simply unmuted.
-- **Automatic microphone.** Automatic picking opens only wired devices (built-in, USB, Thunderbolt and similar). Opening a Bluetooth headset drops it to its low-quality call profile, and opening an iPhone wakes it as a Continuity microphone, so those are chosen by hand.
+- **Automatic microphone.** Automatic picking opens only wired devices (built-in, USB, Thunderbolt and similar). Opening a Bluetooth headset drops it to its low-quality call profile, and opening an iPhone wakes it as a Continuity microphone, so those are chosen by hand. This holds even when macOS makes one of them the default input; with no allowed device connected, recording does not start and the microphone error shows.
 - **HUD size.** The capsule is 105 × 33 pt (72 pt wide in hold mode while listening), drawn at 1× in whole points, with opaque surfaces and one soft shadow.
 - **HUD screen.** The HUD opens on the screen under the pointer and changes screens with it, in both position modes. Centered moves when the pointer enters another screen; while a mouse button is held, it waits for the release.
 - **Outcome timing.** The HUD hides when its outcome animation ends: about 1.1 s after Inserted and 1.9 s after Copied. Errors stay 3 s, and hovering keeps them open.

@@ -112,7 +112,10 @@ impl AppState {
         let engines: Arc<dyn Engines> = factory.clone();
         let microphone_cfg = cfg.clone();
         let transcription = transcription::spawn(TranscriptionDeps {
-            audio: Arc::new(LiveCapture::new(move || microphone_cfg.get().general.microphone.clone())),
+            audio: Arc::new(LiveCapture::new(move || {
+                let cfg = microphone_cfg.get();
+                (cfg.general.microphone.clone(), cfg.general.microphone_auto.clone())
+            })),
             detectors: Arc::new(ModelDetectors { models: models.clone() }),
             engines: engines.clone(),
             config: cfg.clone(),

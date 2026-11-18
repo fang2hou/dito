@@ -9,7 +9,7 @@ use dito_core::audio::SAMPLE_RATE;
 use dito_core::controller::RecorderError;
 use dito_core::transcription::{AudioSource, ChunkSink, LiveAudio, LiveInput};
 
-use crate::capture::{device_error, find_device, open_mono_stream_with};
+use crate::capture::{AutoOverrides, device_error, find_device, open_mono_stream_with, resolve_input};
 use crate::resample::Resampler;
 
 const OPEN_TIMEOUT: Duration = Duration::from_secs(5);
@@ -17,13 +17,14 @@ const OPEN_TIMEOUT: Duration = Duration::from_secs(5);
 /// answer.
 const TAP_OPEN_TIMEOUT: Duration = Duration::from_secs(120);
 
-/// `microphone` names the input device to use, empty for the system default; it is read at every open.
+/// `microphone` gives the configured input device (empty for automatic) and the automatic picking overrides; it is
+/// read at every open.
 pub struct LiveCapture {
-    microphone: Box<dyn Fn() -> String + Send + Sync>,
+    microphone: Box<dyn Fn() -> (String, AutoOverrides) + Send + Sync>,
 }
 
 impl LiveCapture {
-    pub fn new(microphone: impl Fn() -> String + Send + Sync + 'static) -> Self {
+    pub fn new(microphone: impl Fn() -> (String, AutoOverrides) + Send + Sync + 'static) -> Self {
         Self { microphone: Box::new(microphone) }
     }
 }
@@ -61,7 +62,8 @@ impl LiveAudio for LiveCapture {
                         (device, config)
                     }
                     AudioSource::Microphone => {
-                        let (device, _) = find_device(&microphone)?;
+                        let (configured, overrides) = &microphone;
+                        let device = find_device(&resolve_input(configured, overrides)?)?;
                         let config = device.default_input_config().map_err(device_error)?;
                         (device, config)
                     }
