@@ -76,7 +76,7 @@ pub use inputs::{
 pub use layout::{
     StatusTone, card, drag_area, group, page_title, row, row_described, source_label, status_chip, status_tag, tag,
 };
-pub use menu_button::menu_button;
+pub use menu_button::{menu_button, menu_button_on};
 pub use method_label::{MethodKind, MethodSize, method_label};
 pub use modal::modal_layer;
 pub use motion::Motion;

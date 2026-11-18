@@ -145,9 +145,11 @@ impl ModelsPage {
         let id = spec.id.clone();
         let more_open = self.menu.as_deref() == Some(id.as_str());
         let id2 = id.clone();
-        let btn = ui::menu_button(
+        // Matches the card surface of the Use action beside it (`design:settings/local-models`).
+        let btn = ui::menu_button_on(
             SharedString::from(format!("more-{}-{id}", tab.tag())),
             p,
+            p.card,
             Ic::MoreV,
             more_open,
             cbk(cx, move |this: &mut Self, _, cx| {
