@@ -86,6 +86,19 @@ impl AxElement {
         self.attribute(name)?.downcast::<CFString>().map(|s| s.to_string())
     }
 
+    /// The strings of an array attribute (`AXDOMClassList` on Chromium elements); empty when absent.
+    pub(super) fn strings(&self, name: &str) -> Vec<String> {
+        let Some(array) = self.attribute(name).and_then(|v| v.downcast::<CFArray>()) else {
+            return Vec::new();
+        };
+        // SAFETY: the array's items are live CF objects; the get rule retains each one for the wrapper.
+        array
+            .iter()
+            .filter_map(|item| unsafe { CFType::wrap_under_get_rule(*item) }.downcast::<CFString>())
+            .map(|s| s.to_string())
+            .collect()
+    }
+
     pub(super) fn text_for_range(&self, start: usize, length: usize) -> Option<String> {
         let range = CFRange { location: start.try_into().ok()?, length: length.try_into().ok()? };
         let attribute = CFString::new("AXStringForRange");
