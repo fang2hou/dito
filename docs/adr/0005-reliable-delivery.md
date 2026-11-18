@@ -38,6 +38,7 @@ Moves that look reasonable but go against this decision:
 - Simplifying delivery to one call, or retrying the full text after a partial insert.
 - Treating an unverifiable result as a failure.
 - Reading a caret that did not move as proof that nothing landed. Terminals such as Ghostty report the selection at 0 whatever is typed, so a field that changed under an unmoved caret is unverifiable, not failed. Searching the field for the text is no substitute: scrollback matches old text, and short text gives too little evidence.
+- Verifying xterm.js terminals (Orca, VS Code, Hyper) by caret or content. Their focused element is a hidden textarea that is emptied as keys are forwarded, so nothing ever changes: the attempt reads as refuted, the second method runs on top of the first and the text is reported as only copied. The proxy is recognized by its `xterm-helper` DOM class or its "Terminal input" label and counts as unverifiable.
 - Comparing a field's content sooner than 500 ms after reading it. Ghostty serves its accessibility text from a cache for that long.
 - Restoring the clipboard on a timer, as text only, or over someone else's write.
 - Sending keys from the shared event source (a held right ⌘ turns them into shortcuts) or sending chunks faster than every 10 ms.

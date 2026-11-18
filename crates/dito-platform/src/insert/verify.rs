@@ -68,6 +68,10 @@ pub(super) fn verify(
     // Without a baseline the delta can never be observed, so the verdict is Unknown whatever
     // happens (key-window targets, secure fields); the poll loop would only add latency.
     let Some(base) = before else { return (Outcome::Unknown, None) };
+    if is_xterm_input(&target.element) {
+        tracing::info!("insert: the focus is a terminal's input proxy, which never shows what arrives; not verifiable");
+        return (Outcome::Unknown, None);
+    }
     let mut last = None;
     for _ in 0..VERIFY_TRIES {
         std::thread::sleep(VERIFY_POLL);
@@ -110,6 +114,19 @@ pub(super) fn verify(
     (verdict, last)
 }
 
+/// xterm.js (Orca, VS Code, Hyper and other Electron terminals) takes keys and pastes in a hidden textarea that it
+/// empties as it forwards them to the shell, so its caret and content stay as they were whatever lands.
+fn is_xterm_input(element: &AxElement) -> bool {
+    let classes = element.strings("AXDOMClassList");
+    let label = element.string("AXDescription").or_else(|| element.string("AXTitle"));
+    is_xterm_input_proxy(&classes, label.as_deref())
+}
+
+fn is_xterm_input_proxy(classes: &[String], label: Option<&str>) -> bool {
+    classes.iter().any(|class| class.starts_with("xterm-helper"))
+        || label.is_some_and(|label| label.eq_ignore_ascii_case("Terminal input"))
+}
+
 fn prefix_at_utf16(value: &str, caret: usize) -> Option<&str> {
     let mut offset = 0;
     for (index, ch) in value.char_indices() {
@@ -137,7 +154,16 @@ fn landed_by_content(value: Option<&str>, text: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{landed_by_content, prefix_at_utf16};
+    use super::{is_xterm_input_proxy, landed_by_content, prefix_at_utf16};
+
+    #[test]
+    fn the_xterm_input_proxy_is_recognized_by_class_or_label() {
+        let helper = ["xterm-helper-textarea".to_string()];
+        assert!(is_xterm_input_proxy(&helper, None));
+        assert!(is_xterm_input_proxy(&[], Some("Terminal input")));
+        assert!(!is_xterm_input_proxy(&["notes".to_string()], Some("Message")));
+        assert!(!is_xterm_input_proxy(&[], None));
+    }
 
     #[test]
     fn verification_uses_the_caret_in_the_middle_of_the_field() {
