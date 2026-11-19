@@ -8,6 +8,7 @@ use super::focus::{FocusTarget, own_pid, wait_for_stable_focus};
 use super::keyboard::post_type;
 use super::pasteboard::{PasteGuard, begin_paste, copy_to_clipboard};
 use super::verify::{ContentMark, verify};
+use crate::with_autorelease_pool;
 
 /// The user's clipboard goes back no sooner than this after a paste, and only once the insert
 /// has been confirmed (apps read the pasteboard asynchronously, when they get to the Cmd+V).
@@ -19,11 +20,11 @@ pub struct MacSink;
 
 impl Sink for MacSink {
     fn deliver(&self, text: &str, method: InsertMethod) -> Delivery {
-        deliver_text(text, method)
+        with_autorelease_pool(|| deliver_text(text, method))
     }
 
     fn copy(&self, text: &str) -> Delivery {
-        terminal_clipboard(text)
+        with_autorelease_pool(|| terminal_clipboard(text))
     }
 }
 
