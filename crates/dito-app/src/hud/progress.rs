@@ -16,15 +16,20 @@ fn inner_w(w: f32) -> f32 {
 }
 
 /// GPUI clips to rectangles only, so the progress fill is drawn as a polygon that follows the capsule's rounded ends
-/// rather than as a clipped box.
+/// rather than as a clipped box. The outline is the top edge from left to right, then the bottom edge back over the
+/// same columns.
 fn capsule_slice(w: f32, h: f32, x0: f32, x1: f32) -> Vec<(f32, f32)> {
     let r = h / 2.;
     let half = |x| capsule_half_height(w, h, x);
+    let on_straight_middle = |x: f32| x >= r && x <= w - r;
     let (x0, x1) = (x0.clamp(0., w), x1.clamp(0., w));
     let mut xs = vec![x0];
     let mut x = (x0 / 0.5).floor() * 0.5 + 0.5;
     while x < x1 {
-        xs.push(x);
+        // A column whose two neighbors are on the straight middle lies on the line between them.
+        if !(on_straight_middle(x - 0.5) && on_straight_middle(x + 0.5)) {
+            xs.push(x);
+        }
         x += 0.5;
     }
     xs.push(x1);
@@ -50,17 +55,23 @@ fn slice_canvas(w: f32, x0: f32, x1: f32, fill: impl Into<Background> + 'static,
     canvas(
         |_, _, _| (),
         move |bounds, _, window, _| {
-            let pts = capsule_slice(inner_w(w), INNER_H, x0, x1);
-            let mut b = PathBuilder::fill();
-            for (i, (x, y)) in pts.iter().enumerate() {
-                let p =
-                    point(bounds.origin.x + gpui_kit::px(*x * scale.0), bounds.origin.y + gpui_kit::px(*y * scale.0));
-                if i == 0 { b.move_to(p) } else { b.line_to(p) }
+            let outline = capsule_slice(inner_w(w), INNER_H, x0, x1);
+            let at = |i: usize| {
+                let (x, y) = outline[i];
+                point(bounds.origin.x + gpui_kit::px(x * scale.0), bounds.origin.y + gpui_kit::px(y * scale.0))
+            };
+            // The outline is already cut into columns, so each one is pushed as two triangles instead of running the
+            // fill tessellator on every frame.
+            let solid = point(0., 1.);
+            let last = outline.len() - 1;
+            let mut path = Path::new(at(0));
+            for column in 0..last / 2 {
+                let (top, next_top) = (at(column), at(column + 1));
+                let (bottom, next_bottom) = (at(last - column), at(last - column - 1));
+                path.push_triangle((top, next_top, next_bottom), (solid, solid, solid));
+                path.push_triangle((top, next_bottom, bottom), (solid, solid, solid));
             }
-            b.close();
-            if let Ok(path) = b.build() {
-                window.paint_path(path, fill);
-            }
+            window.paint_path(path, fill);
         },
     )
     .absolute()
@@ -117,7 +128,7 @@ pub(super) fn progress_layer(
 
 #[cfg(test)]
 mod tests {
-    use super::{INNER_H, capsule_slice, inner_w};
+    use super::{INNER_H, capsule_half_height, capsule_slice, inner_w};
     use crate::hud::capsule::{CAPSULE_W, NARROW_W};
 
     #[test]
@@ -156,5 +167,24 @@ mod tests {
             (height_at(inner_w(CAPSULE_W), near_end) - INNER_H).abs() < 1e-3,
             "full height mid-way along the wide one"
         );
+    }
+
+    #[test]
+    fn skipping_columns_on_the_straight_middle_leaves_the_outline_unchanged() {
+        let inner = inner_w(CAPSULE_W);
+        for (x0, x1) in [(0., inner), (3.2, 61.7), (40., 44.)] {
+            let outline = capsule_slice(inner, INNER_H, x0, x1);
+            let top = &outline[..outline.len() / 2];
+            assert!(top.len() < 70, "the straight middle keeps only its ends from {x0} to {x1}");
+            let mut x = (x0 / 0.5).floor() * 0.5 + 0.5;
+            while x < x1 {
+                let after = top.partition_point(|p| p.0 < x);
+                let (a, b) = (top[after - 1], top[after]);
+                let y = a.1 + (b.1 - a.1) * (x - a.0) / (b.0 - a.0);
+                let expected = INNER_H / 2. - capsule_half_height(inner, INNER_H, x);
+                assert!((y - expected).abs() < 1e-4, "the top edge at x={x} from {x0} to {x1}");
+                x += 0.5;
+            }
+        }
     }
 }
