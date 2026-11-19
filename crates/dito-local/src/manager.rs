@@ -62,7 +62,6 @@ pub type Snapshot = Arc<BTreeMap<String, ModelState>>;
 pub struct Storage {
     pub dir: PathBuf,
     pub used_bytes: u64,
-    pub free_bytes: u64,
 }
 
 struct Job {
@@ -226,7 +225,6 @@ impl ModelManager {
     }
 
     pub fn storage(&self) -> Storage {
-        let dir = self.dir();
         let used = self
             .inner
             .catalog
@@ -240,7 +238,7 @@ impl ModelManager {
                 ModelState::NotInstalled => 0,
             })
             .sum();
-        Storage { free_bytes: free_space(&dir), dir, used_bytes: used }
+        Storage { dir: self.dir(), used_bytes: used }
     }
 
     /// Start (or resume) a download. Returns immediately; observe progress with [`subscribe`](Self::subscribe).
