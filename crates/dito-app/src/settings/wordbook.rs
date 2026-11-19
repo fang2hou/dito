@@ -1,5 +1,6 @@
 use std::cell::Cell;
 use std::collections::BTreeSet;
+use std::ops::Range;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -10,6 +11,7 @@ use gpui_kit::prelude::*;
 use gpui_kit::*;
 
 use super::downloads_dir::downloads_dir;
+use super::page_layout::page_scroll;
 use super::page_query::{PageQuery, QueryPage};
 use super::{Ctx, content_width};
 use crate::assets::Ic;
@@ -47,6 +49,56 @@ pub(super) struct ModalChanged;
 const COUNT_FADE_POWER: f32 = 1.4;
 const COUNT_SIZE: f32 = 13.;
 
+const CHIP_H: f32 = 44.;
+const GRID_GAP: f32 = 10.;
+const ROW_PITCH: f32 = CHIP_H + GRID_GAP;
+/// Rows built beyond the window on each side. The grid's top is known from the frame before, and nothing above the
+/// grid grows or shrinks by this much in one frame.
+const OVERSCAN_ROWS: usize = 4;
+/// Two, so that a chip the change moved out of the built rows while hovered is sampled once more after its hover
+/// is dropped.
+const RESYNC_RENDERS: u8 = 2;
+
+/// What a grid that builds only the rows near the window remembers between renders.
+struct GridState {
+    /// Where the grid's top sits in the window with the page scrolled to its start, as last painted. `None` until
+    /// a grid with unbuilt rows has been painted on this visit.
+    top: Rc<Cell<Option<f32>>>,
+    /// Renders left that sample the fades of every chip, built or not.
+    resync: u8,
+    /// The words the last two renders built.
+    built: [Range<usize>; 2],
+}
+
+impl GridState {
+    fn new() -> Self {
+        Self { top: Rc::new(Cell::new(None)), resync: RESYNC_RENDERS, built: [0..0, 0..0] }
+    }
+}
+
+struct GridRows {
+    columns: u16,
+    total: usize,
+    built: Range<usize>,
+}
+
+impl GridRows {
+    fn is_whole(&self) -> bool {
+        self.built == (0..self.total)
+    }
+
+    fn words(&self, count: usize) -> Range<usize> {
+        let columns = usize::from(self.columns);
+        self.built.start * columns..(self.built.end * columns).min(count)
+    }
+}
+
+struct ChipFades {
+    marker: f32,
+    ring: f32,
+    chosen: f32,
+}
+
 struct SelectionFades {
     duration: u64,
     active: Cell<bool>,
@@ -82,6 +134,8 @@ pub struct WordbookPage {
     delete_focus: FocusHandle,
     find: find_words::FindWords,
     motion: ui::MotionScope,
+    scroll: ScrollHandle,
+    grid: GridState,
 }
 
 impl EventEmitter<ModalChanged> for WordbookPage {}
@@ -98,6 +152,7 @@ impl QueryPage for WordbookPage {
     }
 
     fn applied(&mut self, cx: &mut Context<Self>) {
+        self.grid.resync = RESYNC_RENDERS;
         if !self.loaded {
             self.loaded = true;
             cx.notify();
@@ -110,9 +165,13 @@ impl WordbookPage {
     pub fn set_active(&mut self, active: bool, cx: &mut Context<Self>) {
         self.words.set_active(active);
         if active {
+            // Each visit starts at the top.
+            self.scroll = ScrollHandle::new();
+            self.grid.top.set(None);
             self.load(cx);
         } else {
             self.selection = None;
+            self.grid.resync = RESYNC_RENDERS;
             self.confirming_delete = false;
         }
     }
@@ -154,6 +213,8 @@ impl WordbookPage {
             deleting: false,
             delete_focus: cx.focus_handle(),
             find: find_words::FindWords::new(window, cx),
+            scroll: ScrollHandle::new(),
+            grid: GridState::new(),
         }
     }
 
@@ -181,6 +242,9 @@ impl WordbookPage {
         if self.deleting {
             return;
         }
+        if self.selection.is_none() {
+            self.grid.resync = RESYNC_RENDERS;
+        }
         let selection = self.selection.get_or_insert_with(BTreeSet::new);
         if !selection.remove(word) {
             selection.insert(word.to_owned());
@@ -194,6 +258,7 @@ impl WordbookPage {
     fn exit_selection(&mut self, cx: &mut Context<Self>) {
         if let Some(selection) = self.selection.take() {
             self.exiting_count = selection.len().max(1);
+            self.grid.resync = RESYNC_RENDERS;
         }
         ui::dismiss_tips(&self.motion.handle());
         cx.notify();
@@ -245,6 +310,7 @@ impl WordbookPage {
                         // Drop deleted terms immediately and discard any snapshot fetched before the deletion.
                         let words: BTreeSet<_> = words.into_iter().collect();
                         this.words.data.matching.retain(|term| !words.contains(term));
+                        this.grid.resync = RESYNC_RENDERS;
                         this.changed(cx);
                     }
                     Err(e) => this.failed(Failure::Delete, &e, cx),
@@ -368,6 +434,7 @@ async fn off_main<T: Send + 'static>(
 impl WordbookPage {
     pub(super) fn reset_motion(&mut self) {
         self.motion.reset();
+        self.grid.resync = RESYNC_RENDERS;
     }
 
     #[cfg(feature = "screenshots")]
@@ -393,11 +460,12 @@ impl WordbookPage {
             self.add.update(cx, |s, cx| s.set_placeholder(c.lang.tr(Tr::GeneralExampleHint), window, cx));
             self.search.update(cx, |s, cx| s.set_placeholder(c.lang.tr(Tr::GeneralSearchWords), window, cx));
         }
-        let words = self.words.data.matching.clone();
         let total = self.loaded.then_some(self.words.data.total);
 
         let fades = SelectionFades::new();
-        let page = super::page(
+        let rows = self.grid_rows(window);
+        self.sample_unbuilt_fades(&rows, &fades);
+        let page = page_scroll(
             p,
             "wordbook",
             c.t(Tr::NavWordbook),
@@ -412,11 +480,8 @@ impl WordbookPage {
                 .child(self.add_card(&c, cx))
                 .child(self.polish_option(&c))
                 .child(self.toolbar(&c, total, cx, &fades))
-                .child(if self.loaded {
-                    self.word_grid(&c, cx, window, words, &fades)
-                } else {
-                    placeholder_grid(&p, window)
-                }),
+                .child(if self.loaded { self.word_grid(&c, cx, &rows, &fades) } else { placeholder_grid(&p, window) }),
+            Some(&self.scroll),
         );
         if fades.active.get() {
             window.request_animation_frame();
@@ -613,15 +678,61 @@ impl WordbookPage {
             .child(delete_button.opacity(opacity))
     }
 
-    fn word_grid(
-        &self,
-        c: &Ctx,
-        cx: &mut Context<Self>,
-        window: &Window,
-        words: Vec<String>,
-        fades: &SelectionFades,
-    ) -> Div {
+    fn grid_rows(&mut self, window: &Window) -> GridRows {
+        let columns = word_columns(window);
+        let total = self.words.data.matching.len().div_ceil(usize::from(columns));
+        let scrolled = -f32::from(self.scroll.offset().y);
+        let built = rows_to_build(self.grid.top.get(), scrolled, f32::from(window.viewport_size().height), total);
+        let rows = GridRows { columns, total, built };
+        if rows.is_whole() {
+            self.grid.top.set(None);
+        }
+        rows
+    }
+
+    /// Chips outside the built rows keep the fades they would have if every chip were sampled on every render.
+    /// That holds as long as a chip is sampled on each render where its targets can differ from the render before:
+    /// its hover can only change within two renders of being built, and everything else the targets depend on
+    /// (the word list, the selection, the motion scope) asks for a resync when it changes.
+    fn sample_unbuilt_fades(&mut self, rows: &GridRows, fades: &SelectionFades) {
+        let words = &self.words.data.matching;
+        let built = rows.words(words.len());
+        let [last, before] = std::mem::replace(&mut self.grid.built, [0..0, 0..0]);
+        let stale = if self.grid.resync > 0 {
+            self.grid.resync -= 1;
+            [0..words.len(), 0..0]
+        } else {
+            [last.clone(), before]
+        };
+        for index in stale.into_iter().flatten().filter(|index| !built.contains(index)) {
+            let Some(word) = words.get(index) else { continue };
+            let chip_id = chip_id(SharedString::new(word.as_str()));
+            let ring_id = ElementId::from((chip_id.clone(), "ring"));
+            // Nothing tells a chip that is not painted that the pointer left: its hover is dropped after this
+            // build, and the next render has to come to fade it.
+            if ui::is_hovered(&chip_id) || ui::is_hovered(&ring_id) {
+                fades.active.set(true);
+            }
+            self.chip_fades(&chip_id, &ring_id, word, fades);
+        }
+        self.grid.built = [built, last];
+    }
+
+    fn chip_fades(&self, chip_id: &ElementId, ring_id: &ElementId, word: &str, fades: &SelectionFades) -> ChipFades {
+        let selecting = self.selection.is_some();
+        let selected = self.selection.as_ref().is_some_and(|terms| terms.contains(word));
+        let card_hovered = ui::is_hovered(chip_id);
+        let ring_hovered = ui::is_hovered(ring_id);
+        ChipFades {
+            marker: fades.sample((chip_id.clone(), "marker-opacity").into(), selecting || card_hovered),
+            ring: fades.sample((chip_id.clone(), "ring-fill").into(), !selected && !self.deleting && ring_hovered),
+            chosen: fades.sample((chip_id.clone(), "chosen").into(), selected),
+        }
+    }
+
+    fn word_grid(&self, c: &Ctx, cx: &mut Context<Self>, rows: &GridRows, fades: &SelectionFades) -> Div {
         let p = c.p;
+        let words = &self.words.data.matching;
         if words.is_empty() {
             return div()
                 .w_full()
@@ -630,26 +741,57 @@ impl WordbookPage {
                 .justify_center()
                 .child(ui::muted12(&p, c.t(Tr::WordbookNoWordsYet)).text_size(px(13.)));
         }
-        div()
+        let grid = div()
             .w_full()
             .grid()
-            .grid_cols(word_columns(window))
-            .gap(px(10.))
-            .children(words.into_iter().map(|word| self.word_chip(&p, cx, word, fades)))
+            .grid_cols(rows.columns)
+            .gap(px(GRID_GAP))
+            .children(words[rows.words(words.len())].iter().map(|word| self.word_chip(&p, cx, word, fades)));
+        if rows.is_whole() {
+            return grid;
+        }
+        let spacer = |rows: usize| div().flex_none().h(px(rows as f32 * ROW_PITCH));
+        div()
+            .w_full()
+            .flex()
+            .flex_col()
+            .child(spacer(rows.built.start))
+            .child(grid)
+            .child(spacer(rows.total - rows.built.end))
+            .child(self.grid_probe(rows))
     }
 
-    fn word_chip(&self, p: &Palette, cx: &mut Context<Self>, word: String, fades: &SelectionFades) -> Stateful<Div> {
-        let word = SharedString::from(word);
-        let chip_id = ElementId::from((ElementId::from("word"), word.clone()));
+    /// Records where the grid was painted for the next render, and asks for that render at once if this one left
+    /// out a row the window shows.
+    fn grid_probe(&self, rows: &GridRows) -> Canvas<()> {
+        let (top, scroll) = (self.grid.top.clone(), self.scroll.clone());
+        let (built, total) = (rows.built.clone(), rows.total);
+        canvas(
+            move |bounds, window, _| {
+                debug_assert!(
+                    (f32::from(bounds.size.height) - (total as f32 * ROW_PITCH - GRID_GAP)).abs() < 0.5,
+                    "the wordbook grid rows are not {CHIP_H} pt chips {GRID_GAP} pt apart"
+                );
+                let painted_top = f32::from(bounds.top());
+                top.set(Some(painted_top - f32::from(scroll.offset().y)));
+                let shown = rows_in_window(painted_top, f32::from(window.viewport_size().height), total);
+                if shown.start < built.start || shown.end > built.end {
+                    window.request_animation_frame();
+                }
+            },
+            |_, _, _, _| {},
+        )
+        .absolute()
+        .inset_0()
+    }
+
+    fn word_chip(&self, p: &Palette, cx: &mut Context<Self>, word: &str, fades: &SelectionFades) -> Stateful<Div> {
+        let word = SharedString::new(word);
+        let chip_id = chip_id(word.clone());
         let hit_id = ElementId::from((chip_id.clone(), "hit"));
         let ring_id = ElementId::from((chip_id.clone(), "ring"));
         let selecting = self.selection.is_some();
-        let selected = self.selection.as_ref().is_some_and(|terms| terms.contains(word.as_ref()));
-        let card_hovered = ui::is_hovered(&chip_id);
-        let ring_hovered = ui::is_hovered(&ring_id);
-        let opacity = fades.sample((chip_id.clone(), "marker-opacity").into(), selecting || card_hovered);
-        let hover = fades.sample((chip_id.clone(), "ring-fill").into(), !selected && !self.deleting && ring_hovered);
-        let chosen = fades.sample((chip_id.clone(), "chosen").into(), selected);
+        let ChipFades { marker: opacity, ring: hover, chosen } = self.chip_fades(&chip_id, &ring_id, &word, fades);
 
         let toggle = ui::click_cb(cbk(cx, {
             let word = word.clone();
@@ -665,6 +807,34 @@ impl WordbookPage {
         }
         chip.child(marker)
     }
+}
+
+fn chip_id(word: SharedString) -> ElementId {
+    ElementId::from((ElementId::from("word"), word))
+}
+
+/// The rows of a grid with its top at `top` in the window that a window `window_h` tall can show.
+fn rows_in_window(top: f32, window_h: f32, total: usize) -> Range<usize> {
+    let row_at = |y: f32| (y / ROW_PITCH).floor().max(0.) as usize;
+    row_at(-top).min(total)..(row_at(window_h - top) + 1).min(total)
+}
+
+/// The rows to build. `top` is where the grid's top would sit in the window with the page scrolled to its start;
+/// without it the grid can start anywhere at or below the top of the page. `scrolled` is the offset as read
+/// before layout clamps it.
+fn rows_to_build(top: Option<f32>, scrolled: f32, window_h: f32, total: usize) -> Range<usize> {
+    let window_rows = (window_h / ROW_PITCH).ceil() as usize;
+    if total <= window_rows + 2 * OVERSCAN_ROWS {
+        return 0..total;
+    }
+    let scrolled = scrolled.max(0.);
+    let shown = match top {
+        Some(top) => rows_in_window(top - scrolled, window_h, total),
+        None => 0..rows_in_window(-scrolled, window_h, total).end,
+    };
+    // An offset past the end is clamped to it by layout, which shows the last rows.
+    let first = shown.start.saturating_sub(OVERSCAN_ROWS).min(total - window_rows - OVERSCAN_ROWS);
+    first..(shown.end + OVERSCAN_ROWS).min(total)
 }
 
 /// Fit the widest digit in the localized label, with at least three places.
@@ -685,9 +855,9 @@ fn placeholder_bar(p: &Palette) -> AnyElement {
 
 fn placeholder_grid(p: &Palette, window: &Window) -> Div {
     let cols = word_columns(window);
-    let mut grid = div().w_full().grid().grid_cols(cols).gap(px(10.));
+    let mut grid = div().w_full().grid().grid_cols(cols).gap(px(GRID_GAP));
     for _ in 0..cols * 2 {
-        grid = grid.child(div().h(px(44.)).rounded_full().bg(p.seg));
+        grid = grid.child(div().h(px(CHIP_H)).rounded_full().bg(p.seg));
     }
     grid
 }
@@ -720,5 +890,61 @@ impl WordbookPage {
             Failure::Import => "import",
             Failure::Export => "export",
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{GRID_GAP, OVERSCAN_ROWS, ROW_PITCH, Range, rows_in_window, rows_to_build};
+
+    const WINDOW_H: f32 = 860.;
+    const WINDOW_ROWS: usize = 16;
+
+    fn covers(built: &Range<usize>, shown: &Range<usize>) -> bool {
+        built.start <= shown.start && shown.end <= built.end
+    }
+
+    #[test]
+    fn a_grid_no_taller_than_the_window_and_its_overscan_is_built_whole() {
+        let total = WINDOW_ROWS + 2 * OVERSCAN_ROWS;
+        assert_eq!(rows_to_build(Some(437.), 0., WINDOW_H, total), 0..total);
+        assert_eq!(rows_to_build(None, 300., WINDOW_H, total), 0..total);
+        assert_ne!(rows_to_build(Some(437.), 0., WINDOW_H, total + 1), 0..total + 1);
+    }
+
+    #[test]
+    fn the_built_rows_cover_the_window_at_every_offset() {
+        let total = 500;
+        let slack = OVERSCAN_ROWS as f32 * ROW_PITCH;
+        for top in [0., 437., 700.] {
+            let mut scrolled = 0.;
+            while scrolled < total as f32 * ROW_PITCH + top {
+                let shown = rows_in_window(top - scrolled, WINDOW_H, total);
+                let built = rows_to_build(Some(top), scrolled, WINDOW_H, total);
+                assert!(covers(&built, &shown), "top {top}, scrolled {scrolled}: {built:?} misses {shown:?}");
+                assert!(
+                    built.len() <= WINDOW_ROWS + 1 + 2 * OVERSCAN_ROWS,
+                    "top {top}, scrolled {scrolled}: {built:?}"
+                );
+                for stale in [Some(top - slack), Some(top + slack), None] {
+                    let built = rows_to_build(stale, scrolled, WINDOW_H, total);
+                    assert!(covers(&built, &shown), "top {stale:?} for {top}, scrolled {scrolled}: {built:?}");
+                }
+                scrolled += 7.;
+            }
+        }
+    }
+
+    #[test]
+    fn an_offset_from_before_the_grid_shrank_still_builds_its_last_rows() {
+        let total = 60;
+        for below in [0., 36.] {
+            let top_at_the_end = WINDOW_H - below - (total as f32 * ROW_PITCH - GRID_GAP);
+            let shown = rows_in_window(top_at_the_end, WINDOW_H, total);
+            for top in [Some(437.), None] {
+                let built = rows_to_build(top, 90_000., WINDOW_H, total);
+                assert!(covers(&built, &shown), "top {top:?}, {below} below: {built:?} misses {shown:?}");
+            }
+        }
     }
 }
