@@ -80,6 +80,9 @@ pub type ChatDelta<'a> = &'a mut (dyn FnMut(&str) + Send);
 pub trait TextModel: Send + Sync {
     async fn polish(&self, req: &TextRequest<'_>) -> ProviderResult<String>;
 
+    /// As [`Transcriber::preconnect`](super::Transcriber::preconnect).
+    async fn preconnect(&self) {}
+
     /// Replies to a conversation, passing each piece to `on_delta` and returning the whole reply. A cancelled reply
     /// returns the text generated so far. An engine without streaming answers in one piece through `polish`.
     async fn chat(&self, req: &ChatRequest, on_delta: ChatDelta<'_>, cancel: &ChatCancel) -> ProviderResult<String> {

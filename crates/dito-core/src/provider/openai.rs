@@ -7,6 +7,7 @@ use serde_json::{Number, Value, json};
 
 use super::{
     ChatCancel, ChatDelta, ChatRequest, ChatRole, TextModel, TextRequest, Thinking, default_timeout, next_stream_item,
+    preconnect, redirects_except_for_preconnect,
 };
 use crate::config::CloudTextParams;
 use crate::error::{ErrorKind, ProviderError, ProviderResult};
@@ -60,6 +61,7 @@ impl OpenAiEngine {
         let client = reqwest::Client::builder()
             .connect_timeout(std::time::Duration::from_secs(10))
             .timeout(default_timeout())
+            .redirect(redirects_except_for_preconnect())
             .build()
             .map_err(|e| ProviderError::new(ErrorKind::Other, e.to_string()))?;
         Ok(Self { flavor, api_key: api_key.into(), params, client, refused_efforts: Arc::default() })
@@ -275,6 +277,10 @@ impl TextModel for OpenAiEngine {
             .filter(|s| !s.is_empty())
             .ok_or_else(|| ProviderError::new(ErrorKind::BadResponse, "no content in response"))?;
         Ok(text)
+    }
+
+    async fn preconnect(&self) {
+        preconnect(&self.client, &self.url("chat/completions")).await;
     }
 
     /// The reply is the exact concatenation of the deltas. A reply that ends at the token limit is returned as it

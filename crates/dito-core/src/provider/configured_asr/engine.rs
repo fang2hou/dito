@@ -100,6 +100,12 @@ impl Transcriber for ConfiguredAsr {
         let body: Value = response.json().await.map_err(transport_error)?;
         self.parse_response(&body)
     }
+
+    async fn preconnect(&self) {
+        if let Ok(base_url) = validate::string(&self.config, "/connection/base_url") {
+            provider::preconnect(&self.client, base_url).await;
+        }
+    }
 }
 
 fn transport_error(e: reqwest::Error) -> ProviderError {

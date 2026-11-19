@@ -47,6 +47,7 @@ The view keeps the newest 1 000 lines and drops the oldest. It lives in memory o
 Every line of a run carries `run=<id>` (`d` for a dictation, `c` for a command, then six hex digits), so `grep 'run=c3a91f2'` on the output follows one run from the shortcut to the delivery. A run logs:
 
 - the shortcut press and release with the run kind, recording start and stop (duration, level and the silence verdict) and, for a command, the length and a short preview of the captured selection;
+- the connection opened to each cloud engine while the recording runs: how long it took and the status of the answer, or why it was not opened;
 - the speech recognition request and its transcript, with timings;
 - the router request (the instruction) and the full decision: every intent's probability, the confidence, whether the gate passed and the rewrite operation;
 - which tool was chosen and why (confident, chosen by the user, polish button) and the window that asks for text, a choice or a confirmation, with the user's answer;

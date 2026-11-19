@@ -2,16 +2,16 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use super::*;
-use crate::config::{ConfigStore, DEFAULT_ASR_LOCAL, DEFAULT_TEXT_LOCAL, InsertMethod};
+use crate::config::{Config, ConfigStore, DEFAULT_ASR_LOCAL, DEFAULT_TEXT_LOCAL, InsertMethod};
 use crate::controller::{
     CapturedSelection, Env, FocusWarmer, Frontmost, MusicMute, Recorder, RecorderError, ResultWrite, SelectionSource,
     Sink,
 };
 use crate::error::ProviderResult;
-use crate::factory::FixedEngines;
+use crate::factory::{Engines, FixedEngines};
 use crate::intent::{Decision, Intent};
 use crate::provider::mock::{MockRouter, MockTextModel, MockTranscriber, decision};
-use crate::provider::{TextModel, TextRequest};
+use crate::provider::{Router, TextModel, TextRequest, Transcriber};
 use crate::store::{CommandOutcome, HistoryFilter, InstructionOrigin, SourceKind, ToolChoice};
 use crate::surrounding::Surrounding;
 
@@ -149,6 +149,48 @@ impl TextModel for Arc<SpyTextModel> {
     }
 }
 
+/// The engine warm-ups that were started, and those still running.
+#[derive(Default)]
+struct WarmUps {
+    started: AtomicUsize,
+    running: AtomicUsize,
+}
+
+struct RunningWarmUp(Arc<WarmUps>);
+impl Drop for RunningWarmUp {
+    fn drop(&mut self) {
+        self.0.running.fetch_sub(1, Ordering::SeqCst);
+    }
+}
+
+/// The rig's engines with a warm-up that never finishes, so no test passes if a run waits for one.
+struct EndlessWarmUp {
+    engines: FixedEngines,
+    warm_ups: Arc<WarmUps>,
+}
+
+#[async_trait::async_trait]
+impl Engines for EndlessWarmUp {
+    async fn transcriber(&self, cfg: &Config) -> ProviderResult<Arc<dyn Transcriber>> {
+        self.engines.transcriber(cfg).await
+    }
+
+    async fn text_model(&self, cfg: &Config) -> ProviderResult<Option<Arc<dyn TextModel>>> {
+        self.engines.text_model(cfg).await
+    }
+
+    async fn router(&self, cfg: &Config) -> ProviderResult<Arc<dyn Router>> {
+        self.engines.router(cfg).await
+    }
+
+    async fn warm_up(&self, _: &Config) {
+        self.warm_ups.started.fetch_add(1, Ordering::SeqCst);
+        self.warm_ups.running.fetch_add(1, Ordering::SeqCst);
+        let _running = RunningWarmUp(self.warm_ups.clone());
+        std::future::pending::<()>().await;
+    }
+}
+
 struct FakeFront;
 impl Frontmost for FakeFront {
     fn frontmost(&self) -> AppInfo {
@@ -230,6 +272,7 @@ struct Rig {
     store: Arc<Store>,
     config: Arc<ConfigStore>,
     asr: Arc<MockTranscriber>,
+    warm_ups: Arc<WarmUps>,
     mute: FakeMusicMute,
     /// How often the microphone was opened and the selection was read.
     recordings: Arc<AtomicUsize>,
@@ -284,6 +327,7 @@ fn rig(asr: MockTranscriber, polish: impl TextModel + 'static, options: RigOptio
     let (recordings, captures) = (Arc::new(AtomicUsize::new(0)), Arc::new(AtomicUsize::new(0)));
     let mut engines = FixedEngines::new(asr.clone(), Arc::new(polish));
     engines.router = Arc::new(options.router);
+    let warm_ups = Arc::new(WarmUps::default());
     let h = spawn(Deps {
         env: Env {
             recorder: Arc::new(FakeRecorder {
@@ -307,10 +351,23 @@ fn rig(asr: MockTranscriber, polish: impl TextModel + 'static, options: RigOptio
         },
         config: config.clone(),
         store: store.clone(),
-        engines: Arc::new(engines),
+        engines: Arc::new(EndlessWarmUp { engines, warm_ups: warm_ups.clone() }),
         audio_dir: Some(audio_dir),
     });
-    Rig { h, sink, replaced, store, config, asr, mute: music_mute, recordings, captures, gate: gate_control, _dir: dir }
+    Rig {
+        h,
+        sink,
+        replaced,
+        store,
+        config,
+        asr,
+        warm_ups,
+        mute: music_mute,
+        recordings,
+        captures,
+        gate: gate_control,
+        _dir: dir,
+    }
 }
 
 fn simple_rig(text: &str) -> Rig {
@@ -452,6 +509,32 @@ async fn cancelling_while_listening_keeps_the_audio_as_a_cancelled_entry() {
     assert_eq!(h[0].kind, HistoryKind::Cancelled);
     assert!(h[0].audio_path.is_some(), "the audio is what 再認識 needs");
     assert_eq!(h[0].engines, EngineLabels::default(), "no engine had run, so there is nothing to name");
+}
+
+#[tokio::test(start_paused = true)]
+async fn the_engine_warm_up_skips_a_typing_chord_and_ends_with_its_recording() {
+    let r = simple_rig("会議です");
+    let warm_ups = |count: &AtomicUsize| count.load(Ordering::SeqCst);
+
+    r.h.send(Command::KeyDown);
+    wait_for(&r.h, |s| matches!(s, HudState::Listening { .. })).await;
+    r.h.send(Command::ChordAbort);
+    wait_for(&r.h, |s| *s == HudState::Hidden).await;
+    tokio::time::sleep(WARM_UP_DELAY * 2).await;
+    assert_eq!(warm_ups(&r.warm_ups.started), 0, "typing warms nothing up");
+
+    for (end, ended) in [(Command::Cancel, HudState::Hidden), (Command::Finish, HudState::Inserted)] {
+        r.h.send(Command::KeyDown);
+        wait_for(&r.h, |s| matches!(s, HudState::Listening { .. })).await;
+        tokio::time::sleep(WARM_UP_DELAY * 2).await;
+        assert_eq!(warm_ups(&r.warm_ups.running), 1, "the warm-up runs while the user speaks");
+        r.h.send(end);
+        wait_for(&r.h, |s| *s == ended).await;
+        settle().await;
+        assert_eq!(warm_ups(&r.warm_ups.running), 0, "nothing is left running after {ended:?}");
+    }
+    assert_eq!(warm_ups(&r.warm_ups.started), 2);
+    assert_eq!(*r.sink.delivered.lock().unwrap(), ["会議です。"]);
 }
 
 #[tokio::test]
