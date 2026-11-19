@@ -36,6 +36,10 @@ pub trait Engines: Send + Sync {
     async fn text_model(&self, cfg: &Config) -> ProviderResult<Option<Arc<dyn TextModel>>>;
     /// Command mode routes with a local chat model whatever the polish source is: the instruction never leaves the Mac.
     async fn router(&self, cfg: &Config) -> ProviderResult<Arc<dyn Router>>;
+    /// Gets the cloud engines `cfg` selects ready for a run that will ask for them shortly: each one is built and its
+    /// connection opened. Local engines are left alone, because asking for one loads its model. Nothing is reported:
+    /// an engine that cannot be built fails the run that asks for it.
+    async fn warm_up(&self, _cfg: &Config) {}
 }
 
 /// How many cloud engines of one kind stay built: the five contenders of a speech comparison fit beside the one
@@ -325,6 +329,25 @@ impl Engines for EngineFactory {
             return Ok(router.clone());
         }
         self.require_local()?.router(&cfg.text_model.local_model).await
+    }
+
+    async fn warm_up(&self, cfg: &Config) {
+        let speech = async {
+            if cfg.asr.source == Source::Provider
+                && let Ok(engine) = self.transcriber_for(&cfg.asr).await
+            {
+                engine.preconnect().await;
+            }
+        };
+        let text = async {
+            if cfg.polish.enabled
+                && cfg.text_model.source == Source::Provider
+                && let Ok(engine) = self.text_model_for(&cfg.text_model).await
+            {
+                engine.preconnect().await;
+            }
+        };
+        tokio::join!(speech, text);
     }
 }
 

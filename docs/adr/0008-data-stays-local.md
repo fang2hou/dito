@@ -13,6 +13,7 @@ Dictations contain whatever people say at work. The only acceptable place for au
 - History, wordbook, audio and models are stored locally.
 - A command run is stored in History with the text it handled: the instruction, the selected or entered text, the result, the router's decision, the tool, the outcome, the time and engine of each step, and any error. It is local, like a dictation, and there is no audio for it.
 - Nothing is sent anywhere except to the providers the user configured; there is no analytics or telemetry.
+- While a recording runs, Dito opens the connection to the cloud speech and polish engines in use, so the requests after the recording start sooner. The request that opens it is `HEAD /` to the host of the configured endpoint. It carries no key, no audio and no text, it never follows a redirect to another host, and a press that turns out to be typing does not send it. From it the provider learns only that a recording started. The dictation would tell it the same a moment later, except for a recording that is cancelled or holds no speech, which the provider did not hear of before (2026-11-19).
 - The word finder sends the text the user pasted and the text of the file they chose to the text model, and keeps neither: only the words the user then adds are stored. When that model is a cloud model, the dialog names it and the search starts only after the user confirms, each time it opens, that the text is sent there (2026-11-13). Its other AI source sends nothing: the user copies a prompt, gives it and their files to an AI of their choice themselves, and pastes the reply back.
 - Chat conversations are stored locally with the files and meetings attached to them (their text is copied in when a message is sent). A conversation goes only to the text model in use, and message text appears in logs only in the `dito_trace` target.
 - Text copied for AI help contains no keys or recordings.
@@ -46,6 +47,7 @@ Moves that look reasonable but go against this decision:
 - Logging full dictations, audio or keys at the default level, or anywhere other than the opt-in `dito_trace` target (never audio or keys, even there).
 - Writing the Log view's buffer to disk, sending it anywhere, or saving the Detailed log switch in the config so that full texts are recorded at the next launch.
 - Adding analytics, crash upload or sync without a consent design.
+- Giving the request that opens a connection ahead of a dictation a key, a body or an API path, or sending it to a host the user did not configure.
 
 ## Review Triggers
 
@@ -53,4 +55,4 @@ Multi-device sync or crash reporting is proposed.
 
 ## Code
 
-`crates/dito-core/src/secrets.rs`, `crates/dito-core/src/local_api/` (the loopback service and its token), `crates/dito-platform/src/system/keychain.rs` (`KeychainSecrets`), `crates/dito-core/src/trace.rs` (the debug log target), `crates/dito-app/src/logbook.rs` (the in-memory buffer and the switch), `crates/dito-core/src/store/` (what History keeps).
+`crates/dito-core/src/secrets.rs`, `crates/dito-core/src/provider/preconnect.rs` (the request that opens a connection ahead of a dictation), `crates/dito-core/src/local_api/` (the loopback service and its token), `crates/dito-platform/src/system/keychain.rs` (`KeychainSecrets`), `crates/dito-core/src/trace.rs` (the debug log target), `crates/dito-app/src/logbook.rs` (the in-memory buffer and the switch), `crates/dito-core/src/store/` (what History keeps).

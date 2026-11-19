@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use tokio::sync::{mpsc, watch};
-use tokio_util::sync::CancellationToken;
+use tokio_util::sync::{CancellationToken, DropGuard};
 use tracing::{Instrument, Span};
 
 use self::commands::{CommandRun, CommandState, Start};
@@ -32,6 +32,9 @@ const ERROR_LINGER: Duration = Duration::from_secs(3);
 /// `motion/chord-hold`: when the command shortcut is the dictation shortcut plus modifiers, a dictation's capsule
 /// waits this long for the extra keys, so a command never flashes in gold first. Recording does not wait.
 pub const CHORD_HOLD: Duration = Duration::from_millis(150);
+/// A lone modifier that turns out to be typing ends its recording within the shortcut machine's chord window, 400 ms.
+/// The engine warm-up starts once that abort would have arrived, so typing does not reach a provider.
+const WARM_UP_DELAY: Duration = Duration::from_millis(450);
 
 struct Meta {
     app: AppInfo,
@@ -51,6 +54,8 @@ enum State {
         pressed: Instant,
         /// Set while the capsule waits for a handover: the mode it shows once it appears.
         held_capsule: Option<RecordMode>,
+        /// Dropped with the recording, which stops the engine warm-up.
+        _warm_up: DropGuard,
     },
     Processing {
         meta: Meta,
@@ -350,6 +355,7 @@ impl Actor {
         }
         trace_log!("recording started");
         self.deps.env.focus_warmer.warm();
+        let warm_up = self.warm_up_engines();
         let mute = (self.deps.config.get().general.music_mute == MusicMuteMode::Auto)
             .then(|| self.deps.env.music_mute.mute_if_active());
         let app = self.deps.env.frontmost.frontmost();
@@ -362,7 +368,7 @@ impl Actor {
         };
         let started = Instant::now();
         let held_capsule = hold_capsule.then_some(mode);
-        self.state = State::Listening { meta, mute, command, pressed: started, held_capsule };
+        self.state = State::Listening { meta, mute, command, pressed: started, held_capsule, _warm_up: warm_up };
         self.recording_started.send_replace(Some(started));
         if hold_capsule {
             // Whatever the HUD showed (an outcome, an error) gives way now, as it would to the capsule.
@@ -372,6 +378,19 @@ impl Actor {
             self.set_hud(HudState::Listening { mode });
         }
         self.schedule_recording_limit();
+    }
+
+    /// Uses the time the user speaks to get the cloud engines of the run ready. The task sends the actor nothing, so
+    /// no epoch guards it; dropping the returned guard stops it.
+    fn warm_up_engines(&self) -> DropGuard {
+        let stop = CancellationToken::new();
+        let (engines, cfg, stopped) = (self.deps.engines.clone(), self.deps.config.get(), stop.clone());
+        let warm_up = async move {
+            tokio::time::sleep(WARM_UP_DELAY).await;
+            engines.warm_up(&cfg).await;
+        };
+        tokio::spawn(async move { stopped.run_until_cancelled(warm_up).await }.instrument(self.span.clone()));
+        stop.drop_guard()
     }
 
     fn schedule_capsule_reveal(&self) {

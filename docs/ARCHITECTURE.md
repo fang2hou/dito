@@ -35,6 +35,10 @@ flowchart LR
 
 The controller owns the run: it starts the recorder, hands the clip to the pipeline, delivers the text through `Sink` and records the result in `Store`. Polish failure skips the polish step and delivers the transcript. The app only observes `HudState` and sends commands.
 
+While the user speaks, the controller gets the cloud engines of the run ready (`Engines::warm_up`), so the requests that follow the recording start on a built engine and an open connection instead of paying for the name lookup and the TCP and TLS handshakes after the last word. The warm-up starts 450 ms after the shortcut went down (`WARM_UP_DELAY`), when a press that was typing has already ended its recording: the shortcut machine reports a typing chord within 400 ms. It builds the cloud speech engine and the cloud polish engine the settings select, both at once, and opens a connection to the host of each (`Transcriber::preconnect`, `TextModel::preconnect`): reqwest opens a connection only for a request, so each engine sends `HEAD /` with no key, no audio and no text and ignores the answer ([ADR 0008](adr/0008-data-stays-local.md)). The task belongs to the recording: it stops when the recording ends, finished or cancelled, it reports nothing to the actor, and a failure in it is only a line in the `dito_trace` log, so a run never waits for it and never fails because of it. A command recording warms up the same way.
+
+What the warm-up leaves alone: a local engine, because asking for one loads its model and when a model loads is not for a recording to decide ([ADR 0002](adr/0002-local-first.md)); the connection of a Bedrock engine, which the AWS SDK opens only for a signed call (the engine itself is built); and every path without a recording in front of it, which are a retry, meeting transcription, chat and polishing a history entry again.
+
 ## Command Flow
 
 A second shortcut starts a command instead of a dictation. The same controller actor owns it and the same HUD shows it, in blue.

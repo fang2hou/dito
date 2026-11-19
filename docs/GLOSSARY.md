@@ -38,6 +38,7 @@ The **JA**, **EN**, and **ZH** columns give the canonical UI terms (`—` when a
 | Template | A bundled starting point for a cloud configuration | テンプレート | Template | 模板 | `CloudAsrTemplate`, `CloudTextTemplate`, `design/asr-templates/` | preset |
 | Profile | An AWS shared-config profile | AWS プロファイル | AWS profile | AWS 配置文件 | `aws_profiles` | any other use (`config/migrate.rs` retains the retired `cloud_asr.profiles` key) |
 | Model | Downloadable local weights or a remote model identifier | モデル | Model | 模型 | `ModelSpec`, `ModelState`, `ModelManager` | |
+| Warm-up | Getting the cloud engines of a run ready while its recording runs: each one built, with a connection open | — | — | — | `Engines::warm_up`, `Transcriber::preconnect`, `TextModel::preconnect` | preload, prefetch (loading a local model ahead of use is `LocalEngines::warm`) |
 | Runtime | A native inference library behind `dito-local` | — | — | — | `Runtime`, `AsrRuntime`, `LlmRuntime`, `dito-runtimes` | engine, backend |
 | Backend | The trait through which `dito-core` reaches local engines | — | — | — | `LocalBackend` | |
 | Settings | Everything the user can configure, stored in `config.toml` | 設定 | Settings | 设置 | `Config`, `ConfigStore` | preferences, options |

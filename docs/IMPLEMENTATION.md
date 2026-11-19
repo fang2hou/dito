@@ -110,6 +110,8 @@ Things that look removable or simplifiable but exist for a reason. Product-level
 
 - Cancelling local inference takes effect at the next llama.cpp token or the next sherpa-onnx chunk. A prompt evaluation, an audio encode or one sherpa-onnx decode that has already started runs to its end first.
 - Bedrock polishing is covered only by the mock server, not by a real account.
+- The warm-up of the cloud engines while a recording runs is verified only against the mock server on loopback: what a real provider answers to `HEAD /`, and how long it keeps the connection open afterwards, is not measured. A recording longer than the provider keeps an idle connection gains nothing, and a Bedrock engine is built by the warm-up but gets no open connection.
+- A cloud request that reuses a pooled connection fails with a network error when the server or the network drops that connection in the same moment, and Retry then succeeds on a new one. Dictations in quick succession always reused connections; with the warm-up the first dictation after a pause does too.
 - GitHub Actions enforces only the pull request rules and the release tag; tests and clippy run in the local commit hooks, which `--no-verify` skips.
 - The display language defaults to the system language; the design calls for Japanese by default.
 

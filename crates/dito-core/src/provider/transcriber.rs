@@ -20,4 +20,8 @@ pub struct Transcript {
 #[async_trait]
 pub trait Transcriber: Send + Sync {
     async fn transcribe(&self, req: &AsrRequest<'_>) -> ProviderResult<Transcript>;
+
+    /// Opens the connection the next request uses, for an engine that has one to open. It sends no key, audio or text
+    /// and reports nothing: after a failure the next request connects by itself, as it would have.
+    async fn preconnect(&self) {}
 }
