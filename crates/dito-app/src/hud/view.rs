@@ -73,6 +73,8 @@ pub struct HudView {
     hover_btn: Option<&'static str>,
     /// Drives the pop-in; state changes do not replay it.
     opened: Instant,
+    /// The pop-in starts on the frame clock's first tick, just before the window's first presented frame is drawn.
+    entry_pending: bool,
     processing: Option<ProcessingMotion>,
     processing_pending: bool,
     displayed_fill: Fill,
@@ -135,6 +137,7 @@ impl HudView {
             leave: ui::Requests::default(),
             hover_btn: None,
             opened: Instant::now(),
+            entry_pending: true,
             processing: None,
             processing_pending: false,
             displayed_fill: Fill::default(),
@@ -331,6 +334,12 @@ impl HudView {
     fn next_frame(window: &Window, view: WeakEntity<Self>) {
         window.on_next_frame(move |window, app| {
             let armed = view.update(app, |view, cx| {
+                if std::mem::take(&mut view.entry_pending) {
+                    // A window draws once while it opens and presents nothing until its first frame request, which
+                    // runs this callback and then draws again. Starting here keeps that wait out of the pop-in.
+                    tracing::debug!(waited = ?view.opened.elapsed(), "hud pop-in starts with the first shown frame");
+                    view.opened = Instant::now();
+                }
                 let advancing = view.advance_clock();
                 if advancing {
                     cx.notify();
