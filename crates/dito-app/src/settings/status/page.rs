@@ -7,6 +7,7 @@ use dito_platform::{Permission, Status, permissions};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
+use super::log::LogText;
 use super::steps::{Dot, Step};
 use super::usage::{SAMPLE_EVERY, UsageMeter};
 use crate::assets::Ic;
@@ -30,6 +31,8 @@ pub struct StatusPage {
     /// Redraws the log when lines arrive; held only while the page is on screen.
     log_watch: Option<Task<()>>,
     pub(super) log_scroll: ScrollHandle,
+    /// Built by the first render that needs it and dropped when the page leaves the screen.
+    pub(super) log_text: Option<LogText>,
     motion: ui::MotionScope,
 }
 
@@ -67,6 +70,7 @@ impl StatusPage {
             refresh: None,
             log_watch: None,
             log_scroll: ScrollHandle::new(),
+            log_text: None,
         }
     }
 
@@ -75,6 +79,7 @@ impl StatusPage {
         if !active {
             self.refresh = None;
             self.log_watch = None;
+            self.log_text = None;
             self.usage.stop();
             return;
         }
@@ -159,6 +164,7 @@ impl StatusPage {
     fn view(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let c = Ctx::new(&self.st, cx);
         let p = c.p;
+        self.refresh_log_text(&p);
         let steps = self.steps(&c);
         let ready = steps.iter().all(|step| !step.blocks_dictation || step.dot != Dot::Attention);
         settings::page(
