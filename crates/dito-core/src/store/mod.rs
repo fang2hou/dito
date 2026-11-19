@@ -274,6 +274,13 @@ impl Store {
         Ok(stmt.query_map([like], |r| r.get(0))?.collect::<std::result::Result<_, _>>()?)
     }
 
+    /// How many words [`words`](Self::words) returns without a query. `COUNT(term)` skips a NULL term the way its
+    /// `LIKE` does.
+    pub fn word_count(&self) -> Result<usize> {
+        let count: i64 = self.conn().query_row("SELECT COUNT(term) FROM wordbook", [], |r| r.get(0))?;
+        Ok(count as usize)
+    }
+
     /// Adds every new line or, on an error, none of them. Returns how many were added.
     pub fn import_words(&self, text: &str, now: i64) -> Result<usize> {
         let mut conn = self.conn();
@@ -681,6 +688,20 @@ mod tests {
 
         assert!(s.remove_words(&["Acme".into(), "Contoso".into()]).is_err());
         assert_eq!(s.words(None).unwrap(), ["Acme", "Contoso"]);
+    }
+
+    #[test]
+    fn word_count_matches_the_unfiltered_word_list() {
+        let s = Store::open_in_memory().unwrap();
+        let listed = |s: &Store| s.words(None).unwrap().len();
+        assert_eq!((s.word_count().unwrap(), listed(&s)), (0, 0));
+        s.import_words("Acme\nContoso\nBedrock", 1).unwrap();
+        s.add_word("Acme", 2).unwrap();
+        assert_eq!((s.word_count().unwrap(), listed(&s)), (3, 3));
+        s.remove_words(&["Contoso".into()]).unwrap();
+        assert_eq!((s.word_count().unwrap(), listed(&s)), (2, 2));
+        s.conn().execute("INSERT INTO wordbook (term, created) VALUES (NULL, 3)", []).unwrap();
+        assert_eq!((s.word_count().unwrap(), listed(&s)), (2, 2));
     }
 
     #[test]

@@ -86,7 +86,7 @@ pub async fn wordbook_words(st: Arc<AppState>, query: String) -> Result<Wordbook
 }
 
 fn wordbook_snapshot(store: &Store, query: &str) -> Result<WordbookWords> {
-    Ok(WordbookWords { matching: store.words(Some(query))?, total: store.words(None)?.len() })
+    Ok(WordbookWords { matching: store.words(Some(query))?, total: store.word_count()? })
 }
 
 pub fn aws_profiles() -> Vec<String> {
