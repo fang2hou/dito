@@ -1,11 +1,13 @@
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use dito_core::i18n::{Lang, Tr};
 use dito_core::prompts::{AppTarget, BUILTIN_APP_RULES, Prompts};
-use dito_platform::system::{InstalledApplication, installed_application};
+use dito_platform::system::InstalledApplication;
 
+mod app_icons;
 mod application_ui;
 mod history;
 use history::{Editor, History, Snapshot};
@@ -43,6 +45,7 @@ pub struct PromptsPage {
     preview_revision: u64,
     drafts: Prompts,
     apps: Vec<AppChoice>,
+    _icon_load: Option<Task<()>>,
     menu_open: bool,
     copy_menu_open: bool,
     dialog: Option<Dialog>,
@@ -123,6 +126,7 @@ impl PromptsPage {
             try_state: Try::Idle,
             drafts: cfg.prompts.clone(),
             apps: app_choices(&cfg.prompts),
+            _icon_load: None,
             histories: HashMap::new(),
             save_revision: 0,
             save_error: None,
@@ -142,9 +146,49 @@ impl PromptsPage {
             cx.on_focus_in(handle, window, |_, _, cx| cx.notify()).detach();
             cx.on_focus_out(handle, window, |_, _, _, cx| cx.notify()).detach();
         }
+        page.load_app_icons(cx);
         page.ensure_histories();
         page.rebuild_samples(window, cx);
         page
+    }
+
+    fn refresh_apps(&mut self, cx: &mut Context<Self>) {
+        self.apps = app_choices(&self.drafts);
+        self.load_app_icons(cx);
+    }
+
+    fn load_app_icons(&mut self, cx: &mut Context<Self>) {
+        let missing: Vec<_> = self
+            .apps
+            .iter()
+            .filter(|choice| choice.icon.is_none())
+            .filter_map(|choice| choice.icon_source.clone())
+            .collect();
+        // Replacing the task abandons the previous load; an icon it was already encoding still reaches the cache.
+        self._icon_load = (!missing.is_empty()).then(|| {
+            cx.spawn(async move |this, cx| {
+                for (bundle_id, path) in missing {
+                    cx.background_executor().spawn(async move { app_icons::load(&bundle_id, &path) }).await;
+                    let shown = this.update(cx, |this, cx| {
+                        this.show_loaded_icons();
+                        cx.notify();
+                    });
+                    if shown.is_err() {
+                        break;
+                    }
+                }
+            })
+        });
+    }
+
+    fn show_loaded_icons(&mut self) {
+        for choice in &mut self.apps {
+            if choice.icon.is_none()
+                && let Some((bundle_id, _)) = &choice.icon_source
+            {
+                choice.icon = app_icons::cached(bundle_id);
+            }
+        }
     }
 
     fn history_key(&self, editor: Editor) -> (Lang, Option<AppTarget>) {
@@ -454,6 +498,8 @@ struct AppChoice {
     target: AppTarget,
     name: String,
     icon: Option<Arc<Image>>,
+    /// Bundle id and path of an installed app, where its icon loads from.
+    icon_source: Option<(String, PathBuf)>,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -471,11 +517,8 @@ fn app_choices(prompts: &Prompts) -> Vec<AppChoice> {
         .chain(prompts.applications.keys().map(String::as_str))
     {
         // Keep configured apps selectable (and removable) even when their bundle is currently uninstalled.
-        let (name, icon) = match installed_application(id) {
-            Some(app) => (
-                app.name,
-                (!app.icon_png.is_empty()).then(|| Arc::new(Image::from_bytes(ImageFormat::Png, app.icon_png))),
-            ),
+        let (name, installed_at) = match InstalledApplication::without_icon(id) {
+            Some(app) => (app.name, Some(app.path)),
             None => match prompts.applications.get(id) {
                 Some(name) => (name.clone(), None),
                 None => continue,
@@ -485,9 +528,14 @@ fn app_choices(prompts: &Prompts) -> Vec<AppChoice> {
         if target == AppTarget::General || choices.iter().any(|c: &AppChoice| c.target == target) {
             continue;
         }
-        choices.push(AppChoice { target, name, icon });
+        choices.push(AppChoice {
+            target,
+            name,
+            icon: installed_at.as_ref().and_then(|_| app_icons::cached(id)),
+            icon_source: installed_at.map(|path| (id.to_owned(), path)),
+        });
     }
-    choices.push(AppChoice { target: AppTarget::General, name: String::new(), icon: None });
+    choices.push(AppChoice { target: AppTarget::General, name: String::new(), icon: None, icon_source: None });
     choices
 }
 
@@ -618,7 +666,7 @@ impl PromptsPage {
             "add-empty" => self.open_dialog(Dialog::Add, window, cx),
             "add" => {
                 self.open_dialog(Dialog::Add, window, cx);
-                self.picked_app = installed_application("com.apple.TextEdit");
+                self.picked_app = dito_platform::system::installed_application("com.apple.TextEdit");
                 self.picked_icon =
                     self.picked_app.as_ref().map(|a| Arc::new(Image::from_bytes(ImageFormat::Png, a.icon_png.clone())));
             }
@@ -660,6 +708,11 @@ impl PromptsPage {
             "custom" | "removeapp" => {
                 self.drafts.add_application("com.apple.AppStore", "App Store", &AppTarget::General);
                 self.apps = app_choices(&self.drafts);
+                // The shot is taken a fixed time from now, so it loads here instead of racing a background task.
+                for (bundle_id, path) in self.apps.iter().filter_map(|choice| choice.icon_source.as_ref()) {
+                    app_icons::load(bundle_id, path);
+                }
+                self.show_loaded_icons();
                 self.target = self.drafts.for_application("com.apple.AppStore");
                 self.load(window, cx);
                 if case == "removeapp" {

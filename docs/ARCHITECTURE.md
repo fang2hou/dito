@@ -96,6 +96,7 @@ A command that got past its recording writes one history row of its own kind, wh
   - The controller, pipeline, providers and downloads run on the Tokio runtime.
   - Model loading, inference, store queries and text insertion run in `spawn_blocking`.
   - Tokio's threads have no autorelease pool, so the platform entry points that call AppKit or Foundation from them (`Frontmost`, `Sink`, the selection capture and its replacement) drain one of their own on every call.
+  - App icons for the Prompts page are encoded on a GPUI background queue, also inside a pool of their own: `NSWorkspace` documents `iconForFile:` as safe to call from any thread.
   - The event tap and its dispatcher have their own threads.
 - **Behavior that must hold**:
   - A polish failure never loses the transcript.

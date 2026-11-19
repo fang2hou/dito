@@ -57,7 +57,11 @@ impl PromptsPage {
             return;
         }
         self.target = added_target;
-        self.apps = app_choices(&self.drafts);
+        // The dialog already produced this icon: its new row shows it at once instead of loading it again.
+        if let Some(icon) = self.picked_icon.clone().filter(|_| !app.icon_png.is_empty()) {
+            app_icons::remember(&app.bundle_id, icon);
+        }
+        self.refresh_apps(cx);
         self.dialog = None;
         self.load(window, cx);
     }
@@ -96,7 +100,7 @@ impl PromptsPage {
         for lang in Lang::PROMPT_LANGUAGES {
             self.histories.remove(&(lang, Some(removed_target.clone())));
         }
-        self.apps = app_choices(&self.drafts);
+        self.refresh_apps(cx);
         self.target = AppTarget::General;
         self.dialog = None;
         self.load(window, cx);
