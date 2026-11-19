@@ -4,27 +4,13 @@ use gpui_kit::*;
 
 use super::Page;
 use super::shell::Settings;
-use crate::app_shell::traffic_light_position;
+use crate::app_shell::{self, ShellWindow};
 use crate::state::{AppGlobal, AppState};
 #[cfg(feature = "screenshots")]
 use crate::ui;
 use crate::ui::Root;
 
-struct SettingsHandle {
-    window: WindowHandle<Root>,
-    view: Entity<Settings>,
-}
-
-impl Global for SettingsHandle {}
-
-/// Keeps the settings window-close observer alive independently of the handle it watches: the
-/// callback removes that handle, so storing the subscription inside it would unsubscribe itself
-/// mid-callback. Replaced (and so dropped, safely outside any callback) by the next settings window.
-struct SettingsCloseWatch {
-    _subscription: gpui_kit::Subscription,
-}
-
-impl Global for SettingsCloseWatch {}
+type SettingsHandle = ShellWindow<Settings>;
 
 pub fn handle(cx: &App) -> Option<(WindowHandle<Root>, Entity<Settings>)> {
     cx.try_global::<SettingsHandle>().map(|h| (h.window, h.view.clone()))
@@ -100,53 +86,14 @@ fn show_in_existing_window(page: Option<Page>, foreground: bool, cx: &mut App) -
 }
 
 fn open_new_window(st: Arc<AppState>, page: Page, cx: &mut App) {
-    let bounds = Bounds::centered(None, size(px(1120.), px(860.)), cx);
-    let opts = WindowOptions {
-        inactive_frame_interval: None,
-        window_bounds: Some(WindowBounds::Windowed(bounds)),
-        titlebar: Some(TitlebarOptions {
-            title: Some("Dito".into()),
-            appears_transparent: true,
-            traffic_light_position: Some(traffic_light_position(false)),
-        }),
-        window_min_size: Some(size(px(900.), px(640.))),
-        focus: !st.opts.is_headless(),
-        show: !st.opts.is_headless(),
-        ..Default::default()
-    };
-    let mut view_slot = None;
-    let res = cx.open_window(opts, |window, cx| {
-        let view = cx.new(|cx| Settings::new(st, page, window, cx));
-        view_slot = Some(view.clone());
-        cx.new(|cx| Root::new(view, window, cx))
-    });
-    match (res, view_slot) {
-        (Ok(window), Some(view)) => {
-            cx.set_global(SettingsHandle { window, view });
-            watch_close(window.window_id(), cx);
-        }
-        (Err(e), _) => tracing::error!("could not open settings: {e}"),
-        _ => {}
-    }
-}
-
-/// The global holds the view strongly, so closing the window alone would not release it. Both ids must match, the
-/// closed window and the window of the handle currently installed, so neither a close of any other window nor an old
-/// observer can touch a newer window's handle.
-fn watch_close(id: WindowId, cx: &mut App) {
-    let close = cx.on_window_closed(move |cx, closed| {
-        if closed != id {
-            return;
-        }
-        let Some(h) = cx.try_global::<SettingsHandle>() else { return };
-        if h.window.window_id() != id {
-            return;
-        }
-        let view = h.view.clone();
-        cx.remove_global::<SettingsHandle>();
-        view.update(cx, |s, cx| s.on_window_closed(cx));
-    });
-    cx.set_global(SettingsCloseWatch { _subscription: close });
+    let default_size = size(px(1120.), px(860.));
+    app_shell::open_shell_window(
+        st,
+        "settings",
+        default_size,
+        |st, window, cx| Settings::new(st, page, window, cx),
+        cx,
+    );
 }
 
 pub fn global_state(cx: &App) -> Arc<AppState> {

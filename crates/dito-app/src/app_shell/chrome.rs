@@ -9,7 +9,9 @@ use gpui_kit::*;
 
 use super::health;
 use super::nav::{RAIL_COLLAPSE, RAIL_EXPAND, traffic_light_position};
+use crate::settings::Ctx;
 use crate::state::AppState;
+use crate::theme;
 use crate::ui;
 
 pub(crate) struct Chrome {
@@ -59,7 +61,7 @@ impl Chrome {
 
     /// Hysteresis: the sidebar folds at RAIL_COLLAPSE and only unfolds past RAIL_EXPAND. Returns
     /// whether the mode changed, so the caller re-renders.
-    pub(crate) fn follow_window_width(&mut self, window: &mut Window) -> bool {
+    fn follow_window_width(&mut self, window: &mut Window) -> bool {
         let vw = f32::from(window.viewport_size().width);
         let rail = if self.rail { vw < RAIL_EXPAND } else { vw < RAIL_COLLAPSE };
         if rail == self.rail {
@@ -68,5 +70,17 @@ impl Chrome {
         self.rail = rail;
         window.set_traffic_light_position(traffic_light_position(rail));
         true
+    }
+
+    /// What a render of the window's view starts with, before it builds any element: the rail mode
+    /// follows the window, and the palette and language of this frame become the ambient ones.
+    pub(crate) fn begin_frame<V: 'static>(&mut self, window: &mut Window, cx: &mut Context<V>) -> Ctx {
+        let changed = self.follow_window_width(window);
+        if changed {
+            cx.notify();
+        }
+        let c = Ctx::new(&self.st, cx);
+        theme::apply(&c.p, cx);
+        c
     }
 }

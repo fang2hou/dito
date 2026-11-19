@@ -5,27 +5,13 @@ use gpui_kit::*;
 use super::shell::Tools;
 #[cfg(feature = "screenshots")]
 use crate::app_shell::NavHost;
-use crate::app_shell::traffic_light_position;
+use crate::app_shell::{self, ShellWindow};
 use crate::state::AppState;
 #[cfg(feature = "screenshots")]
 use crate::ui;
 use crate::ui::Root;
 
-struct ToolsHandle {
-    window: WindowHandle<Root>,
-    view: Entity<Tools>,
-}
-
-impl Global for ToolsHandle {}
-
-/// Keeps the tools window-close observer alive independently of the handle it watches: the callback
-/// removes that handle, so storing the subscription inside it would unsubscribe itself mid-callback.
-/// Replaced (and so dropped, safely outside any callback) by the next tools window.
-struct ToolsCloseWatch {
-    _subscription: gpui_kit::Subscription,
-}
-
-impl Global for ToolsCloseWatch {}
+type ToolsHandle = ShellWindow<Tools>;
 
 pub fn handle(cx: &App) -> Option<(WindowHandle<Root>, Entity<Tools>)> {
     cx.try_global::<ToolsHandle>().map(|h| (h.window, h.view.clone()))
@@ -82,51 +68,5 @@ fn show_in_existing_window(foreground: bool, cx: &mut App) -> bool {
 }
 
 fn open_new_window(st: Arc<AppState>, cx: &mut App) {
-    let bounds = Bounds::centered(None, size(px(1120.), px(680.)), cx);
-    let opts = WindowOptions {
-        inactive_frame_interval: None,
-        window_bounds: Some(WindowBounds::Windowed(bounds)),
-        titlebar: Some(TitlebarOptions {
-            title: Some("Dito".into()),
-            appears_transparent: true,
-            traffic_light_position: Some(traffic_light_position(false)),
-        }),
-        window_min_size: Some(size(px(900.), px(640.))),
-        focus: !st.opts.is_headless(),
-        show: !st.opts.is_headless(),
-        ..Default::default()
-    };
-    let mut view_slot = None;
-    let res = cx.open_window(opts, |window, cx| {
-        let view = cx.new(|cx| Tools::new(st, window, cx));
-        view_slot = Some(view.clone());
-        cx.new(|cx| Root::new(view, window, cx))
-    });
-    match (res, view_slot) {
-        (Ok(window), Some(view)) => {
-            cx.set_global(ToolsHandle { window, view });
-            watch_close(window.window_id(), cx);
-        }
-        (Err(e), _) => tracing::error!("could not open tools: {e}"),
-        _ => {}
-    }
-}
-
-/// The global holds the view strongly, so closing the window alone would not release it. Both ids must match, the
-/// closed window and the window of the handle currently installed, so neither a close of any other window nor an old
-/// observer can touch a newer window's handle.
-fn watch_close(id: WindowId, cx: &mut App) {
-    let close = cx.on_window_closed(move |cx, closed| {
-        if closed != id {
-            return;
-        }
-        let Some(h) = cx.try_global::<ToolsHandle>() else { return };
-        if h.window.window_id() != id {
-            return;
-        }
-        let view = h.view.clone();
-        cx.remove_global::<ToolsHandle>();
-        view.update(cx, |tools, cx| tools.on_window_closed(cx));
-    });
-    cx.set_global(ToolsCloseWatch { _subscription: close });
+    app_shell::open_shell_window(st, "tools", size(px(1120.), px(680.)), Tools::new, cx);
 }

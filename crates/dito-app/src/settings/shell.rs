@@ -4,11 +4,10 @@ use gpui_kit::prelude::*;
 use gpui_kit::*;
 
 use super::models;
-use super::{Ctx, Page, general, history, prompts, stats, status, wordbook};
-use crate::app_shell::{self, Chrome, NavHost, WindowDestination};
+use super::{Page, general, history, prompts, stats, status, wordbook};
+use crate::app_shell::{self, Chrome, NavHost, ShellView, WindowDestination};
 use crate::services;
 use crate::state::AppState;
-use crate::theme::{self, Palette};
 use crate::ui;
 
 pub struct Settings {
@@ -126,10 +125,12 @@ impl Settings {
             Page::Status => self.status.read(cx).motion_scope(),
         }
     }
+}
 
+impl ShellView for Settings {
     /// Invalidates every transient scope (shell and pages), so handles still held elsewhere (tests, screenshots) read
     /// static defaults instead of stale motion state.
-    pub(super) fn on_window_closed(&mut self, cx: &mut Context<Self>) {
+    fn on_window_closed(&mut self, cx: &mut Context<Self>) {
         self.deactivate(self.page, cx);
         self.chrome.reset_motion();
         for page in Page::ALL {
@@ -180,45 +181,8 @@ impl Settings {
         }
     }
 
-    /// Scroll still passes through, and content never enters these zones, so nothing is blocked.
-    fn content(&self, p: Palette) -> Div {
-        div()
-            .flex_1()
-            .h_full()
-            .relative()
-            .overflow_hidden()
-            .child(ui::prepare_card_backdrop(self.page.english(), p))
-            .child(ui::page_wordmark(self.page.english(), p))
-            .child(self.page_view())
-            .child(
-                ui::drag_area("gutter-left")
-                    .absolute()
-                    .top_0()
-                    .left_0()
-                    .h_full()
-                    .w(px(56.))
-                    .block_mouse_except_scroll(),
-            )
-            .child(
-                ui::drag_area("gutter-right")
-                    .absolute()
-                    .top_0()
-                    .right_0()
-                    .h_full()
-                    .w(px(56.))
-                    .block_mouse_except_scroll(),
-            )
-    }
-
     fn render_shell(&mut self, window: &mut Window, cx: &mut Context<Self>) -> Div {
-        let changed = self.chrome.follow_window_width(window);
-        let rail = self.chrome.rail();
-        if changed {
-            cx.notify();
-        }
-        let c = Ctx::new(self.chrome.st(), cx);
-        let p = c.p;
-        theme::apply(&p, cx);
+        let c = self.chrome.begin_frame(window, cx);
         let prompt_overlay =
             if self.page == Page::Prompts { self.prompts.update(cx, |p, cx| p.overlay(window, cx)) } else { None };
         let models_overlay = if self.page == Page::Models {
@@ -231,20 +195,7 @@ impl Settings {
         } else {
             None
         };
-        div()
-            .size_full()
-            .flex()
-            .bg(p.bg)
-            .text_color(p.text)
-            .font_family(ui::cjk_family())
-            // Any click first drops keyboard focus; an input under the pointer then takes it back.
-            .capture_any_mouse_down(|_, window, cx| window.blur(cx))
-            .child(app_shell::sidebar(self, &c, cx, rail))
-            .child(self.content(p))
-            // Last child: the rail's floating reveal paints above the page content.
-            .when(rail, |el| el.child(app_shell::rail_hover(self, &c, cx)))
-            // Painted last so the health card floats above the page content, not under it.
-            .child(app_shell::health_overlay(&self.chrome, &c, window))
+        app_shell::frame(self, &c, Some(self.page.english()), self.page_view(), window, cx)
             .children(prompt_overlay)
             .children(models_overlay)
             .children(wordbook_overlay)
