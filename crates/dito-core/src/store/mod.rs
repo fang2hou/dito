@@ -148,6 +148,14 @@ impl Store {
     }
 
     pub fn list_history(&self, f: &HistoryFilter) -> Result<Vec<HistoryEntry>> {
+        let (sql, args) = Self::list_query(f);
+        let c = self.conn();
+        let mut stmt = c.prepare(&sql)?;
+        let rows = stmt.query_map(rusqlite::params_from_iter(args), row_to_entry)?;
+        Ok(rows.collect::<std::result::Result<Vec<_>, _>>()?)
+    }
+
+    fn list_query(f: &HistoryFilter) -> (String, Vec<rusqlite::types::Value>) {
         let mut sql = format!("{SELECT_HISTORY} WHERE 1=1");
         let mut args: Vec<rusqlite::types::Value> = Vec::new();
         if let Some(q) = f.query.as_deref().filter(|q| !q.trim().is_empty()) {
@@ -239,13 +247,14 @@ impl Store {
             }
         }
         sql.push_str(" ORDER BY ts DESC, id DESC");
-        if let Some(l) = f.limit {
-            sql.push_str(&format!(" LIMIT {l}"));
+        if let Some(limit) = f.limit {
+            // The unary plus hides the limit's value from the planner, which reads a plain parameter as it does a
+            // literal. Shown a small limit, it scans and sorts the whole table; without one it walks `history_ts`,
+            // which stops after the newest rows.
+            sql.push_str(&format!(" LIMIT +?{}", args.len() + 1));
+            args.push(i64::try_from(limit).unwrap_or(i64::MAX).into());
         }
-        let c = self.conn();
-        let mut stmt = c.prepare(&sql)?;
-        let rows = stmt.query_map(rusqlite::params_from_iter(args), row_to_entry)?;
-        Ok(rows.collect::<std::result::Result<Vec<_>, _>>()?)
+        (sql, args)
     }
 
     pub fn delete_history(&self, id: i64) -> Result<()> {
@@ -482,6 +491,65 @@ mod tests {
         assert_eq!(recent.len(), 1);
         let styled = s.list_history(&HistoryFilter { style: Some(builtin("slack")), ..Default::default() }).unwrap();
         assert_eq!(styled[0].raw, "new");
+    }
+
+    /// The list query as it was before the limit became a hidden parameter: the same text with the limit written in.
+    fn with_written_limit(filter: &HistoryFilter) -> (String, Vec<rusqlite::types::Value>) {
+        let (sql, mut args) = Store::list_query(filter);
+        let Some(limit) = filter.limit else { return (sql, args) };
+        let hidden = format!(" LIMIT +?{}", args.len());
+        let unlimited = sql.strip_suffix(&hidden).expect("the limit ends the query");
+        args.pop();
+        (format!("{unlimited} LIMIT {limit}"), args)
+    }
+
+    #[test]
+    fn a_hidden_limit_lists_what_a_written_limit_listed_and_reads_the_newest_row_through_the_time_index() {
+        let s = Store::open_in_memory().unwrap();
+        for i in 0..700 {
+            // Timestamps repeat and do not follow the ids, so the order rests on both of its terms.
+            let raw = if i % 5 == 0 { "needle in the text" } else { "plain" };
+            let mut row = entry(i * 37 % 240, ["Editor", "Notes", "Mail"][i as usize % 3], "ja", raw, None);
+            row.style = match i % 4 {
+                0 => builtin("slack"),
+                1 => AppTarget::Application("example.editor".into()),
+                _ => AppTarget::General,
+            };
+            s.add_history(&row).unwrap();
+        }
+        let shapes = [
+            HistoryFilter::default(),
+            HistoryFilter { since_ts: Some(120), ..Default::default() },
+            HistoryFilter { style: Some(builtin("slack")), ..Default::default() },
+            HistoryFilter {
+                style: Some(AppTarget::General),
+                configured_apps: vec![("Editor".into(), "example.editor".into())],
+                ..Default::default()
+            },
+            HistoryFilter { query: Some("needle".into()), ..Default::default() },
+        ];
+        for shape in shapes {
+            for limit in [Some(1), Some(2), Some(10), Some(500), None] {
+                let filter = HistoryFilter { limit, ..shape.clone() };
+                let (sql, args) = with_written_limit(&filter);
+                let before: Vec<HistoryEntry> = {
+                    let c = s.conn();
+                    let mut stmt = c.prepare(&sql).unwrap();
+                    let rows = stmt.query_map(rusqlite::params_from_iter(args), row_to_entry).unwrap();
+                    rows.map(|row| row.unwrap()).collect()
+                };
+                assert!(!before.is_empty(), "{filter:?}");
+                assert!(before.windows(2).all(|pair| (pair[0].ts, pair[0].id) > (pair[1].ts, pair[1].id)));
+                assert_eq!(s.list_history(&filter).unwrap(), before, "{filter:?}");
+            }
+        }
+
+        let (probe, args) = Store::list_query(&HistoryFilter { limit: Some(1), ..Default::default() });
+        let plan: String = s
+            .conn()
+            .query_row(&format!("EXPLAIN QUERY PLAN {probe}"), rusqlite::params_from_iter(args), |row| row.get(3))
+            .unwrap();
+        assert!(plan.contains("history_ts"), "the newest row is found by reading the whole table: {plan}");
     }
 
     #[test]
