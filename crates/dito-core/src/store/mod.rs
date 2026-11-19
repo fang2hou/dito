@@ -3,7 +3,7 @@
 use std::path::Path;
 use std::sync::{Mutex, MutexGuard};
 
-use rusqlite::{Connection, OptionalExtension, params};
+use rusqlite::{Connection, OptionalExtension, Statement, params};
 
 use crate::config::EngineLabels;
 use crate::prompts::AppTarget;
@@ -250,14 +250,8 @@ impl Store {
 
     /// Returns false when the term already exists (or is blank).
     pub fn add_word(&self, term: &str, now: i64) -> Result<bool> {
-        let term = term.trim();
-        if term.is_empty() {
-            return Ok(false);
-        }
-        let n = self
-            .conn()
-            .execute("INSERT OR IGNORE INTO wordbook (term, created) VALUES (?1, ?2)", params![term, now])?;
-        Ok(n > 0)
+        let conn = self.conn();
+        insert_word(&mut conn.prepare(INSERT_WORD)?, term, now)
     }
 
     pub fn remove_words(&self, terms: &[String]) -> Result<()> {
@@ -280,13 +274,20 @@ impl Store {
         Ok(stmt.query_map([like], |r| r.get(0))?.collect::<std::result::Result<_, _>>()?)
     }
 
+    /// Adds every new line or, on an error, none of them. Returns how many were added.
     pub fn import_words(&self, text: &str, now: i64) -> Result<usize> {
+        let mut conn = self.conn();
+        let tx = conn.transaction()?;
         let mut added = 0;
-        for line in text.lines() {
-            if self.add_word(line, now)? {
-                added += 1;
+        {
+            let mut insert = tx.prepare(INSERT_WORD)?;
+            for line in text.lines() {
+                if insert_word(&mut insert, line, now)? {
+                    added += 1;
+                }
             }
         }
+        tx.commit()?;
         Ok(added)
     }
 
@@ -365,6 +366,16 @@ impl Store {
             self.conn().query_row("SELECT MIN(day) FROM history WHERE kind='dictation'", [], |r| r.get(0))?;
         Ok(key.as_deref().and_then(activity::day_from_key))
     }
+}
+
+const INSERT_WORD: &str = "INSERT OR IGNORE INTO wordbook (term, created) VALUES (?1, ?2)";
+
+fn insert_word(insert: &mut Statement<'_>, term: &str, now: i64) -> Result<bool> {
+    let term = term.trim();
+    if term.is_empty() {
+        return Ok(false);
+    }
+    Ok(insert.execute(params![term, now])? > 0)
 }
 
 #[cfg(test)]
@@ -646,6 +657,15 @@ mod tests {
         assert_eq!(s.export_words().unwrap(), "Acme\nBedrock\nContoso");
         s.remove_words(&["Contoso".into(), "Acme".into(), "missing".into()]).unwrap();
         assert_eq!(s.words(None).unwrap(), ["Bedrock"]);
+    }
+
+    #[test]
+    fn wordbook_import_counts_only_new_words_and_leaves_known_ones_as_they_were() {
+        let s = Store::open_in_memory().unwrap();
+        s.add_word("Acme", 1).unwrap();
+        assert_eq!(s.import_words("Contoso\n\n  Bedrock \nAcme\nContoso\n   \nDito", 2).unwrap(), 3);
+        // Newest first, so a known word that kept its time comes last.
+        assert_eq!(s.words(None).unwrap(), ["Bedrock", "Contoso", "Dito", "Acme"]);
     }
 
     #[test]

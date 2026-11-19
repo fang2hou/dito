@@ -342,13 +342,12 @@ impl WordbookPage {
         cx.spawn(async move |this, cx| {
             let store = st.store.clone();
             let added = off_main(&st, move || Ok(store.import_words(&words, now())?)).await;
-            let _ = this.update(cx, |this, cx| {
-                match added {
-                    Ok(_) => this.succeeded(cx),
-                    Err(e) => this.failed(super::Failure::Add, &e, cx),
+            let _ = this.update(cx, |this, cx| match added {
+                Ok(_) => {
+                    this.succeeded(cx);
+                    this.load(cx);
                 }
-                // A failed batch may still have added the words before the error.
-                this.load(cx);
+                Err(e) => this.failed(super::Failure::Add, &e, cx),
             });
         })
         .detach();
