@@ -55,6 +55,7 @@ pub fn launch(st: Arc<AppState>, cx: &mut App) {
     }
     retry_hotkeys_when_allowed(st.clone(), cx);
     autostart_local_models(&st);
+    crate::services::follow_chat_model(&st);
     follow_shortcuts(&st);
     open_tools_on_press(&st, cx);
     crate::services::serve_own_window_inserts(&st, cx);

@@ -2,7 +2,7 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use dito_core::config::{Appearance, DisplayLanguage, HudPosition, Source};
+use dito_core::config::{Appearance, ChatLoading, DisplayLanguage, HudPosition, Source};
 use dito_core::controller::{Command, HudState};
 use dito_core::factory::LocalBackend;
 use dito_core::provider::configured_asr::CloudAsrConfigurations;
@@ -283,6 +283,43 @@ pub async fn status_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     });
 }
 
+/// Opt-in: `DITO_SHOTS_ONLY=chatmodelstatus`, with the runtimes and `qwen3.5-2b-instruct` downloaded. Opening the chat
+/// loads an on-demand chat model and the usage table gains its row (`design:settings/status/chat-model`); leaving the
+/// chat releases it after the grace period and the row goes away.
+pub async fn chat_model_status_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
+    const CHAT_MODEL: &str = "qwen3.5-2b-instruct";
+    let original = st.cfg.get();
+    services::save_config(st, |c| {
+        c.general.display_language = DisplayLanguage::Ja;
+        c.chat.same_as_text = false;
+        c.chat.source = Source::Local;
+        c.chat.local_model = CHAT_MODEL.into();
+        c.chat.loading = ChatLoading::WhileOpen;
+    });
+    services::chat_opened(st);
+    let loading = Instant::now();
+    while st.local.status(CHAT_MODEL) != dito_core::health::EngineStatus::Running {
+        assert!(loading.elapsed() < Duration::from_secs(180), "the chat model did not load");
+        cx.background_executor().timer(Duration::from_millis(500)).await;
+    }
+    for appearance in [Appearance::Light, Appearance::Dark] {
+        services::save_config(st, |c| c.general.appearance = appearance);
+        open_page_sized(st, Page::Status, 1120., 1500., cx);
+        cx.background_executor().timer(Duration::from_millis(4500)).await;
+        page_shot(cx, dir, &format!("status-chat-model-loaded-{}.png", theme_tag(appearance))).await;
+    }
+    services::chat_left(st);
+    let left = Instant::now();
+    while st.local.status(CHAT_MODEL) == dito_core::health::EngineStatus::Running {
+        assert!(left.elapsed() < Duration::from_secs(90), "the chat model was not released");
+        cx.background_executor().timer(Duration::from_millis(1000)).await;
+    }
+    tracing::info!(secs = left.elapsed().as_secs(), "the chat model was released after leaving the chat");
+    cx.background_executor().timer(Duration::from_millis(4500)).await;
+    page_shot(cx, dir, &format!("status-chat-model-released-{}.png", theme_tag(Appearance::Dark))).await;
+    services::save_config(st, |c| *c = (*original).clone());
+}
+
 /// The Log group with real lines: the detailed log on, one mock dictation and one mock command, then the page in both
 /// themes. Opt-in: `DITO_SHOTS_ONLY=statuslog`; run with `--mock --log-sink`.
 pub async fn status_log_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
@@ -544,6 +581,42 @@ pub async fn model_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
             }
         }
     }
+    services::save_config(st, |c| *c = (*original).clone());
+}
+
+/// Opt-in: `DITO_SHOTS_ONLY=chatmodel`. The chat model card (`design:settings/local-models/chat-model`) in its three
+/// states, in a window tall enough to show it under the text model card.
+pub async fn chat_model_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
+    let original = st.cfg.get();
+    for appearance in [Appearance::Light, Appearance::Dark] {
+        let tag = theme_tag(appearance);
+        for (name, same, source, loading) in [
+            ("same", true, Source::Local, ChatLoading::Always),
+            ("local", false, Source::Local, ChatLoading::WhileOpen),
+            ("cloud", false, Source::Provider, ChatLoading::Always),
+        ] {
+            services::save_config(st, |c| {
+                c.general.display_language = DisplayLanguage::Ja;
+                c.general.appearance = appearance;
+                c.text_model.source = Source::Local;
+                c.chat.same_as_text = same;
+                c.chat.source = source;
+                c.chat.local_model = "qwen3.5-4b-instruct".into();
+                c.chat.cloud_text = "compat".into();
+                c.chat.loading = loading;
+            });
+            open_page(st, Page::Models, cx);
+            cx.update(|cx| {
+                let (w, view) = settings::handle(cx).expect("settings window");
+                let _ = w.update(cx, |_, window, cx| {
+                    view.update(cx, |s, cx| s.preview_models(Role::Text, None, window, cx))
+                });
+                resize_settings_window(cx, 1120., 1500.);
+            });
+            page_shot(cx, dir, &format!("chat-model-{name}-{tag}.png")).await;
+        }
+    }
+    cx.update(|cx| resize_settings_window(cx, 1120., 860.));
     services::save_config(st, |c| *c = (*original).clone());
 }
 

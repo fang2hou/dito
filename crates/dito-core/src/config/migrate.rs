@@ -9,7 +9,7 @@ use crate::prompts::{AppTarget, default_set};
 
 /// Version of the persisted shape that this build reads and writes. Raise it together with appending one function to
 /// `MIGRATIONS`, and never edit or renumber a shipped migration: files in the field have already passed through it.
-pub const SCHEMA_VERSION: u32 = 13;
+pub const SCHEMA_VERSION: u32 = 14;
 
 const VERSION_KEY: &str = "schema_version";
 
@@ -29,6 +29,7 @@ const MIGRATIONS: [fn(&mut Table); SCHEMA_VERSION as usize] = [
     display_locales,
     local_api_settings,
     chat_settings,
+    chat_model,
 ];
 
 /// The title instruction version 9 shipped as its default, kept here because the migrations that wrote it and
@@ -342,10 +343,24 @@ fn local_api_settings(table: &mut Table) {
 /// older build refuse the file instead of dropping the table.
 fn chat_settings(_table: &mut Table) {}
 
+/// 13 to 14: the chat can use a model of its own, which starts as the text model. Nothing is rewritten; the version
+/// bump lets an older build refuse the file instead of dropping the choice.
+fn chat_model(_table: &mut Table) {}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::config::{CloudAsrConfigurations, Config};
+
+    #[test]
+    fn version_thirteen_keeps_its_thinking_choices_and_the_chat_follows_the_text_model() {
+        let mut legacy = parse("schema_version = 13\n[chat.thinking]\n\"local:qwen3.5-9b-instruct\" = 'off'\n");
+        assert_eq!(upgrade(&mut legacy), Ok(13));
+        let migrated: Config = legacy.try_into().unwrap();
+        assert_eq!(migrated.chat.thinking.get("local:qwen3.5-9b-instruct").map(String::as_str), Some("off"));
+        assert!(migrated.chat.same_as_text);
+        assert_eq!(*migrated.chat_engine(), migrated.text_model);
+    }
 
     #[test]
     fn version_ten_keeps_existing_display_languages_and_accepts_the_new_locales() {

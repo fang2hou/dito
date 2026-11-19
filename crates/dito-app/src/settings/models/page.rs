@@ -404,6 +404,9 @@ impl ModelsPage {
                 true
             }
         };
+        if self.tab == Tab::Role(Role::Text) {
+            sections.insert(0, self.chat_card(&c, cx).into_any_element());
+        }
 
         let actions = local.then(|| {
             ui::button(

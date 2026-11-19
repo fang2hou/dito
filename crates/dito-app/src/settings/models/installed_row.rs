@@ -83,6 +83,9 @@ impl ModelsPage {
             .child(match tab {
                 Tab::Vad => active_line(c),
                 Tab::Role(_) if selected => EngineLine::new(c, &self.st.local.status(&spec.id)).element(),
+                Tab::Role(Role::Text) if self.st.cfg.get().separate_chat_model() == Some(spec.id.as_str()) => {
+                    status_line(c.t(Tr::ModelsChatInUse), c.p.model_badge_text)
+                }
                 Tab::Role(_) => status_line(c.t(Tr::ModelsDownloaded), c.p.model_badge_text),
             });
         let ctl = match tab {

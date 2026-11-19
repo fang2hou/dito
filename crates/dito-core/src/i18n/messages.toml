@@ -227,6 +227,16 @@ models.polish_off = { ja = "整形は無効", en = "Polish is off", zh = "润色
 models.dictation = { ja = "音声認識", en = "Speech recognition", zh = "语音识别", zh_hant = "語音辨識", ko = "음성 인식", mn = "Яриа таних", fr = "Reconnaissance vocale" }
 models.dictation_desc = { ja = "音声をテキストに変換します。", en = "Converts speech to text.", zh = "将语音转换为文字。", zh_hant = "將語音轉換為文字。", ko = "음성을 텍스트로 변환합니다.", mn = "Яриаг текст болгон хөрвүүлнэ.", fr = "Convertit la voix en texte." }
 models.text_model_desc = { ja = "整形、コマンド、単語の解析に使うモデルです。", en = "The model for polishing, commands and finding words.", zh = "用于润色、命令和单词解析的模型。", zh_hant = "用於潤飾、命令與單字解析的模型。", ko = "다듬기, 명령, 단어 분석에 사용하는 모델입니다.", mn = "Найруулах, тушаал, үг олох зориулалттай загвар.", fr = "Le modèle utilisé pour le polissage, les commandes et la recherche de mots." }
+models.chat_model = { ja = "チャットモデル", en = "Chat model", zh = "聊天模型", zh_hant = "聊天模型", ko = "채팅 모델", mn = "Чатын загвар", fr = "Modèle de chat" }
+models.chat_model_desc = { ja = "チャットで使うモデルです。", en = "The model the chat uses.", zh = "聊天使用的模型。", zh_hant = "聊天使用的模型。", ko = "채팅에 사용하는 모델입니다.", mn = "Чатад ашиглах загвар.", fr = "Le modèle utilisé par le chat." }
+models.chat_same_as_text = { ja = "テキストモデルと同じ", en = "Same as the text model", zh = "与文本模型相同", zh_hant = "與文字模型相同", ko = "텍스트 모델과 동일", mn = "Текст загвартай ижил", fr = "Identique au modèle de texte" }
+models.chat_same_as_text_desc = { ja = "テキストモデルの設定をそのまま使います。", en = "Uses the text model settings as they are.", zh = "直接使用文本模型的设置。", zh_hant = "直接使用文字模型的設定。", ko = "텍스트 모델 설정을 그대로 사용합니다.", mn = "Текст загварын тохиргоог шууд ашиглана.", fr = "Utilise les réglages du modèle de texte tels quels." }
+models.chat_model_pick_desc = { ja = "ダウンロード済みのローカルモデルか、クラウドの設定から選びます。", en = "Choose a downloaded local model or a cloud configuration.", zh = "从已下载的本地模型或云端配置中选择。", zh_hant = "從已下載的本機模型或雲端設定中選擇。", ko = "다운로드한 로컬 모델이나 클라우드 설정에서 선택합니다.", mn = "Татсан локал загвар эсвэл үүлэн тохиргооноос сонгоно.", fr = "Choisissez un modèle local téléchargé ou une configuration cloud." }
+models.chat_loading = { ja = "読み込み", en = "Loading", zh = "加载", zh_hant = "載入", ko = "불러오기", mn = "Ачаалах", fr = "Chargement" }
+models.chat_loading_always = { ja = "常に待機", en = "Always ready", zh = "始终待命", zh_hant = "隨時待命", ko = "항상 대기", mn = "Үргэлж бэлэн", fr = "Toujours prêt" }
+models.chat_loading_while_open = { ja = "チャット中のみ", en = "Only while chatting", zh = "仅在聊天时", zh_hant = "僅在聊天時", ko = "채팅 중에만", mn = "Зөвхөн чатлах үед", fr = "Seulement pendant le chat" }
+models.chat_loading_desc = { ja = "「チャット中のみ」は、チャットを離れるとモデルを解放してメモリを空けます。", en = "“Only while chatting” releases the model when you leave the chat, freeing memory.", zh = "“仅在聊天时”会在离开聊天后释放模型，腾出内存。", zh_hant = "「僅在聊天時」會在離開聊天後釋放模型，騰出記憶體。", ko = "‘채팅 중에만’은 채팅을 떠나면 모델을 해제해 메모리를 비웁니다.", mn = "“Зөвхөн чатлах үед” нь чатаас гарахад загварыг чөлөөлж, санах ойг суллана.", fr = "« Seulement pendant le chat » libère le modèle quand vous quittez le chat, pour libérer de la mémoire." }
+models.chat_in_use = { ja = "チャットで使用中", en = "Used by the chat", zh = "聊天使用中", zh_hant = "聊天使用中", ko = "채팅에서 사용 중", mn = "Чатад ашиглаж байна", fr = "Utilisé par le chat" }
 models.local = { ja = "ローカル", en = "Local", zh = "本地", zh_hant = "本機", ko = "로컬", mn = "Локал", fr = "Local" }
 models.provider = { ja = "クラウド", en = "Cloud", zh = "云端", zh_hant = "雲端", ko = "클라우드", mn = "Үүл", fr = "Cloud" }
 models.vad = { ja = "発話検出", en = "Speech detection", zh = "发话检测", zh_hant = "發話偵測", ko = "발화 감지", mn = "Яриа илрүүлэх", fr = "Détection de la parole" }
@@ -429,6 +439,7 @@ status.usage_title = { ja = "この Mac での使用量", en = "Usage on this Ma
 status.usage_app = { ja = "アプリ本体", en = "The app itself", zh = "应用本身", zh_hant = "App 本身", ko = "앱 자체", mn = "Апп өөрөө", fr = "L'app elle-même" }
 status.usage_asr_model = { ja = "音声認識モデル（ローカル）", en = "Speech recognition model (local)", zh = "语音识别模型（本地）", zh_hant = "語音辨識模型（本機）", ko = "음성 인식 모델(로컬)", mn = "Яриа таних загвар(локал)", fr = "Modèle de reconnaissance vocale (local)" }
 status.usage_text_model = { ja = "テキストモデル（ローカル）", en = "Text model (local)", zh = "文本模型（本地）", zh_hant = "文字模型（本機）", ko = "텍스트 모델(로컬)", mn = "Текст загвар(локал)", fr = "Modèle de texte (local)" }
+status.usage_chat_model = { ja = "チャットモデル（ローカル）", en = "Chat model (local)", zh = "聊天模型（本地）", zh_hant = "聊天模型（本機）", ko = "채팅 모델(로컬)", mn = "Чатын загвар(локал)", fr = "Modèle de chat (local)" }
 status.usage_total = { ja = "合計", en = "Total", zh = "合计", zh_hant = "總計", ko = "합계", mn = "Нийт", fr = "Total" }
 status.log_title = { ja = "ログ", en = "Log", zh = "日志", zh_hant = "日誌", ko = "로그", mn = "Лог", fr = "Journal" }
 status.log_detail = { ja = "詳しく記録する", en = "Detailed log", zh = "详细记录", zh_hant = "詳細日誌", ko = "상세 로그", mn = "Нарийвчилсан лог", fr = "Journal détaillé" }
@@ -671,6 +682,7 @@ chat.thinking = { ja = "思考", en = "Thinking", zh = "思考", zh_hant = "思�
 chat.thinking_off = { ja = "オフ", en = "Off", zh = "关闭", zh_hant = "關閉", ko = "끔", mn = "Унтраалттай", fr = "Désactivée" }
 chat.thinking_on = { ja = "オン", en = "On", zh = "开启", zh_hant = "開啟", ko = "켬", mn = "Асаалттай", fr = "Activée" }
 chat.generating = { ja = "生成中", en = "Generating", zh = "生成中", zh_hant = "產生中", ko = "생성 중", mn = "Үүсгэж байна", fr = "Génération" }
+chat.loading_model = { ja = "モデルを読み込んでいます", en = "Loading the model", zh = "正在加载模型", zh_hant = "正在載入模型", ko = "모델을 불러오는 중", mn = "Загварыг ачаалж байна", fr = "Chargement du modèle" }
 chat.waiting_reading = { ja = "内容を読んでいます", en = "Reading it through", zh = "正在阅读内容", zh_hant = "正在閱讀內容", ko = "내용을 읽고 있어요", mn = "Агуулгыг уншиж байна", fr = "Lecture du contenu" }
 chat.waiting_thinking = { ja = "考えをまとめています", en = "Gathering thoughts", zh = "正在整理思路", zh_hant = "正在整理思緒", ko = "생각을 정리하고 있어요", mn = "Бодлоо цэгцэлж байна", fr = "Mise en ordre des idées" }
 chat.waiting_patience = { ja = "もう少しお待ちください", en = "Just a little longer", zh = "请再稍等一下", zh_hant = "請再稍候一下", ko = "조금만 더 기다려 주세요", mn = "Түр хүлээнэ үү", fr = "Encore un petit instant" }

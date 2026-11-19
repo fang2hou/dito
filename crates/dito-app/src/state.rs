@@ -56,6 +56,7 @@ pub struct AppState {
     pub rt: tokio::runtime::Handle,
     /// The app's log lines since launch and the switch for the detailed log.
     pub log: Arc<LogBook>,
+    pub chat_model: crate::services::ChatModelKeeper,
     #[cfg(feature = "mock")]
     pub _mock_server: Option<dito_testkit::MockServer>,
 }
@@ -162,6 +163,7 @@ impl AppState {
             hotkeys: Arc::new(Hotkeys::new()),
             rt: rt.clone(),
             log: LogBook::shared(),
+            chat_model: Default::default(),
             #[cfg(feature = "mock")]
             _mock_server: mock_server,
         }))

@@ -16,7 +16,7 @@ mod settings;
 mod store;
 mod transcription;
 
-pub use chat::ChatSettings;
+pub use chat::{ChatLoading, ChatSettings};
 pub use cloud_asr::{CloudAsrConfiguration, CloudAsrConfigurations, CloudAsrTemplate};
 pub use cloud_text::{
     CloudTextConfiguration, CloudTextConfigurations, CloudTextParams, CloudTextTarget, CloudTextTemplate,
