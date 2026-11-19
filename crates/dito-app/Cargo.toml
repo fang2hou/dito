@@ -19,7 +19,7 @@ tempfile = "3"
 default = ["runtimes"]
 runtimes = ["dep:dito-runtimes"]
 mock = ["dep:dito-testkit"]
-screenshots = ["gpui-kit/test-support"]
+screenshots = ["mock", "gpui-kit/test-support"]
 
 [dependencies]
 serde_json.workspace = true

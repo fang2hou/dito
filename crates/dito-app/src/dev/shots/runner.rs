@@ -104,11 +104,9 @@ async fn render_app_shots(st: &Arc<AppState>, dir: &Path, groups: &Groups, cx: &
     if groups.selects("statuslog") {
         pages::status_log_shots(st, dir, cx).await;
     }
-    #[cfg(feature = "mock")]
     if groups.selects("inlineasr") {
         super::inline_asr::run(st, dir, cx).await;
     }
-    #[cfg(feature = "mock")]
     if groups.selects("cloudspeechtiles") {
         super::cloud_speech_tiles::run(st, dir, cx).await;
     }
