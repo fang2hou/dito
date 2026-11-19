@@ -77,9 +77,14 @@ impl ModelsPage {
         cx.spawn(async move |this, cx| {
             if let Ok(Ok(Some(paths))) = rx.await
                 && let Some(dir) = paths.into_iter().next()
-                && let Err(e) = st.models.change_dir(&dir.join("Dito Models"))
             {
-                tracing::warn!("could not move models: {e}");
+                let (models, target) = (st.models.clone(), dir.join("Dito Models"));
+                // A move to another volume copies every model, which would freeze the main thread for minutes.
+                match st.rt.spawn_blocking(move || models.change_dir(&target)).await {
+                    Ok(Ok(())) => {}
+                    Ok(Err(e)) => tracing::warn!("could not move models: {e}"),
+                    Err(e) => tracing::warn!("could not move models: {e}"),
+                }
             }
             let _ = this.update(cx, |_, cx| cx.notify());
         })

@@ -88,11 +88,22 @@ impl Drop for JobGuard {
     }
 }
 
+/// Marks the models folder as being moved until dropped, so a failed move releases it too.
+struct MoveGuard<'a>(&'a AtomicBool);
+
+impl Drop for MoveGuard<'_> {
+    fn drop(&mut self) {
+        self.0.store(false, Ordering::SeqCst);
+    }
+}
+
 struct Inner {
     catalog: Vec<ModelSpec>,
     config: Arc<ConfigStore>,
     tx: watch::Sender<Snapshot>,
     jobs: Mutex<HashMap<String, Job>>,
+    /// Set and checked only while `jobs` is locked, so a move and a download can never both start.
+    moving: AtomicBool,
     client: reqwest::Client,
     /// Captured when the manager is built inside a runtime (the app enters its runtime around
     /// construction). `start_download` is called from UI threads, where there is no ambient
@@ -139,6 +150,7 @@ impl ModelManager {
                 config,
                 tx,
                 jobs: Mutex::default(),
+                moving: AtomicBool::new(false),
                 client,
                 rt: tokio::runtime::Handle::try_current().ok(),
             }),
@@ -237,6 +249,9 @@ impl ModelManager {
         let mut jobs = self.inner.jobs.lock().expect("manager mutex poisoned");
         if jobs.contains_key(id) || self.is_installed(id) {
             return Ok(());
+        }
+        if self.inner.moving.load(Ordering::SeqCst) {
+            return Err(ManagerError::FolderMoving);
         }
         let job = Job { cancel: CancellationToken::new(), paused: Arc::new(AtomicBool::new(false)) };
         let (cancel, paused) = (job.cancel.clone(), job.paused.clone());
@@ -365,20 +380,29 @@ impl ModelManager {
     }
 
     pub fn cancel(&self, id: &str) {
-        if let Some(j) = self.inner.jobs.lock().expect("manager mutex poisoned").get(id) {
+        let jobs = self.inner.jobs.lock().expect("manager mutex poisoned");
+        if let Some(j) = jobs.get(id) {
             // Clear any pause request first: with `paused` still set the task's exit path
             // would keep the partial file, turning this cancel into a hidden pause.
             j.paused.store(false, Ordering::SeqCst);
             j.cancel.cancel();
-        } else if let Some(spec) = self.spec(id) {
+        } else if !self.inner.moving.load(Ordering::SeqCst)
+            && let Some(spec) = self.spec(id)
+        {
             self.remove_partials(spec);
             self.set(id, ModelState::NotInstalled);
         }
     }
 
     pub fn delete(&self, id: &str) -> Result<(), ManagerError> {
-        if self.inner.jobs.lock().expect("manager mutex poisoned").contains_key(id) {
-            return Err(ManagerError::DownloadInProgress);
+        {
+            let jobs = self.inner.jobs.lock().expect("manager mutex poisoned");
+            if jobs.contains_key(id) {
+                return Err(ManagerError::DownloadInProgress);
+            }
+            if self.inner.moving.load(Ordering::SeqCst) {
+                return Err(ManagerError::FolderMoving);
+            }
         }
         let dir = self.model_dir(id);
         if dir.exists() {
@@ -390,9 +414,7 @@ impl ModelManager {
 
     /// Move every installed (and partial) model to `new_dir` and make it the models folder.
     pub fn change_dir(&self, new_dir: &Path) -> Result<(), ManagerError> {
-        if !self.inner.jobs.lock().expect("manager mutex poisoned").is_empty() {
-            return Err(ManagerError::DownloadsRunning);
-        }
+        let _moving = self.begin_move()?;
         let old = self.dir();
         if old == new_dir {
             return Ok(());
@@ -417,11 +439,43 @@ impl ModelManager {
         self.refresh();
         Ok(())
     }
+
+    /// A move can take minutes and runs off the UI thread, so downloads, deletes and a second move are refused
+    /// until it ends.
+    fn begin_move(&self) -> Result<MoveGuard<'_>, ManagerError> {
+        let jobs = self.inner.jobs.lock().expect("manager mutex poisoned");
+        if !jobs.is_empty() {
+            return Err(ManagerError::DownloadsRunning);
+        }
+        if self.inner.moving.swap(true, Ordering::SeqCst) {
+            return Err(ManagerError::FolderMoving);
+        }
+        Ok(MoveGuard(&self.inner.moving))
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn nothing_else_changes_the_models_folder_while_it_is_being_moved() {
+        let dir = tempfile::tempdir().unwrap();
+        let config = Arc::new(ConfigStore::open(dir.path().join("config.toml")).unwrap());
+        config.update(|c| c.models_dir = Some(dir.path().join("models"))).unwrap();
+        let manager = ModelManager::new(config);
+        let id = manager.catalog()[0].id.clone();
+        let elsewhere = dir.path().join("elsewhere");
+
+        let moving = manager.begin_move().unwrap();
+        assert!(matches!(manager.start_download(&id), Err(ManagerError::FolderMoving)));
+        assert!(matches!(manager.delete(&id), Err(ManagerError::FolderMoving)));
+        assert!(matches!(manager.change_dir(&elsewhere), Err(ManagerError::FolderMoving)));
+        drop(moving);
+
+        manager.change_dir(&elsewhere).unwrap();
+        assert!(manager.begin_move().is_ok(), "a finished move releases the folder");
+    }
 
     #[test]
     fn eta_rounds_up_and_needs_a_measurable_speed() {
