@@ -1,6 +1,6 @@
 --- a/crates/dito-app/src/dev/shots/runner.rs
 +++ b/crates/dito-app/src/dev/shots/runner.rs
-@@ -5,7 +5,7 @@
+@@ -6,7 +6,7 @@
  use gpui_kit::*;
  
  use super::input::redraw;
@@ -9,13 +9,11 @@
  use crate::settings::{self, Page};
  use crate::state::{AppGlobal, AppState};
  
-@@ -136,6 +136,9 @@
- }
- 
- async fn render_preview_shots(st: &Arc<AppState>, dir: &Path, groups: &Groups, cx: &mut AsyncApp) {
-+    if groups.selects("introfilm") {
-+        intro_film::run(st, dir, cx).await;
-+    }
-     if groups.selects("readmefilm") {
-         readme_film::run(st, dir, cx).await;
-     }
+@@ -58,6 +58,7 @@
+     default_group("startup", |st, dir, cx| Box::pin(startup::startup_failure_shots(st, dir, cx))),
+     default_group("hud", |st, dir, cx| Box::pin(hud::hud_shots(st, dir, cx))),
+     default_group("demo", |_, dir, cx| Box::pin(demo::demo_shots(dir, cx))),
++    opt_in("introfilm", |st, dir, cx| Box::pin(intro_film::run(st, dir, cx))),
+     opt_in("readmefilm", |st, dir, cx| Box::pin(readme_film::run(st, dir, cx))),
+     opt_in("hudinteractions", |st, dir, cx| Box::pin(hud::hud_interaction_shots(st, dir, cx))),
+     opt_in("hudstylepreview", |st, dir, cx| Box::pin(pages::hud_style_preview_shots(st, dir, cx))),
