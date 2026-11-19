@@ -33,7 +33,7 @@ pub fn selectable_spans(
     p: &Palette,
     id: impl Into<ElementId>,
     s: impl Into<SharedString>,
-    spans: Vec<(Range<usize>, Hsla)>,
+    spans: impl IntoIterator<Item = (Range<usize>, Hsla)>,
 ) -> impl IntoElement {
     let s: SharedString = s.into();
     let highlights =

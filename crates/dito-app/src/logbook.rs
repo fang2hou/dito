@@ -120,6 +120,11 @@ impl LogBook {
         self.changed.subscribe()
     }
 
+    /// The tick [`Self::subscribe`] reports, for a reader that only compares it with the one it last saw.
+    pub fn revision(&self) -> u64 {
+        *self.changed.borrow()
+    }
+
     /// Whether the `dito_trace` debug lines are recorded and shown.
     pub fn detail(&self) -> bool {
         self.detail.load(Ordering::Relaxed)
