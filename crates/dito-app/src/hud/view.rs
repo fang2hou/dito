@@ -28,6 +28,7 @@ pub(in crate::hud) use command::KeyStep;
 mod hit;
 mod language_chip;
 mod layout;
+mod opening;
 #[cfg(feature = "screenshots")]
 mod probe;
 #[cfg(feature = "screenshots")]
@@ -88,6 +89,7 @@ pub struct HudView {
     motion: ui::MotionScope,
     waveform: Waveform,
     wave_tick: Instant,
+    opening: Option<opening::Opening>,
     /// A next-frame callback is pending, or a preview timer stands in for it. The clock parks once nothing moves and
     /// the next render arms it again, so whatever starts motion must notify the view.
     frame_clock_armed: bool,
@@ -147,6 +149,7 @@ impl HudView {
             motion: ui::MotionScope::new(),
             waveform: Waveform::default(),
             wave_tick: Instant::now(),
+            opening: opening::Opening::new(),
             frame_clock_armed: false,
             error_reason: super::motion::Spring::default(),
             error_tick: Instant::now(),

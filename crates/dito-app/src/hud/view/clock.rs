@@ -11,6 +11,7 @@ use crate::hud::timing::{self, COPY_END, OUTCOME_END, OUTCOME_ICON_DELAY, SETTLE
 use crate::ui::{self, Motion};
 
 use super::capsule_stack::{STATE_FADE_S, is_processing};
+use super::opening;
 use super::{HudView, LABEL_FADE_S, POP_MS};
 
 pub(super) const COUNTDOWN_START_S: f32 = 240.;
@@ -80,6 +81,12 @@ impl HudView {
                 .wave_preview_gain
                 .map_or(level, |gain| crate::hud::waveform::speech_sample(self.opened.elapsed().as_secs_f32(), gain));
             self.waveform.advance(level, dt);
+            if let Some(opening) = &mut self.opening {
+                opening.heard(level, self.waveform.calibrated());
+            }
+        }
+        if self.opening.as_mut().is_some_and(opening::Opening::tick) {
+            self.opening = None;
         }
         let error_target = f32::from(self.hover_btn.is_some());
         let in_error = matches!(self.state, HudState::Error { .. });

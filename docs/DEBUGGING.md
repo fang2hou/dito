@@ -63,6 +63,7 @@ Full texts appear only in this log, and only at debug level. Keys and audio are 
 | No permission prompt, or Accessibility never answers | Running the bare binary, or the signing identity changed | Engineering Traps, signing, in [IMPLEMENTATION.md](IMPLEMENTATION.md); `mise run certs` |
 | Permissions reset after a rebuild | The build was signed with a different identity | `mise run release:install` signs with `dito-dev` |
 | Crash on quit with a local model loaded | `LocalEngines::unload_all()` was skipped | `dito-local`, llama.cpp Metal backend |
+| The ocean starts late or looks still when the HUD opens | The first frames came late (`waited`, `longest_gap`), or the microphone delivered its first buffer late (`first_level`), so the start motion ran longer before the real level took over (`calibrated`) | `RUST_LOG=dito::hud=debug` prints one `hud opening` line a second after each HUD opens (none for a shorter recording); `START_MOTION` in `hud/waveform.rs` |
 | HUD animation stutters while unfocused | macOS throttles a background app; `NapGuard` or the HUD's own timer was removed | `hud/`, `NapGuard` |
 | Cancel leaves the CPU busy | A local runtime loop ignores its `stop` flag | `dito-runtimes` loops, `spawn_blocking` |
 | Build fails after moving a file under `design/` or `provider/asr-help/` | Those files are compiled into `dito-core` | `design/asr-templates/`, `crates/dito-core/src/provider/asr-help/` |
