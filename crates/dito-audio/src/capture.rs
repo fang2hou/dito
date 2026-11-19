@@ -102,6 +102,11 @@ fn pick_input(
         .map(|d| d.name.clone())
 }
 
+/// A sticky pick survives only while its device stays connected and automatic picking still allows it.
+fn sticky_still_allowed(sticky: &str, devices: &[InputDevice], overrides: &AutoOverrides) -> bool {
+    devices.iter().any(|d| d.name == sticky && d.auto(overrides))
+}
+
 /// Applies [`pick_input`] to one enumeration and hands back the picked device with its name, so the caller opens it
 /// without enumerating again.
 fn resolve_among(
@@ -329,11 +334,19 @@ impl Inner {
         // The only enumeration of this start: every pass costs many Core Audio property reads while the shortcut
         // waits for the stream.
         let inputs = connected_inputs();
-        // A sticky pick survives only while the device stays connected.
         let sticky = {
             let mut s = self.sticky.lock().expect("audio state lock");
-            if s.as_ref().is_some_and(|n| !inputs.iter().any(|(_, name)| name == n)) {
-                *s = None;
+            if let Some(n) = s.as_deref() {
+                // Only the devices of that name are described: each description costs Core Audio property reads.
+                let named: Vec<InputDevice> = inputs
+                    .iter()
+                    .filter(|(_, name)| name == n)
+                    .map(|(device, name)| input_device(device, name))
+                    .collect();
+                let overrides = self.auto_overrides.lock().expect("audio state lock");
+                if !sticky_still_allowed(n, &named, &overrides) {
+                    *s = None;
+                }
             }
             s.clone()
         };
@@ -629,5 +642,17 @@ mod tests {
         let chosen = AutoOverrides::from([("AirPods".to_string(), true), ("C922".to_string(), false)]);
         assert!(headset.auto(&chosen));
         assert!(!wired.auto(&chosen));
+    }
+
+    #[test]
+    fn a_sticky_pick_ends_once_unplugged_or_kept_out_of_automatic_picking() {
+        let devices = [device("C922", true), device("AirPods", false)];
+        let none = AutoOverrides::new();
+        assert!(sticky_still_allowed("C922", &devices, &none));
+        assert!(!sticky_still_allowed("AirPods", &devices, &none), "its opt-in was withdrawn");
+        assert!(!sticky_still_allowed("Yeti", &devices, &none), "unplugged");
+        let chosen = AutoOverrides::from([("AirPods".to_string(), true), ("C922".to_string(), false)]);
+        assert!(!sticky_still_allowed("C922", &devices, &chosen), "the user turned it off");
+        assert!(sticky_still_allowed("AirPods", &devices, &chosen));
     }
 }
