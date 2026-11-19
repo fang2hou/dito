@@ -9,7 +9,7 @@ use dito_core::audio::SAMPLE_RATE;
 use dito_core::controller::RecorderError;
 use dito_core::transcription::{AudioSource, ChunkSink, LiveAudio, LiveInput};
 
-use crate::capture::{AutoOverrides, device_error, find_device, open_mono_stream_with, resolve_input};
+use crate::capture::{AutoOverrides, device_error, open_mono_stream_with, resolve_input};
 use crate::resample::Resampler;
 
 const OPEN_TIMEOUT: Duration = Duration::from_secs(5);
@@ -63,7 +63,7 @@ impl LiveAudio for LiveCapture {
                     }
                     AudioSource::Microphone => {
                         let (configured, overrides) = &microphone;
-                        let device = find_device(&resolve_input(configured, overrides)?)?;
+                        let device = resolve_input(configured, overrides)?;
                         let config = device.default_input_config().map_err(device_error)?;
                         (device, config)
                     }
