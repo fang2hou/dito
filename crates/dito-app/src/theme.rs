@@ -3,7 +3,7 @@
 use std::sync::LazyLock;
 
 use dito_core::config::Appearance;
-use gpui_kit::{App, Hsla, Rgba, WindowAppearance};
+use gpui_kit::{App, Hsla, Rgba, Window, WindowAppearance};
 
 use crate::ui::hex_alpha;
 
@@ -426,6 +426,12 @@ pub fn hud_command_shoulder(p: &Palette) -> Hsla {
 
 pub fn palette(setting: Appearance, cx: &App) -> Palette {
     Palette::resolve(setting, cx.window_appearance())
+}
+
+/// A palette that follows the system is read while a frame is built, and a change of the system appearance asks for
+/// no frame by itself: without this the window keeps its old colors until something else redraws it.
+pub fn repaint_with_system(window: &Window) {
+    window.observe_window_appearance(|window, _| window.refresh()).detach();
 }
 
 #[cfg(test)]

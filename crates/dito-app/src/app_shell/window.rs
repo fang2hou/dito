@@ -57,6 +57,7 @@ pub(crate) fn open_shell_window<V: ShellView>(
     };
     let mut view_slot = None;
     let res = cx.open_window(opts, |window, cx| {
+        crate::theme::repaint_with_system(window);
         let view = cx.new(|cx| build(st, window, cx));
         view_slot = Some(view.clone());
         cx.new(|cx| Root::new(view, window, cx))

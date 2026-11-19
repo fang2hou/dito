@@ -85,6 +85,7 @@ pub fn open_with_view(st: Arc<AppState>, cx: &mut App) -> Option<(WindowHandle<R
     let mut slot = None;
     let h = cx
         .open_window(opts, |window, cx| {
+            crate::theme::repaint_with_system(window);
             let view = cx.new(|cx| Onboarding::new(st, window, cx));
             slot = Some(view.clone());
             cx.new(|cx| Root::new(view, window, cx))
@@ -125,6 +126,7 @@ pub fn open(st: Arc<AppState>, cx: &mut App) {
     let foreground = !st.opts.is_headless();
     let mut view_slot = None;
     match cx.open_window(opts, |window, cx| {
+        crate::theme::repaint_with_system(window);
         let view = cx.new(|cx| {
             let mut wizard = Onboarding::new(st, window, cx);
             wizard.begin_intro(cx);
