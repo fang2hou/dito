@@ -48,22 +48,47 @@ pub fn cjk_family() -> &'static str {
     }
 }
 
-pub fn family_for(s: &str) -> &'static str {
-    use dito_core::i18n::Lang;
-    if is_cjk(s) {
-        if s.chars().any(|c| matches!(c, '\u{ac00}'..='\u{d7af}' | '\u{1100}'..='\u{11ff}')) {
-            return "Apple SD Gothic Neo";
+/// What a text's characters say about its typeface. Text that is drawn every frame keeps this instead of scanning
+/// itself again; the family is still looked up per frame, because the CJK one follows the UI language.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Script {
+    Latin,
+    Cyrillic,
+    Hangul,
+    Cjk,
+}
+
+impl Script {
+    pub fn of(s: &str) -> Self {
+        if is_cjk(s) {
+            if s.chars().any(|c| matches!(c, '\u{ac00}'..='\u{d7af}' | '\u{1100}'..='\u{11ff}')) {
+                return Self::Hangul;
+            }
+            return Self::Cjk;
         }
-        return match ui_language() {
-            Lang::Zh => "IBM Plex Sans SC",
-            Lang::ZhHant => "PingFang TC",
-            _ => "M PLUS 1p",
-        };
+        if is_cyrillic(s) {
+            return Self::Cyrillic;
+        }
+        Self::Latin
     }
-    if is_cyrillic(s) {
-        return "Helvetica Neue";
+
+    pub fn family(self) -> &'static str {
+        use dito_core::i18n::Lang;
+        match self {
+            Self::Hangul => "Apple SD Gothic Neo",
+            Self::Cjk => match ui_language() {
+                Lang::Zh => "IBM Plex Sans SC",
+                Lang::ZhHant => "PingFang TC",
+                _ => "M PLUS 1p",
+            },
+            Self::Cyrillic => "Helvetica Neue",
+            Self::Latin => "Outfit",
+        }
     }
-    "Outfit"
+}
+
+pub fn family_for(s: &str) -> &'static str {
+    Script::of(s).family()
 }
 
 pub fn text(s: impl Into<SharedString>, size: f32, weight: FontWeight, color: Hsla) -> Div {

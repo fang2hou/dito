@@ -60,7 +60,7 @@ pub(crate) struct ChatPage {
     /// The unsaved new chat exists, shown or not.
     draft_open: bool,
     rows: Vec<ChatMessageRow>,
-    docs: HashMap<i64, Rc<Document>>,
+    docs: Docs,
     composer: Entity<TextareaState>,
     composer_lang: Lang,
     pending: Vec<Attachment>,
@@ -106,7 +106,32 @@ struct Switching {
     anim: Switch,
     /// What the outgoing phase still shows.
     old_rows: Vec<ChatMessageRow>,
-    old_docs: HashMap<i64, Rc<Document>>,
+    old_docs: Docs,
+}
+
+/// What the rows show, in the form a frame clones instead of working out again: each reply parsed and prepared, each
+/// of the user's messages as a string GPUI shares.
+#[derive(Default)]
+struct Docs {
+    replies: HashMap<i64, Rc<Document>>,
+    asked: HashMap<i64, SharedString>,
+}
+
+impl Docs {
+    fn add(&mut self, row: &ChatMessageRow) {
+        match row.author {
+            Author::User => {
+                self.asked.insert(row.id, SharedString::from(&row.content));
+            }
+            Author::Assistant => {
+                self.replies.insert(row.id, Rc::new(reply_document(row.id, &row.content)));
+            }
+        }
+    }
+}
+
+fn reply_document(id: i64, text: &str) -> Document {
+    Document::of(ElementId::from(("chat-reply", id as usize)), text)
 }
 
 impl ChatPage {
@@ -139,7 +164,7 @@ impl ChatPage {
             current: None,
             draft_open: true,
             rows: Vec::new(),
-            docs: HashMap::new(),
+            docs: Docs::default(),
             composer,
             composer_lang: lang,
             pending: Vec::new(),
@@ -318,14 +343,12 @@ impl ChatPage {
         self.current = chat;
         self.draft_open |= chat.is_none();
         self.rows.clear();
-        self.docs.clear();
+        self.docs = Docs::default();
         let Some(id) = chat else { return };
         match self.st.store.get_chat(id) {
             Ok(Some(chat)) => {
                 for row in &chat.messages {
-                    if row.author == Author::Assistant {
-                        self.docs.insert(row.id, Rc::new(Document::of(&row.content)));
-                    }
+                    self.docs.add(row);
                 }
                 self.rows = chat.messages;
             }
@@ -377,7 +400,7 @@ impl ChatPage {
     }
 
     /// The turns on screen, taken to fade out: the last few, at full opacity.
-    fn snapshot(&mut self) -> (Vec<ChatMessageRow>, HashMap<i64, Rc<Document>>, Vec<f32>) {
+    fn snapshot(&mut self) -> (Vec<ChatMessageRow>, Docs, Vec<f32>) {
         let turns = switch::turns(&self.rows).len().min(switch::MAX_TURNS);
         (std::mem::take(&mut self.rows), std::mem::take(&mut self.docs), vec![1.; turns])
     }
@@ -459,7 +482,7 @@ impl ChatPage {
             ts,
         };
         match self.st.store.add_chat_message(chat_id, &message) {
-            Ok(id) => self.rows.push(ChatMessageRow {
+            Ok(id) => self.push_row(ChatMessageRow {
                 id,
                 author: Author::User,
                 content: text.trim().to_owned(),
@@ -479,6 +502,11 @@ impl ChatPage {
         self.composer.update(cx, |state, cx| state.set_value("", window, cx));
         self.reload_sessions();
         self.begin_reply(chat_id, cx);
+    }
+
+    fn push_row(&mut self, row: ChatMessageRow) {
+        self.docs.add(&row);
+        self.rows.push(row);
     }
 
     /// Adds the reply's row and starts the request for the conversation as it stands.
@@ -504,7 +532,7 @@ impl ChatPage {
                 return;
             }
         };
-        self.rows.push(ChatMessageRow {
+        self.push_row(ChatMessageRow {
             id,
             author: Author::Assistant,
             content: String::new(),
@@ -514,7 +542,6 @@ impl ChatPage {
             model: Some(model),
             ts,
         });
-        self.docs.insert(id, Rc::new(Document::default()));
         self.generation = Some(Generation::start(&self.st, chat_id, id, request));
         self.scroll.scroll_to_bottom();
         self.watch_generation(cx);
@@ -538,11 +565,11 @@ impl ChatPage {
         let Some(generation) = &mut self.generation else { return false };
         let id = generation.message_id;
         if let Some(text) = generation.grown() {
-            if let Some(row) = self.rows.iter_mut().find(|r| r.id == id) {
-                row.content.clone_from(&text);
-            }
-            if let Some(doc) = self.docs.get_mut(&id) {
+            if let Some(doc) = self.docs.replies.get_mut(&id) {
                 Rc::make_mut(doc).update(&text);
+            }
+            if let Some(row) = self.rows.iter_mut().find(|r| r.id == id) {
+                row.content = text;
             }
         }
         let finished = generation.finished();
@@ -552,7 +579,7 @@ impl ChatPage {
                 row.state = state;
                 row.error = error;
             }
-            self.docs.insert(id, Rc::new(Document::of(&content)));
+            self.docs.replies.insert(id, Rc::new(reply_document(id, &content)));
             self.generation = None;
             self.reload_sessions();
             cx.notify();
@@ -585,7 +612,7 @@ impl ChatPage {
         }
         let id = last.id;
         self.rows.pop();
-        self.docs.remove(&id);
+        self.docs.replies.remove(&id);
         self.begin_reply(chat_id, cx);
     }
 
