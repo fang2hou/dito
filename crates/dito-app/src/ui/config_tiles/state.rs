@@ -8,7 +8,8 @@ use std::time::{Duration, Instant};
 use gpui_kit::SharedString;
 
 use super::geometry::{Layout, PITCH, TILE_W, edge_speed, slots_moved, wheel_delta};
-use crate::ui::tween::{RING_MS, ease};
+use crate::ui::motion::ease;
+use crate::ui::tween::RING_MS;
 
 /// Tiles sliding aside, the lift and the drop settle on the focus-ring clock (`motion/ring`).
 const SLIDE_MS: u64 = RING_MS;

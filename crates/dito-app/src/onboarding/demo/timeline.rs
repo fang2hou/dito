@@ -27,8 +27,7 @@ pub(super) const STILL_AT: f32 = 2.0;
 pub(super) const CHIP_STARTS: [f32; 4] = [T_PRESS, 1.2, T_SECOND, T_INSERT];
 
 pub(super) fn smooth(u: f32) -> f32 {
-    let u = u.clamp(0., 1.);
-    u * u * (3. - 2. * u)
+    ui::ease(u.clamp(0., 1.))
 }
 
 pub(super) fn ease_out(u: f32) -> f32 {

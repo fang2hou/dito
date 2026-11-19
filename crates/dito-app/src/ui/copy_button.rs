@@ -8,10 +8,9 @@ use gpui_kit::*;
 use super::button::{CircleAppearance, CircleSize, circle_shell};
 use super::callbacks::CopyCb;
 use super::hover::hover_fill;
-use super::motion::Motion;
+use super::motion::{Motion, ease};
 use super::primitives::{icon, mix_rgb};
 use super::scope::{self, ScopeHandle};
-use super::tween::ease;
 use crate::assets::Ic;
 use crate::theme::Palette;
 

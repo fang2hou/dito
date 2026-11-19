@@ -3,7 +3,7 @@ use std::time::Duration;
 use gpui_kit::*;
 
 use crate::theme::Palette;
-use crate::ui::{text, text_width};
+use crate::ui::{ease, text, text_width};
 
 /// Keep one measured reveal mounted throughout animation and rest. Wrapping it in `tweened` would change its ancestor
 /// identity at settle, discard its measured height and briefly lay it out at zero height.
@@ -30,7 +30,7 @@ impl RenderOnce for Disclosure {
             } else {
                 200
             }))
-            .ease(|t| t * t * (3. - 2. * t)),
+            .ease(ease),
             window,
             cx,
         );

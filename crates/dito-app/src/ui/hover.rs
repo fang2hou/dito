@@ -3,6 +3,7 @@ use std::time::Duration;
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
+use super::motion::ease;
 use super::primitives::mix;
 use super::scope::{self, ScopeHandle};
 use super::tween::{self, tweened};
@@ -83,7 +84,7 @@ pub fn hover_pop<E: IntoElement + 'static>(id: ElementId, on: bool, build: impl 
         div()
             .child(el)
             .with_animation((id, SharedString::from(format!("pop-{bump}"))), Animation::new(dur), move |el, t| {
-                let v = from + (to - from) * tween::ease(t.clamp(0., 1.));
+                let v = from + (to - from) * ease(t.clamp(0., 1.));
                 let rise = if reduced { 0. } else { (1. - v) * RISE };
                 el.relative().top(px(rise)).opacity(v)
             })

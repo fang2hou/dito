@@ -6,6 +6,7 @@ use super::Scale;
 use super::buttons::BTN;
 use super::capsule::CAPSULE_PAD;
 use super::motion::EntryPose;
+use crate::ui::{ease, lerp};
 
 #[derive(Clone, Copy)]
 struct OceanPreset {
@@ -214,10 +215,6 @@ pub(crate) fn speech_sample(t: f32, gain: f32) -> f32 {
     gain * (0.08 + 0.92 * syllable) * (0.35 + 0.65 * phrase)
 }
 
-fn mix(a: f32, b: f32, t: f32) -> f32 {
-    a + (b - a) * t
-}
-
 fn drift(t: f32, seed: u32) -> f32 {
     let cell = t.floor();
     let random = |i: i32| {
@@ -227,7 +224,7 @@ fn drift(t: f32, seed: u32) -> f32 {
         (n >> 16) as f32 / 65535.
     };
     let f = t - cell;
-    mix(random(cell as i32), random(cell as i32 + 1), f * f * (3. - 2. * f))
+    lerp(random(cell as i32), random(cell as i32 + 1), ease(f))
 }
 
 /// A dot squeezed below this by the capsule edge is too faint to draw.
@@ -281,7 +278,7 @@ pub(super) fn ocean(
                 let plane_y = (depth - 0.5) * 13.;
                 let bend = p.curvature * (depth - 0.60).powi(2) * 0.12;
                 // Cull offscreen columns before the noise and trigonometry. The margin allows for crest displacement.
-                let col_limit = width * 0.5 / mix(3.56, 1.99, (depth + 0.04).min(1.)) + 1.2;
+                let col_limit = width * 0.5 / lerp(3.56, 1.99, (depth + 0.04).min(1.)) + 1.2;
                 for col in -29..=29 {
                     let u = col as f32 + (row % 2) as f32 * 0.21;
                     if u.abs() > col_limit {
@@ -314,7 +311,7 @@ pub(super) fn ocean(
                     let along = u - compression * (0.47 * a_sin + 0.27 * b_sin + 0.12 * c_sin);
                     let across =
                         (depth + 0.032 * compression * (0.44 * a_sin - 0.64 * b_sin + 0.30 * c_sin)).clamp(0., 1.);
-                    let x = w * 0.5 + along * mix(3.56, 1.99, across) * stretch_x;
+                    let x = w * 0.5 + along * lerp(3.56, 1.99, across) * stretch_x;
                     let y = (34.
                         - 21.5 * across.powf(0.78)
                         - shape_amplitude * (4.9 * distant + 0.55 * depth * overlap) * height)
@@ -338,7 +335,7 @@ pub(super) fn ocean(
                         + 0.09 * fast
                         + if dark { 0. } else { 0.16 + 0.09 * exposure })
                     .clamp(0., 1.);
-                    let radius = mix(0.55, 0.39, depth)
+                    let radius = lerp(0.55, 0.39, depth)
                         + 0.16 * glint
                         + if reduced { 0. } else { 0.05 * energy }
                         + if dark { 0. } else { 0.085 };
@@ -382,7 +379,7 @@ pub(super) fn ocean(
                         let t = shade as f32 / (SHADES - 1) as f32 * 2.;
                         let base = if t < 1. { 0 } else { 1 };
                         let [r, g, b] = std::array::from_fn(|i| {
-                            mix(palette[base][i], palette[base + 1][i], t - base as f32) / 255.
+                            lerp(palette[base][i], palette[base + 1][i], t - base as f32) / 255.
                         });
                         window.paint_path(path, Rgba { r, g, b, a: band as f32 / (BANDS - 1) as f32 });
                     }

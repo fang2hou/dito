@@ -5,6 +5,7 @@ use gpui_kit::prelude::*;
 use gpui_kit::*;
 
 use super::button::CONTROL_H;
+use super::motion::ease;
 use super::primitives::{icon, mix, transparent};
 use super::scope::{ScopeHandle, motion_scope, with_motion_scope};
 use super::tween::{RING_MS, count_flips};
@@ -56,7 +57,7 @@ pub fn ring_overlay(
     let key = (id, SharedString::from(format!("ring-{flips}")));
     overlay(settled)
         .with_animation(key, Animation::new(Duration::from_millis(RING_MS)), move |_, t| {
-            let q = t * t * (3. - 2. * t);
+            let q = ease(t);
             overlay(if active { q } else { 1. - q })
         })
         .into_any_element()

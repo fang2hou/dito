@@ -1,5 +1,7 @@
 //! Analytic damped springs: no frame-rate-dependent integration or velocity reset on retarget.
 
+use crate::ui::{SpringCurve, ease};
+
 #[derive(Clone, Copy, Debug, Default)]
 pub(super) struct Spring {
     pub position: f32,
@@ -11,15 +13,10 @@ impl Spring {
         if seconds <= 0. {
             return;
         }
-        let decay = damping * omega;
-        let wd = omega * (1. - damping * damping).sqrt();
-        let displacement = self.position - target;
-        let b = (self.velocity + decay * displacement) / wd;
-        let (sin, cos) = (wd * seconds).sin_cos();
-        let e = (-decay * seconds).exp();
-        let wave = displacement * cos + b * sin;
-        self.position = target + e * wave;
-        self.velocity = e * (wd * (b * cos - displacement * sin) - decay * wave);
+        let (offset, velocity) =
+            SpringCurve::damped(damping, omega).step(self.position - target, self.velocity, seconds);
+        self.position = target + offset;
+        self.velocity = velocity;
     }
 
     pub fn moving(&self, target: f32) -> bool {
@@ -34,8 +31,7 @@ pub(super) fn spring_progress(seconds: f32, damping: f32, omega: f32) -> f32 {
 }
 
 pub(super) fn smooth(t: f32) -> f32 {
-    let t = t.clamp(0., 1.);
-    t * t * (3. - 2. * t)
+    ease(t.clamp(0., 1.))
 }
 
 /// Monotone Hermite segments join the approved poses without adding another rebound.

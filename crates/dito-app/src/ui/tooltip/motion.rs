@@ -60,8 +60,7 @@ pub(super) struct TooltipMotion {
 }
 
 fn ease(t: f32) -> f32 {
-    let t = t.clamp(0., 1.);
-    t * t * (3. - 2. * t)
+    crate::ui::motion::ease(t.clamp(0., 1.))
 }
 
 impl TooltipMotion {

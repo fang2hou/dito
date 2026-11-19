@@ -9,6 +9,7 @@ use super::hover::{HOVER_MS, hover_fill, hover_tracker, is_hovered};
 use super::inputs::{field_chrome, form_chrome};
 use super::menu_button::{press_mark, press_toggle};
 use super::menu_panel::{float, menu_panel, menu_row, menu_row_staying};
+use super::motion::ease;
 use super::primitives::icon;
 use super::scope::{ScopeHandle, motion_scope};
 use super::select_badge::{SelectBadge, select_badge};
@@ -37,7 +38,7 @@ fn chevron(id: ElementId, color: Hsla, open: bool) -> AnyElement {
             (id, SharedString::from(format!("turn-{flips}"))),
             Animation::new(Duration::from_millis(RING_MS)),
             move |_, t| {
-                let q = t * t * (3. - 2. * t);
+                let q = ease(t);
                 at(if open { q } else { 1. - q })
             },
         )

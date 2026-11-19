@@ -2,7 +2,7 @@
 
 use std::time::Instant;
 
-use crate::ui::Motion;
+use crate::ui::{Motion, ease};
 
 use super::Step;
 
@@ -18,8 +18,7 @@ fn ease_out(u: f32) -> f32 {
 }
 
 fn ease_in_out(u: f32) -> f32 {
-    let u = u.clamp(0., 1.);
-    u * u * (3. - 2. * u)
+    ease(u.clamp(0., 1.))
 }
 
 pub(super) struct Slide {
