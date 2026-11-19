@@ -42,22 +42,23 @@ impl InputDevice {
     }
 }
 
-/// Reads device properties only; opens nothing.
-fn input_names() -> Vec<String> {
-    let host = cpal::default_host();
-    host.input_devices().map(|it| it.filter_map(|d| device_name(&d)).collect()).unwrap_or_default()
+/// One enumeration pass. Reads device properties only; opens nothing.
+fn connected_inputs() -> Vec<(Device, String)> {
+    let Ok(devices) = cpal::default_host().input_devices() else { return Vec::new() };
+    devices.filter_map(|d| device_name(&d).map(|name| (d, name))).collect()
+}
+
+fn input_device(device: &Device, name: &str) -> InputDevice {
+    let transport = device.id().ok().and_then(|id| transport::transport_of(id.id()));
+    InputDevice { name: name.to_string(), auto_default: transport::allows_auto_probe(transport) }
+}
+
+fn take_named(inputs: Vec<(Device, String)>, name: &str) -> Option<Device> {
+    inputs.into_iter().find(|(_, n)| n == name).map(|(device, _)| device)
 }
 
 pub fn list_input_devices() -> Vec<InputDevice> {
-    let host = cpal::default_host();
-    let Ok(devices) = host.input_devices() else { return Vec::new() };
-    devices
-        .filter_map(|d| {
-            let name = device_name(&d)?;
-            let transport = d.id().ok().and_then(|id| transport::transport_of(id.id()));
-            Some(InputDevice { name, auto_default: transport::allows_auto_probe(transport) })
-        })
-        .collect()
+    connected_inputs().iter().map(|(device, name)| input_device(device, name)).collect()
 }
 
 /// An internal microphone needs no notice bubble.
@@ -70,7 +71,7 @@ pub(crate) fn device_error(error: impl std::fmt::Display) -> RecorderError {
     RecorderError::Device(error.to_string())
 }
 
-pub(crate) fn find_device(name: &str) -> Result<Device, RecorderError> {
+fn find_device(name: &str) -> Result<Device, RecorderError> {
     let host = cpal::default_host();
     let mut it = host.input_devices().map_err(device_error)?;
     it.find(|d| device_name(d).as_deref() == Some(name)).ok_or(RecorderError::NoInputDevice)
@@ -101,12 +102,25 @@ fn pick_input(
         .map(|d| d.name.clone())
 }
 
-pub(crate) fn resolve_input(configured: &str, overrides: &AutoOverrides) -> Result<String, RecorderError> {
-    let devices = list_input_devices();
-    if devices.is_empty() {
+/// Applies [`pick_input`] to one enumeration and hands back the picked device with its name, so the caller opens it
+/// without enumerating again.
+fn resolve_among(
+    inputs: Vec<(Device, String)>,
+    configured: &str,
+    default: Option<&str>,
+    overrides: &AutoOverrides,
+) -> Result<(Device, String), RecorderError> {
+    if inputs.is_empty() {
         return Err(RecorderError::NoInputDevice);
     }
-    pick_input(configured, default_input_name().as_deref(), &devices, overrides).ok_or(RecorderError::NoAutoInputDevice)
+    let devices: Vec<InputDevice> = inputs.iter().map(|(device, name)| input_device(device, name)).collect();
+    let name = pick_input(configured, default, &devices, overrides).ok_or(RecorderError::NoAutoInputDevice)?;
+    let device = take_named(inputs, &name).ok_or(RecorderError::NoInputDevice)?;
+    Ok((device, name))
+}
+
+pub(crate) fn resolve_input(configured: &str, overrides: &AutoOverrides) -> Result<Device, RecorderError> {
+    resolve_among(connected_inputs(), configured, default_input_name().as_deref(), overrides).map(|(device, _)| device)
 }
 
 fn pick_switch(current: f32, probes: &[(String, f32)]) -> Option<&str> {
@@ -229,16 +243,21 @@ struct Inner {
 }
 
 impl Inner {
-    fn set_notice_if_notable(&self, effective: &str) {
-        let default_name = default_input_name();
-        let notable = !is_builtin_name(effective) && default_name.as_deref() != Some(effective);
+    fn set_notice_if_notable(&self, effective: &str, default_name: Option<&str>) {
+        let notable = !is_builtin_name(effective) && default_name != Some(effective);
         if notable {
             *self.notice.lock().expect("audio state lock") = Some((effective.to_string(), Instant::now()));
         }
     }
 
-    /// `selector` names a connected device. Blocks until the stream is live.
-    fn spawn_stream(&self, selector: &str, samples: Arc<Mutex<Vec<f32>>>) -> Result<(Running, String), RecorderError> {
+    /// `selector` names a connected device; `device` is that device when the caller already holds it, otherwise it is
+    /// looked up by name on the stream thread. Blocks until the stream is live.
+    fn spawn_stream(
+        &self,
+        selector: &str,
+        device: Option<Device>,
+        samples: Arc<Mutex<Vec<f32>>>,
+    ) -> Result<(Running, String), RecorderError> {
         self.level.store(0, Ordering::Relaxed);
         let (stop_tx, stop_rx) = mpsc::channel();
         let (ready_tx, ready_rx) = mpsc::channel();
@@ -246,7 +265,7 @@ impl Inner {
         let sel = selector.to_string();
         let thread = std::thread::Builder::new()
             .name("dito-audio".into())
-            .spawn(move || stream_thread(sel, s2, l2, ready_tx, stop_rx))?;
+            .spawn(move || stream_thread(sel, device, s2, l2, ready_tx, stop_rx))?;
         match ready_rx.recv_timeout(Duration::from_secs(5)) {
             Ok(Ok(name)) => Ok((Running { stop: stop_tx, thread, samples }, name)),
             Ok(Err(e)) => {
@@ -266,26 +285,30 @@ impl Inner {
         *self.salvage.lock().expect("audio state lock") = None;
         let configured = self.device.lock().expect("audio state lock").clone();
         let auto = configured.trim().is_empty();
+        // The only enumeration of this start: every pass costs many Core Audio property reads while the shortcut
+        // waits for the stream.
+        let inputs = connected_inputs();
         // A sticky pick survives only while the device stays connected.
-        let live = input_names();
         let sticky = {
             let mut s = self.sticky.lock().expect("audio state lock");
-            if s.as_ref().is_some_and(|n| !live.contains(n)) {
+            if s.as_ref().is_some_and(|n| !inputs.iter().any(|(_, name)| name == n)) {
                 *s = None;
             }
             s.clone()
         };
-        let selector = match sticky.clone().filter(|_| auto) {
-            Some(s) => s,
+        let default_name = default_input_name();
+        let (device, selector) = match sticky.clone().filter(|_| auto) {
+            Some(s) => (take_named(inputs, &s), s),
             None => {
                 let overrides = self.auto_overrides.lock().expect("audio state lock").clone();
-                resolve_input(&configured, &overrides)?
+                let (device, name) = resolve_among(inputs, &configured, default_name.as_deref(), &overrides)?;
+                (Some(device), name)
             }
         };
         let samples = Arc::new(Mutex::new(Vec::new()));
-        let (r, effective) = self.spawn_stream(&selector, samples)?;
+        let (r, effective) = self.spawn_stream(&selector, device, samples)?;
         if effective != configured {
-            self.set_notice_if_notable(&effective);
+            self.set_notice_if_notable(&effective, default_name.as_deref());
         }
         *running = Some(r);
         Ok((auto && sticky.is_none()).then_some(effective))
@@ -316,14 +339,14 @@ impl Inner {
         let recorded = old.samples.clone();
         let _ = old.stop.send(());
         let _ = old.thread.join();
-        match self.spawn_stream(winner, old.samples) {
+        match self.spawn_stream(winner, None, old.samples) {
             Ok((r, effective)) => {
                 tracing::info!("auto mic: live on {effective}");
                 *self.sticky.lock().expect("audio state lock") = Some(effective.clone());
-                self.set_notice_if_notable(&effective);
+                self.set_notice_if_notable(&effective, default_input_name().as_deref());
                 *running = Some(r);
             }
-            Err(_) => match self.spawn_stream(&current, recorded.clone()) {
+            Err(_) => match self.spawn_stream(&current, None, recorded.clone()) {
                 // The winner refused to open; fall back to re-opening the current device.
                 Ok((r, _)) => *running = Some(r),
                 Err(_) => *self.salvage.lock().expect("audio state lock") = Some(recorded),
@@ -417,15 +440,19 @@ where
 
 fn stream_thread(
     device_name: String,
+    device: Option<Device>,
     samples: Arc<Mutex<Vec<f32>>>,
     level: Arc<AtomicU32>,
     ready: mpsc::Sender<Result<String, RecorderError>>,
     stop: mpsc::Receiver<()>,
 ) {
     let build = || -> Result<(cpal::Stream, String), RecorderError> {
-        let device = find_device(&device_name)?;
-        let rate = device.default_input_config().map_err(device_error)?.sample_rate();
-        let mut resampler = Resampler::new(rate, SAMPLE_RATE);
+        let device = match device {
+            Some(device) => device,
+            None => find_device(&device_name)?,
+        };
+        let config = device.default_input_config().map_err(device_error)?;
+        let mut resampler = Resampler::new(config.sample_rate(), SAMPLE_RATE);
         let mut out = Vec::new();
         let handle = move |mono: &[f32]| {
             out.clear();
@@ -444,7 +471,7 @@ fn stream_thread(
                 s.extend_from_slice(&out);
             }
         };
-        let stream = open_mono_stream(&device, handle)?;
+        let stream = open_mono_stream_with(&device, config, handle)?;
         stream.play().map_err(device_error)?;
         Ok((stream, device_name.clone()))
     };
