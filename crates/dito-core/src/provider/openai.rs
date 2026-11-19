@@ -1,5 +1,7 @@
 //! Azure OpenAI and OpenAI-compatible chat engines for polishing (one wire format, two URL/auth schemes).
 
+use std::sync::{Arc, Mutex, MutexGuard};
+
 use async_trait::async_trait;
 use serde_json::{Number, Value, json};
 
@@ -26,6 +28,9 @@ pub struct OpenAiEngine {
     api_key: String,
     params: CloudTextParams,
     client: reqwest::Client,
+    /// `reasoning_effort` values the server refused, left out of later requests so only the first one pays for the
+    /// refusal. Kept per value: a model can refuse one level and take another.
+    refused_efforts: Arc<Mutex<Vec<Value>>>,
 }
 
 fn trim_known_suffix(url: &str) -> &str {
@@ -37,6 +42,10 @@ fn trim_known_suffix(url: &str) -> &str {
 /// `0.20000000298023224`. A value JSON cannot hold (NaN, infinity) is not sent.
 fn json_number(value: f32) -> Option<Value> {
     value.to_string().parse::<f64>().ok().and_then(Number::from_f64).map(Value::Number)
+}
+
+fn take_effort(body: &mut Value) -> Option<Value> {
+    body.as_object_mut().expect("chat body is a JSON object").remove("reasoning_effort")
 }
 
 impl OpenAiEngine {
@@ -53,7 +62,7 @@ impl OpenAiEngine {
             .timeout(default_timeout())
             .build()
             .map_err(|e| ProviderError::new(ErrorKind::Other, e.to_string()))?;
-        Ok(Self { flavor, api_key: api_key.into(), params, client })
+        Ok(Self { flavor, api_key: api_key.into(), params, client, refused_efforts: Arc::default() })
     }
 
     fn url(&self, path: &str) -> String {
@@ -132,7 +141,24 @@ impl OpenAiEngine {
         for (key, value) in &params.extra {
             body[key.as_str()] = value.clone();
         }
+        if body.get("reasoning_effort").is_some_and(|effort| self.refused_efforts().contains(effort)) {
+            take_effort(&mut body);
+        }
         body
+    }
+
+    fn refused_efforts(&self) -> MutexGuard<'_, Vec<Value>> {
+        self.refused_efforts.lock().expect("refused efforts mutex poisoned")
+    }
+
+    /// Called once the request has gone through without the value, which tells a refusal from an unrelated failure.
+    fn remember_refused(&self, effort: Option<Value>) {
+        let mut refused = self.refused_efforts();
+        if let Some(effort) = effort
+            && !refused.contains(&effort)
+        {
+            refused.push(effort);
+        }
     }
 
     fn auth(&self, rb: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
@@ -254,8 +280,10 @@ impl TextModel for OpenAiEngine {
         let v = match self.completions(&body).await {
             // Non-reasoning models reject the field; retry once without it.
             Err(e) if e.kind == ErrorKind::Other && e.message.contains("reasoning_effort") => {
-                body.as_object_mut().expect("chat body is a JSON object").remove("reasoning_effort");
-                self.completions(&body).await?
+                let effort = take_effort(&mut body);
+                let v = self.completions(&body).await?;
+                self.remember_refused(effort);
+                v
             }
             other => other?,
         };
@@ -280,8 +308,10 @@ impl TextModel for OpenAiEngine {
         let mut body = self.chat_body(req);
         let mut resp = match self.open_stream(&body).await {
             Err(e) if e.kind == ErrorKind::Other && e.message.contains("reasoning_effort") => {
-                body.as_object_mut().expect("chat body is a JSON object").remove("reasoning_effort");
-                self.open_stream(&body).await?
+                let effort = take_effort(&mut body);
+                let resp = self.open_stream(&body).await?;
+                self.remember_refused(effort);
+                resp
             }
             other => other?,
         };
