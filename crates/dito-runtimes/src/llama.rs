@@ -1,4 +1,5 @@
 use std::num::NonZeroU32;
+use std::ops::Range;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, OnceLock, Weak};
@@ -105,21 +106,6 @@ impl ChatSession {
         self.ctx.copy_kv_cache_seq(TURN_SEQUENCE, RESIDENT_SEQUENCE, None, None).map_err(RuntimeError::engine)?;
         self.resident = tokens.to_vec();
         Ok(())
-    }
-
-    fn decode(
-        &mut self,
-        batch: &mut LlamaBatch,
-        tokens: &[LlamaToken],
-        from: usize,
-        to: usize,
-    ) -> Result<(), RuntimeError> {
-        batch.clear();
-        let last = tokens.len() - 1;
-        for (position, token) in tokens.iter().copied().enumerate().take(to).skip(from) {
-            batch.add(token, position as i32, &[TURN_SEQUENCE], position == last).map_err(RuntimeError::engine)?;
-        }
-        self.ctx.decode(batch).map_err(RuntimeError::engine)
     }
 }
 
@@ -333,15 +319,11 @@ impl LlmRuntime for Chat {
             .with_n_threads_batch(threads);
         let mut ctx = self.model.new_context(backend, params).map_err(RuntimeError::engine)?;
 
-        let mut batch = LlamaBatch::new(tokens.len().max(512), 1);
-        let last = tokens.len() as i32 - 1;
-        for (i, t) in (0_i32..).zip(tokens.iter().copied()) {
-            batch.add(t, i, &[0], i == last).map_err(RuntimeError::engine)?;
-        }
-        ctx.decode(&mut batch).map_err(RuntimeError::engine)?;
+        let mut batch = LlamaBatch::new(PROMPT_BATCH, 1);
+        decode_prompt(&mut ctx, &mut batch, &tokens, 0..tokens.len(), 0)?;
 
         let mut sampler = polish_sampler(sampling);
-        let prompt_len = batch.n_tokens();
+        let prompt_len = tokens.len() as i32;
         let generated = generate_text(
             &self.model,
             &mut ctx,
@@ -391,7 +373,7 @@ impl LlmRuntime for Chat {
         while at < tokens.len() {
             let stage_end = if at < resident_end { resident_end } else { tokens.len() };
             let to = (at + PROMPT_BATCH).min(stage_end);
-            session.decode(&mut batch, &tokens, at, to)?;
+            decode_prompt(&mut session.ctx, &mut batch, &tokens, at..to, TURN_SEQUENCE)?;
             at = to;
             let stopped = stop.load(Ordering::Relaxed);
             if at == resident_end || (stopped && at < resident_end) {
@@ -471,6 +453,28 @@ impl LlmRuntime for Chat {
         let pass = Pass { tokens: &tokens, option_tokens: &option_tokens, span, parts: &request.parts };
         reader.read(&pass, || Ok(self.token_ids(&self.render_prompt(request.system, &[], "")?)))
     }
+}
+
+/// Decodes `tokens[range]` at their own positions of `sequence`, with an output only at the prompt's last token.
+/// llama.cpp aborts the process on a call that holds more tokens than the context's batch size, so the range goes in
+/// batches of [`PROMPT_BATCH`]; `batch` is left holding the last one.
+fn decode_prompt(
+    ctx: &mut LlamaContext,
+    batch: &mut LlamaBatch,
+    tokens: &[LlamaToken],
+    range: Range<usize>,
+    sequence: i32,
+) -> Result<(), RuntimeError> {
+    let last = tokens.len().checked_sub(1).ok_or_else(|| RuntimeError::engine("empty prompt"))?;
+    for from in range.clone().step_by(PROMPT_BATCH) {
+        let to = (from + PROMPT_BATCH).min(range.end);
+        batch.clear();
+        for (position, token) in tokens.iter().copied().enumerate().take(to).skip(from) {
+            batch.add(token, position as i32, &[sequence], position == last).map_err(RuntimeError::engine)?;
+        }
+        ctx.decode(batch).map_err(RuntimeError::engine)?;
+    }
+    Ok(())
 }
 
 struct Generated {
@@ -669,6 +673,29 @@ mod tests {
             reply,
             "top-k and top-p are in the chain"
         );
+    }
+
+    /// llama.cpp aborts the process on a decode call that holds more tokens than the context's batch size.
+    #[test]
+    #[ignore = "requires DITO_POLISH_MODEL_DIR and a local Qwen3.5 GGUF (DITO_POLISH_MODEL_ID picks the catalog entry)"]
+    fn a_prompt_longer_than_the_context_batch_size_is_polished() {
+        use dito_local::{LlmRuntime, RuntimeError, Sampling};
+        use std::sync::atomic::AtomicBool;
+        let id = std::env::var("DITO_POLISH_MODEL_ID").unwrap_or_else(|_| "qwen3.5-4b-instruct".into());
+        let spec = dito_local::catalog::default_catalog().into_iter().find(|s| s.id == id).unwrap();
+        let dito_local::catalog::ModelFormat::Chat { model, disable_thinking, sampling } = spec.format else {
+            unreachable!()
+        };
+        let path = std::path::PathBuf::from(std::env::var("DITO_POLISH_MODEL_DIR").unwrap()).join(model);
+        let chat = super::Chat::load(&path, disable_thinking).unwrap();
+        let text = "Um, the review moved to three on Friday. ".repeat(300);
+        let tokens = chat.tokenize_prompt(&text).len();
+        assert!(tokens > 2048, "{tokens} tokens fit the default batch size");
+
+        let capped = Sampling { max_tokens: Some(4), ..sampling };
+        let system = "Rewrite the text without filler words. Reply with the rewritten text only.";
+        let outcome = chat.generate(system, &[], &text, &capped, &AtomicBool::new(false));
+        assert!(matches!(outcome, Ok(_) | Err(RuntimeError::Truncated)), "the prompt was not decoded");
     }
 
     #[test]
