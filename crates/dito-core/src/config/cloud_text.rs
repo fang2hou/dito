@@ -3,8 +3,8 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-use super::ReasoningEffort;
 use super::list::{Entry, List};
+use super::{ReasoningEffort, json_string};
 use crate::i18n::{Lang, Tr};
 use crate::secrets::text_account;
 
@@ -141,8 +141,8 @@ pub struct CloudTextParams {
     pub max_tokens: Option<u32>,
     /// An empty `Custom` value is unset.
     pub reasoning_effort: ReasoningEffort,
-    /// Merged into the request body last. Saved as a JSON string: TOML has no `null`.
-    #[serde(with = "json_object", skip_serializing_if = "Map::is_empty")]
+    /// Merged into the request body last. Saved as a JSON string: TOML has no `null`. Only an object is accepted back.
+    #[serde(with = "json_string", skip_serializing_if = "Map::is_empty")]
     pub extra: Map<String, Value>,
 }
 
@@ -260,21 +260,6 @@ impl CloudTextConfigurations {
 
     pub fn rename(&mut self, id: &str, name: &str) -> bool {
         self.list().rename(id, name)
-    }
-}
-
-/// `extra` is saved as a JSON string, and only an object is accepted back.
-mod json_object {
-    use serde::{Deserialize, Serialize};
-    use serde_json::{Map, Value};
-
-    pub fn serialize<S: serde::Serializer>(value: &Map<String, Value>, serializer: S) -> Result<S::Ok, S::Error> {
-        serde_json::to_string(value).map_err(serde::ser::Error::custom)?.serialize(serializer)
-    }
-
-    pub fn deserialize<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<Map<String, Value>, D::Error> {
-        let text = String::deserialize(deserializer)?;
-        serde_json::from_str(&text).map_err(serde::de::Error::custom)
     }
 }
 

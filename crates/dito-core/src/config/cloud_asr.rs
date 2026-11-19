@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use super::json_string;
 use super::list::{Entry, List};
 use crate::secrets::asr_account;
 
@@ -46,7 +47,9 @@ pub struct CloudAsrConfiguration {
     /// Stable; also the suffix of the Keychain account.
     pub id: String,
     pub name: String,
-    #[serde(with = "config_json")]
+    /// Saved as a JSON string, not a TOML table: TOML has no `null`, so a table would lose the `auto` entry of the
+    /// language map.
+    #[serde(with = "json_string")]
     pub config: Value,
 }
 
@@ -139,22 +142,6 @@ impl CloudAsrConfigurations {
 
     pub fn rename(&mut self, id: &str, name: &str) -> bool {
         self.list().rename(id, name)
-    }
-}
-
-/// A config is saved as a JSON string, not a TOML table: TOML has no `null`, so a table would lose the `auto` entry of
-/// the language map.
-mod config_json {
-    use serde::{Deserialize, Serialize};
-    use serde_json::Value;
-
-    pub fn serialize<S: serde::Serializer>(value: &Value, serializer: S) -> Result<S::Ok, S::Error> {
-        value.to_string().serialize(serializer)
-    }
-
-    pub fn deserialize<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<Value, D::Error> {
-        let text = String::deserialize(deserializer)?;
-        serde_json::from_str(&text).map_err(serde::de::Error::custom)
     }
 }
 

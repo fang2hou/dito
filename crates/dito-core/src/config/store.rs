@@ -61,33 +61,41 @@ impl ConfigStore {
         Ok(())
     }
 
-    /// The list is saved first, so a failed save keeps the configuration and its key together. The last configuration
-    /// and its key stay: `false`.
+    /// The last configuration and its key stay: `false`.
     pub fn remove_cloud_text_configuration(&self, id: &str, secrets: &dyn SecretStore) -> Result<bool> {
-        let mut removed = None;
-        self.update(|c| removed = c.text_model.text_configurations_mut(c.general.lang()).remove(id))?;
-        Ok(forget_key(removed.map(|configuration| configuration.account()), secrets))
+        self.remove_configuration(secrets, |c| {
+            c.text_model.text_configurations_mut(c.general.lang()).remove(id).map(|removed| removed.account())
+        })
     }
 
+    /// The last configuration and its key stay: `false`.
     pub fn remove_cloud_asr_configuration(&self, id: &str, secrets: &dyn SecretStore) -> Result<bool> {
-        let mut removed = None;
-        self.update(|c| removed = c.asr.cloud_asr.get_or_insert_with(CloudAsrConfigurations::default).remove(id))?;
-        Ok(forget_key(removed.map(|configuration| configuration.account()), secrets))
+        self.remove_configuration(secrets, |c| {
+            let list = c.asr.cloud_asr.get_or_insert_with(CloudAsrConfigurations::default);
+            list.remove(id).map(|removed| removed.account())
+        })
+    }
+
+    /// `remove` takes a configuration out of its list and returns its Keychain account. The list is saved first, so a
+    /// failed save keeps the configuration and its key together. A key that cannot be deleted stays in the Keychain
+    /// under an id that is never used again: that is logged, because the configuration is gone either way.
+    fn remove_configuration(
+        &self,
+        secrets: &dyn SecretStore,
+        remove: impl FnOnce(&mut Config) -> Option<String>,
+    ) -> Result<bool> {
+        let mut account = None;
+        self.update(|c| account = remove(c))?;
+        let Some(account) = account else { return Ok(false) };
+        if let Err(error) = secrets.delete(&account) {
+            tracing::warn!("could not delete the API key of a removed entry: {error}");
+        }
+        Ok(true)
     }
 
     fn write(&self, cfg: &Config) -> Result<()> {
         write_file(&self.path, cfg)
     }
-}
-
-/// Delete the key of an entry that was removed, and say whether there was one. A key that cannot be deleted stays in
-/// the Keychain under an id that is never used again: that is logged, because the entry is gone either way.
-fn forget_key(account: Option<String>, secrets: &dyn SecretStore) -> bool {
-    let Some(account) = account else { return false };
-    if let Err(error) = secrets.delete(&account) {
-        tracing::warn!("could not delete the API key of a removed entry: {error}");
-    }
-    true
 }
 
 /// Write `cfg` to `path` through a temporary file beside it, so a crash leaves the old file or the new one, never a
