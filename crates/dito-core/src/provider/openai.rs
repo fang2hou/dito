@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use serde_json::{Number, Value, json};
 
 use super::{
-    CANCEL_POLL, ChatCancel, ChatDelta, ChatRequest, ChatRole, TextModel, TextRequest, Thinking, default_timeout,
+    ChatCancel, ChatDelta, ChatRequest, ChatRole, TextModel, TextRequest, Thinking, default_timeout, next_stream_item,
 };
 use crate::config::CloudTextParams;
 use crate::error::{ErrorKind, ProviderError, ProviderResult};
@@ -203,28 +203,6 @@ impl OpenAiEngine {
     }
 }
 
-/// The next chunk of a stream. A raised cancel flag ends the wait at once as the end of the stream; a server silent
-/// for the idle timeout is an error.
-async fn next_chunk(resp: &mut reqwest::Response, cancel: &ChatCancel) -> ProviderResult<Option<Vec<u8>>> {
-    let chunk = resp.chunk();
-    let idle = tokio::time::sleep(default_timeout());
-    tokio::pin!(chunk, idle);
-    let mut tick = tokio::time::interval(CANCEL_POLL);
-    loop {
-        tokio::select! {
-            next = &mut chunk => {
-                return next.map(|bytes| bytes.map(|b| b.to_vec())).map_err(|e| ProviderError::from_reqwest(&e));
-            }
-            _ = tick.tick() => {
-                if cancel.is_cancelled() {
-                    return Ok(None);
-                }
-            }
-            () = &mut idle => return Err(ProviderError::new(ErrorKind::Timeout, "the stream went silent")),
-        }
-    }
-}
-
 /// What one `data:` payload of a streamed chat completion says.
 #[derive(Debug, PartialEq, Eq)]
 enum Frame {
@@ -317,7 +295,10 @@ impl TextModel for OpenAiEngine {
         };
         let (mut lines, mut reply) = (SseLines::default(), String::new());
         'stream: while !cancel.is_cancelled() {
-            let Some(chunk) = next_chunk(&mut resp, cancel).await? else { break };
+            let next = async {
+                resp.chunk().await.map(|bytes| bytes.map(|b| b.to_vec())).map_err(|e| ProviderError::from_reqwest(&e))
+            };
+            let Some(chunk) = next_stream_item(next, cancel).await? else { break };
             for data in lines.push(&chunk) {
                 match parse_frame(&data)? {
                     Frame::Text(piece) => {

@@ -15,7 +15,7 @@ use aws_smithy_types::{Document, Number};
 use serde_json::Value;
 
 use super::{
-    CANCEL_POLL, ChatCancel, ChatDelta, ChatRequest, ChatRole, TextModel, TextRequest, Thinking, default_timeout,
+    ChatCancel, ChatDelta, ChatRequest, ChatRole, TextModel, TextRequest, Thinking, default_timeout, next_stream_item,
 };
 use crate::config::CloudTextParams;
 use crate::error::{ErrorKind, ProviderError, ProviderResult};
@@ -118,35 +118,13 @@ fn document(value: &Value) -> Document {
     }
 }
 
-/// The next event of a stream. A raised cancel flag ends the wait at once as the end of the stream; a server silent
-/// for the idle timeout is an error.
-async fn next_event<T>(
-    next: impl Future<Output = ProviderResult<Option<T>>>,
-    cancel: &ChatCancel,
-) -> ProviderResult<Option<T>> {
-    let idle = tokio::time::sleep(default_timeout());
-    tokio::pin!(next, idle);
-    let mut tick = tokio::time::interval(CANCEL_POLL);
-    loop {
-        tokio::select! {
-            event = &mut next => return event,
-            _ = tick.tick() => {
-                if cancel.is_cancelled() {
-                    return Ok(None);
-                }
-            }
-            () = &mut idle => return Err(ProviderError::new(ErrorKind::Timeout, "the stream went silent")),
-        }
-    }
-}
-
 impl BedrockEngine {
     pub async fn connect(p: BedrockParams) -> ProviderResult<Self> {
         if p.model_id.trim().is_empty() {
             return Err(ProviderError::new(ErrorKind::Unavailable, "model ID is not set"));
         }
         // The operation timeout spans every retry of a call and, for a stream, ends once the response headers
-        // arrive; `next_event` bounds the silence after that.
+        // arrive; `next_stream_item` bounds the silence after that.
         let timeouts = TimeoutConfig::builder().operation_timeout(default_timeout()).build();
         let mut loader = aws_config::defaults(BehaviorVersion::latest()).timeout_config(timeouts);
         if !p.profile.trim().is_empty() {
@@ -250,7 +228,7 @@ impl BedrockEngine {
         let mut reply = String::new();
         while !cancel.is_cancelled() {
             let next = async { out.stream.recv().await.map_err(classify) };
-            let Some(event) = next_event(next, cancel).await? else { break };
+            let Some(event) = next_stream_item(next, cancel).await? else { break };
             // Reasoning deltas of adaptive thinking are not part of the reply.
             if let ConverseStreamOutput::ContentBlockDelta(delta) = event
                 && let Some(ContentBlockDelta::Text(piece)) = delta.delta()
@@ -345,12 +323,5 @@ mod tests {
         let expected =
             document(&serde_json::json!({"reasoning_effort": "x", "top_k": 5, "stop": [null, 1.5, -2, true]}));
         assert_eq!(merged, expected);
-    }
-
-    #[tokio::test(start_paused = true)]
-    async fn a_stream_that_goes_silent_fails_instead_of_hanging() {
-        let silent = std::future::pending::<ProviderResult<Option<()>>>();
-        let error = next_event(silent, &ChatCancel::default()).await.unwrap_err();
-        assert_eq!((error.kind, error.message.as_str()), (ErrorKind::Timeout, "the stream went silent"));
     }
 }
