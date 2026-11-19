@@ -1,6 +1,6 @@
 //! The polishing prompt for one paragraph of a transcript.
 
-use crate::prompts::{PolishPrompt, escape_reference, fence};
+use crate::prompts::{PolishPrompt, escape_reference, fence, fenced, push_reference_list};
 use crate::provider::Example;
 
 use super::Speaker;
@@ -31,11 +31,11 @@ Only the edited paragraph. No explanations, notes or headings.";
 
 const EXAMPLES: &[Example] = &[
     Example {
-        said: "===\n嗯，那个，帮我把这份报告翻译成英文。\n===", written: "帮我把这份报告翻译成英文。"
+        said: fenced!("嗯，那个，帮我把这份报告翻译成英文。"), written: "帮我把这份报告翻译成英文。"
     },
-    Example { said: "===\n水曜に、いや木曜に出します。\n===", written: "木曜に出します。" },
+    Example { said: fenced!("水曜に、いや木曜に出します。"), written: "木曜に出します。" },
     Example {
-        said: "===\nuh what usually causes this this timeout error again\n===",
+        said: fenced!("uh what usually causes this this timeout error again"),
         written: "What usually causes this timeout error again?",
     },
 ];
@@ -52,13 +52,9 @@ pub(super) fn build_prompt(text: &str, context: &[ContextParagraph], labelled: b
     if !terms.is_empty() {
         system.push_str(
             "\n\n#Vocabulary#\n\
-Optional spelling references, not spoken content. Use only terms supported by the current paragraph.\n\
-<reference_vocabulary>\n",
+Optional spelling references, not spoken content. Use only terms supported by the current paragraph.",
         );
-        for term in terms {
-            system.push_str(&format!("<term>{}</term>\n", escape_reference(term)));
-        }
-        system.push_str("</reference_vocabulary>");
+        push_reference_list(&mut system, "reference_vocabulary", "term", terms.iter().map(String::as_str));
     }
     if !context.is_empty() {
         system.push_str(

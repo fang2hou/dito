@@ -146,7 +146,7 @@ pub fn turn_data(turn: &str) -> Option<String> {
 macro_rules! demo {
     ($text:literal, $instruction:literal => $output:literal) => {
         crate::provider::Example {
-            said: concat!("===\n", $text, "\n===\n<instruction>", $instruction, "</instruction>"),
+            said: concat!(crate::prompts::fenced!($text), "\n<instruction>", $instruction, "</instruction>"),
             written: $output,
         }
     };

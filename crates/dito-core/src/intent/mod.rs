@@ -14,6 +14,8 @@ mod prompt;
 pub use heads::{Direct, Head, Heads, HeadsError, Part, Pool, bundled};
 pub use prompt::{OPTIONS, fingerprint_text, system_prompt, user_message};
 
+use crate::prompts::escape_reference;
+
 /// A decision whose top probability reaches this runs without asking. The share that passes and how many of those are
 /// right, per model, are in `bench/INTENT.md`.
 pub const AUTO_THRESHOLD: f32 = 0.9;
@@ -130,7 +132,7 @@ pub fn request(instruction: &str, heads: Option<&Heads>) -> Request {
     Request {
         system: system_prompt(),
         user: user_message(instruction),
-        span: prompt::escape(instruction),
+        span: escape_reference(instruction),
         options: &OPTIONS,
         parts: heads.map(|heads| heads.parts().to_vec()).unwrap_or_default(),
     }
