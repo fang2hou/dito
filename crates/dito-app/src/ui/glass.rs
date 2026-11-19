@@ -2,7 +2,7 @@
 //!
 //! GPUI has no backdrop-filter primitive, so the blurred raster is cached and composited inside each card. Scrolling
 //! only changes the texture crop; it never re-rasterizes text or blurs a whole frame.
-use std::{cell::RefCell, fmt::Write, sync::Arc};
+use std::{cell::RefCell, collections::HashMap, fmt::Write, sync::Arc};
 
 use gpui_kit::prelude::*;
 use gpui_kit::*;
@@ -26,16 +26,16 @@ pub fn wordmark(title: &'static str, p: Palette) -> Div {
 }
 
 struct Backdrop {
-    window: WindowId,
     title: &'static str,
     dark: bool,
     image: Arc<RenderImage>,
     bounds: Bounds<Pixels>,
+    window_closed: Subscription,
 }
 
 thread_local! {
-    // Only the currently painted settings surface is retained, not every visited page/window.
-    static BACKDROP: RefCell<Option<Backdrop>> = const { RefCell::new(None) };
+    // Each window retains only the page it currently paints, and its entry ends with the window.
+    static BACKDROPS: RefCell<HashMap<WindowId, Backdrop>> = RefCell::new(HashMap::new());
 }
 
 fn color(c: Hsla) -> String {
@@ -82,12 +82,11 @@ pub fn prepare(title: &'static str, p: Palette) -> AnyElement {
                 point(bounds.origin.x + bounds.size.width + px(-RIGHT - width + PAD), bounds.origin.y + px(TOP - PAD)),
                 size(px(width), px(height)),
             );
-            BACKDROP.with(|cache| {
+            BACKDROPS.with(|cache| {
                 let mut cache = cache.borrow_mut();
-                if let Some(old) = cache.as_mut()
+                if let Some(old) = cache.get_mut(&id)
                     && old.title == title && old.dark == p.dark
                 {
-                    old.window = id;
                     old.bounds = image_bounds;
                     return;
                 }
@@ -115,9 +114,23 @@ pub fn prepare(title: &'static str, p: Palette) -> AnyElement {
 <g fill="{}" opacity="{opacity}" filter="url(#frost)">{outlines}</g></svg>"##,
                     color(p.accent));
                 // Blur is low frequency: a 1× cached texture remains smooth on Retina displays.
-                match cx.svg_renderer().render_single_frame(svg.as_bytes(), 0.5) {
-                    Ok(image) => *cache = Some(Backdrop { window: id, title, dark: p.dark, image, bounds: image_bounds }),
-                    Err(error) => { *cache = None; tracing::warn!(%error, "could not render frosted wordmark"); }
+                let rendered = cx.svg_renderer().render_single_frame(svg.as_bytes(), 0.5);
+                let replaced = cache.remove(&id);
+                if let Some(old) = &replaced {
+                    // The atlas keeps an image's tile until it is dropped. Cards paint after every prepaint, so no
+                    // sprite of this frame samples the old tile.
+                    window.drop_image(old.image.clone()).ok();
+                }
+                match rendered {
+                    Ok(image) => {
+                        let window_closed = replaced.map(|old| old.window_closed).unwrap_or_else(|| {
+                            cx.on_window_closed(|_, closed| {
+                                BACKDROPS.with(|cache| cache.borrow_mut().remove(&closed));
+                            })
+                        });
+                        cache.insert(id, Backdrop { title, dark: p.dark, image, bounds: image_bounds, window_closed });
+                    }
+                    Err(error) => tracing::warn!(%error, "could not render frosted wordmark"),
                 }
             });
         },
@@ -129,11 +142,8 @@ pub fn surface() -> AnyElement {
     canvas(
         |_, _, _| (),
         |bounds, _, window, _| {
-            BACKDROP.with(|cache| {
-                let cache = cache.borrow();
-                if let Some(backdrop) = cache.as_ref()
-                    && backdrop.window == window.window_handle().window_id()
-                {
+            BACKDROPS.with(|cache| {
+                if let Some(backdrop) = cache.borrow().get(&window.window_handle().window_id()) {
                     // The card hides the sharp backdrop; composite only its blurred sample here.
                     // The transparent texture edges avoid seams as the sampling region scrolls.
                     window
