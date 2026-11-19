@@ -1,5 +1,7 @@
 //! Design tokens from the FigCraft design (`design:foundations/color`), light and dark.
 
+use std::sync::LazyLock;
+
 use dito_core::config::Appearance;
 use gpui_kit::{App, Hsla, Rgba, WindowAppearance};
 
@@ -19,7 +21,7 @@ pub fn hex(s: &str) -> Hsla {
 
 pub const PLAIN_BLACK: &str = "#444139";
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct Palette {
     pub dark: bool,
     pub bg: Hsla,
@@ -116,8 +118,19 @@ pub struct Palette {
     pub stats_heat_4: Hsla,
 }
 
+static LIGHT: LazyLock<Palette> = LazyLock::new(Palette::build_light);
+static DARK: LazyLock<Palette> = LazyLock::new(Palette::build_dark);
+
 impl Palette {
     pub fn light() -> Self {
+        *LIGHT
+    }
+
+    pub fn dark() -> Self {
+        *DARK
+    }
+
+    fn build_light() -> Self {
         Self {
             dark: false,
             bg: hex("#FFFFFF"),
@@ -198,7 +211,7 @@ impl Palette {
         }
     }
 
-    pub fn dark() -> Self {
+    fn build_dark() -> Self {
         Self {
             dark: true,
             bg: hex("#444139"),
@@ -425,6 +438,12 @@ mod tests {
         assert_eq!((c.r, c.g, c.b, c.a), (1.0, 0.0, 0.0, 1.0));
         let c: Rgba = hex("#00000080").into();
         assert!((c.a - 128.0 / 255.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn cached_palettes_equal_freshly_built_ones() {
+        assert!(Palette::light() == Palette::build_light());
+        assert!(Palette::dark() == Palette::build_dark());
     }
 
     #[test]
