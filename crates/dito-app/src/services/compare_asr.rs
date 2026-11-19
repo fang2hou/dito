@@ -30,7 +30,9 @@ pub async fn compare_transcribe(st: Arc<AppState>, contender: Contender, clip: A
         };
         let store = st2.store.clone();
         let words = st2.rt.spawn_blocking(move || store.words(None).unwrap_or_default()).await.unwrap_or_default();
-        let heard = match st2.factory.transcriber_for(&contender.engine(&cfg.asr)).await {
+        // Rebuilt so every cloud contender is timed from a new connection: a shared engine would favor the one
+        // dictation has just used.
+        let heard = match st2.factory.rebuild_transcriber_for(&contender.engine(&cfg.asr)).await {
             Ok(engine) => {
                 let started = Instant::now();
                 let request =

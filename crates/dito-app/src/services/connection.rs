@@ -9,6 +9,8 @@ use dito_core::secrets::Role;
 
 use crate::state::AppState;
 
+/// Tests a newly built engine, which then replaces the shared one: the test sees what changed outside the app, such
+/// as AWS credentials, and what it tested is what the next request uses.
 pub async fn test_connection(st: Arc<AppState>, role: Role) -> TestOutcome {
     let cfg = st.cfg.get();
     let engine = match role {
@@ -20,11 +22,11 @@ pub async fn test_connection(st: Arc<AppState>, role: Role) -> TestOutcome {
     let engine = engine.clone();
     let job = st.rt.spawn(async move {
         match role {
-            Role::Asr => match st2.factory.transcriber_for(&engine).await {
+            Role::Asr => match st2.factory.rebuild_transcriber_for(&engine).await {
                 Ok(t) => test_transcriber_with_language(t.as_ref(), language).await,
                 Err(e) => TestOutcome::Failed { kind: e.kind, message: e.message },
             },
-            Role::Text => match st2.factory.text_model_for(&engine).await {
+            Role::Text => match st2.factory.rebuild_text_model_for(&engine).await {
                 Ok(p) => test_text_model(p.as_ref()).await,
                 Err(e) => TestOutcome::Failed { kind: e.kind, message: e.message },
             },

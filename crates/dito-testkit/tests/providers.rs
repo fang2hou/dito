@@ -456,6 +456,29 @@ async fn a_refused_reasoning_effort_is_left_out_of_later_requests_until_the_engi
 }
 
 #[tokio::test]
+async fn a_refused_reasoning_effort_is_remembered_for_every_caller_of_the_configuration() {
+    let srv = MockServer::start().await.unwrap();
+    srv.behavior(|b| {
+        b.reject_reasoning_effort = true;
+        b.chat_chunk_delay = Duration::ZERO;
+    });
+    let mut cfg = mock_cfg(&srv.url);
+    active(&mut cfg).params.reasoning_effort = ReasoningEffort::High;
+    let f = factory(None);
+    let efforts = || srv.requests().into_iter().map(|r| r.reasoning_effort).collect::<Vec<_>>();
+
+    for _ in 0..2 {
+        let engine = f.text_model_for(&cfg.text_model).await.unwrap();
+        engine.chat(&question("ok"), &mut |_| {}, &ChatCancel::default()).await.unwrap();
+    }
+    assert_eq!(efforts(), [Some("high".to_string()), None, None], "the second chat does not repeat the refusal");
+
+    let polish = f.text_model(&cfg).await.unwrap().unwrap();
+    polish.polish(&TextRequest { system: "s", examples: &[], text: "ok" }).await.unwrap();
+    assert_eq!(efforts()[3..], [None], "and neither does a dictation that follows a chat");
+}
+
+#[tokio::test]
 async fn cancelling_stops_a_stream_that_is_waiting_for_the_next_chunk() {
     let srv = MockServer::start().await.unwrap();
     srv.behavior(|b| b.chat_chunk_delay = Duration::from_secs(20));
