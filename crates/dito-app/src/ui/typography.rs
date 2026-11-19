@@ -1,4 +1,5 @@
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
+use std::sync::Arc;
 
 use gpui_kit::prelude::*;
 use gpui_kit::*;
@@ -70,8 +71,32 @@ pub fn text(s: impl Into<SharedString>, size: f32, weight: FontWeight, color: Hs
     div().font_family(family_for(&s)).text_size(px(size)).font_weight(weight).text_color(color).child(s)
 }
 
+/// Bytes of text the private text system measures before it is replaced, each call counting `MEASURE_COST` more.
+/// GPUI empties a layout cache only when its window finishes a frame, and this one has no window, so it would keep
+/// every text, size and wrap width it has ever measured. A layout holds 24 bytes per glyph, which keeps the cache
+/// within a few megabytes, while a screen that measures the same labels every frame reshapes them every few seconds.
+const MEASURE_BUDGET: usize = 256 * 1024;
+const MEASURE_COST: usize = 64;
+
 thread_local! {
     static TEXT_SYSTEM: RefCell<Option<WindowTextSystem>> = const { RefCell::new(None) };
+    static MEASURED: Cell<usize> = const { Cell::new(0) };
+}
+
+/// Called before a measurement borrows the text system, so no layout from the dropped cache is in use.
+fn spend_measure_budget(s: &str) {
+    let cost = s.len() + MEASURE_COST;
+    let measured = MEASURED.get() + cost;
+    if measured <= MEASURE_BUDGET {
+        MEASURED.set(measured);
+        return;
+    }
+    MEASURED.set(cost);
+    TEXT_SYSTEM.with(|t| {
+        if let Some(ts) = t.borrow_mut().as_mut() {
+            *ts = WindowTextSystem::new(Arc::clone(ts));
+        }
+    });
 }
 
 pub fn init_text_system(cx: &App) {
@@ -80,6 +105,7 @@ pub fn init_text_system(cx: &App) {
 
 /// Measured as the renderer will lay the text out.
 pub fn text_width(s: &str, size: f32, weight: FontWeight) -> f32 {
+    spend_measure_budget(s);
     TEXT_SYSTEM.with(|t| match t.borrow().as_ref() {
         Some(ts) => {
             let mut f = font(family_for(s));
@@ -113,6 +139,7 @@ pub fn baseline_in_line(s: &str, size: f32, weight: FontWeight, line_height: f32
 
 /// For windows that fit their text, where the height follows the line count.
 pub fn text_lines(s: &str, family: impl Into<SharedString>, size: f32, weight: FontWeight, width: f32) -> usize {
+    spend_measure_budget(s);
     TEXT_SYSTEM.with(|t| match t.borrow().as_ref() {
         Some(ts) => {
             let mut f = font(family);
