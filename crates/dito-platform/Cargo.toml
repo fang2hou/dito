@@ -24,5 +24,4 @@ objc2-core-media = { version = "0.3", features = ["CMTime"] }
 objc2-core-video = { version = "0.3", features = ["CVPixelBuffer", "CVBuffer", "CVImageBuffer"] }
 block2 = "0.6"
 security-framework = "3"
-arboard = "3"
 libc = "0.2"

@@ -198,8 +198,14 @@ fn marks_empty_selection(bytes: &[u8]) -> bool {
 
 /// Also used by the history UI for its copy action.
 pub fn copy_to_clipboard(text: &str) -> Result<(), InsertError> {
-    arboard::Clipboard::new().and_then(|mut c| c.set_text(text.to_string()))?;
-    Ok(())
+    write_text(&NSPasteboard::generalPasteboard(), text)
+}
+
+fn write_text(pasteboard: &NSPasteboard, text: &str) -> Result<(), InsertError> {
+    pasteboard.clearContents();
+    let string = NSString::from_str(text);
+    let writing: [&ProtocolObject<dyn NSPasteboardWriting>; 1] = [ProtocolObject::from_ref(&*string)];
+    if pasteboard.writeObjects(&NSArray::from_slice(&writing)) { Ok(()) } else { Err(InsertError::Clipboard) }
 }
 
 #[cfg(test)]
