@@ -9,6 +9,7 @@ use super::ax::AxElement;
 use super::copy::{CopiedSelection, copy_selection};
 use super::deliver::{deliver_over_selection, terminal_clipboard};
 use super::focus::{EDITABLE_ROLES, focused_foreign_element, focused_pid, frontmost_foreign_pid, is_trusted, own_pid};
+use crate::with_autorelease_pool;
 
 const SELECTED_TEXT: &str = "AXSelectedText";
 const VALUE: &str = "AXValue";
@@ -64,6 +65,10 @@ unsafe impl Sync for Selection {}
 /// A focused element that supports text answers for itself, an empty selection included. Only when there is no such
 /// element (the app draws its own text, as Zed does) is the selection copied with the app's Copy command.
 pub fn capture_selection() -> Option<Selection> {
+    with_autorelease_pool(read_selection)
+}
+
+fn read_selection() -> Option<Selection> {
     if !is_trusted() {
         return None;
     }
@@ -143,6 +148,10 @@ impl Selection {
     /// to the insertion path, always by paste whatever `method` says. That path cannot read such an app back: the
     /// outcome is accepted unverified, and nothing is retried.
     pub fn replace(&self, text: &str, method: InsertMethod) -> Delivery {
+        with_autorelease_pool(|| self.write_over(text, method))
+    }
+
+    fn write_over(&self, text: &str, method: InsertMethod) -> Delivery {
         let focused = self.regain_focus();
         match &self.origin {
             Origin::Accessibility(element) => {

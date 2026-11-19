@@ -95,6 +95,7 @@ A command that got past its recording writes one history row of its own kind, wh
   - AppKit and window calls run on the main thread.
   - The controller, pipeline, providers and downloads run on the Tokio runtime.
   - Model loading, inference, store queries and text insertion run in `spawn_blocking`.
+  - Tokio's threads have no autorelease pool, so the platform entry points that call AppKit or Foundation from them (`Frontmost`, `Sink`, the selection capture and its replacement) drain one of their own on every call.
   - The event tap and its dispatcher have their own threads.
 - **Behavior that must hold**:
   - A polish failure never loses the transcript.
