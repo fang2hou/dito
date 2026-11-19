@@ -99,7 +99,8 @@ struct Actor {
     run_kind: watch::Sender<RunKind>,
     tx: mpsc::UnboundedSender<Msg>,
     state: State,
-    /// Bumped on every transition so late results and timers are ignored.
+    /// Each timer and task carries the value it started under and is ignored once this has moved on. Not every
+    /// transition bumps it, so a handler checks the state as well.
     epoch: u64,
     recording_started: watch::Sender<Option<Instant>>,
     processing: watch::Sender<ProcessingEstimate>,
@@ -214,7 +215,7 @@ impl Actor {
                     self.set_hud(HudState::Polishing);
                 }
             }
-            Msg::Done(g, r) if g == self.epoch => self.done(r),
+            Msg::Done(g, r) if g == self.epoch && matches!(self.state, State::Processing { .. }) => self.done(r),
             Msg::Step(g, r) if g == self.epoch => self.step_result(r),
             Msg::Delivered(g, delivery) if g == self.epoch => self.delivered(delivery),
             Msg::Hide(g, generation)
