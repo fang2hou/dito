@@ -25,7 +25,11 @@ pub(super) fn cloud_text_config_tiles(configurations: &CloudTextConfigurations, 
             ui::ConfigTile {
                 id: item.id.clone().into(),
                 name: item.name.clone().into(),
-                detail: if model.is_empty() { lang.tr(Tr::ModelsNoModel).into() } else { model.to_owned().into() },
+                detail: if model.is_empty() {
+                    SharedString::new_static(lang.tr(Tr::ModelsNoModel))
+                } else {
+                    model.to_owned().into()
+                },
                 selected: item.id == configurations.selected,
             }
         })

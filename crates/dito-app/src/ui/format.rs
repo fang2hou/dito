@@ -26,7 +26,7 @@ pub fn error_line(lang: dito_core::i18n::Lang, line: &str) -> String {
 }
 
 fn other_label(lang: dito_core::i18n::Lang) -> SharedString {
-    SharedString::from(lang.tr(dito_core::i18n::Tr::PromptsOther))
+    SharedString::new_static(lang.tr(dito_core::i18n::Tr::PromptsOther))
 }
 
 /// Entries recorded before the app was configured, or under another bundle id, keep only the recorded name as their
