@@ -8,6 +8,7 @@ mod engine;
 mod error;
 mod general;
 mod hud;
+mod json_string;
 mod list;
 mod local_api;
 mod migrate;
