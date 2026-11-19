@@ -328,6 +328,16 @@ impl Store {
         })
     }
 
+    /// The `chars` of [`stats`](Self::stats) alone, in one statement.
+    pub fn chars_since(&self, since_ts: i64) -> Result<u64> {
+        let chars: i64 = self.conn().query_row(
+            "SELECT COALESCE(SUM(LENGTH(COALESCE(polished, raw))),0) FROM history WHERE kind='dictation' AND ts >= ?1",
+            [since_ts],
+            |r| r.get(0),
+        )?;
+        Ok(chars as u64)
+    }
+
     /// Dictated characters on each local day from `first` to `last`, one value per day.
     pub fn chars_per_day(&self, first: i64, last: i64) -> Result<Vec<u64>> {
         let mut days = vec![0; usize::try_from(last - first + 1).unwrap_or(0)];
@@ -673,6 +683,22 @@ mod tests {
         assert_eq!(st.langs[0], ("ja".into(), 2));
         assert!((st.avg_cpm - 17.0 / 0.3).abs() < 1e-6);
         assert_eq!(s.stats(Some(2 * day)).unwrap().recordings, 1);
+    }
+
+    #[test]
+    fn chars_since_matches_the_stats_total() {
+        let s = Store::open_in_memory().unwrap();
+        s.add_history(&entry(10, "Slack", "ja", "raw", Some("0123456789"))).unwrap();
+        s.add_history(&entry(20, "Slack", "ja", "abcde", None)).unwrap();
+        let mut failed = entry(20, "Slack", "ja", "zzzzzz", None);
+        failed.kind = HistoryKind::Failed;
+        s.add_history(&failed).unwrap();
+        s.add_history(&NewHistory { ts: 25, ..command_entry() }).unwrap();
+
+        for (since, chars) in [(0, 15), (11, 5), (21, 0)] {
+            assert_eq!(s.chars_since(since).unwrap(), chars);
+            assert_eq!(s.stats(Some(since)).unwrap().chars, chars);
+        }
     }
 
     #[test]

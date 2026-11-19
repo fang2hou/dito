@@ -20,7 +20,9 @@ pub use find_words::{WordSearchError, find_words};
 pub use history::{delete_history_entry, history_entry, polish_again, transcribe_again};
 pub use local_api::InstalledCatalog;
 pub use own_window_sink::{OwnWindowInserts, own_window_sink, serve_own_window_inserts};
-pub use queries::{StatsSnapshot, WordbookWords, aws_profiles, history_list, stats_snapshot, wordbook_words};
+pub use queries::{
+    StatsSnapshot, WordbookWords, aws_profiles, chars_since, history_list, stats_snapshot, wordbook_words,
+};
 pub use save_config::{save_config, try_save_config};
 pub use store_secret::{store_secret, try_store_secret};
 pub use watch_config::watch_config;
