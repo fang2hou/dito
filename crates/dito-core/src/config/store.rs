@@ -1,5 +1,5 @@
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, PoisonError};
 
 use tokio::sync::watch;
 
@@ -12,6 +12,7 @@ type Result<T> = std::result::Result<T, ConfigError>;
 pub struct ConfigStore {
     path: PathBuf,
     tx: watch::Sender<Arc<Config>>,
+    updating: Mutex<()>,
 }
 
 impl ConfigStore {
@@ -25,7 +26,7 @@ impl ConfigStore {
             Err(source) => return Err(ConfigError::Read { path, source }),
         };
         let (tx, _) = watch::channel(Arc::new(cfg));
-        let store = Self { path, tx };
+        let store = Self { path, tx, updating: Mutex::new(()) };
         if found < SCHEMA_VERSION {
             back_up(&store.path, found)?;
             store.write(&store.get())?;
@@ -45,8 +46,11 @@ impl ConfigStore {
         self.tx.subscribe()
     }
 
-    /// Apply `f`, persist atomically, then notify subscribers. Nothing is notified if the write fails.
+    /// Apply `f`, persist atomically, then notify subscribers. Nothing is notified if the write fails. Updates from
+    /// several threads run one after another, each on the result of the one before; `f` must not call `update`.
     pub fn update(&self, f: impl FnOnce(&mut Config)) -> Result<()> {
+        // The lock guards no data, so one left poisoned by a panic in `f` is still good: nothing was saved or sent.
+        let _updating = self.updating.lock().unwrap_or_else(PoisonError::into_inner);
         let mut next = (*self.get()).clone();
         f(&mut next);
         if next == *self.get() {
@@ -182,6 +186,35 @@ mod tests {
         store.update(|c| c.onboarded = true).unwrap();
         assert!(rx.has_changed().unwrap());
         assert!(rx.borrow_and_update().onboarded);
+    }
+
+    #[test]
+    fn concurrent_updates_all_land_in_memory_and_on_disk() {
+        const WRITERS: usize = 8;
+        const ROUNDS: usize = 8;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+        let store = ConfigStore::open(&path).unwrap();
+        let start = std::sync::Barrier::new(WRITERS);
+        std::thread::scope(|scope| {
+            for writer in 0..WRITERS {
+                let (store, start) = (&store, &start);
+                scope.spawn(move || {
+                    start.wait();
+                    for round in 0..ROUNDS {
+                        let key = format!("local:{writer}-{round}");
+                        store.update(|c| drop(c.chat.thinking.insert(key, "on".into()))).unwrap();
+                    }
+                });
+            }
+        });
+
+        let expected: Vec<String> =
+            (0..WRITERS).flat_map(|writer| (0..ROUNDS).map(move |round| format!("local:{writer}-{round}"))).collect();
+        let saved = |config: Arc<Config>| config.chat.thinking.keys().cloned().collect::<Vec<_>>();
+        assert_eq!(saved(store.get()), expected);
+        assert_eq!(saved(ConfigStore::open(&path).unwrap().get()), expected, "on disk");
+        assert_eq!(file_count(&dir), 1, "no temporary file is left");
     }
 
     #[test]
