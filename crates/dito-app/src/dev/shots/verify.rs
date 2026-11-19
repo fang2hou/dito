@@ -10,8 +10,11 @@ use super::input::{click, drag_to, hover, on_settings_window, press, press_key, 
 use crate::services;
 use crate::settings;
 use crate::state::AppState;
+use crate::theme::Palette;
 
-const KNOB_RADIUS: f32 = 14.;
+const KNOB_RADIUS: f32 = 12.;
+/// Leaves out the antialiased pixels where the fill blends into the track or the thumb.
+const FILL_TOLERANCE: u8 = 24;
 
 pub async fn hud_height_slider(st: &Arc<AppState>, cx: &mut AsyncApp) {
     for expected in [-2, 12] {
@@ -75,7 +78,7 @@ async fn hud_height_fill(st: &Arc<AppState>, cx: &mut AsyncApp) {
         });
         let Some(Ok(img)) = img else { continue };
         // The slider reports its indicator's bounds, inset by half the knob on each side, so expand them back to the
-        // full 220 × 28 track.
+        // full 220 × 24 track.
         let indicator = slider_bounds(cx);
         let track = Bounds::new(
             point(indicator.origin.x - px(KNOB_RADIUS), indicator.origin.y),
@@ -86,7 +89,10 @@ async fn hud_height_fill(st: &Arc<AppState>, cx: &mut AsyncApp) {
         if img.width() < x0 + w || img.height() < y0 + h {
             continue;
         }
-        let track = TrackShot { img: &img, x0, y0, w, h, dark: appearance == Appearance::Dark };
+        let palette = if appearance == Appearance::Dark { Palette::dark() } else { Palette::light() };
+        let fill = palette.primary.to_rgb();
+        let fill = Rgba([fill.r, fill.g, fill.b, 1.].map(|channel| (channel * 255.).round() as u8));
+        let track = TrackShot { img: &img, x0, y0, w, h, fill };
         if level <= -2 {
             track.assert_no_fill_right_of_knob(appearance, level);
         } else {
@@ -104,12 +110,13 @@ struct TrackShot<'a> {
     y0: u32,
     w: u32,
     h: u32,
-    dark: bool,
+    fill: Rgba<u8>,
 }
 
 impl TrackShot<'_> {
+    /// Compared with the palette's own fill color, so a palette change cannot leave this check behind.
     fn is_fill(&self, p: Rgba<u8>) -> bool {
-        if self.dark { p[0] > 190 && p[1] > 150 && p[2] < 190 } else { p[0] < 110 && p[1] < 110 && p[2] < 110 }
+        (0..3).all(|channel| p[channel].abs_diff(self.fill[channel]) <= FILL_TOLERANCE)
     }
 
     fn knob_center(&self, level: i8) -> f32 {
@@ -129,7 +136,7 @@ impl TrackShot<'_> {
     }
 
     fn leftmost_fill(&self, row: u32, to: u32) -> u32 {
-        (self.x0 + 1..to).find(|&x| self.is_fill(*self.img.get_pixel(x, row))).unwrap_or(to)
+        (self.x0..to).find(|&x| self.is_fill(*self.img.get_pixel(x, row))).unwrap_or(to)
     }
 
     /// The straight edge sits on the thumb's centre line: at the rows near the track's top and bottom the thumb's
