@@ -47,7 +47,10 @@ impl Onboarding {
         cx.notify();
     }
 
-    pub(super) fn poll_permissions(cx: &mut Context<Self>) {
+    /// Reads the statuses once, so the page never opens on an old answer, then keeps them current for as long as the
+    /// caller holds the task.
+    pub(super) fn poll_permissions(&mut self, cx: &mut Context<Self>) -> Task<()> {
+        self.perms = PERMS.map(permissions::status);
         cx.spawn(async move |this, cx| {
             loop {
                 cx.background_executor().timer(Duration::from_millis(1200)).await;
@@ -57,11 +60,12 @@ impl Onboarding {
                 }
             }
         })
-        .detach();
     }
 
     fn apply_polled(&mut self, perms: [Status; 3], cx: &mut Context<Self>) {
-        self.perms = perms;
-        cx.notify();
+        if self.perms != perms {
+            self.perms = perms;
+            cx.notify();
+        }
     }
 }

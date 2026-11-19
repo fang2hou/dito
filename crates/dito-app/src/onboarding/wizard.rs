@@ -44,6 +44,8 @@ pub struct Onboarding {
     /// Generation of the connection-test request whose result may still land.
     pub(super) reqs: ui::Requests,
     pub(super) perms: [Status; 3],
+    /// Held only while the permissions step is current, the one page that shows `perms`.
+    permission_poll: Option<Task<()>>,
     pub(super) capturing: bool,
     pub(super) seen: [bool; 3],
     pub(super) try_input: Entity<TextareaState>,
@@ -87,7 +89,6 @@ impl Onboarding {
         Self::watch_capture(&st, cx);
         Self::watch_models(&st, cx);
         Self::watch_try_progress(&st, cx);
-        Self::poll_permissions(cx);
 
         Self {
             mode: cfg.general.record_mode,
@@ -100,6 +101,7 @@ impl Onboarding {
             test: TestState::Idle,
             reqs: ui::Requests::default(),
             perms: PERMS.map(permissions::status),
+            permission_poll: None,
             capturing: false,
             seen: [false; 3],
             try_input,
@@ -166,6 +168,7 @@ impl Onboarding {
             });
         }
         self.step = step;
+        self.permission_poll = (step == Step::Permissions).then(|| self.poll_permissions(cx));
         if step == Step::Try {
             self.seen = [false; 3];
             self.tried_ok = false;
