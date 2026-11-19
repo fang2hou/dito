@@ -60,6 +60,7 @@ pub struct StatsPage {
     period: Period,
     /// Owned snapshot; render never touches the database.
     query: PageQuery<StatsSnapshot>,
+    days: DayViews,
     apps_scroll: ScrollHandle,
     motion: ui::MotionScope,
 }
@@ -75,17 +76,23 @@ impl QueryPage for StatsPage {
         let off = dito_platform::local_utc_offset_secs();
         services::stats_snapshot(self.st.clone(), self.period, local_day(now(), off), off)
     }
+
+    fn applied(&mut self, _cx: &mut Context<Self>) {
+        self.days = DayViews::build(&self.query.data, self.st.cfg.get().general.lang());
+    }
 }
 
 impl StatsPage {
     pub fn new(st: Arc<AppState>, cx: &mut Context<Self>) -> Self {
         services::watch_config(&st, cx);
         let today = local_day(now(), dito_platform::local_utc_offset_secs());
+        let query = PageQuery::new("stats", StatsSnapshot::empty(Period::Week, today));
         Self {
             motion: ui::MotionScope::new(),
+            days: DayViews::build(&query.data, st.cfg.get().general.lang()),
             st,
             period: Period::Week,
-            query: PageQuery::new("stats", StatsSnapshot::empty(Period::Week, today)),
+            query,
             apps_scroll: ScrollHandle::new(),
         }
     }
@@ -120,7 +127,13 @@ impl StatsPage {
     fn view(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let c = Ctx::new(&self.st, cx);
         let p = c.p;
+        // A language change reaches the page only as a redraw.
+        if self.days.lang != c.lang {
+            self.days = DayViews::build(&self.query.data, c.lang);
+        }
+        self.days.register_tips();
         let snapshot = &self.query.data;
+        let hover_ms = hover_ms();
         let avail = content_width(window);
         let period_seg = ui::seg(
             "stats-range",
@@ -148,7 +161,7 @@ impl StatsPage {
                 .flex_col()
                 .gap(px(28.))
                 .child(summary_card(&c, &snapshot.stats, avail))
-                .child(daily_card(&c, snapshot, avail))
+                .child(daily_card(&c, snapshot, &self.days.cells, hover_ms, avail))
                 .child(
                     div()
                         .w_full()
@@ -156,7 +169,7 @@ impl StatsPage {
                         .items_start()
                         .gap(px(20.))
                         .child(top_apps_card(&c, &snapshot.stats, &self.apps_scroll, apps_scrolled))
-                        .child(languages_card(&c, &snapshot.stats)),
+                        .child(languages_card(&c, &snapshot.stats, hover_ms)),
                 ),
         )
     }
@@ -230,14 +243,60 @@ fn summary_card(c: &Ctx, stats: &Stats, avail: f32) -> Div {
     card
 }
 
+/// The parts of one day cell that only change with the snapshot or the language.
+struct DayView {
+    id: ElementId,
+    outline_id: ElementId,
+    tip: SharedString,
+    heat_step: usize,
+}
+
+/// One entry per day of `StatsSnapshot::days`, built when a snapshot lands or the language changes: a year of cells
+/// is too many to format an id and a tooltip for on every frame.
+struct DayViews {
+    lang: Lang,
+    cells: Vec<DayView>,
+    /// Where the tips are registered. A scope keeps them until it is reset, and a reset expires this handle.
+    tips_scope: Option<ui::ScopeHandle>,
+}
+
+impl DayViews {
+    fn build(snapshot: &StatsSnapshot, lang: Lang) -> Self {
+        let quartiles = heat_quartiles(snapshot.days.iter().copied());
+        let cells = (snapshot.first_day..)
+            .zip(&snapshot.days)
+            .map(|(day, chars)| {
+                let id = ElementId::Name(format!("stats-day-{:?}-{day}", snapshot.period).into());
+                DayView {
+                    outline_id: ElementId::from((id.clone(), "outline")),
+                    tip: fmt::stats_day_tip(lang, &fmt_int(*chars), &date_label(lang, day)).into(),
+                    heat_step: heat_step(*chars, &quartiles),
+                    id,
+                }
+            })
+            .collect();
+        Self { lang, cells, tips_scope: None }
+    }
+
+    fn register_tips(&mut self) {
+        if self.tips_scope.as_ref().is_some_and(|scope| !scope.expired()) {
+            return;
+        }
+        for cell in &self.cells {
+            ui::tip_label(cell.id.clone(), cell.tip.clone());
+        }
+        self.tips_scope = Some(ui::motion_scope());
+    }
+}
+
 #[derive(Clone, Copy)]
-enum DayCell {
+enum DayCell<'a> {
     /// Not part of the shown range; drawn empty.
     Outside,
     Upcoming,
     Day {
-        day: i64,
         chars: u64,
+        view: &'a DayView,
     },
 }
 
@@ -245,21 +304,24 @@ enum DayCell {
 struct Daily<'a> {
     c: &'a Ctx,
     snapshot: &'a StatsSnapshot,
-    quartiles: [u64; 3],
+    views: &'a [DayView],
+    hover_ms: u64,
 }
 
-impl Daily<'_> {
+impl<'a> Daily<'a> {
     fn last_day(&self) -> i64 {
         self.snapshot.first_day + self.snapshot.days.len() as i64 - 1
     }
 
-    fn at(&self, day: i64) -> DayCell {
+    fn at(&self, day: i64) -> DayCell<'a> {
         let snapshot = self.snapshot;
-        let chars = usize::try_from(day - snapshot.first_day).ok().and_then(|i| snapshot.days.get(i));
-        match chars {
+        let shown = usize::try_from(day - snapshot.first_day)
+            .ok()
+            .and_then(|i| Some((*snapshot.days.get(i)?, self.views.get(i)?)));
+        match shown {
             None => DayCell::Outside,
             Some(_) if day > snapshot.today => DayCell::Upcoming,
-            Some(chars) => DayCell::Day { day, chars: *chars },
+            Some((chars, view)) => DayCell::Day { chars, view },
         }
     }
 
@@ -270,18 +332,15 @@ impl Daily<'_> {
         match self.at(day) {
             DayCell::Outside => base.into_any_element(),
             DayCell::Upcoming => base.bg(p.sub).border_1().border_color(p.border).into_any_element(),
-            DayCell::Day { day, chars } => {
-                let id = ElementId::Name(format!("stats-day-{:?}-{day}", self.snapshot.period).into());
-                let tip = fmt::stats_day_tip(self.c.lang, &fmt_int(chars), &date_label(self.c, day));
-                ui::tip_label(id.clone(), tip.into());
+            DayCell::Day { view, .. } => {
                 let outline = p.text;
-                base.id(id.clone())
-                    .bg(heat(&p, heat_step(chars, &self.quartiles)))
-                    .on_hover(ui::hover_tracker(id.clone()))
+                base.id(view.id.clone())
+                    .bg(heat(&p, view.heat_step))
+                    .on_hover(ui::hover_tracker(view.id.clone()))
                     .child(ui::tweened(
-                        ElementId::from((id.clone(), "outline")),
-                        f32::from(ui::is_hovered(&id)),
-                        hover_ms(),
+                        view.outline_id.clone(),
+                        f32::from(ui::is_hovered(&view.id)),
+                        self.hover_ms,
                         move |v| {
                             div()
                                 .absolute()
@@ -291,7 +350,7 @@ impl Daily<'_> {
                                 .border_color(ui::hex_alpha(outline, v))
                         },
                     ))
-                    .child(ui::tip_above(&p, &id))
+                    .child(ui::tip_above(&p, &view.id))
                     .into_any_element()
             }
         }
@@ -302,18 +361,18 @@ fn heat(p: &Palette, step: usize) -> Hsla {
     [p.stats_heat_0, p.stats_heat_1, p.stats_heat_2, p.stats_heat_3, p.stats_heat_4][step.min(4)]
 }
 
-fn month_label(c: &Ctx, month: u8) -> &'static str {
-    c.lang.tr(MONTHS[usize::from(month).clamp(1, 12) - 1])
+fn month_label(lang: Lang, month: u8) -> &'static str {
+    lang.tr(MONTHS[usize::from(month).clamp(1, 12) - 1])
 }
 
-fn date_label(c: &Ctx, day: i64) -> String {
+fn date_label(lang: Lang, day: i64) -> String {
     let (_, month, day) = civil(day);
-    fmt::stats_date(c.lang, &day.to_string(), month_label(c, month))
+    fmt::stats_date(lang, &day.to_string(), month_label(lang, month))
 }
 
 fn year_month_label(c: &Ctx, day: i64) -> String {
     let (year, month, _) = civil(day);
-    fmt::stats_year_month(c.lang, month_label(c, month), &year.to_string())
+    fmt::stats_year_month(c.lang, month_label(c.lang, month), &year.to_string())
 }
 
 fn range_label(daily: &Daily) -> String {
@@ -322,9 +381,9 @@ fn range_label(daily: &Daily) -> String {
         Period::Week => {
             let ((_, from_month, from), (_, to_month, to)) = (civil(first), civil(last));
             if from_month == to_month {
-                fmt::stats_days_in_month(c.lang, &from.to_string(), month_label(c, from_month), &to.to_string())
+                fmt::stats_days_in_month(c.lang, &from.to_string(), month_label(c.lang, from_month), &to.to_string())
             } else {
-                fmt::stats_date_span(c.lang, &date_label(c, first), &date_label(c, last))
+                fmt::stats_date_span(c.lang, &date_label(c.lang, first), &date_label(c.lang, last))
             }
         }
         Period::Month => year_month_label(c, first),
@@ -332,9 +391,9 @@ fn range_label(daily: &Daily) -> String {
     }
 }
 
-fn daily_card(c: &Ctx, snapshot: &StatsSnapshot, avail: f32) -> Div {
+fn daily_card(c: &Ctx, snapshot: &StatsSnapshot, views: &[DayView], hover_ms: u64, avail: f32) -> Div {
     let p = c.p;
-    let daily = Daily { c, snapshot, quartiles: heat_quartiles(snapshot.days.iter().copied()) };
+    let daily = Daily { c, snapshot, views, hover_ms };
     let view = match snapshot.period {
         Period::Week => week_tiles(&daily),
         Period::Month => month_calendar(&daily),
@@ -455,7 +514,7 @@ fn heatmap(daily: &Daily, avail: f32) -> Div {
     for (column, week) in (skipped..weeks).enumerate() {
         let monday = daily.snapshot.first_day + week as i64 * 7;
         if let Some(first_of_month) = (monday..monday + 7).find(|day| civil(*day).2 == 1) {
-            let label = month_label(c, civil(first_of_month).1);
+            let label = month_label(c.lang, civil(first_of_month).1);
             month_labels =
                 month_labels.child(small(label.into()).absolute().top_0().left(px(column as f32 * HEAT_PITCH)));
         }
@@ -554,14 +613,13 @@ fn top_apps_card(
     )
 }
 
-fn languages_card(c: &Ctx, stats: &Stats) -> Div {
+fn languages_card(c: &Ctx, stats: &Stats, hover_ms: u64) -> Div {
     let p = c.p;
     let total_langs: u64 = stats.langs.iter().map(|(_, n)| *n).sum::<u64>().max(1);
     let shades = if p.dark { ["#E0C47D", "#C2A765", "#826F41"] } else { ["#685218", "#C2A765", "#F6DA97"] };
     let shown = stats.langs.len().min(3);
     let ids: Vec<ElementId> = (0..shown).map(|i| ElementId::Name(format!("stats-language-{i}").into())).collect();
     let pointed = ids.iter().position(ui::is_hovered);
-    let ms = hover_ms();
     let mut stack = div().w_full().h(px(14.)).flex();
     let mut card = ui::card(&p)
         .flex_1()
@@ -580,7 +638,7 @@ fn languages_card(c: &Ctx, stats: &Stats) -> Div {
         // The fading fill is a child, so the hovered segment itself stays mounted.
         stack =
             stack.child(div().id(id.clone()).h_full().w(relative(pct)).on_hover(ui::hover_tracker(id.clone())).child(
-                ui::tweened(ElementId::from((id.clone(), "fill")), level, ms, move |v| {
+                ui::tweened(ElementId::from((id.clone(), "fill")), level, hover_ms, move |v| {
                     let mut fill = div().size_full().bg(col).opacity(v);
                     if first {
                         fill = fill.rounded_l(px(7.));
@@ -593,7 +651,7 @@ fn languages_card(c: &Ctx, stats: &Stats) -> Div {
             ));
         let name = SharedString::from(lang_name(code, c.lang));
         let share = SharedString::from(format!("{:.0}%", pct * 100.));
-        rows.push(ui::tweened(ElementId::from((id.clone(), "row")), level, ms, move |v| {
+        rows.push(ui::tweened(ElementId::from((id.clone(), "row")), level, hover_ms, move |v| {
             div()
                 .w_full()
                 .flex()
@@ -628,4 +686,31 @@ fn fmt_int(n: u64) -> String {
         out.push(ch);
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{DayViews, Lang, Period, Stats, StatsSnapshot};
+
+    #[test]
+    fn day_views_follow_the_snapshot_days() {
+        // 20_000 is 2024-10-04.
+        let snapshot = StatsSnapshot {
+            period: Period::Month,
+            today: 20_002,
+            stats: Stats::default(),
+            first_day: 20_000,
+            days: vec![0, 1200, 40],
+        };
+        let views = DayViews::build(&snapshot, Lang::En);
+        let cells: Vec<_> = views.cells.iter().map(|cell| (cell.id.to_string(), &*cell.tip, cell.heat_step)).collect();
+        assert_eq!(
+            cells,
+            [
+                ("stats-day-Month-20000".to_string(), "Oct 4: 0 chars", 0),
+                ("stats-day-Month-20001".to_string(), "Oct 5: 1,200 chars", 3),
+                ("stats-day-Month-20002".to_string(), "Oct 6: 40 chars", 1),
+            ]
+        );
+    }
 }
