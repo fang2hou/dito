@@ -361,12 +361,24 @@ impl TranscriptionPage {
             // A new session opens its own entry, so the user watches it fill.
             Some(id) if before != Some(id) => self.open_transcript(id, window, cx),
             _ if changed => {
-                self.reload_list();
+                // First, because a transcript that is gone drops the page back to the list.
                 self.refresh_open(window, cx);
+                // A list that is not drawn is re-read when it comes back: `set_active` and `close_detail`.
+                if self.list_shown() {
+                    self.reload_list();
+                }
             }
             _ => {}
         }
         cx.notify();
+    }
+
+    fn detail_shown(&self) -> bool {
+        self.view == View::Detail && self.open.is_some()
+    }
+
+    fn list_shown(&self) -> bool {
+        self.active && !self.detail_shown()
     }
 
     fn reload_list(&mut self) {
@@ -718,7 +730,7 @@ impl TranscriptionPage {
         }
         let banner = self.banner(&c, cx);
         let (dock, pose, dock_h) = dock::view(self, &c, window, cx);
-        if self.view == View::Detail && self.open.is_some() {
+        if self.detail_shown() {
             return page
                 .pt(px(DETAIL_PAD_TOP))
                 .children(banner)
