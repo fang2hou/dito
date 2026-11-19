@@ -35,11 +35,17 @@ pub fn hover_tracker(id: ElementId) -> impl Fn(&bool, &mut Window, &mut App) + '
         let build = reg.build;
         reg.hover_seen.insert(key.clone(), build);
     }
-    move |over, window, _| {
+    move |over, window, cx| {
         let Some(reg) = scope.registry() else { return };
-        let changed = reg.borrow_mut().hovered.insert(key.clone(), *over).unwrap_or(false) != *over;
+        let (changed, owner) = {
+            let mut reg = reg.borrow_mut();
+            (reg.hovered.insert(key.clone(), *over).unwrap_or(false) != *over, reg.owner)
+        };
         if changed {
-            window.refresh();
+            match owner {
+                Some(owner) => cx.notify(owner),
+                None => window.refresh(),
+            }
         }
     }
 }

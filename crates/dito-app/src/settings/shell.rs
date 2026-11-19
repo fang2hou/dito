@@ -163,22 +163,32 @@ impl Render for Settings {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         // The shell (sidebar, health card, rail reveal) draws under the window's persistent scope:
         // its nav plate keeps moving across page switches, which reset only page scopes.
-        let shell = self.chrome.motion();
+        let shell = self.chrome.motion().owned_by(cx.entity_id());
         ui::render_with_scope(shell, || ui::tooltip_root(self.render_shell(window, cx)))
     }
 }
 
 impl Settings {
-    fn page_view(&self) -> AnyElement {
+    fn page_view(&self, window: &Window) -> AnyElement {
         match self.page {
             Page::General => self.general.clone().into_any_element(),
             Page::Models => self.models.clone().into_any_element(),
             Page::Wordbook => self.wordbook.clone().into_any_element(),
             Page::Prompts => self.prompts.clone().into_any_element(),
-            Page::History => self.history.clone().into_any_element(),
+            Page::History => self.history_view(window),
             Page::Stats => self.stats.clone().into_any_element(),
             Page::Status => self.status.clone().into_any_element(),
         }
+    }
+
+    /// Reused from the previous frame until the page is notified, so a frame that only the sidebar asked for does not
+    /// build the rows again. A reused frame skips the page's elements, and those are what report accessibility nodes,
+    /// so the page is drawn every frame while an assistive client is connected.
+    fn history_view(&self, window: &Window) -> AnyElement {
+        if window.is_a11y_active() {
+            return self.history.clone().into_any_element();
+        }
+        self.history.clone().cached(StyleRefinement::default().size_full()).into_any_element()
     }
 
     fn render_shell(&mut self, window: &mut Window, cx: &mut Context<Self>) -> Div {
@@ -195,7 +205,7 @@ impl Settings {
         } else {
             None
         };
-        app_shell::frame(self, &c, Some(self.page.english()), self.page_view(), window, cx)
+        app_shell::frame(self, &c, Some(self.page.english()), self.page_view(window), window, cx)
             .children(prompt_overlay)
             .children(models_overlay)
             .children(wordbook_overlay)

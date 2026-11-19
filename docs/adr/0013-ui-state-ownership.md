@@ -31,6 +31,8 @@ The dictation controller owns a rolling in-memory timing estimate. The HUD owns 
 
 New views follow the same pattern: own your state, load in the background, apply only current results.
 
+A scope can name the view that draws all of its controls (`ScopeHandle::owned_by`). A hover change under it then notifies that view instead of refreshing the window. The settings shell and the History page name theirs, and the shell embeds the History page as a cached view, so a frame that only the sidebar asked for reuses the page instead of building it again. A cached page is drawn again only when it is notified, when its bounds or the text style it inherits change, or when the window refreshes (a click, a focus change, a resize). Everything it shows must therefore reach it as a notification: the History page's config observer covers the language and the appearance, its list snapshot and scroll handler cover data and scrolling, and its own hover, focus and animation frames notify it. While an assistive client is connected the page is drawn every frame, because a reused frame does not report the page's accessibility nodes. The window's tooltip layer counts an anchor as live only in a frame that rebuilt it, so while a tooltip of a cached page shows, every frame that reuses the page is followed by a full refresh.
+
 The inline Cloud ASR editor keeps one draft per configuration, by configuration id, never by position: an editor entity with the request JSON and its native undo history, the key as typed, the validation state and the connection-test result. A draft starts the first time its configuration is shown, survives selecting, reordering and opening or closing documentation, and is dropped when the configuration is deleted. A revision-guarded 200 ms validation task per draft saves only valid drafts, into that draft's own configuration and never changing the selection; invalid edits retain the last valid saved configuration. Connection-test results are accepted only for the same draft revision and preferred language. The settings shell presents the editor-owned help overlay as the sole dialog. Its header and footer stay fixed while only the four-card documentation body scrolls.
 
 The Prompt page owns grouped history per editor, language and application. Committed input updates drafts, idle tasks are revision guarded, and IME marked text is excluded. Toolbar and native editing actions use the same grouped history. Draft autosave waits for 3 s idle or an actual editor exit. An untouched editor cannot flush another editor's active draft. Autosave failures retain drafts and expose a retryable unsaved state; scoped resets require confirmation and remain undoable.
@@ -44,6 +46,7 @@ Moves that look reasonable but go against this decision:
 - Adding global or thread-local UI state.
 - Calling the store or the network from render.
 - Showing an empty list when a load fails.
+- Showing state in a cached page that can change without notifying it (a global, another view's state).
 
 ## Review Triggers
 

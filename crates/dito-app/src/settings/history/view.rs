@@ -108,8 +108,8 @@ impl HistoryPage {
     /// the fades hug the scrolled content's edges instead of the toolbar's.
     fn faded(&self, list: AnyElement, p: &Palette) -> Div {
         const FADE: f32 = 28.;
-        let scrolled = -f32::from(self.list_state.scroll_px_offset_for_scrollbar().y);
-        let max_scroll = f32::from(self.list_state.max_offset_for_scrollbar().y);
+        let (scrolled, max_scroll) = scroll_extent(&self.list_state);
+        let state = self.list_state.clone();
         let top_a = (scrolled / FADE).clamp(0., 1.);
         let bottom_a = ((max_scroll - scrolled) / FADE).clamp(0., 1.);
         div()
@@ -119,7 +119,27 @@ impl HistoryPage {
             .flex()
             .flex_col()
             .child(list)
+            // The list settles its extent while it lays out, after the fades were sized from the previous one. When
+            // the two differ, one more frame sizes the fades from the settled extent.
+            .child(
+                canvas(
+                    move |_, window, _| {
+                        let (now_scrolled, now_max) = scroll_extent(&state);
+                        if (now_scrolled - scrolled).abs() > 0.5 || (now_max - max_scroll).abs() > 0.5 {
+                            window.request_animation_frame();
+                        }
+                    },
+                    |_, _, _, _| {},
+                )
+                .absolute()
+                .size_0(),
+            )
             .when(top_a > 0.001, |d| d.child(edge_fade(Edge::Top, p.bg, FADE, 0.).opacity(top_a)))
             .when(bottom_a > 0.001, |d| d.child(edge_fade(Edge::Bottom, p.bg, FADE, 0.).opacity(bottom_a)))
     }
+}
+
+/// How far the list is scrolled and how far it can scroll.
+fn scroll_extent(list: &ListState) -> (f32, f32) {
+    (-f32::from(list.scroll_px_offset_for_scrollbar().y), f32::from(list.max_offset_for_scrollbar().y))
 }
