@@ -4,6 +4,8 @@
 //! (variant `rules_kw_fewshot_echo` of its prompt sweep), and every heads file records the SHA-256 of
 //! [`fingerprint_text`], so a prompt edited without a refit fails a test instead of routing worse in silence.
 
+use crate::prompts::escape_reference;
+
 /// One letter per intent, in [`super::Intent::ALL`] order, as listed in the system prompt.
 pub const OPTIONS: [&str; super::Intent::COUNT] = ["A", "B", "C", "D", "E", "F", "G", "H"];
 
@@ -11,16 +13,11 @@ pub fn system_prompt() -> &'static str {
     include_str!("router_system.txt")
 }
 
-/// The instruction as reference data (ADR-0012): escaped, so a transcript can neither close the tag nor spell a
-/// chat-template token.
-pub(super) fn escape(instruction: &str) -> String {
-    instruction.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
-}
-
-/// The user turn. The fenced instruction is stated twice: a causal model reads the second copy with the whole first
+/// The user turn. The instruction is reference data (ADR-0012), escaped so a transcript can neither close the tag
+/// nor spell a chat-template token. It is stated twice: a causal model reads the second copy with the whole first
 /// copy in view, and the heads were fitted on this shape.
 pub fn user_message(instruction: &str) -> String {
-    let fenced = format!("<instruction>{}</instruction>", escape(instruction));
+    let fenced = format!("<instruction>{}</instruction>", escape_reference(instruction));
     format!("{fenced}\n\nRead the instruction once more, then decide:\n{fenced}")
 }
 

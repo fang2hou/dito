@@ -483,11 +483,13 @@ pub struct PolishPrompt {
 /// reference lists sit in escaped XML tags, so the three kinds of block cannot be taken for one another.
 const FENCE: &str = "===";
 
+/// A demonstration turn written out as [`fence`] builds the real one. The text must hold no `===`.
 macro_rules! fenced {
-    ($transcript:literal) => {
-        concat!("===\n", $transcript, "\n===")
+    ($text:literal) => {
+        concat!("===\n", $text, "\n===")
     };
 }
+pub(crate) use fenced;
 
 /// Written in English for every transcript language: what must hold for all of them is stated once, and the user's
 /// rules below it are the only part that follows the language. Measured in `bench/FINDINGS.md`.
@@ -576,7 +578,13 @@ pub fn build_prompt(input: &PromptInput<'_>) -> PolishPrompt {
     PolishPrompt { system, examples: EXAMPLES, user: fence(input.text) }
 }
 
-fn push_reference_list<'a>(out: &mut String, list: &str, item: &str, entries: impl Iterator<Item = &'a str>) {
+/// A list of escaped reference items in its own tag, on the line after what `out` holds.
+pub(crate) fn push_reference_list<'a>(
+    out: &mut String,
+    list: &str,
+    item: &str,
+    entries: impl Iterator<Item = &'a str>,
+) {
     out.push_str(&format!("\n<{list}>\n"));
     for entry in entries {
         out.push_str(&format!("<{item}>{}</{item}>\n", escape_reference(entry)));

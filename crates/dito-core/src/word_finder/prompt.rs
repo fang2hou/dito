@@ -1,7 +1,7 @@
 //! The word finder's request, on the dictation scaffold of `prompts.rs` (ADR-0012): English `#Section#` blocks, the
 //! passage between `===` lines and three demonstration turns, one per language type.
 
-use crate::prompts::fence;
+use crate::prompts::{fence, fenced};
 use crate::provider::Example;
 
 pub(super) const SYSTEM: &str = "#Background#\n\
@@ -20,12 +20,6 @@ invent a term.\n\
 #Outputs#\n\
 One term per line and nothing else: no numbering, no bullets, no quotation marks, no explanation. When the passage \
 holds no such term, output the single line NONE.";
-
-macro_rules! fenced {
-    ($passage:literal) => {
-        concat!("===\n", $passage, "\n===")
-    };
-}
 
 pub(super) const EXAMPLES: &[Example] = &[
     Example {
