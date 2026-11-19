@@ -91,8 +91,13 @@ impl HistoryPage {
                 }
             };
             let cfg = st.cfg.get();
-            let csv = history_csv(&rows, &cfg.prompts, cfg.general.lang(), dito_platform::local_utc_offset_secs());
-            match st.rt.clone().spawn_blocking(move || std::fs::write(&path, csv)).await {
+            let utc_offset_secs = dito_platform::local_utc_offset_secs();
+            // The export covers the whole history, which only grows, so its text is built off the UI thread too.
+            let written = st.rt.clone().spawn_blocking(move || {
+                let csv = history_csv(&rows, &cfg.prompts, cfg.general.lang(), utc_offset_secs);
+                std::fs::write(&path, csv)
+            });
+            match written.await {
                 Ok(Ok(())) => {}
                 Ok(Err(e)) => tracing::warn!("export: {e}"),
                 Err(e) => tracing::warn!("export: {e}"),
