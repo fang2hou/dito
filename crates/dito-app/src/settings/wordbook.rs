@@ -301,13 +301,12 @@ impl WordbookPage {
                 Ok(store.import_words(&text, now())?)
             })
             .await;
-            let _ = this.update(cx, |this, cx| {
-                match imported {
-                    Ok(_) => this.succeeded(cx),
-                    Err(e) => this.failed(Failure::Import, &e, cx),
+            let _ = this.update(cx, |this, cx| match imported {
+                Ok(_) => {
+                    this.succeeded(cx);
+                    this.load(cx);
                 }
-                // A failed import may still have added the lines before the error.
-                this.load(cx);
+                Err(e) => this.failed(Failure::Import, &e, cx),
             });
         })
         .detach();
