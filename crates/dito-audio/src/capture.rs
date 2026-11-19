@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::mpsc;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Condvar, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
@@ -133,7 +133,34 @@ fn pick_switch(current: f32, probes: &[(String, f32)]) -> Option<&str> {
     (best.1 > current * SWITCH_THRESHOLD).then_some(best.0.as_str())
 }
 
-fn probe_one(name: String, window: Duration) -> (String, f32) {
+/// One recording, shared with the probes it launched: they close with it and never act on a later recording.
+#[derive(Default)]
+struct Recording {
+    over: Mutex<bool>,
+    changed: Condvar,
+}
+
+impl Recording {
+    fn end(&self) {
+        *self.over.lock().expect("audio state lock") = true;
+        self.changed.notify_all();
+    }
+
+    fn is_over(&self) -> bool {
+        *self.over.lock().expect("audio state lock")
+    }
+
+    /// Waits for `timeout`, or less when the recording ends first; `true` once it has ended.
+    fn ended_within(&self, timeout: Duration) -> bool {
+        let over = self.over.lock().expect("audio state lock");
+        *self.changed.wait_timeout_while(over, timeout, |over| !*over).expect("audio state lock").0
+    }
+}
+
+fn probe_one(name: String, window: Duration, recording: &Recording) -> (String, f32) {
+    if recording.is_over() {
+        return (name, 0.0);
+    }
     let peak = Arc::new(Mutex::new(0f32));
     let p2 = peak.clone();
     let build = || -> Result<cpal::Stream, RecorderError> {
@@ -152,21 +179,27 @@ fn probe_one(name: String, window: Duration) -> (String, f32) {
         Ok(stream)
     };
     if let Ok(stream) = build() {
-        std::thread::sleep(window);
+        recording.ended_within(window);
         drop(stream);
     }
     (name, *peak.lock().expect("audio state lock"))
 }
 
-fn probe_levels(skip: &str, window: Duration, overrides: &AutoOverrides) -> Vec<(String, f32)> {
+fn probe_levels(
+    skip: &str,
+    window: Duration,
+    overrides: &AutoOverrides,
+    recording: &Arc<Recording>,
+) -> Vec<(String, f32)> {
     let names: Vec<String> =
         list_input_devices().into_iter().filter(|d| d.auto(overrides) && d.name != skip).map(|d| d.name).collect();
     let handles: Vec<JoinHandle<_>> = names
         .into_iter()
         .map(|n| {
+            let recording = recording.clone();
             std::thread::Builder::new()
                 .name("dito-probe".into())
-                .spawn(move || probe_one(n, window))
+                .spawn(move || probe_one(n, window, &recording))
                 .expect("spawn probe thread")
         })
         .collect();
@@ -228,6 +261,13 @@ struct Running {
     stop: mpsc::Sender<()>,
     thread: JoinHandle<()>,
     samples: Arc<Mutex<Vec<f32>>>,
+    recording: Arc<Recording>,
+}
+
+/// Takes the stream only while it still belongs to `recording`: by the time a probe has decided, that recording may
+/// have ended and the next one started.
+fn take_recording(running: &mut Option<Running>, recording: &Arc<Recording>) -> Option<Running> {
+    running.take_if(|r| Arc::ptr_eq(&r.recording, recording))
 }
 
 struct Inner {
@@ -257,6 +297,7 @@ impl Inner {
         selector: &str,
         device: Option<Device>,
         samples: Arc<Mutex<Vec<f32>>>,
+        recording: Arc<Recording>,
     ) -> Result<(Running, String), RecorderError> {
         self.level.store(0, Ordering::Relaxed);
         let (stop_tx, stop_rx) = mpsc::channel();
@@ -267,7 +308,7 @@ impl Inner {
             .name("dito-audio".into())
             .spawn(move || stream_thread(sel, device, s2, l2, ready_tx, stop_rx))?;
         match ready_rx.recv_timeout(Duration::from_secs(5)) {
-            Ok(Ok(name)) => Ok((Running { stop: stop_tx, thread, samples }, name)),
+            Ok(Ok(name)) => Ok((Running { stop: stop_tx, thread, samples, recording }, name)),
             Ok(Err(e)) => {
                 let _ = thread.join();
                 Err(e)
@@ -276,8 +317,8 @@ impl Inner {
         }
     }
 
-    /// Returns the effective device only when automatic picking should run for it.
-    fn begin(&self) -> Result<Option<String>, RecorderError> {
+    /// Returns the effective device and its recording only when automatic picking should run for it.
+    fn begin(&self) -> Result<Option<(String, Arc<Recording>)>, RecorderError> {
         let mut running = self.running.lock().expect("audio state lock");
         if running.is_some() {
             return Ok(None);
@@ -306,47 +347,51 @@ impl Inner {
             }
         };
         let samples = Arc::new(Mutex::new(Vec::new()));
-        let (r, effective) = self.spawn_stream(&selector, device, samples)?;
+        let recording = Arc::new(Recording::default());
+        let (r, effective) = self.spawn_stream(&selector, device, samples, recording.clone())?;
         if effective != configured {
             self.set_notice_if_notable(&effective, default_name.as_deref());
         }
         *running = Some(r);
-        Ok((auto && sticky.is_none()).then_some(effective))
+        Ok((auto && sticky.is_none()).then_some((effective, recording)))
     }
 
-    fn auto_probe(self: &Arc<Self>, current: String) {
+    fn auto_probe(self: &Arc<Self>, current: String, recording: Arc<Recording>) {
         let level = self.level.clone();
         let probes = {
             let current = current.clone();
             let overrides = self.auto_overrides.lock().expect("audio state lock").clone();
-            std::thread::spawn(move || probe_levels(&current, PROBE_WINDOW, &overrides))
+            let recording = recording.clone();
+            std::thread::spawn(move || probe_levels(&current, PROBE_WINDOW, &overrides, &recording))
         };
         let deadline = Instant::now() + PROBE_WINDOW;
         let mut current_peak = 0f32;
         while Instant::now() < deadline {
             current_peak = current_peak.max(f32::from_bits(level.load(Ordering::Relaxed)));
-            std::thread::sleep(Duration::from_millis(40));
+            if recording.ended_within(Duration::from_millis(40)) {
+                return;
+            }
         }
         let probes = probes.join().unwrap_or_default();
         tracing::debug!("auto mic: current peak {current_peak:.4}, probes {probes:?}");
         let Some(winner) = pick_switch(current_peak, &probes) else { return };
-        tracing::info!("auto mic: switching from {current} to {winner}");
 
         let mut running = self.running.lock().expect("audio state lock");
         // Strict switch: stop the old stream, then start the winner appending into the same
         // buffer, so the two sources never interleave.
-        let Some(old) = running.take() else { return };
+        let Some(old) = take_recording(&mut running, &recording) else { return };
+        tracing::info!("auto mic: switching from {current} to {winner}");
         let recorded = old.samples.clone();
         let _ = old.stop.send(());
         let _ = old.thread.join();
-        match self.spawn_stream(winner, None, old.samples) {
+        match self.spawn_stream(winner, None, old.samples, recording.clone()) {
             Ok((r, effective)) => {
                 tracing::info!("auto mic: live on {effective}");
                 *self.sticky.lock().expect("audio state lock") = Some(effective.clone());
                 self.set_notice_if_notable(&effective, default_input_name().as_deref());
                 *running = Some(r);
             }
-            Err(_) => match self.spawn_stream(&current, None, recorded.clone()) {
+            Err(_) => match self.spawn_stream(&current, None, recorded.clone(), recording) {
                 // The winner refused to open; fall back to re-opening the current device.
                 Ok((r, _)) => *running = Some(r),
                 Err(_) => *self.salvage.lock().expect("audio state lock") = Some(recorded),
@@ -357,6 +402,7 @@ impl Inner {
     fn stop(&self) -> AudioClip {
         let samples_arc = match self.running.lock().expect("audio state lock").take() {
             Some(r) => {
+                r.recording.end();
                 let _ = r.stop.send(());
                 let _ = r.thread.join();
                 r.samples
@@ -411,9 +457,11 @@ impl Capture {
 
 impl Recorder for Capture {
     fn start(&self) -> Result<(), RecorderError> {
-        if let Some(effective) = self.0.begin()? {
+        if let Some((effective, recording)) = self.0.begin()? {
             let inner = self.0.clone();
-            std::thread::Builder::new().name("dito-auto-probe".into()).spawn(move || inner.auto_probe(effective))?;
+            std::thread::Builder::new()
+                .name("dito-auto-probe".into())
+                .spawn(move || inner.auto_probe(effective, recording))?;
         }
         Ok(())
     }
@@ -545,6 +593,30 @@ mod tests {
     fn all_silent_stays_put() {
         let probes = [probe("C922", 0.001)];
         assert_eq!(pick_switch(0.0, &probes), None);
+    }
+
+    #[test]
+    fn a_probe_of_an_ended_recording_leaves_the_next_one_alone() {
+        let stream_of = |recording: &Arc<Recording>| Running {
+            stop: mpsc::channel().0,
+            thread: std::thread::spawn(|| {}),
+            samples: Arc::default(),
+            recording: recording.clone(),
+        };
+        let capture = Capture::new("");
+        let slot = || capture.0.running.lock().expect("audio state lock");
+        let first = Arc::new(Recording::default());
+        *slot() = Some(stream_of(&first));
+        assert!(!first.is_over());
+
+        capture.stop();
+        assert!(first.ended_within(Duration::from_secs(5)), "its probes wake at once instead of finishing the window");
+        let second = Arc::new(Recording::default());
+        *slot() = Some(stream_of(&second));
+
+        assert!(take_recording(&mut slot(), &first).is_none());
+        assert!(slot().is_some(), "the next recording keeps its stream");
+        assert!(take_recording(&mut slot(), &second).is_some(), "a probe still switches its own recording");
     }
 
     #[test]
