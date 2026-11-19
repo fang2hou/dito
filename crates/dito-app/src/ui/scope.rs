@@ -44,6 +44,8 @@ pub(super) struct Registry {
     pub(super) select_w: HashMap<&'static str, f32>,
     /// Select buttons that were pressed while their menu was open (the outside-click already closed it).
     pub(super) pressed_open: HashSet<ElementId>,
+    /// The view that draws every control of this scope, when it has named itself with [`ScopeHandle::owned_by`].
+    pub(super) owner: Option<EntityId>,
     pub(super) id: MotionScopeId,
 }
 
@@ -61,6 +63,7 @@ impl Registry {
             tip_epoch: 0,
             select_w: HashMap::new(),
             pressed_open: HashSet::new(),
+            owner: None,
             id: MotionScopeId::next(),
         }
     }
@@ -129,6 +132,15 @@ impl ScopeHandle {
 
     pub(super) fn registry(&self) -> Option<Rc<RefCell<Registry>>> {
         self.registry.upgrade()
+    }
+
+    /// Names the view that draws every control of this scope. A hover change under it then notifies that view
+    /// instead of refreshing the window, so a view the window embeds as cached is reused, not built again.
+    pub fn owned_by(self, owner: EntityId) -> Self {
+        if let Some(reg) = self.registry() {
+            reg.borrow_mut().owner = Some(owner);
+        }
+        self
     }
 }
 
