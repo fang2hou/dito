@@ -177,25 +177,33 @@ impl LocalEngines {
         let _ = self.ensure_loaded(id).await;
     }
 
-    async fn ensure_loaded(&self, id: &str) -> ProviderResult<Slot> {
-        let spec = self
-            .manager
-            .spec(id)
-            .ok_or_else(|| ProviderError::new(ErrorKind::ModelNotFound, format!("unknown local model {id}")))?
-            .clone();
-        if !self.manager.is_installed(id) {
-            return Err(ProviderError::new(ErrorKind::Unavailable, format!("{} is not downloaded", spec.name)));
-        }
-        let _guard = self.load_lock.lock().await;
+    fn loaded(&self, id: &str) -> ProviderResult<Option<Slot>> {
         let existing = self.slots.lock().expect("engine state mutex poisoned").get(id).cloned();
         if let Some(Slot::Asr(runtime)) = &existing
             && let Some(error) = runtime.failure()
         {
             return Err(ProviderError::new(ErrorKind::Unavailable, error));
         }
-        if let Some(slot @ (Slot::Asr(_) | Slot::Llm(_))) = existing {
+        Ok(existing.filter(|slot| matches!(slot, Slot::Asr(_) | Slot::Llm(_))))
+    }
+
+    async fn ensure_loaded(&self, id: &str) -> ProviderResult<Slot> {
+        let spec = self
+            .manager
+            .spec(id)
+            .ok_or_else(|| ProviderError::new(ErrorKind::ModelNotFound, format!("unknown local model {id}")))?;
+        if !self.manager.is_installed(id) {
+            return Err(ProviderError::new(ErrorKind::Unavailable, format!("{} is not downloaded", spec.name)));
+        }
+        // The load lock is held for a whole load, so a loaded model must not wait behind another model's load.
+        if let Some(slot) = self.loaded(id)? {
             return Ok(slot);
         }
+        let _guard = self.load_lock.lock().await;
+        if let Some(slot) = self.loaded(id)? {
+            return Ok(slot);
+        }
+        let spec = spec.clone();
         let stop = Arc::new(AtomicBool::new(false));
         {
             let mut slots = self.slots.lock().expect("engine state mutex poisoned");
