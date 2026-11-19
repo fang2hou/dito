@@ -267,11 +267,13 @@ fn scaled(points: f32) -> u32 {
     (points * HUD_SCALE).round() as u32
 }
 
+/// The window keeps this much room for the countdown under the capsule.
+const BELOW_CAPSULE: f32 = 30.;
+
 fn held_label_sample(canvas: &RgbaImage) -> Vec<u8> {
     let (w, h) = canvas.dimensions();
-    image::imageops::crop_imm(canvas, w / 2 - scaled(18.), h - scaled(39.), scaled(36.), scaled(18.))
-        .to_image()
-        .into_raw()
+    let top = h - scaled(BELOW_CAPSULE + 39.);
+    image::imageops::crop_imm(canvas, w / 2 - scaled(18.), top, scaled(36.), scaled(18.)).to_image().into_raw()
 }
 
 /// At this row the label cannot contribute: a crisp front must remain visibly stronger than its low-opacity halo
@@ -279,7 +281,7 @@ fn held_label_sample(canvas: &RgbaImage) -> Vec<u8> {
 fn has_crisp_brush(canvas: &RgbaImage, appearance: Appearance) -> bool {
     let (w, h) = canvas.dimensions();
     (w / 2 - scaled(6.)..w / 2 + scaled(6.)).any(|x| {
-        let red = canvas.get_pixel(x, h - scaled(22.))[0];
+        let red = canvas.get_pixel(x, h - scaled(BELOW_CAPSULE + 22.))[0];
         if appearance == Appearance::Dark { red > 150 } else { red < 200 }
     })
 }
