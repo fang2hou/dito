@@ -45,8 +45,13 @@ pub(super) fn viewport(page: &ChatPage, c: &Ctx, cx: &mut Context<ChatPage>) -> 
         let mut turn = div().w_full().flex().flex_col().gap(px(24.));
         for row in &rows[range.clone()] {
             turn = match row.author {
-                Author::User => turn.child(user_bubble(row, c, &ElementId::from(("chat-user", row.id as usize)))),
-                Author::Assistant => turn.child(reply(page, row, docs.get(&row.id), c, cx)),
+                Author::User => turn.child(user_bubble(
+                    row,
+                    docs.asked.get(&row.id),
+                    c,
+                    &ElementId::from(("chat-user", row.id as usize)),
+                )),
+                Author::Assistant => turn.child(reply(page, row, docs.replies.get(&row.id), c, cx)),
             };
         }
         column = column.child(match pose {
@@ -131,7 +136,7 @@ fn jump_pill(c: &Ctx, cx: &mut Context<ChatPage>) -> Div {
     )
 }
 
-fn user_bubble(row: &ChatMessageRow, c: &Ctx, id: &ElementId) -> Div {
+fn user_bubble(row: &ChatMessageRow, text: Option<&SharedString>, c: &Ctx, id: &ElementId) -> Div {
     let p = c.p;
     let mut bubble =
         div().max_w(px(BUBBLE_MAX_W)).px(px(16.)).py(px(12.)).rounded(px(16.)).bg(p.sub).flex().flex_col().gap(px(8.));
@@ -142,11 +147,11 @@ fn user_bubble(row: &ChatMessageRow, c: &Ctx, id: &ElementId) -> Div {
         }
         bubble = bubble.child(chips);
     }
-    if !row.content.is_empty() {
+    if let Some(text) = text.filter(|text| !text.is_empty()) {
         bubble = bubble.child(div().text_size(px(14.)).line_height(px(22.)).child(ui::selectable_text(
             &p,
             id.clone(),
-            row.content.clone(),
+            text.clone(),
             14.,
             FontWeight::NORMAL,
             p.text,
@@ -213,8 +218,7 @@ fn reply(
     }
     let mut body = div().w_full().flex().flex_col().gap(px(12.));
     if let Some(doc) = doc {
-        let id = ElementId::from(("chat-reply", row.id as usize));
-        body = body.child(markdown_view::blocks(doc.blocks(), &p, &id, cx));
+        body = body.child(markdown_view::blocks(doc.blocks(), &p, cx));
     }
     if live {
         body = body.child(div().w(px(2.)).h(px(16.)).rounded(px(1.)).bg(p.accent));

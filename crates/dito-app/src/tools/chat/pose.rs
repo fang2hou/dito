@@ -95,7 +95,7 @@ impl ChatPage {
         cx: &mut Context<Self>,
     ) {
         let chat = self.current.unwrap_or(0);
-        self.rows.push(ChatMessageRow {
+        self.push_row(ChatMessageRow {
             id: -1,
             author: Author::User,
             content: question.to_owned(),
@@ -105,7 +105,7 @@ impl ChatPage {
             model: None,
             ts: 0,
         });
-        self.rows.push(ChatMessageRow {
+        self.push_row(ChatMessageRow {
             id: -2,
             author: Author::Assistant,
             content: written.to_owned(),
@@ -115,7 +115,6 @@ impl ChatPage {
             model: Some("Qwen3.5-4B".to_owned()),
             ts: 0,
         });
-        self.docs.insert(-2, std::rc::Rc::new(super::markdown::Document::of(written)));
         self.generation = (state == MessageState::Generating).then(|| Generation::posed(chat, -2, written, ms));
         self.scroll.scroll_to_bottom();
         cx.notify();
