@@ -17,7 +17,7 @@ use dito_core::provider::{
     test_transcriber,
 };
 use dito_core::secrets::{MemorySecrets, SecretStore, text_account};
-use dito_testkit::{MockServer, mock_cloud_asr_config};
+use dito_testkit::{Cut, CutProxy, MockServer, mock_cloud_asr_config};
 use serde_json::json;
 
 fn tone() -> AudioClip {
@@ -493,4 +493,95 @@ async fn cancelling_stops_a_stream_that_is_waiting_for_the_next_chunk() {
     let reply = engine.chat(&question("um a reply that never arrives"), &mut |_| {}, &cancel).await.unwrap();
     assert!(reply.is_empty());
     assert!(started.elapsed() < Duration::from_secs(5), "Stop waited {:?} for the server", started.elapsed());
+}
+
+#[tokio::test]
+async fn a_request_that_loses_its_connection_before_the_answer_is_sent_once_more_and_only_once() {
+    let srv = MockServer::start().await.unwrap();
+    let link = CutProxy::start(&srv.url).await.unwrap();
+    let (cfg, f) = (mock_cfg(&link.url), factory(None));
+    let (asr, text) = (f.transcriber(&cfg).await.unwrap(), f.text_model(&cfg).await.unwrap().unwrap());
+    let clip = tone();
+    let speech = AsrRequest { clip: &clip, language: Some("ja"), hotwords: &[] };
+    let polish = TextRequest { system: "s", examples: &[], text: "えーと 会議です" };
+
+    // From here on each engine has a connection in its pool, which the next request picks.
+    asr.transcribe(&speech).await.unwrap();
+    text.polish(&polish).await.unwrap();
+
+    link.cut([Cut::BeforeAnswer]);
+    assert_eq!(asr.transcribe(&speech).await.unwrap().text, "えーと 明日の3時に会議があります");
+    link.cut([Cut::BeforeAnswer]);
+    assert_eq!(text.polish(&polish).await.unwrap(), "会議です。");
+    link.cut([Cut::BeforeAnswer]);
+    let reply = text.chat(&question("えーと 会議です"), &mut |_| {}, &ChatCancel::default()).await.unwrap();
+    assert_eq!(reply, "会議です。", "a stream that had not begun is opened again");
+
+    let seen = srv.requests();
+    assert_eq!(seen.len(), 8, "the two that filled the pools, then each of the three twice");
+    assert_eq!(seen[2].audio_bytes, 44 + 32_000, "the copy that lost its connection reached the server whole");
+    assert_eq!(seen[3].audio_bytes, seen[2].audio_bytes, "and the second copy carries the same audio");
+
+    link.cut([Cut::BeforeAnswer, Cut::BeforeAnswer]);
+    let error = asr.transcribe(&speech).await.unwrap_err();
+    assert_eq!(error.kind, ErrorKind::Network, "the second loss is the request's failure, as one loss was before");
+    assert_eq!(srv.requests().len(), 10, "two attempts, never a third");
+}
+
+#[tokio::test]
+async fn a_request_is_not_sent_again_once_its_answer_has_begun() {
+    let srv = MockServer::start().await.unwrap();
+    let link = CutProxy::start(&srv.url).await.unwrap();
+    let (cfg, f) = (mock_cfg(&link.url), factory(None));
+    let clip = tone();
+
+    link.cut([Cut::InAnswer]);
+    let asr = f.transcriber(&cfg).await.unwrap();
+    asr.transcribe(&AsrRequest { clip: &clip, language: Some("ja"), hotwords: &[] }).await.unwrap_err();
+    assert_eq!(srv.requests().len(), 1);
+
+    link.cut([Cut::InAnswer]);
+    let text = f.text_model(&cfg).await.unwrap().unwrap();
+    text.polish(&TextRequest { system: "s", examples: &[], text: "t" }).await.unwrap_err();
+    assert_eq!(srv.requests().len(), 2);
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_request_that_times_out_is_not_sent_again() {
+    let srv = MockServer::start().await.unwrap();
+    let link = CutProxy::start(&srv.url).await.unwrap();
+    let (cfg, f) = (mock_cfg(&link.url), factory(None));
+    let clip = tone();
+
+    // Only the first request gets no answer: a second attempt would succeed and hide the timeout.
+    link.cut([Cut::NoAnswer]);
+    let asr = f.transcriber(&cfg).await.unwrap();
+    let error = asr.transcribe(&AsrRequest { clip: &clip, language: Some("ja"), hotwords: &[] }).await.unwrap_err();
+    assert_eq!(error.kind, ErrorKind::Timeout);
+    assert!(srv.requests().len() <= 1);
+}
+
+#[tokio::test]
+async fn cancelling_ends_a_request_that_is_being_sent_again() {
+    let srv = MockServer::start().await.unwrap();
+    let link = CutProxy::start(&srv.url).await.unwrap();
+    let (cfg, f) = (mock_cfg(&link.url), factory(None));
+    let clip = tone();
+
+    link.cut([Cut::BeforeAnswer, Cut::NoAnswer]);
+    let cancel = CancellationToken::new();
+    let job = PipelineJob { clip: &clip, target: AppTarget::General, wordbook: &[] };
+    let cancel_during_the_second_attempt = async {
+        while srv.requests().len() < 2 {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+        cancel.cancel();
+    };
+    let run = pipeline::run(&f, &cfg, &job, &|_| {}, &cancel);
+    let (result, ()) =
+        tokio::time::timeout(Duration::from_secs(10), async { tokio::join!(run, cancel_during_the_second_attempt) })
+            .await
+            .expect("the cancelled request ended");
+    assert!(matches!(result, Err(PipelineError::Cancelled)), "{result:?}");
+    assert_eq!(srv.requests().len(), 2);
 }

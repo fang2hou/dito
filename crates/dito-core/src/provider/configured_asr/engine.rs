@@ -3,6 +3,8 @@ use std::collections::BTreeMap;
 use async_trait::async_trait;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
+use futures_util::TryStreamExt;
+use reqwest::header::{CONTENT_LENGTH, CONTENT_TYPE};
 use reqwest::multipart::{Form, Part};
 use reqwest::{Client, Method, RequestBuilder, Url};
 use serde_json::Value;
@@ -23,6 +25,7 @@ impl ConfiguredAsr {
     pub fn new(config: Value, key: String) -> ProviderResult<Self> {
         validate::validate(&config)?;
         let client = Client::builder()
+            .retry(provider::dropped_connection::resend_once(validate::string(&config, "/connection/base_url")?))
             .timeout(provider::default_timeout())
             .redirect(reqwest::redirect::Policy::none())
             .build()
@@ -30,7 +33,7 @@ impl ConfiguredAsr {
         Ok(Self { config, key, client })
     }
 
-    fn build_request(&self, wav: &[u8], language: Option<&str>) -> ProviderResult<RequestBuilder> {
+    async fn build_request(&self, wav: &[u8], language: Option<&str>) -> ProviderResult<RequestBuilder> {
         let c = &self.config;
         let audio = STANDARD.encode(wav);
         let vars = BTreeMap::from([
@@ -63,7 +66,7 @@ impl ConfiguredAsr {
             request = request.header(k, v.as_str().ok_or_else(|| validate::invalid("request.headers"))?);
         }
         if r["encoding"] == "multipart" {
-            Ok(request.multipart(multipart_form(&r["fields"], wav)?))
+            in_one_piece(request, multipart_form(&r["fields"], wav)?).await
         } else {
             Ok(request.json(&r["body"]))
         }
@@ -92,7 +95,7 @@ impl ConfiguredAsr {
 #[async_trait]
 impl Transcriber for ConfiguredAsr {
     async fn transcribe(&self, req: &AsrRequest<'_>) -> ProviderResult<Transcript> {
-        let request = self.build_request(&req.clip.to_wav(), req.language)?;
+        let request = self.build_request(&req.clip.to_wav(), req.language).await?;
         let response = request.send().await.map_err(transport_error)?;
         if !response.status().is_success() {
             return Err(ProviderError::from_status(response.status().as_u16(), "ASR request failed"));
@@ -108,6 +111,18 @@ fn transport_error(e: reqwest::Error) -> ProviderError {
 
 fn scalar_text(v: &Value) -> String {
     v.as_str().map(str::to_owned).unwrap_or_else(|| v.to_string())
+}
+
+/// The form as one buffer instead of the stream reqwest makes of it, byte for byte: a stream cannot be sent a second
+/// time when the connection is lost under the request.
+async fn in_one_piece(request: RequestBuilder, form: Form) -> ProviderResult<RequestBuilder> {
+    let content_type = format!("multipart/form-data; boundary={}", form.boundary());
+    let mut pieces = std::pin::pin!(form.into_stream());
+    let mut body = Vec::new();
+    while let Some(piece) = pieces.try_next().await.map_err(transport_error)? {
+        body.extend_from_slice(&piece);
+    }
+    Ok(request.header(CONTENT_TYPE, content_type).header(CONTENT_LENGTH, body.len()).body(body))
 }
 
 fn multipart_form(fields: &Value, wav: &[u8]) -> ProviderResult<Form> {

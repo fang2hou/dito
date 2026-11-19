@@ -58,6 +58,7 @@ impl OpenAiEngine {
             return Err(ProviderError::new(ErrorKind::Unavailable, format!("{name} is not set")));
         }
         let client = reqwest::Client::builder()
+            .retry(super::dropped_connection::resend_once(value.0))
             .connect_timeout(std::time::Duration::from_secs(10))
             .timeout(default_timeout())
             .build()
