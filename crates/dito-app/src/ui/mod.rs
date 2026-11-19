@@ -5,6 +5,7 @@ mod banner;
 mod button;
 mod callbacks;
 mod chip;
+mod choice_surface;
 mod code_block;
 mod config_tiles;
 mod copy_button;
@@ -52,6 +53,7 @@ pub use button::{
 };
 pub use callbacks::{Cb, CopyCb, ToggleCb, cbk, cbk_copy, cbk_idx, click_cb};
 pub use chip::{chip_surface, selection_ring};
+pub use choice_surface::choice_surface;
 pub use code_block::{code_block, code_block_with};
 pub use config_tiles::{ConfigTile, TilePlus, TileRowState, cbk_id, cbk_move, tile_row};
 pub use copy_button::{copy_button, copy_button_with, ghost_copy_button};
