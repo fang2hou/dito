@@ -10,12 +10,11 @@ use gpui_kit::*;
 use super::chat::ChatPage;
 use super::local_api::LocalApiPage;
 use super::transcription::TranscriptionPage;
-use crate::app_shell::{self, Chrome, NavHost, NavPage, WindowDestination};
+use crate::app_shell::{self, Chrome, NavHost, NavPage, ShellView, WindowDestination};
 use crate::assets::Ic;
 use crate::services;
-use crate::settings::Ctx;
 use crate::state::AppState;
-use crate::theme::{self, Palette};
+use crate::theme::Palette;
 use crate::ui;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -126,9 +125,11 @@ impl Tools {
         self.chat.update(cx, |page, cx| page.set_active(shown == Some(ToolsPage::Chat), cx));
         self.local_api.update(cx, |page, cx| page.set_active(shown == Some(ToolsPage::LocalApi), cx));
     }
+}
 
+impl ShellView for Tools {
     /// The window is closing: nothing transient may replay if it is opened again.
-    pub(super) fn on_window_closed(&mut self, cx: &mut Context<Self>) {
+    fn on_window_closed(&mut self, cx: &mut Context<Self>) {
         self.set_pages_active(None, cx);
         self.transcription.update(cx, |page, _| page.reset_motion());
         self.chat.update(cx, |page, _| page.reset_motion());
@@ -173,8 +174,8 @@ impl Render for Tools {
 }
 
 impl Tools {
-    /// Scroll still passes through, and content never enters these zones, so nothing is blocked.
-    fn content(&self, p: Palette) -> Div {
+    fn render_shell(&mut self, window: &mut Window, cx: &mut Context<Self>) -> Div {
+        let c = self.chrome.begin_frame(window, cx);
         let page = self.page;
         let view: AnyView = match page {
             ToolsPage::Transcription => self.transcription.clone().into(),
@@ -183,59 +184,7 @@ impl Tools {
         };
         // The chat page lays out its own edges: the sidebar is flush right and the composer reaches 28 pt from the
         // sides, so the page gutters and the wordmark would sit on its controls.
-        if page == ToolsPage::Chat {
-            return div().flex_1().h_full().relative().overflow_hidden().child(view);
-        }
-        div()
-            .flex_1()
-            .h_full()
-            .relative()
-            .overflow_hidden()
-            .child(ui::prepare_card_backdrop(page.english(), p))
-            .child(ui::page_wordmark(page.english(), p))
-            .child(view)
-            .child(
-                ui::drag_area("gutter-left")
-                    .absolute()
-                    .top_0()
-                    .left_0()
-                    .h_full()
-                    .w(px(56.))
-                    .block_mouse_except_scroll(),
-            )
-            .child(
-                ui::drag_area("gutter-right")
-                    .absolute()
-                    .top_0()
-                    .right_0()
-                    .h_full()
-                    .w(px(56.))
-                    .block_mouse_except_scroll(),
-            )
-    }
-
-    fn render_shell(&mut self, window: &mut Window, cx: &mut Context<Self>) -> Div {
-        let changed = self.chrome.follow_window_width(window);
-        let rail = self.chrome.rail();
-        if changed {
-            cx.notify();
-        }
-        let c = Ctx::new(self.chrome.st(), cx);
-        let p = c.p;
-        theme::apply(&p, cx);
-        div()
-            .size_full()
-            .flex()
-            .bg(p.bg)
-            .text_color(p.text)
-            .font_family(ui::cjk_family())
-            // Any click first drops keyboard focus; an input under the pointer then takes it back.
-            .capture_any_mouse_down(|_, window, cx| window.blur(cx))
-            .child(app_shell::sidebar(self, &c, cx, rail))
-            .child(self.content(p))
-            // Last child: the rail's floating reveal paints above the page content.
-            .when(rail, |el| el.child(app_shell::rail_hover(self, &c, cx)))
-            // Painted last so the health card floats above the page content, not under it.
-            .child(app_shell::health_overlay(&self.chrome, &c, window))
+        let title = (page != ToolsPage::Chat).then_some(page.english());
+        app_shell::frame(self, &c, title, view, window, cx)
     }
 }
