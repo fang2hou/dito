@@ -50,7 +50,7 @@ pub use button::{
     circle_control_with_glyph, close_button, disabled_button, disabled_icon_button, disabled_icon_button_with,
     icon_button, icon_button_with, status_disc,
 };
-pub use callbacks::{Cb, CopyCb, ToggleCb, cbk, cbk_copy, cbk_idx, click_cb};
+pub use callbacks::{Cb, CopyCb, IndexCb, ToggleCb, cbk, cbk_copy, cbk_idx, click_cb};
 pub use chip::{chip_surface, selection_ring};
 pub use code_block::{code_block, code_block_with};
 pub use config_tiles::{ConfigTile, TilePlus, TileRowState, cbk_id, cbk_move, tile_row};

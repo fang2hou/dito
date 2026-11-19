@@ -1,10 +1,8 @@
-use std::rc::Rc;
-
-use dito_core::config::{InsertMethod, MusicMuteMode, RecordMode};
 use dito_core::i18n::Tr;
 use dito_platform::hotkey::{Shortcut, command_shortcut, tools_shortcut};
 use gpui_kit::*;
 
+use super::bindings::{CONFIRM_BEFORE_REPLACE, INSERT_METHOD, MUSIC_MUTE, POLISH_ENABLED, RECORD_MODE};
 use super::page::GeneralPage;
 use crate::assets::Ic;
 use crate::hotkeys::{CaptureState, ShortcutTarget};
@@ -78,72 +76,23 @@ impl GeneralPage {
     }
 
     fn record_mode_seg(&self, c: &Ctx) -> Stateful<Div> {
-        let st = self.st.clone();
-        ui::seg(
-            "mode",
-            &c.p,
-            &[c.t(Tr::GeneralToggle), c.t(Tr::GeneralHold)],
-            if self.st.cfg.get().general.record_mode == RecordMode::Toggle { 0 } else { 1 },
-            Rc::new(move |i, _, _| {
-                services::save_config(&st, move |c| {
-                    c.general.record_mode = if i == 0 { RecordMode::Toggle } else { RecordMode::Hold }
-                })
-            }),
-        )
+        self.bound_seg(c, "mode", &[c.t(Tr::GeneralToggle), c.t(Tr::GeneralHold)], &RECORD_MODE)
     }
 
     fn insert_method_seg(&self, c: &Ctx) -> Stateful<Div> {
-        let st = self.st.clone();
-        ui::seg(
-            "insert",
-            &c.p,
-            &[c.t(Tr::GeneralKeyInput), c.t(Tr::GeneralPaste)],
-            if self.st.cfg.get().general.insert_method == InsertMethod::KeyInput { 0 } else { 1 },
-            Rc::new(move |i, _, _| {
-                services::save_config(&st, move |c| {
-                    c.general.insert_method = if i == 0 { InsertMethod::KeyInput } else { InsertMethod::Paste }
-                })
-            }),
-        )
+        self.bound_seg(c, "insert", &[c.t(Tr::GeneralKeyInput), c.t(Tr::GeneralPaste)], &INSERT_METHOD)
     }
 
     fn music_mute_seg(&self, c: &Ctx) -> Stateful<Div> {
-        let st = self.st.clone();
-        ui::seg(
-            "music-mute",
-            &c.p,
-            &[c.t(Tr::GeneralOff), c.t(Tr::GeneralAuto)],
-            if self.st.cfg.get().general.music_mute == MusicMuteMode::Auto { 1 } else { 0 },
-            Rc::new(move |i, _, _| {
-                services::save_config(&st, move |c| {
-                    c.general.music_mute = if i == 1 { MusicMuteMode::Auto } else { MusicMuteMode::Off }
-                })
-            }),
-        )
+        self.bound_seg(c, "music-mute", &[c.t(Tr::GeneralOff), c.t(Tr::GeneralAuto)], &MUSIC_MUTE)
     }
 
     fn polish_switch(&self, p: &Palette) -> Stateful<Div> {
-        let st = self.st.clone();
-        ui::switch(
-            "polish-enabled",
-            p,
-            self.st.cfg.get().polish.enabled,
-            Rc::new(move |on, _, _| {
-                services::save_config(&st, |c| c.polish.enabled = on);
-            }),
-        )
+        self.bound_switch(p, "polish-enabled", &POLISH_ENABLED)
     }
 
     fn confirm_before_replace_switch(&self, p: &Palette) -> Stateful<Div> {
-        let st = self.st.clone();
-        ui::switch(
-            "confirm-before-replace",
-            p,
-            self.st.cfg.get().general.confirm_before_replace,
-            Rc::new(move |on, _, _| {
-                services::save_config(&st, |c| c.general.confirm_before_replace = on);
-            }),
-        )
+        self.bound_switch(p, "confirm-before-replace", &CONFIRM_BEFORE_REPLACE)
     }
 
     /// The command shortcut field. While the user has set a shortcut, a reset button sits 8 pt left of it and gives
