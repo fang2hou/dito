@@ -44,6 +44,17 @@ unsafe extern "C" {
 #[derive(Clone, Debug, PartialEq)]
 pub(super) struct AxElement(CFType);
 
+// SAFETY: the wrapper owns one retain on an `AXUIElementRef`. Core Foundation documents retaining, releasing and
+// querying an object nobody mutates as thread-safe (Threading Programming Guide, Thread Safety Summary), which covers
+// `Clone`, `Drop` and `PartialEq` on any thread. The Accessibility client calls are not documented either way:
+// AXUIElement.h names no thread for them, and this relies on each being a synchronous message to the target app that
+// keeps no state tied to the calling thread. The one write to the handle itself, its messaging timeout, goes through
+// `with_timeout`, which takes the element by value and must stay off an element another thread holds a clone of.
+unsafe impl Send for AxElement {}
+// SAFETY: as above. Clones share one element, so `Send` already lets two threads call into it at once, and `Sync`
+// claims nothing more. A captured selection needs it to be held in an `Arc`.
+unsafe impl Sync for AxElement {}
+
 impl AxElement {
     pub(super) fn system_wide() -> Option<Self> {
         Self::adopt(AXUIElementCreateSystemWide()).map(Self::bounded)
