@@ -54,11 +54,11 @@ pub struct FieldText {
     pub range: Option<(usize, usize)>,
 }
 
-// SAFETY: the element is a retained, immutable CoreFoundation reference. The Accessibility API may be called from any
-// thread, and nothing here mutates the reference itself.
-unsafe impl Send for Selection {}
-// SAFETY: see above; every use is a read-only call into the Accessibility API.
-unsafe impl Sync for Selection {}
+// A selection is captured on one thread and written over from another while the controller still holds it.
+const _: fn() = || {
+    fn assert_send_sync<T: Send + Sync>() {}
+    assert_send_sync::<Selection>();
+};
 
 /// `None`: Accessibility is not allowed, or nothing is selected and the focused element exposes no text.
 ///
