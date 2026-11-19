@@ -612,7 +612,7 @@ impl Asr {
         let n_past = chunks.eval_chunks(&mut mtmd, &mut ctx, 0, 0, 512, true).map_err(RuntimeError::engine)?;
 
         // Greedy decode: dictation wants the literal best guess, not variety.
-        let mut sampler = LlamaSampler::chain_simple([LlamaSampler::temp(0.0), LlamaSampler::dist(0)]);
+        let mut sampler = LlamaSampler::greedy();
         let mut batch = LlamaBatch::new(1, 1);
         // A transcript that used its whole budget is still returned: partial text beats none.
         let generated = generate_text(
