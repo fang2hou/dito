@@ -1,3 +1,4 @@
+use std::ops::Range;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -8,7 +9,9 @@ use dito_core::factory::LocalBackend;
 use dito_core::provider::configured_asr::CloudAsrConfigurations;
 use dito_core::secrets::Role;
 use dito_core::store::HistoryFilter;
+use gpui_kit::base::TextSelection;
 use gpui_kit::*;
+use image::RgbaImage;
 
 use super::capture::{
     close_window, page_shot, refresh_settings_window, render, render_settings_window, resize_settings_window,
@@ -345,37 +348,40 @@ pub async fn status_log_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp)
         open_page_sized(st, Page::Status, 1120., 1500., cx);
         page_shot(cx, dir, &format!("status-log-{}.png", theme_tag(appearance))).await;
     }
-    // Scrolling up keeps the view where it is while lines arrive (the shots before and after must match), and a drag
-    // across the log selects its text.
+    // Scrolling up keeps the view where it is while lines arrive, and a drag across the log selects its text.
+    let log = log_text_rows(cx);
+    let inside = point(px(600.), log.start + (log.end - log.start) / 2.);
     on_settings_window(cx, |w, cx, _| {
-        let at = point(px(600.), px(1150.));
-        hover(w, cx, at);
+        hover(w, cx, inside);
         let event =
-            ScrollEvent { position: at, delta: ScrollDelta::Pixels(point(px(0.), px(300.))), ..Default::default() };
+            ScrollEvent { position: inside, delta: ScrollDelta::Pixels(point(px(0.), px(300.))), ..Default::default() };
         w.dispatch_event(PlatformInput::Scroll(event), cx);
         redraw(w, cx);
     });
-    page_shot(cx, dir, "status-log-scrolled-up.png").await;
+    let scrolled_up = log_shot(cx, dir, "status-log-scrolled-up.png", &log).await;
     tracing::warn!(kind = "shot", "a warning while scrolled up");
     tracing::info!("a line while scrolled up");
-    page_shot(cx, dir, "status-log-scrolled-up-after.png").await;
+    let after_new_lines = log_shot(cx, dir, "status-log-scrolled-up-after.png", &log).await;
+    assert!(scrolled_up == after_new_lines, "the log stays where it was scrolled to while lines arrive");
     on_settings_window(cx, |w, cx, _| {
-        let at = point(px(600.), px(1150.));
-        let event =
-            ScrollEvent { position: at, delta: ScrollDelta::Pixels(point(px(0.), px(-3000.))), ..Default::default() };
+        let event = ScrollEvent {
+            position: inside,
+            delta: ScrollDelta::Pixels(point(px(0.), px(-3000.))),
+            ..Default::default()
+        };
         w.dispatch_event(PlatformInput::Scroll(event), cx);
         redraw(w, cx);
     });
     page_shot(cx, dir, "status-log-bottom-again.png").await;
     on_settings_window(cx, |w, cx, _| {
-        let (from, to) = (point(px(320.), px(1040.)), point(px(700.), px(1130.)));
+        let (from, to) = (point(px(LOG_COLUMN), log.start + px(16.)), point(px(700.), log.end - px(16.)));
         press(w, cx, from);
         drag_to(w, cx, to);
         release(w, cx, to);
     });
     cx.background_executor().timer(Duration::from_millis(300)).await;
     on_settings_window(cx, |w, cx, _| {
-        let selected = gpui_kit::base::TextSelection::selected_text(w, cx);
+        let selected = TextSelection::selected_text(w, cx);
         println!("status log selection: {} lines", selected.lines().count());
         assert!(selected.lines().count() >= 3 && selected.contains("DEBUG"), "the log text is selectable");
     });
@@ -384,6 +390,42 @@ pub async fn status_log_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp)
         c.general.appearance = original.general.appearance;
         c.general.display_language = original.general.display_language;
     });
+}
+
+/// Every log line starts in this column of a 1120 pt wide settings window.
+const LOG_COLUMN: f32 = 320.;
+
+/// The rows of the settings window that show the log text. The page above the log grows when the run lacks a
+/// permission the page reports, so the log is found where its text can be selected instead of assumed at fixed rows.
+fn log_text_rows(cx: &mut AsyncApp) -> Range<Pixels> {
+    let mut rows = Vec::new();
+    on_settings_window(cx, |w, cx, _| {
+        let height = w.viewport_size().height.as_f32() as u32;
+        rows = (0..height)
+            .step_by(4)
+            .map(|y| point(px(LOG_COLUMN), px(y as f32)))
+            .filter(|&at| {
+                hover(w, cx, at);
+                TextSelection::is_selectable_at(at, w, cx)
+            })
+            .map(|at| at.y)
+            .collect();
+    });
+    let (Some(&top), Some(&bottom)) = (rows.first(), rows.last()) else {
+        panic!("the Status page shows the log text");
+    };
+    assert!(bottom - top > px(120.), "the window shows too little of the log: rows {top:?} to {bottom:?}");
+    top..bottom
+}
+
+/// Saves the settings window like [`page_shot`] and hands back the rows that show the log text.
+async fn log_shot(cx: &mut AsyncApp, dir: &Path, name: &str, rows: &Range<Pixels>) -> RgbaImage {
+    cx.background_executor().timer(Duration::from_millis(700)).await;
+    let img = render_settings_window(cx).expect("settings window").expect("rendered settings window");
+    let (top, bottom) = (rows.start.as_f32() as u32, rows.end.as_f32() as u32);
+    let log = image::imageops::crop_imm(&img, 0, top, img.width(), bottom - top).to_image();
+    save(dir, name, img);
+    log
 }
 
 /// Opt-in: `DITO_SHOTS_ONLY=navrepro`.
