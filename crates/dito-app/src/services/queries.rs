@@ -61,6 +61,16 @@ pub async fn stats_snapshot(
         .map_err(|e| anyhow::anyhow!("stats task failed: {e}"))?
 }
 
+/// Characters dictated since `since_ts`.
+pub async fn chars_since(st: Arc<AppState>, since_ts: i64) -> Result<u64> {
+    let store = st.store.clone();
+    st.rt
+        .spawn_blocking(move || store.chars_since(since_ts))
+        .await
+        .map_err(|e| anyhow::anyhow!("character count task failed: {e}"))?
+        .map_err(Into::into)
+}
+
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct WordbookWords {
     pub matching: Vec<String>,
