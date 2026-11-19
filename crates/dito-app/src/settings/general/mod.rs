@@ -1,5 +1,6 @@
 mod audio;
 mod banner;
+mod bindings;
 mod input;
 mod page;
 #[cfg(feature = "screenshots")]

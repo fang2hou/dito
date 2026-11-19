@@ -1,11 +1,12 @@
 use std::rc::Rc;
 
-use dito_core::config::{Appearance, DisplayLanguage, HudPosition, PreferredLanguage};
+use dito_core::config::{Appearance, HudPosition, PreferredLanguage};
 use dito_core::controller::HudState;
 use dito_core::i18n::{Lang, Tr};
 use dito_platform::system;
 use gpui_kit::*;
 
+use super::bindings::{APPEARANCE, DISPLAY_LANGUAGE, HUD_POSITION, SHOW_DOCK_ICON};
 use super::page::GeneralPage;
 use crate::hotkeys::ShortcutTarget;
 use crate::hud::{self, StylePreview};
@@ -14,7 +15,7 @@ use crate::settings::Ctx;
 use crate::theme::Palette;
 use crate::ui;
 
-const LOOKS: [Appearance; 3] = [Appearance::System, Appearance::Light, Appearance::Dark];
+pub(super) const LOOKS: [Appearance; 3] = [Appearance::System, Appearance::Light, Appearance::Dark];
 
 impl GeneralPage {
     pub(super) fn system_group(&self, c: &Ctx, cx: &mut Context<Self>) -> impl IntoElement {
@@ -162,58 +163,28 @@ impl GeneralPage {
     }
 
     fn show_dock_icon_switch(&self, p: &Palette) -> Stateful<Div> {
-        let st = self.st.clone();
-        ui::switch(
-            "dock-icon",
-            p,
-            self.st.cfg.get().general.show_dock_icon,
-            Rc::new(move |on, _, _| services::save_config(&st, move |c| c.general.show_dock_icon = on)),
-        )
+        self.bound_switch(p, "dock-icon", &SHOW_DOCK_ICON)
     }
 
     fn appearance_seg(&self, c: &Ctx) -> Stateful<Div> {
-        let st = self.st.clone();
         ui::appearance_seg(
             "appearance",
             &c.p,
             &[c.t(Tr::GeneralSystem), c.t(Tr::GeneralLight), c.t(Tr::GeneralDark)],
-            LOOKS.iter().position(|a| *a == self.st.cfg.get().general.appearance).unwrap_or(0),
-            Rc::new(move |i, _, _| services::save_config(&st, move |c| c.general.appearance = LOOKS[i])),
+            APPEARANCE.index(&self.st.cfg.get()),
+            APPEARANCE.on_pick(&self.st),
         )
     }
 
     fn hud_position_seg(&self, c: &Ctx) -> Stateful<Div> {
-        let st = self.st.clone();
-        ui::seg(
-            "hud-position",
-            &c.p,
-            &[c.t(Tr::GeneralHudCentered), c.t(Tr::GeneralHudPointer)],
-            usize::from(self.st.cfg.get().general.hud_position == HudPosition::Pointer),
-            Rc::new(move |i, _, _| {
-                services::save_config(&st, move |c| {
-                    c.general.hud_position = if i == 0 { HudPosition::Centered } else { HudPosition::Pointer };
-                })
-            }),
-        )
+        self.bound_seg(c, "hud-position", &[c.t(Tr::GeneralHudCentered), c.t(Tr::GeneralHudPointer)], &HUD_POSITION)
     }
 
     fn display_language_select(&self, c: &Ctx, cx: &mut Context<Self>) -> Div {
-        let st = self.st.clone();
         let mut options = Vec::with_capacity(1 + Lang::ALL.len());
         options.push(c.t(Tr::GeneralFollowSystem));
         options.extend(Lang::ALL.into_iter().map(|l| SharedString::from(l.native_name())));
-        ui::select(
-            "ui-lang",
-            &c.p,
-            &options,
-            DisplayLanguage::ALL.iter().position(|l| *l == self.st.cfg.get().general.display_language).unwrap_or(0),
-            self.open == Some("ui-lang"),
-            Some(240.),
-            self.toggle(cx, "ui-lang"),
-            Rc::new(move |i, _, _| {
-                services::save_config(&st, move |c| c.general.display_language = DisplayLanguage::ALL[i])
-            }),
-        )
+        self.bound_select(c, cx, "ui-lang", &options, &DISPLAY_LANGUAGE)
     }
 
     fn hud_appearance_control(&self, c: &Ctx, cx: &mut Context<Self>) -> Div {

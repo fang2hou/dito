@@ -4,6 +4,7 @@ use dito_core::config::PreferredLanguage;
 use dito_core::i18n::Tr;
 use gpui_kit::*;
 
+use super::bindings::PREFERRED_LANGUAGE;
 use super::page::GeneralPage;
 use crate::services;
 use crate::settings::Ctx;
@@ -91,18 +92,7 @@ impl GeneralPage {
     }
 
     fn preferred_language_select(&self, c: &Ctx, cx: &mut Context<Self>) -> Div {
-        let st = self.st.clone();
-        ui::select(
-            "pref-lang",
-            &c.p,
-            &PreferredLanguage::ALL.map(|language| language.name(c.lang).into()),
-            PreferredLanguage::ALL.iter().position(|l| *l == st.cfg.get().general.preferred_language).unwrap_or(0),
-            self.open == Some("pref-lang"),
-            Some(240.),
-            self.toggle(cx, "pref-lang"),
-            Rc::new(move |i, _, _| {
-                services::save_config(&st, move |c| c.general.preferred_language = PreferredLanguage::ALL[i])
-            }),
-        )
+        let options = PreferredLanguage::ALL.map(|language| language.name(c.lang).into());
+        self.bound_select(c, cx, "pref-lang", &options, &PREFERRED_LANGUAGE)
     }
 }
