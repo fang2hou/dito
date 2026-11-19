@@ -322,6 +322,24 @@ async fn stopping_during_load_does_not_publish_the_finished_runtime() {
 
 const WAIT: Duration = Duration::from_secs(5);
 
+#[tokio::test]
+async fn a_loaded_model_is_returned_while_another_model_is_still_loading() {
+    let (engine, _dir, entered, release) = controlled_engine(false);
+    engine.warm("llm").await;
+    let loading = engine.clone();
+    let task = tokio::spawn(async move { loading.warm("asr").await });
+    tokio::task::yield_now().await;
+    entered.recv_timeout(WAIT).unwrap();
+    assert_eq!(engine.status("asr"), EngineStatus::Loading);
+    tokio::time::timeout(WAIT, engine.text_model("llm", &NO_PARAMS))
+        .await
+        .expect("the loaded model waited for the other model's load")
+        .unwrap();
+    release.send(()).unwrap();
+    task.await.unwrap();
+    assert_eq!(engine.status("asr"), EngineStatus::Running);
+}
+
 struct CancellableLoader(std::sync::mpsc::Sender<()>);
 
 impl RuntimeLoader for CancellableLoader {
