@@ -1,6 +1,6 @@
 use dito_core::i18n::Tr;
 use dito_local::catalog::ModelSpec;
-use dito_local::{ModelState, Snapshot};
+use dito_local::{ModelManager, ModelState, Snapshot};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
@@ -39,10 +39,13 @@ impl RowParts {
     }
 }
 
-#[derive(Clone, Copy)]
-struct Transfer {
-    done: u64,
-    total: u64,
+/// One circular control of a row whose model is not ready.
+struct RowAction {
+    id: SharedString,
+    label: Tr,
+    kind: BtnKind,
+    icon: Ic,
+    run: fn(&ModelManager, &str),
 }
 
 impl ModelsPage {
@@ -83,22 +86,80 @@ impl ModelsPage {
         selected: bool,
     ) -> RowParts {
         let parts = RowParts::new(c, spec, state);
-        match state {
-            ModelState::Installed => self.installed_row(c, cx, tab, spec, selected, parts),
+        let p = &c.p;
+        let action = |prefix: &str, label, kind, icon, run| RowAction {
+            id: format!("{prefix}-{}", spec.id).into(),
+            label,
+            kind,
+            icon,
+            run,
+        };
+        let cancel = || action("cancel", Tr::ModelsCancel, BtnKind::Danger, Ic::X, ModelManager::cancel);
+        let amount = |done: u64, total: u64| format!("{} / {}", ui::fmt_bytes(done), ui::fmt_bytes(total));
+        let (status, color, actions): (SharedString, Hsla, Vec<RowAction>) = match state {
+            ModelState::Installed => return self.installed_row(c, cx, tab, spec, selected, parts),
             ModelState::Downloading { done, total, .. } => {
-                self.downloading_row(c, cx, spec, state, Transfer { done: *done, total: *total }, parts)
+                let transferred = amount(*done, *total);
+                let progress = match state.eta_secs() {
+                    Some(secs) => format!("{transferred}（{}）", ui::fmt_eta(c.lang, secs)),
+                    None => transferred,
+                };
+                let pause = action("pause", Tr::ModelsPause, BtnKind::Secondary, Ic::Pause, ModelManager::pause);
+                (progress.into(), p.model_meta, vec![pause, cancel()])
             }
-            ModelState::Verifying { done, total } => {
-                self.verifying_row(c, cx, spec, Transfer { done: *done, total: *total }, parts)
+            ModelState::Verifying { done, total } => (
+                format!("{}（{}）", c.t(Tr::ModelsVerifying), amount(*done, *total)).into(),
+                p.model_meta,
+                // "Cancel" during verification keeps the completed bytes (pause
+                // semantics): a restart skips the download and re-verifies, instead
+                // of throwing away a finished multi-GB fetch.
+                vec![RowAction { run: ModelManager::pause, ..cancel() }],
+            ),
+            ModelState::Paused { done, total } => (
+                format!("{}（{}）", c.t(Tr::ModelsPaused), amount(*done, *total)).into(),
+                p.model_meta,
+                vec![action("resume", Tr::MenubarResume, BtnKind::Secondary, Ic::Play, start_download), cancel()],
+            ),
+            ModelState::Failed { message, done, total } => (
+                format!("{message}（{}）", amount(*done, *total)).into(),
+                p.model_error_text,
+                vec![action("retry", Tr::HistoryRetry, BtnKind::Secondary, Ic::Refresh, start_download), cancel()],
+            ),
+            ModelState::NotInstalled => {
+                let prefix = format!("dl-{}", tab.tag());
+                (
+                    c.t(Tr::ModelsDownloadAvailable),
+                    p.model_meta,
+                    vec![action(&prefix, Tr::MenubarDownload, BtnKind::Secondary, Ic::Download, start_download)],
+                )
             }
-            ModelState::Paused { done, total } => {
-                self.paused_row(c, cx, spec, Transfer { done: *done, total: *total }, parts)
-            }
-            ModelState::Failed { message, done, total } => {
-                self.failed_row(c, cx, spec, message, Transfer { done: *done, total: *total }, parts)
-            }
-            ModelState::NotInstalled => self.not_installed_row(c, cx, tab, spec, parts),
-        }
+        };
+        Self::pending_row(c, cx, spec, parts, (status, color), actions)
+    }
+
+    /// The status line and controls of a row whose model is not ready.
+    fn pending_row(
+        c: &Ctx,
+        cx: &mut Context<Self>,
+        spec: &ModelSpec,
+        parts: RowParts,
+        (status, color): (SharedString, Hsla),
+        actions: Vec<RowAction>,
+    ) -> RowParts {
+        let RowParts { body, ctl } = parts;
+        let body = body.child(status_line(status, color));
+        let ctl = actions.into_iter().fold(ctl, |ctl, action| {
+            let (model, run) = (spec.id.clone(), action.run);
+            ctl.child(model_action(
+                action.id,
+                &c.p,
+                &c.t(action.label),
+                action.kind,
+                action.icon,
+                cbk(cx, move |this: &mut Self, _, _| run(&this.st.models, &model)),
+            ))
+        });
+        RowParts { body, ctl }
     }
 
     /// Background progress and borders never participate in content layout.
@@ -150,185 +211,10 @@ impl ModelsPage {
             }))
             .into_any_element()
     }
+}
 
-    fn downloading_row(
-        &self,
-        c: &Ctx,
-        cx: &mut Context<Self>,
-        spec: &ModelSpec,
-        state: &ModelState,
-        transfer: Transfer,
-        parts: RowParts,
-    ) -> RowParts {
-        let RowParts { mut body, mut ctl } = parts;
-        let Transfer { done, total } = transfer;
-        let p = &c.p;
-        let id = spec.id.clone();
-        let progress = match state.eta_secs() {
-            Some(s) => {
-                format!("{} / {}（{}）", ui::fmt_bytes(done), ui::fmt_bytes(total), ui::fmt_eta(c.lang, s))
-            }
-            None => format!("{} / {}", ui::fmt_bytes(done), ui::fmt_bytes(total)),
-        };
-        body = body.child(status_line(progress, p.model_meta));
-        let (id_a, id_b) = (id.clone(), id.clone());
-        ctl = ctl
-            .child(model_action(
-                SharedString::from(format!("pause-{id}")),
-                p,
-                &c.t(Tr::ModelsPause),
-                BtnKind::Secondary,
-                Ic::Pause,
-                cbk(cx, move |this: &mut Self, _, _| this.st.models.pause(&id_a)),
-            ))
-            .child(model_action(
-                SharedString::from(format!("cancel-{id}")),
-                p,
-                &c.t(Tr::ModelsCancel),
-                BtnKind::Danger,
-                Ic::X,
-                cbk(cx, move |this: &mut Self, _, _| this.st.models.cancel(&id_b)),
-            ));
-        RowParts { body, ctl }
-    }
-
-    fn verifying_row(
-        &self,
-        c: &Ctx,
-        cx: &mut Context<Self>,
-        spec: &ModelSpec,
-        transfer: Transfer,
-        parts: RowParts,
-    ) -> RowParts {
-        let RowParts { mut body, mut ctl } = parts;
-        let Transfer { done, total } = transfer;
-        let p = &c.p;
-        let id = spec.id.clone();
-        body = body.child(status_line(
-            format!("{}（{} / {}）", c.t(Tr::ModelsVerifying), ui::fmt_bytes(done), ui::fmt_bytes(total)),
-            p.model_meta,
-        ));
-        let id2 = id.clone();
-        ctl = ctl.child(model_action(
-            SharedString::from(format!("cancel-{id}")),
-            p,
-            &c.t(Tr::ModelsCancel),
-            BtnKind::Danger,
-            Ic::X,
-            cbk(cx, move |this: &mut Self, _, _| {
-                // "Cancel" during verification keeps the completed bytes (pause
-                // semantics): a restart skips the download and re-verifies, instead
-                // of throwing away a finished multi-GB fetch.
-                this.st.models.pause(&id2);
-            }),
-        ));
-        RowParts { body, ctl }
-    }
-
-    fn paused_row(
-        &self,
-        c: &Ctx,
-        cx: &mut Context<Self>,
-        spec: &ModelSpec,
-        transfer: Transfer,
-        parts: RowParts,
-    ) -> RowParts {
-        let RowParts { mut body, mut ctl } = parts;
-        let Transfer { done, total } = transfer;
-        let p = &c.p;
-        let id = spec.id.clone();
-        body = body.child(status_line(
-            format!("{}（{} / {}）", c.t(Tr::ModelsPaused), ui::fmt_bytes(done), ui::fmt_bytes(total)),
-            p.model_meta,
-        ));
-        let (id_a, id_b) = (id.clone(), id.clone());
-        ctl = ctl
-            .child(model_action(
-                SharedString::from(format!("resume-{id}")),
-                p,
-                &c.t(Tr::MenubarResume),
-                BtnKind::Secondary,
-                Ic::Play,
-                cbk(cx, move |this: &mut Self, _, _| {
-                    let _ = this.st.models.start_download(&id_a);
-                }),
-            ))
-            .child(model_action(
-                SharedString::from(format!("cancel-{id}")),
-                p,
-                &c.t(Tr::ModelsCancel),
-                BtnKind::Danger,
-                Ic::X,
-                cbk(cx, move |this: &mut Self, _, _| this.st.models.cancel(&id_b)),
-            ));
-        RowParts { body, ctl }
-    }
-
-    fn failed_row(
-        &self,
-        c: &Ctx,
-        cx: &mut Context<Self>,
-        spec: &ModelSpec,
-        message: &str,
-        transfer: Transfer,
-        parts: RowParts,
-    ) -> RowParts {
-        let RowParts { mut body, mut ctl } = parts;
-        let Transfer { done, total } = transfer;
-        let p = &c.p;
-        let id = spec.id.clone();
-        body = body.child(status_line(
-            format!("{}（{} / {}）", message, ui::fmt_bytes(done), ui::fmt_bytes(total)),
-            p.model_error_text,
-        ));
-        let (id_a, id_b) = (id.clone(), id.clone());
-        ctl = ctl
-            .child(model_action(
-                SharedString::from(format!("retry-{id}")),
-                p,
-                &c.t(Tr::HistoryRetry),
-                BtnKind::Secondary,
-                Ic::Refresh,
-                cbk(cx, move |this: &mut Self, _, _| {
-                    let _ = this.st.models.start_download(&id_a);
-                }),
-            ))
-            .child(model_action(
-                SharedString::from(format!("cancel-{id}")),
-                p,
-                &c.t(Tr::ModelsCancel),
-                BtnKind::Danger,
-                Ic::X,
-                cbk(cx, move |this: &mut Self, _, _| this.st.models.cancel(&id_b)),
-            ));
-        RowParts { body, ctl }
-    }
-
-    fn not_installed_row(
-        &self,
-        c: &Ctx,
-        cx: &mut Context<Self>,
-        tab: Tab,
-        spec: &ModelSpec,
-        parts: RowParts,
-    ) -> RowParts {
-        let RowParts { mut body, mut ctl } = parts;
-        let p = &c.p;
-        let id = spec.id.clone();
-        body = body.child(status_line(c.t(Tr::ModelsDownloadAvailable), p.model_meta));
-        let id2 = id.clone();
-        ctl = ctl.child(model_action(
-            SharedString::from(format!("dl-{}-{id}", tab.tag())),
-            p,
-            &c.t(Tr::MenubarDownload),
-            BtnKind::Secondary,
-            Ic::Download,
-            cbk(cx, move |this: &mut Self, _, _| {
-                let _ = this.st.models.start_download(&id2);
-            }),
-        ));
-        RowParts { body, ctl }
-    }
+fn start_download(models: &ModelManager, id: &str) {
+    let _ = models.start_download(id);
 }
 
 fn row_slot(plate: AnyElement, body: Div, ctl: Div) -> Div {
