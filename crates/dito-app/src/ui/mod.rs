@@ -70,8 +70,8 @@ pub use hover::{
     is_hovered, is_hovered_in, reset_hover, reset_hover_in,
 };
 pub use inputs::{
-    TextAreaStyle, blur_on_outside, field, focus_on_click, form_field, new_input, notify_on_focus, ring_overlay,
-    text_area, text_input, with_ring,
+    TextAreaStyle, blur_on_outside, field, focus_notifier, focus_on_click, form_field, new_input, notify_on_focus,
+    ring_overlay, text_area, text_input, with_ring,
 };
 pub use layout::{
     StatusTone, card, drag_area, group, page_title, row, row_described, source_label, status_chip, status_tag, tag,

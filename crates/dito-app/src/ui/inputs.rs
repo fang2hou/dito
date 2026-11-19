@@ -14,8 +14,16 @@ use crate::theme::Palette;
 
 pub fn notify_on_focus<V: 'static>(state: &Entity<InputState>, window: &mut Window, cx: &mut Context<V>) {
     let handle = state.read(cx).focus_handle(cx);
-    cx.on_focus_in(&handle, window, |_, _, cx| cx.notify()).detach();
-    cx.on_focus_out(&handle, window, |_, _, _, cx| cx.notify()).detach();
+    focus_notifier(&handle, window, cx).detach();
+}
+
+/// For a handle the view replaces during its life: a detached focus listener stays on the window until the view is
+/// released, so the owner of the handle keeps the subscription and drops both together.
+pub fn focus_notifier<V: 'static>(handle: &FocusHandle, window: &mut Window, cx: &mut Context<V>) -> Subscription {
+    Subscription::join(
+        cx.on_focus_in(handle, window, |_, _, cx| cx.notify()),
+        cx.on_focus_out(handle, window, |_, _, _, cx| cx.notify()),
+    )
 }
 
 pub fn new_input<V: 'static>(window: &mut Window, cx: &mut Context<V>, masked: bool) -> Entity<InputState> {
