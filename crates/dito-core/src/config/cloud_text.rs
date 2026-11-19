@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-use super::list::{Entry, List};
+use super::list::{Configurations, Entry};
 use super::{ReasoningEffort, json_string};
 use crate::i18n::{Lang, Tr};
 use crate::secrets::text_account;
@@ -169,12 +169,30 @@ impl CloudTextConfiguration {
 }
 
 impl Entry for CloudTextConfiguration {
+    type Template = CloudTextTemplate;
+
     fn id(&self) -> &str {
         &self.id
     }
 
+    fn id_mut(&mut self) -> &mut String {
+        &mut self.id
+    }
+
     fn name_mut(&mut self) -> &mut String {
         &mut self.name
+    }
+
+    fn template_id(template: CloudTextTemplate) -> &'static str {
+        template.id()
+    }
+
+    fn from_template(template: CloudTextTemplate, id: &str, name: &str) -> Self {
+        template.configuration(id, name)
+    }
+
+    fn copy_id_base(&self) -> &str {
+        self.target.template().id()
     }
 }
 
@@ -184,11 +202,12 @@ const STARTING: [CloudTextTemplate; 3] =
 
 /// The cloud polish configurations and the one in use. Only `new` makes a list with content: its names depend on the
 /// language the UI is shown in, which a default has no way to know.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-#[serde(default)]
-pub struct CloudTextConfigurations {
-    pub selected: String,
-    pub items: Vec<CloudTextConfiguration>,
+pub type CloudTextConfigurations = Configurations<CloudTextConfiguration>;
+
+impl Default for CloudTextConfigurations {
+    fn default() -> Self {
+        Self { selected: String::new(), items: Vec::new() }
+    }
 }
 
 impl CloudTextConfigurations {
@@ -207,59 +226,9 @@ impl CloudTextConfigurations {
         template.configuration(template.id(), "")
     }
 
-    fn list(&mut self) -> List<'_, CloudTextConfiguration> {
-        List::new(&mut self.selected, &mut self.items)
-    }
-
-    pub fn get(&self, id: &str) -> Option<&CloudTextConfiguration> {
-        self.items.iter().find(|item| item.id == id)
-    }
-
-    pub fn get_mut(&mut self, id: &str) -> Option<&mut CloudTextConfiguration> {
-        self.items.iter_mut().find(|item| item.id == id)
-    }
-
-    pub fn active(&self) -> Option<&CloudTextConfiguration> {
-        self.get(&self.selected)
-    }
-
     pub fn active_mut(&mut self) -> Option<&mut CloudTextConfiguration> {
         let selected = &self.selected;
         self.items.iter_mut().find(|item| item.id == *selected)
-    }
-
-    pub fn select(&mut self, id: &str) -> bool {
-        self.list().select(id)
-    }
-
-    pub fn add_from_template(&mut self, template: CloudTextTemplate, name: &str) -> String {
-        let id = self.list().fresh_id(template.id());
-        self.list().push(template.configuration(&id, name));
-        id
-    }
-
-    /// The key is not copied: it belongs to the source's Keychain account.
-    pub fn duplicate(&mut self, id: &str, name: &str) -> Option<String> {
-        let mut copy = self.get(id)?.clone();
-        copy.id = self.list().fresh_id(copy.target.template().id());
-        copy.name = name.to_owned();
-        let id = copy.id.clone();
-        self.list().push(copy);
-        Some(id)
-    }
-
-    /// The key stays under `account()`: `ConfigStore::remove_cloud_text_configuration` deletes it only once the list
-    /// is saved. The last configuration is never removed (`None`).
-    pub fn remove(&mut self, id: &str) -> Option<CloudTextConfiguration> {
-        self.list().remove(id)
-    }
-
-    pub fn move_to(&mut self, id: &str, index: usize) -> bool {
-        self.list().move_to(id, index)
-    }
-
-    pub fn rename(&mut self, id: &str, name: &str) -> bool {
-        self.list().rename(id, name)
     }
 }
 

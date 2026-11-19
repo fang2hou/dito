@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::json_string;
-use super::list::{Entry, List};
+use super::list::{Configurations, Entry};
 use crate::secrets::asr_account;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -60,21 +60,36 @@ impl CloudAsrConfiguration {
 }
 
 impl Entry for CloudAsrConfiguration {
+    type Template = CloudAsrTemplate;
+
     fn id(&self) -> &str {
         &self.id
+    }
+
+    fn id_mut(&mut self) -> &mut String {
+        &mut self.id
     }
 
     fn name_mut(&mut self) -> &mut String {
         &mut self.name
     }
+
+    fn template_id(template: CloudAsrTemplate) -> &'static str {
+        template.id
+    }
+
+    fn from_template(template: CloudAsrTemplate, id: &str, name: &str) -> Self {
+        template.configuration(id, name)
+    }
+
+    /// A configuration made earlier carries a random suffix after the id of its template: a copy starts from the
+    /// template.
+    fn copy_id_base(&self) -> &str {
+        self.id.split('-').next().unwrap_or(&self.id)
+    }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct CloudAsrConfigurations {
-    pub selected: String,
-    pub items: Vec<CloudAsrConfiguration>,
-}
+pub type CloudAsrConfigurations = Configurations<CloudAsrConfiguration>;
 
 impl Default for CloudAsrConfigurations {
     fn default() -> Self {
@@ -85,16 +100,6 @@ impl Default for CloudAsrConfigurations {
 }
 
 impl CloudAsrConfigurations {
-    fn list(&mut self) -> List<'_, CloudAsrConfiguration> {
-        List::new(&mut self.selected, &mut self.items)
-    }
-
-    /// `None` when no configuration has the selected id: nothing takes its place, so the id, the config and the
-    /// Keychain account always come from the same configuration.
-    pub fn active(&self) -> Option<&CloudAsrConfiguration> {
-        self.items.iter().find(|configuration| configuration.id == self.selected)
-    }
-
     pub fn active_mut(&mut self) -> Option<&mut Value> {
         let selected = &self.selected;
         self.items
@@ -105,43 +110,6 @@ impl CloudAsrConfigurations {
 
     pub fn active_name(&self) -> Option<&str> {
         self.active().map(|configuration| configuration.name.as_str())
-    }
-
-    pub fn select(&mut self, id: &str) -> bool {
-        self.list().select(id)
-    }
-
-    pub fn add_from_template(&mut self, template: CloudAsrTemplate, name: &str) -> String {
-        let id = self.list().fresh_id(template.id);
-        self.list().push(template.configuration(&id, name));
-        id
-    }
-
-    /// The key is not copied: it belongs to the source's Keychain account.
-    pub fn duplicate(&mut self, id: &str, name: &str) -> Option<String> {
-        let mut copy = self.items.iter().find(|configuration| configuration.id == id)?.clone();
-        // A configuration made earlier carries a random suffix after the id of its template: a copy starts from the
-        // template.
-        let base = copy.id.split('-').next().unwrap_or(&copy.id);
-        copy.id = self.list().fresh_id(base);
-        copy.name = name.to_owned();
-        let id = copy.id.clone();
-        self.list().push(copy);
-        Some(id)
-    }
-
-    /// The key stays under `account()`: `ConfigStore::remove_cloud_asr_configuration` deletes it only once the list is
-    /// saved. The last configuration is never removed (`None`).
-    pub fn remove(&mut self, id: &str) -> Option<CloudAsrConfiguration> {
-        self.list().remove(id)
-    }
-
-    pub fn move_to(&mut self, id: &str, index: usize) -> bool {
-        self.list().move_to(id, index)
-    }
-
-    pub fn rename(&mut self, id: &str, name: &str) -> bool {
-        self.list().rename(id, name)
     }
 }
 
