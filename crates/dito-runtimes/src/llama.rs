@@ -503,7 +503,6 @@ fn generate_text(
             return Err(RuntimeError::Cancelled);
         }
         let token = sampler.sample(ctx, batch.n_tokens() - 1);
-        sampler.accept(token);
         if model.vocab().is_eog(token) {
             return Ok(Generated { text: out, truncated: false });
         }
