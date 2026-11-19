@@ -16,6 +16,13 @@ use super::{HudView, LABEL_FADE_S, POP_MS};
 pub(super) const COUNTDOWN_START_S: f32 = 240.;
 pub(super) const COUNTDOWN_FADE_S: f32 = 0.18;
 
+/// Whether the frame clock asks for the next frame itself. Otherwise it parks until a render arms it again, which is
+/// safe only where every start of motion notifies the view: the microphone level arrives without a notify, and a
+/// processing state resumes its motion when Reduce Motion is switched off.
+pub(super) fn keeps_ticking(state: &HudState, advancing: bool) -> bool {
+    advancing || matches!(state, HudState::Listening { .. }) || is_processing(state)
+}
+
 impl HudView {
     pub(super) fn start_processing(&mut self, from: Fill) {
         let reduced = Motion::system().is_reduced();
@@ -174,5 +181,24 @@ impl HudView {
         self.processing
             .map(|_| self.displayed_fill.value)
             .or_else(|| self.freeze.and_then(|elapsed| timing::fill_at(&self.state, elapsed, None)))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use dito_core::config::RecordMode;
+    use dito_core::controller::HudState;
+
+    use super::keeps_ticking;
+
+    #[test]
+    fn the_frame_clock_parks_only_in_states_where_every_start_of_motion_notifies() {
+        let listening = HudState::Listening { mode: RecordMode::Hold };
+        assert!(keeps_ticking(&listening, false), "the microphone level arrives without a notify");
+        assert!(keeps_ticking(&HudState::Transcribing, false));
+        assert!(keeps_ticking(&HudState::Working, false));
+        assert!(!keeps_ticking(&HudState::TypingInstruction, false));
+        assert!(!keeps_ticking(&HudState::NotRecognized, false));
+        assert!(keeps_ticking(&HudState::TypingInstruction, true), "an animation in flight keeps its frames");
     }
 }
