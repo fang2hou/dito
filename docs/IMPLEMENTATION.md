@@ -39,7 +39,7 @@ cargo test -p dito-app --no-default-features --test i18n_coverage  # after editi
 
 Extra arguments reach the app: `mise run dev:mock -- --data-dir <empty dir>`.
 
-Cargo features of `dito-app`: `runtimes` (on-device inference, the only default; needs CMake), `mock` (the in-process mock cloud behind `--mock`, so release bundles do not link the test server) and `screenshots` (`--screenshots`). A flag whose feature is not compiled in fails with a usage error.
+Cargo features of `dito-app`: `runtimes` (on-device inference, the only default; needs CMake), `mock` (the in-process mock cloud behind `--mock`, so release bundles do not link the test server) and `screenshots` (`--screenshots`; it includes `mock`, because the harness uses the mock cloud and its seed data). A flag whose feature is not compiled in fails with a usage error.
 
 `mise run release` builds with `scripts/bundle.sh` (release profile with thin LTO and one codegen unit). `bash scripts/install-local.sh` (also available as `mise run release:install`) uses the current Rust toolchain and an optimized local profile with incremental compilation and parallel code generation. It creates or reuses the local signing identity, quits the running Dito release, replaces `~/Applications/Dito.app`, verifies the signature and opens the app. See [INSTALL.md](../INSTALL.md) for how the standalone installer prepares missing tools.
 

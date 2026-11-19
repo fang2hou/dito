@@ -8,8 +8,8 @@
 #         the headless demo_run smoke test), then the Bedrock test on a single thread. Nothing here
 #         shows a window, takes focus or touches the menu bar.
 #   full  fast, plus compile checks (--all-targets) of the app with no features, with
-#         mock+screenshots, and with the default features (pulls dito-runtimes: needs cmake and
-#         the Xcode Metal toolchain).
+#         screenshots (which turns mock on), and with the default features (pulls dito-runtimes:
+#         needs cmake and the Xcode Metal toolchain).
 #
 # Not run here, see docs/IMPLEMENTATION.md (Testing): dito-platform --test keychain and --test loopback (ignored;
 # Keychain, Accessibility), dito-runtimes tests and examples (real models), screenshot rendering, clippy
@@ -79,7 +79,7 @@ step "bedrock tests (single thread)" cargo test "${test_args[@]}" --test bedrock
 
 if [[ $mode == full ]]; then
   step "app minimal compile check (no features)" cargo check --locked -p dito-app --no-default-features --all-targets
-  step "app screenshots+mock compile check" cargo check --locked -p dito-app --no-default-features --features mock,screenshots --all-targets
+  step "app screenshots compile check" cargo check --locked -p dito-app --no-default-features --features screenshots --all-targets
   step "app default compile check (local runtimes)" cargo check --locked -p dito-app --all-targets
 fi
 
