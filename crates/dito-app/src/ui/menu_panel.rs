@@ -5,6 +5,7 @@ use gpui_kit::*;
 
 use super::callbacks::Cb;
 use super::hover::{hover_fill, hover_tracker, reset_hover_in};
+use super::motion::ease;
 use super::scope::motion_scope;
 use super::tween::RING_MS;
 use super::typography::text;
@@ -70,7 +71,7 @@ fn row(id: ElementId, p: &Palette, retires: bool) -> Stateful<Div> {
 pub fn float<E: IntoElement + Styled + 'static>(id: ElementId, top: f32, panel: E) -> Div {
     // Same clock and easing as the focus ring.
     let appear = panel.with_animation((id, "appear"), Animation::new(Duration::from_millis(RING_MS)), |p, t| {
-        let q = t * t * (3. - 2. * t);
+        let q = ease(t);
         p.opacity(q).relative().top(px((1. - q) * -6.))
     });
     div().absolute().top(px(top)).right(px(0.)).size(px(0.)).child(

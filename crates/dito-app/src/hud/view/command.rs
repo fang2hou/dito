@@ -20,7 +20,7 @@ use crate::hud::capsule::{self, WIDEN_S};
 use crate::hud::motion::Spring;
 use crate::hud::{px, tx};
 use crate::theme::{self, Palette, hex};
-use crate::ui::{self, InputEvent, TextAreaStyle, TextareaState, hex_alpha, mix_rgb, text};
+use crate::ui::{self, InputEvent, TextAreaStyle, TextareaState, hex_alpha, lerp, mix_rgb, text};
 
 use super::HudView;
 use super::layout::{COMMAND_BOTTOM, COMMAND_GAP, COMMAND_MAX_H};
@@ -728,10 +728,6 @@ impl CommandUi {
         self.pose_target = 0.;
         self.pose_since = Instant::now();
     }
-}
-
-fn lerp(a: f32, b: f32, t: f32) -> f32 {
-    a + (b - a) * t
 }
 
 /// Reports its parent's bounds to the hit test while the parent is on screen.

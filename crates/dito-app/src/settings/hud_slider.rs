@@ -12,7 +12,7 @@ use super::Ctx;
 use crate::services;
 use crate::state::AppState;
 use crate::theme::Palette;
-use crate::ui::{Motion, text};
+use crate::ui::{Motion, SpringCurve, text};
 
 const MIN: i8 = -2;
 const MAX: i8 = 12;
@@ -29,16 +29,8 @@ fn spring_step(x: f32, v: f32, target: f32, dt: f32) -> (f32, f32) {
     if dt > 0.25 {
         return (target, 0.);
     }
-    let omega = 23_f32;
-    let zeta = 0.82_f32;
-    let decay = omega * zeta;
-    let wd = omega * (1. - zeta * zeta).sqrt();
-    let d = x - target;
-    let b = (v + decay * d) / wd;
-    let (sin, cos) = (wd * dt).sin_cos();
-    let e = (-decay * dt).exp();
-    let wave = d * cos + b * sin;
-    (target + e * wave, e * (wd * (b * cos - d * sin) - decay * wave))
+    let (offset, velocity) = SpringCurve::damped(0.82, 23.).step(x - target, v, dt);
+    (target + offset, velocity)
 }
 
 pub(super) struct HudHeightSlider {

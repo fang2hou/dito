@@ -162,13 +162,12 @@ fn pulse(t: f32) -> f32 {
     const HOLD: f32 = 150.;
     const DIP: f32 = 0.2;
     let ms = (t * 1000.) % (2. * (LEG + HOLD));
-    let ease = |x: f32| x * x * (3. - 2. * x);
     if ms < LEG {
-        1. - DIP * ease(ms / LEG)
+        1. - DIP * ui::ease(ms / LEG)
     } else if ms < LEG + HOLD {
         1. - DIP
     } else if ms < 2. * LEG + HOLD {
-        1. - DIP + DIP * ease((ms - LEG - HOLD) / LEG)
+        1. - DIP + DIP * ui::ease((ms - LEG - HOLD) / LEG)
     } else {
         1.
     }

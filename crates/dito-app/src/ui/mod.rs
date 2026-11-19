@@ -79,7 +79,7 @@ pub use layout::{
 pub use menu_button::{menu_button, menu_button_on};
 pub use method_label::{MethodKind, MethodSize, method_label};
 pub use modal::modal_layer;
-pub use motion::Motion;
+pub use motion::{Motion, SpringCurve, ease, lerp};
 pub use params::{ParamField, parameter_block};
 pub use plate::{GLASS_MS, coverage, plate_state};
 pub use popup_menu::{AddEntry, MenuItem, MenuTone, add_menu, popup_menu, popup_menu_grouped};

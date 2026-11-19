@@ -20,7 +20,7 @@ use crate::assets::Ic;
 use crate::services;
 use crate::settings::Ctx;
 use crate::theme::Palette;
-use crate::ui::{self, Cb, CircleAppearance, CircleSize, click_cb, text};
+use crate::ui::{self, Cb, CircleAppearance, CircleSize, click_cb, lerp, text};
 
 /// `design:tools/recording` measurements: the 50 pt tray holding its 36 pt buttons 7 pt inside (the inset of the
 /// recording controls), the 44 pt status capsule, the 62 pt one-line session bar, and the 197 pt expanded dock
@@ -425,10 +425,6 @@ fn spread_delay(index: usize, pair: bool) -> f32 {
         _ => 3.,
     };
     SPREAD_STAGGER_MS * if pair { (order - 1.).max(0.) } else { order }
-}
-
-fn lerp(from: f32, to: f32, t: f32) -> f32 {
-    from + (to - from) * t
 }
 
 fn faded(color: Hsla, opacity: f32) -> Hsla {
@@ -1372,8 +1368,7 @@ fn band_layer(p: &Palette, width: f32, k: f32) -> Div {
     let inset = CONTROL_H / 2.;
     let span = (width - 2. * inset).max(0.);
     let band_w = (span * 0.45).max(24.);
-    let eased = k * k * (3. - 2. * k);
-    let left = lerp(-band_w, span, eased);
+    let left = lerp(-band_w, span, ui::ease(k));
     let light = if p.dark { 0.2 } else { 0.9 };
     let peak = faded(ui::white(), light);
     let clear = faded(ui::white(), 0.);

@@ -3,7 +3,7 @@
 use std::mem;
 use std::time::{Duration, Instant};
 
-use crate::ui::Motion;
+use crate::ui::{Motion, SpringCurve, ease};
 
 /// Why the dock is changing shape: which spring runs, which axis leads, and the Reduce Motion fallback ease.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -93,7 +93,7 @@ impl Ease {
         match self {
             Self::Out => 1. - (1. - t).powi(3),
             Self::In => t * t * t,
-            Self::InOut => t * t * (3. - 2. * t),
+            Self::InOut => ease(t),
         }
     }
 
@@ -225,7 +225,8 @@ struct SpringSpec {
 
 /// The app-wide motion/glass curve (decay 5.5, damped frequency 5.3 over a 460 ms window) as damping and frequency.
 fn glass_spec() -> SpringSpec {
-    SpringSpec { zeta: 0.72, omega0: (5.5_f32 * 5.5_f32 + 5.3_f32 * 5.3_f32).sqrt() / 0.46 }
+    let SpringCurve { decay, frequency } = SpringCurve::GLASS;
+    SpringSpec { zeta: 0.72, omega0: (decay * decay + frequency * frequency).sqrt() / 0.46 }
 }
 
 fn collapse_spec() -> SpringSpec {

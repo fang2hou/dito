@@ -9,7 +9,7 @@ use crate::hud::buttons;
 use crate::hud::capsule::{CAPSULE_H, Capsule, Wave};
 use crate::hud::timing::{COPY_FADE_S, COPY_HOLD_END, OUTCOME_FADE_S, OUTCOME_HOLD_END, OUTCOME_ICON_DELAY};
 use crate::theme::Palette;
-use crate::ui::Motion;
+use crate::ui::{Motion, ease};
 
 use super::{HudView, LABEL_FADE_S};
 
@@ -101,7 +101,7 @@ impl HudView {
                 .element(&mut |b, scale| buttons::static_button(b, scale, p, command).into_any_element());
             let next = self.interactive_layer(p, clock, self.state.clone(), self.progress(), cx);
             let u = (elapsed / STATE_FADE_S).clamp(0., 1.);
-            return crossfade(old, next, u * u * (3. - 2. * u));
+            return crossfade(old, next, ease(u));
         }
         if let Some(blend) = self.kind_blend() {
             // The shortcut's keys completed the other shortcut's press under a visible capsule: it takes the new

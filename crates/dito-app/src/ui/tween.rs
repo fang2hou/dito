@@ -3,12 +3,8 @@ use std::time::{Duration, Instant};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
-use super::motion::Motion;
+use super::motion::{Motion, SpringCurve, ease};
 use super::scope::{self, ScopeHandle};
-
-pub(super) fn ease(t: f32) -> f32 {
-    t * t * (3. - 2. * t)
-}
 
 /// Returns `(from, to, active, key)`. The animation runs from where the value was when the target changed, so an
 /// interrupted move continues smoothly; `active` is false once it has settled, so a control drawn again later does
@@ -121,8 +117,7 @@ pub fn spring(t: f32, motion: Motion) -> f32 {
     if t >= 1. {
         return 1.;
     }
-    let (decay, wd) = (5.5_f32, 5.30_f32);
-    1. - (-decay * t).exp() * ((wd * t).cos() + decay / wd * (wd * t).sin())
+    1. - SpringCurve::GLASS.step(1., 0., t).0
 }
 
 /// 0 once the latest flip has settled. GPUI restarts an animation whenever its element reappears, so a control drawn

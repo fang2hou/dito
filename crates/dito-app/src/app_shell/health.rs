@@ -358,17 +358,16 @@ impl HealthPopup {
         let Self { p, dot_size, color, .. } = *self;
         let radius = px(HEALTH_RADIUS);
         let reduced = motion.is_reduced();
-        let ease = |x: f32| x * x * (3. - 2. * x);
         let (wide, tall) = if reduced {
             (1., 1.)
         } else if opening {
             (ui::spring(t, motion), ui::spring(((t - HEALTH_TRAIL) / (1. - HEALTH_TRAIL)).max(0.), motion))
         } else {
-            (ease(t), ease(t))
+            (ui::ease(t), ui::ease(t))
         };
         let text_opacity = if reduced { t } else { ((t - 0.25) / 0.75).clamp(0., 1.) };
         // The surface arrives in the first half of the opening and leaves on the closing ease.
-        let t = if opening { (t * 2.).min(1.) } else { ease(t) };
+        let t = if opening { (t * 2.).min(1.) } else { ui::ease(t) };
         div()
             .absolute()
             .left_0()
