@@ -86,7 +86,9 @@ pub struct HudView {
     motion: ui::MotionScope,
     waveform: Waveform,
     wave_tick: Instant,
-    frame_clock_started: bool,
+    /// A next-frame callback is pending, or a preview timer stands in for it. The clock parks once nothing moves and
+    /// the next render arms it again, so whatever starts motion must notify the view.
+    frame_clock_armed: bool,
     error_reason: super::motion::Spring,
     error_tick: Instant,
     recording_started: Option<Instant>,
@@ -142,7 +144,7 @@ impl HudView {
             motion: ui::MotionScope::new(),
             waveform: Waveform::default(),
             wave_tick: Instant::now(),
-            frame_clock_started: false,
+            frame_clock_armed: false,
             error_reason: super::motion::Spring::default(),
             error_tick: Instant::now(),
             recording_started: None,
@@ -312,8 +314,10 @@ impl HudView {
 
 impl Render for HudView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        if self.freeze.is_none() && !self.frame_clock_started {
-            self.frame_clock_started = true;
+        if self.freeze.is_none() && !self.frame_clock_armed {
+            self.frame_clock_armed = true;
+            // The reason spring steps by the time since its last tick, and a parked clock has not ticked.
+            self.error_tick = Instant::now();
             Self::next_frame(window, cx.entity().downgrade());
         }
         // The HUD window owns its transient motion state; without this its hover tweens would run in whatever ambient
@@ -326,12 +330,15 @@ impl Render for HudView {
 impl HudView {
     fn next_frame(window: &Window, view: WeakEntity<Self>) {
         window.on_next_frame(move |window, app| {
-            let alive = view.update(app, |view, cx| {
-                if view.advance_clock() {
+            let armed = view.update(app, |view, cx| {
+                let advancing = view.advance_clock();
+                if advancing {
                     cx.notify();
                 }
+                view.frame_clock_armed = clock::keeps_ticking(&view.state, advancing);
+                view.frame_clock_armed
             });
-            if alive.is_ok() {
+            if matches!(armed, Ok(true)) {
                 Self::next_frame(window, view);
             }
         });
