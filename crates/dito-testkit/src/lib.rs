@@ -3,6 +3,7 @@
 mod bedrock;
 mod behavior;
 mod cloud_asr_config;
+mod cut_proxy;
 mod files;
 mod mock_server;
 mod openai;
@@ -11,5 +12,6 @@ mod shared;
 
 pub use behavior::Behavior;
 pub use cloud_asr_config::mock_cloud_asr_config;
+pub use cut_proxy::{Cut, CutProxy};
 pub use mock_server::MockServer;
 pub use recorded::Recorded;

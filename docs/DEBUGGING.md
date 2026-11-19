@@ -52,6 +52,7 @@ Every line of a run carries `run=<id>` (`d` for a dictation, `c` for a command, 
 - the router request (the instruction) and the full decision: every intent's probability, the confidence, whether the gate passed and the rewrite operation;
 - which tool was chosen and why (confident, chosen by the user, polish button) and the window that asks for text, a choice or a confirmation, with the user's answer;
 - the full system prompt and user message sent to the text model for every tool and for a dictation polish, the model's output and how long each step took;
+- a cloud request that is sent a second time because its connection was lost before the answer, with the cause;
 - how the result was delivered, and the history row that was queued;
 - model load and unload, and model downloads (start, progress in steps of ten percent, finish or failure), which belong to a model and carry `model=<id>` instead of a run id.
 

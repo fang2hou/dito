@@ -2,6 +2,7 @@
 
 pub mod bedrock;
 pub mod configured_asr;
+mod dropped_connection;
 pub mod mock;
 mod model_capabilities;
 pub mod openai;

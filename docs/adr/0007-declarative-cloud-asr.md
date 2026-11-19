@@ -31,6 +31,8 @@ The one request Dito sends that the JSON does not describe opens the connection 
 
 Vendors that need streaming, polling or multi-step uploads don't fit v1 and need a new config version or a dedicated adapter.
 
+The request a configuration describes must be safe to repeat: when its connection is lost before the answer begins, Dito sends it once more, so the vendor can receive the same audio twice (2026-11-19).
+
 ## Pitfalls
 
 Moves that look reasonable but go against this decision:
