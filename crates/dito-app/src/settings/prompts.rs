@@ -31,7 +31,7 @@ pub struct PromptsPage {
     target: AppTarget,
     base: Entity<TextareaState>,
     instruction: Entity<TextareaState>,
-    samples: Vec<Entity<TextareaState>>,
+    samples: Vec<SampleInput>,
     try_in: Entity<TextareaState>,
     try_out: Entity<TextareaState>,
     placeholder_lang: Lang,
@@ -55,6 +55,11 @@ pub struct PromptsPage {
     motion: ui::MotionScope,
     #[cfg(feature = "screenshots")]
     edit_probe: Option<(Snapshot, Option<Snapshot>)>,
+}
+
+struct SampleInput {
+    state: Entity<TextareaState>,
+    _focus: Subscription,
 }
 
 fn textarea(window: &mut Window, cx: &mut Context<PromptsPage>, value: &str) -> Entity<TextareaState> {
@@ -169,7 +174,7 @@ impl PromptsPage {
             Editor::Application => {
                 let prompt = self.drafts.set_mut(self.lang).app_rules_mut(&self.target);
                 prompt.instruction = self.instruction.read(cx).value().to_string();
-                prompt.samples = self.samples.iter().map(|s| s.read(cx).value().to_string()).collect();
+                prompt.samples = self.samples.iter().map(|s| s.state.read(cx).value().to_string()).collect();
             }
         }
         let key = self.history_key(editor);
@@ -247,10 +252,11 @@ impl PromptsPage {
             Snapshot::Application(value) => {
                 let sample_focus = self.samples.iter().enumerate().find_map(|(index, input)| {
                     input
+                        .state
                         .read(cx)
                         .focus_handle(cx)
                         .contains_focused(window, cx)
-                        .then(|| (index, input.read(cx).selected_range()))
+                        .then(|| (index, input.state.read(cx).selected_range()))
                 });
                 *self.drafts.set_mut(self.lang).app_rules_mut(&self.target) = value.clone();
                 self.instruction.update(cx, |state, cx| {
@@ -261,8 +267,8 @@ impl PromptsPage {
                 self.rebuild_samples(window, cx);
                 if let Some((index, selection)) = sample_focus {
                     if let Some(input) = self.samples.get(index.min(self.samples.len().saturating_sub(1))) {
-                        input.update(cx, |state, cx| state.set_selected_range(selection, cx));
-                        input.read(cx).focus_handle(cx).focus(window, cx);
+                        input.state.update(cx, |state, cx| state.set_selected_range(selection, cx));
+                        input.state.read(cx).focus_handle(cx).focus(window, cx);
                     } else {
                         self.instruction.read(cx).focus_handle(cx).focus(window, cx);
                     }
@@ -310,12 +316,11 @@ impl PromptsPage {
         self.samples = list.into_iter().map(|s| self.sample_input(&s, window, cx)).collect();
     }
 
-    fn sample_input(&self, value: &str, window: &mut Window, cx: &mut Context<Self>) -> Entity<TextareaState> {
+    fn sample_input(&self, value: &str, window: &mut Window, cx: &mut Context<Self>) -> SampleInput {
         let v = value.to_string();
         let ent = cx.new(|cx| TextareaState::new(window, cx).auto_grow(1, usize::MAX).default_value(v));
         let handle = ent.read(cx).focus_handle(cx);
-        cx.on_focus_in(&handle, window, |_, _, cx| cx.notify()).detach();
-        cx.on_focus_out(&handle, window, |_, _, _, cx| cx.notify()).detach();
+        let focus = ui::focus_notifier(&handle, window, cx);
         cx.subscribe_in(&ent, window, |this: &mut Self, _, ev: &InputEvent, _, cx| {
             if matches!(ev, InputEvent::Change) {
                 this.changed(Editor::Application, cx);
@@ -326,7 +331,7 @@ impl PromptsPage {
             }
         })
         .detach();
-        ent
+        SampleInput { state: ent, _focus: focus }
     }
 
     fn save(&mut self, cx: &mut Context<Self>) {

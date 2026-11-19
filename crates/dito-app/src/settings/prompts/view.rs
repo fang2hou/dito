@@ -98,7 +98,7 @@ impl PromptsPage {
                     || self
                         .samples
                         .iter()
-                        .any(|input| input.update(cx, |state, cx| state.marked_text_range(window, cx).is_some()))
+                        .any(|input| input.state.update(cx, |state, cx| state.marked_text_range(window, cx).is_some()))
             }
         }
     }
@@ -270,7 +270,7 @@ impl PromptsPage {
                         Some(Ic::Plus),
                         cbk(cx, |this: &mut Self, w, cx| {
                             let input = this.sample_input("", w, cx);
-                            input.read(cx).focus_handle(cx).focus(w, cx);
+                            input.state.read(cx).focus_handle(cx).focus(w, cx);
                             this.samples.push(input);
                             this.changed(Editor::Application, cx);
                             cx.notify();
@@ -287,7 +287,7 @@ impl PromptsPage {
                     .flex()
                     .items_start()
                     .gap(px(10.))
-                    .child(div().flex_1().min_w(px(0.)).child(example_field(&p, sample, window, cx)))
+                    .child(div().flex_1().min_w(px(0.)).child(example_field(&p, &sample.state, window, cx)))
                     .child(div().h(px(EXAMPLE_LINE_H)).flex_none().flex().items_center().child(ui::bare_icon_button(
                         SharedString::from(format!("rm-sample-{i}")),
                         &p,

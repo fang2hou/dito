@@ -5,7 +5,7 @@ use dito_core::store::HistoryEntry;
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
-use super::page::HistoryPage;
+use super::page::{HistoryPage, RowFocus};
 use super::row::expandable;
 use super::skeleton::skeleton_column;
 use crate::assets::Ic;
@@ -76,10 +76,9 @@ impl HistoryPage {
         self.row_focus.retain(|id, _| snapshot.iter().any(|e| e.id == *id && expandable(e)));
         for e in entries.iter().filter(|e| expandable(e)) {
             self.row_focus.entry(e.id).or_insert_with(|| {
-                let focus = cx.focus_handle().tab_stop(true);
-                cx.on_focus_in(&focus, window, |_, _, cx| cx.notify()).detach();
-                cx.on_focus_out(&focus, window, |_, _, _, cx| cx.notify()).detach();
-                focus
+                let handle = cx.focus_handle().tab_stop(true);
+                let _listeners = ui::focus_notifier(&handle, window, cx);
+                RowFocus { handle, _listeners }
             });
         }
     }

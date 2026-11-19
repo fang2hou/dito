@@ -61,6 +61,7 @@ struct ParagraphView {
 pub(super) struct OpenTranscript {
     summary: TranscriptSummary,
     title: Entity<InputState>,
+    _title_focus: Subscription,
     paragraphs: Vec<ParagraphView>,
 }
 
@@ -394,7 +395,7 @@ impl TranscriptionPage {
                 .placeholder(lang.tr(Tr::TranscriptionTitlePlaceholder))
                 .default_value(title_value)
         });
-        ui::notify_on_focus(&title, window, cx);
+        let title_focus = ui::focus_notifier(&title.read(cx).focus_handle(cx), window, cx);
         let store = self.st.store.clone();
         cx.subscribe_in(&title, window, move |page: &mut Self, state, ev: &InputEvent, _, cx| {
             if matches!(ev, InputEvent::Change) {
@@ -413,7 +414,7 @@ impl TranscriptionPage {
         })
         .detach();
         let paragraphs = t.paragraphs.into_iter().map(|p| self.paragraph_view(p, window, cx)).collect();
-        self.open = Some(OpenTranscript { summary: t.summary, title, paragraphs });
+        self.open = Some(OpenTranscript { summary: t.summary, title, _title_focus: title_focus, paragraphs });
         self.view = View::Detail;
         // A live entry opens at its end, where the words arrive.
         if self.status.state.transcript_id() == Some(id) {

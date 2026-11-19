@@ -24,6 +24,11 @@ pub(super) enum Period {
     Week,
 }
 
+pub(super) struct RowFocus {
+    pub(super) handle: FocusHandle,
+    pub(super) _listeners: Subscription,
+}
+
 pub struct HistoryPage {
     pub(super) st: Arc<AppState>,
     pub(super) search: Entity<InputState>,
@@ -33,7 +38,7 @@ pub struct HistoryPage {
     pub(super) select_open: bool,
     pub(super) menu: Option<i64>,
     pub(super) expanded: HashSet<i64>,
-    pub(super) row_focus: HashMap<i64, FocusHandle>,
+    pub(super) row_focus: HashMap<i64, RowFocus>,
     pub(super) hovered_original: Option<i64>,
     pub(super) busy: HashSet<i64>,
     /// Owned list snapshot, never read from the database in render. Shared as a handle so a

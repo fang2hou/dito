@@ -288,7 +288,7 @@ impl HistoryPage {
                     }
                 }))
                 .on_click(cx.listener(move |this, _, _, cx| this.toggle_original(id, cx)));
-            if let Some(focus) = self.row_focus.get(&id) {
+            if let Some(focus) = self.row_focus.get(&id).map(|f| &f.handle) {
                 trigger = trigger.track_focus(focus).on_key_down(cx.listener(move |this, ev: &KeyDownEvent, _, cx| {
                     if matches!(ev.keystroke.key.as_str(), "enter" | "space") {
                         cx.stop_propagation();
@@ -302,7 +302,8 @@ impl HistoryPage {
 
     fn original_tip(&self, c: &Ctx, window: &Window, id: i64, body_id: ElementId) -> Deferred {
         let p = &c.p;
-        let focused = window.last_input_was_keyboard() && self.row_focus.get(&id).is_some_and(|f| f.is_focused(window));
+        let focused =
+            window.last_input_was_keyboard() && self.row_focus.get(&id).is_some_and(|f| f.handle.is_focused(window));
         deferred(
             // Anchor to the entire row, including its action column. The
             // bubble's centre sits on the inside 1px bottom border.
