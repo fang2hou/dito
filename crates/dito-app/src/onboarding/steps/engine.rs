@@ -52,23 +52,13 @@ fn option(
     on: bool,
 ) -> Stateful<Div> {
     let p = &c.p;
-    let card_id = ElementId::from(("engine-opt", i));
-    let mut card = div()
-        .id(card_id.clone())
+    let mut card = ui::choice_surface(p, ("engine-opt", i), on)
         .w_full()
         .p(px(22.))
         .flex()
         .flex_col()
         .gap(px(12.))
-        .rounded(px(16.))
         .cursor_pointer()
-        .bg(if on { p.accent_soft } else { p.card })
-        .relative()
-        .border_1()
-        .border_color(ui::transparent())
-        .on_hover(ui::hover_tracker(card_id.clone()))
-        .child(ui::hover_fill_if(&card_id, Some(16.), ui::hex_alpha(p.seg, 0.6), !on))
-        .child(ui::ring_overlay(("engine-ring", i), on, 16., p.border, p.accent))
         .on_click(cx.listener(move |this, _, _, cx| {
             this.local = i == 0;
             cx.notify();

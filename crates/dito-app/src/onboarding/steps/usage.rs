@@ -45,29 +45,19 @@ fn mode_tile(c: &Ctx, cx: &mut Context<Onboarding>, mode: RecordMode, selected: 
         RecordMode::Toggle => (0usize, Tr::GeneralToggle, Tr::OnboardingToggleDesc, true),
         RecordMode::Hold => (1, Tr::GeneralHold, Tr::OnboardingHoldDesc, false),
     };
-    let tile_id = ElementId::from(("mode-tile", i));
     let tag = recommended.then(|| {
         let green = hex("#187760");
         let (background, ink) = if on { (green, ui::white()) } else { (hex("#EBF6F3"), green) };
         recommend_tag(c.t(Tr::OnboardingRecommended), background, ink)
     });
-    div()
-        .id(tile_id.clone())
+    ui::choice_surface(p, ("mode-tile", i), on)
         .flex_1()
-        .relative()
         .px(px(20.))
         .py(px(16.))
         .flex()
         .flex_col()
         .gap(px(6.))
-        .rounded(px(16.))
         .cursor_pointer()
-        .bg(if on { p.accent_soft } else { p.card })
-        .border_1()
-        .border_color(ui::transparent())
-        .on_hover(ui::hover_tracker(tile_id.clone()))
-        .child(ui::hover_fill_if(&tile_id, Some(16.), ui::hex_alpha(p.seg, 0.6), !on))
-        .child(ui::ring_overlay(("mode-ring", i), on, 16., p.border, p.accent))
         .on_click(cx.listener(move |this, _, _, cx| {
             this.mode = mode;
             cx.notify();

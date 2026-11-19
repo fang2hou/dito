@@ -40,10 +40,8 @@ fn tier_cards(w: &Onboarding, c: &Ctx, cx: &mut Context<Onboarding>, phase: Prep
     }
     for (i, tier) in TIERS.iter().enumerate() {
         let on = current == Some(i);
-        let card_id = ElementId::from(("wizard-tier", i));
         tiers = tiers.child(
-            div()
-                .id(card_id.clone())
+            ui::choice_surface(p, ("wizard-tier", i), on)
                 .flex_1()
                 .min_w_0()
                 .min_h(px(171.))
@@ -51,15 +49,7 @@ fn tier_cards(w: &Onboarding, c: &Ctx, cx: &mut Context<Onboarding>, phase: Prep
                 .flex()
                 .flex_col()
                 .gap(px(6.))
-                .rounded(px(16.))
                 .when(!locked, |d| d.cursor_pointer())
-                .bg(if on { p.accent_soft } else { p.card })
-                .relative()
-                .border_1()
-                .border_color(ui::transparent())
-                .on_hover(ui::hover_tracker(card_id.clone()))
-                .child(ui::hover_fill_if(&card_id, Some(16.), ui::hex_alpha(p.seg, 0.6), !on))
-                .child(ui::ring_overlay(("wizard-tier-ring", i), on, 16., p.border, p.accent))
                 .on_click(cx.listener(move |this, _, _, cx| this.pick_tier(i, cx)))
                 .child(div().flex().items_center().gap(px(8.)).child(ui::radio(p, on)).child(text(
                     c.t(tier.name),
