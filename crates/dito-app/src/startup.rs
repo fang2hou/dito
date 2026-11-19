@@ -247,12 +247,13 @@ fn autostart_local_models(st: &Arc<AppState>) {
     });
 }
 
-/// The event tap cannot be created until the user grants permission in System Settings, while the app runs.
+/// The event tap cannot be created until the user grants permission in System Settings, while the app runs. Nothing
+/// takes a started service away again, so the retry ends with the first start.
 fn retry_hotkeys_when_allowed(st: Arc<AppState>, cx: &mut App) {
     cx.spawn(async move |cx| {
-        loop {
+        while !st.hotkeys.available() {
             cx.background_executor().timer(Duration::from_secs(2)).await;
-            if !st.hotkeys.available() && permissions::status(Permission::Accessibility) == Status::Granted {
+            if permissions::status(Permission::Accessibility) == Status::Granted {
                 start_hotkeys(&st);
             }
         }
