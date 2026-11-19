@@ -13,7 +13,7 @@ use dito_core::pipeline::CancellationToken;
 use dito_core::pipeline::{self, PipelineError, PipelineJob};
 use dito_core::prompts::AppTarget;
 use dito_core::provider::{
-    AsrRequest, ChatCancel, ChatMessage, ChatRequest, ChatRole, TestOutcome, TextRequest, test_text_model,
+    AsrRequest, ChatCancel, ChatMessage, ChatRequest, ChatRole, TestOutcome, TextRequest, Thinking, test_text_model,
     test_transcriber,
 };
 use dito_core::secrets::{MemorySecrets, SecretStore, text_account};
@@ -422,6 +422,37 @@ async fn a_stream_retries_without_reasoning_effort_and_reports_http_errors() {
     srv.behavior(|b| b.fail_status = Some(429));
     let err = engine.chat(&question("ok"), &mut |_| {}, &ChatCancel::default()).await.unwrap_err();
     assert_eq!(err.kind, ErrorKind::RateLimit);
+}
+
+#[tokio::test]
+async fn a_refused_reasoning_effort_is_left_out_of_later_requests_until_the_engine_is_rebuilt() {
+    let srv = MockServer::start().await.unwrap();
+    srv.behavior(|b| {
+        b.reject_reasoning_effort = true;
+        b.chat_chunk_delay = Duration::ZERO;
+    });
+    let mut cfg = mock_cfg(&srv.url);
+    active(&mut cfg).params.reasoning_effort = ReasoningEffort::High;
+    let f = factory(None);
+    let request = TextRequest { system: "s", examples: &[], text: "ok" };
+    let efforts = || srv.requests().into_iter().map(|r| r.reasoning_effort).collect::<Vec<_>>();
+    let (high, low) = (Some("high".to_string()), Some("low".to_string()));
+
+    f.text_model(&cfg).await.unwrap().unwrap().polish(&request).await.unwrap();
+    assert_eq!(efforts(), [high.clone(), None]);
+
+    let engine = f.text_model(&cfg).await.unwrap().unwrap();
+    engine.polish(&request).await.unwrap();
+    engine.chat(&question("ok"), &mut |_| {}, &ChatCancel::default()).await.unwrap();
+    assert_eq!(efforts()[2..], [None, None], "one request each, without the field");
+
+    let other_level = ChatRequest { thinking: Some(Thinking::Level("low".into())), ..question("ok") };
+    engine.chat(&other_level, &mut |_| {}, &ChatCancel::default()).await.unwrap();
+    assert_eq!(efforts()[4..], [low, None], "a level that was not refused is still tried");
+
+    f.invalidate_engines();
+    f.text_model(&cfg).await.unwrap().unwrap().polish(&request).await.unwrap();
+    assert_eq!(efforts()[6..], [high, None]);
 }
 
 #[tokio::test]
