@@ -108,7 +108,7 @@ pub(crate) fn rail_hover<H: NavHost>(host: &H, c: &Ctx, cx: &mut Context<H>) -> 
         if hovered {
             layer = layer.child(rail_hit_pill(pill_id, y, cx.listener(move |this, _, _, cx| this.select_page(pg, cx))));
         }
-        let label = SharedString::from(c.lang.tr(pg.label()));
+        let label = SharedString::new_static(c.lang.tr(pg.label()));
         let tween_id = ElementId::from(("rail-reveal", pg.index()));
         // Clicking a row selects it: the reveal hides at once (no fade) and the sliding plate
         // alone carries the transition — two moving layers would read as out of step.
@@ -193,7 +193,7 @@ fn nav_layers<H: NavHost>(host: &H, c: &Ctx, rail: bool) -> (AnyElement, AnyElem
         .map(|pg| {
             let hovered = ui::is_hovered(&ElementId::from(("nav", pg.index()))) && pg != selected;
             let badge = if rail { None } else { host.nav_badge(pg, p) };
-            (pg, SharedString::from(c.lang.tr(pg.label())), hovered, badge)
+            (pg, SharedString::new_static(c.lang.tr(pg.label())), hovered, badge)
         })
         .collect();
     let contents = motion.animate("content", move |top, bottom, _| {

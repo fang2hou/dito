@@ -79,7 +79,7 @@ pub(crate) fn rows(st: &AppState, lang: Lang) -> Vec<HealthRow> {
             name: if cfg.polish.enabled {
                 name(lang, Role::Text, &cfg.text_model, &st.models)
             } else {
-                SharedString::from(lang.tr(Tr::ModelsPolishOff))
+                SharedString::new_static(lang.tr(Tr::ModelsPolishOff))
             },
             status: cfg.polish.enabled.then_some(health.polish),
         },

@@ -676,7 +676,7 @@ impl HudView {
 
     fn send_button(&self, p: &Palette, lang: Lang, on: impl Fn(&mut App) + 'static) -> AnyElement {
         let key = ElementId::from("hud-send");
-        ui::tip_label(key.clone(), SharedString::from(lang.tr(Tr::HudSend).to_string()));
+        ui::tip_label(key.clone(), SharedString::new_static(lang.tr(Tr::HudSend)));
         let target = f32::from(ui::is_hovered(&key));
         let palette = *p;
         let face = ui::tweened(ElementId::from((key.clone(), "face")), target, ui::HOVER_MS, move |t| {

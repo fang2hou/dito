@@ -21,6 +21,6 @@ impl Ctx {
     }
 
     pub fn t(&self, message: Tr) -> SharedString {
-        SharedString::from(self.lang.tr(message))
+        SharedString::new_static(self.lang.tr(message))
     }
 }

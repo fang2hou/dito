@@ -63,7 +63,7 @@ struct Step {
 
 pub(super) fn help_body(p: &Palette, lang: Lang) -> Div {
     let note = |message: SharedString| text(message, 13., FontWeight::NORMAL, p.muted).line_height(px(20.));
-    let tr = |message: Tr| SharedString::from(lang.tr(message));
+    let tr = |message: Tr| SharedString::new_static(lang.tr(message));
     let steps = [
         (
             Step {
@@ -178,7 +178,7 @@ fn pointers(p: &Palette) -> Div {
 }
 
 fn errors_card(p: &Palette, lang: Lang) -> Div {
-    let tr = |message: Tr| SharedString::from(lang.tr(message));
+    let tr = |message: Tr| SharedString::new_static(lang.tr(message));
     let errors = [
         (tr(Tr::AsrEditorHelpErrorOther), tr(Tr::AsrEditorHelpFixOther)),
         (fmt::asr_help_error_variable(lang, "{{lang}}").into(), fmt::asr_help_fix_variable(lang, API_KEY).into()),

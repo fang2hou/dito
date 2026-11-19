@@ -72,7 +72,7 @@ impl PromptsPage {
         let base = textarea(window, cx, &set.base);
         let instruction = textarea(window, cx, &set.app_rules(&initial_target).instruction);
         let try_in = textarea(window, cx, dito_core::i18n::sample_utterance(lang));
-        let placeholder = SharedString::from(ui_lang.tr(Tr::PromptsPreviewPlaceholder));
+        let placeholder = SharedString::new_static(ui_lang.tr(Tr::PromptsPreviewPlaceholder));
         let try_out = cx.new(|cx| TextareaState::new(window, cx).placeholder(placeholder));
         for ent in [&base, &instruction, &try_in, &try_out] {
             let handle = ent.read(cx).focus_handle(cx);
@@ -413,7 +413,7 @@ impl PromptsPage {
         let lang = self.st.cfg.get().general.lang();
         if self.placeholder_lang != lang {
             self.placeholder_lang = lang;
-            let placeholder = SharedString::from(lang.tr(Tr::PromptsPreviewPlaceholder));
+            let placeholder = SharedString::new_static(lang.tr(Tr::PromptsPreviewPlaceholder));
             self.try_out.update(cx, |s, cx| s.set_placeholder(placeholder, window, cx));
         }
     }
