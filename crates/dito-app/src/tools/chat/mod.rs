@@ -35,7 +35,7 @@ use self::switch::{Phase, Switch};
 use crate::app_shell::{RAIL_COLLAPSE, RAIL_EXPAND};
 use crate::settings::{self, Ctx};
 use crate::state::AppState;
-use crate::timefmt::{hhmm, local_day, now, ymd};
+use crate::timefmt::{date_time, now};
 use crate::ui::{self, InputEvent, TextareaState};
 
 const PAGE_PAD_X: f32 = 28.;
@@ -331,7 +331,7 @@ impl ChatPage {
 
     fn date_label(&self) -> impl Fn(i64) -> String + Copy {
         let off = dito_platform::local_utc_offset_secs();
-        move |ts| format!("{} {}", ymd(local_day(ts, off)).replace('-', "/"), hhmm(ts, off))
+        move |ts| date_time(ts, off)
     }
 
     fn at_bottom(&self) -> bool {

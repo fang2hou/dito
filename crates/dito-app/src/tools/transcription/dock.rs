@@ -15,7 +15,7 @@ use gpui_kit::prelude::*;
 use gpui_kit::*;
 
 use super::morph::{Ease, Fade, Morph, MorphKind, Timing};
-use super::{TranscriptionPage, View, clock, open_row, speaker_label};
+use super::{TranscriptionPage, View, open_row, speaker_label};
 use crate::assets::Ic;
 use crate::services;
 use crate::settings::Ctx;
@@ -1458,7 +1458,7 @@ fn session_identity(
             .child(
                 // The clock column keeps the widest clock's width, so the title never moves as it ticks.
                 div().w(px(clock_w)).flex_none().child(
-                    text(clock(elapsed), CLOCK_SIZE, FontWeight::MEDIUM, p.text)
+                    text(crate::timefmt::clock(elapsed), CLOCK_SIZE, FontWeight::MEDIUM, p.text)
                         .line_height(px(CLOCK_LINE))
                         .font_features(FontFeatures(std::sync::Arc::new(vec![("tnum".into(), 1)]))),
                 ),

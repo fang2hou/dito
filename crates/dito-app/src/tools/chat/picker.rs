@@ -7,7 +7,6 @@ use gpui_kit::prelude::*;
 use gpui_kit::*;
 
 use super::ChatPage;
-use super::files::clock;
 use crate::assets::Ic;
 use crate::settings::Ctx;
 use crate::theme::Palette;
@@ -156,7 +155,7 @@ fn row(picker: &Picker, meeting: &TranscriptSummary, off: i32, c: &Ctx, cx: &mut
     } else {
         trailing = trailing.child(ui::text(hhmm(meeting.started_ts, off), 12., FontWeight::NORMAL, p.muted));
         if let Some(length) = meeting.length_ms {
-            trailing = trailing.child(badge(&p, clock(length)));
+            trailing = trailing.child(badge(&p, crate::timefmt::clock(length)));
         }
     }
     let mut row = div()

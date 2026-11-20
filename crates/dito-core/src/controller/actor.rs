@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant};
 
 use tokio::sync::{mpsc, watch};
 use tokio_util::sync::{CancellationToken, DropGuard};
@@ -146,10 +146,6 @@ pub fn spawn(deps: Deps) -> DictationHandle {
         }
     });
     DictationHandle::new(tx, hud_rx, run_kind_rx, started_rx, processing_rx, step_times_rx)
-}
-
-fn now() -> i64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0)
 }
 
 /// Wordbook words are a hint only: without them the dictation still runs.
@@ -361,7 +357,11 @@ impl Actor {
         let app = self.deps.env.frontmost.frontmost();
         // The app's name is recorded with every entry; the history resolves the label against the current prompts
         // list at display time, so removing an app reads Other and adding it back restores its name.
-        let meta = Meta { target: self.deps.config.get().prompts.for_application(&app.bundle_id), app, ts: now() };
+        let meta = Meta {
+            target: self.deps.config.get().prompts.for_application(&app.bundle_id),
+            app,
+            ts: crate::unix_seconds(),
+        };
         let command = match start {
             Start::Dictation => None,
             Start::Command { selection } => Some(CommandRun::new(selection, &meta)),

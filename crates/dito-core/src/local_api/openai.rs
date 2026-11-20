@@ -192,7 +192,7 @@ pub(super) fn completion_id() -> String {
 }
 
 pub(super) fn unix_seconds() -> u64 {
-    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs())
+    crate::unix_seconds() as u64
 }
 
 fn unix_nanos() -> u128 {

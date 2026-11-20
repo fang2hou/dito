@@ -7,11 +7,11 @@ use dito_core::transcription::SessionState;
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
-use super::{OpenTranscript, ParagraphView, TranscriptionPage, clock, date_time, row_fill, speaker_label};
+use super::{OpenTranscript, ParagraphView, TranscriptionPage, row_fill, speaker_label};
 use crate::assets::Ic;
 use crate::settings::{Ctx, Edge, edge_fade};
 use crate::theme::Palette;
-use crate::timefmt::hhmm;
+use crate::timefmt::{clock, date_time, hhmm};
 use crate::ui::{self, BtnKind, CircleAppearance, CircleSize, Textarea, TextareaState, cbk, cbk_copy, text};
 
 pub(super) const BACK_BUTTON_ID: &str = "transcript-back";
@@ -194,7 +194,10 @@ fn meta_strip(open: &OpenTranscript, c: &Ctx, session_ms: u64) -> Div {
         .rounded(px(10.))
         .bg(p.sub)
         .child(text(
-            fmt::transcription_started_at(c.lang, &date_time(open.summary.started_ts)),
+            fmt::transcription_started_at(
+                c.lang,
+                &date_time(open.summary.started_ts, dito_platform::local_utc_offset_secs()),
+            ),
             12.,
             FontWeight::NORMAL,
             p.muted,

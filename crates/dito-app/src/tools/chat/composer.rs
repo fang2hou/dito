@@ -8,7 +8,7 @@ use dito_core::store::Attachment;
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
-use super::files::{FileKind, clock, file_kind, size_label};
+use super::files::{FileKind, file_kind, size_label};
 use super::{ChatPage, picker};
 use crate::assets::Ic;
 use crate::settings::Ctx;
@@ -215,7 +215,9 @@ fn chip(index: usize, attachment: &Attachment, c: &Ctx, cx: &mut Context<ChatPag
             };
             fmt::chat_file_detail(c.lang, c.lang.tr(kind), &size_label(*bytes))
         }
-        Attachment::Meeting { duration_ms, .. } => fmt::chat_meeting_detail(c.lang, &clock(duration_ms.unwrap_or(0))),
+        Attachment::Meeting { duration_ms, .. } => {
+            fmt::chat_meeting_detail(c.lang, &crate::timefmt::clock(duration_ms.unwrap_or(0)))
+        }
     };
     let hovered = ui::is_hovered(&id);
     let remove = hovered.then(|| {

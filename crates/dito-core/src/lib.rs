@@ -20,8 +20,11 @@ pub mod provider;
 pub mod secrets;
 pub mod store;
 pub mod surrounding;
+pub mod time;
 pub mod trace;
 pub mod transcription;
+
+pub use time::unix_seconds;
 pub mod word_finder;
 
 pub use audio::AudioClip;
