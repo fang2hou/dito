@@ -12,7 +12,7 @@ Dictation handles whatever the user says, often at work. Requiring a cloud accou
 Speech recognition and polishing each run either on the Mac or through a provider, chosen separately. Local is the default and the complete flow works without any account.
 
 - Local runtimes are llama.cpp (Metal), sherpa-onnx and transcribe.cpp (Metal), linked into one binary behind `RuntimeLoader`. Nemotron Transcribe uses a private NeMo-Speech.cpp worker behind the same interface because its ggml version is incompatible with the linked runtimes.
-- llama.cpp and transcribe.cpp each vendor ggml, and a static link keeps one copy for both. This is allowed only while the two pins vendor the same ggml release (0.26.0 for `llama-cpp-sys-2` 0.1.160 and `transcribe-cpp` 0.4.2, with an identical `ggml.h`). transcribe.cpp's copy adds small patches and one registry function, so it is the copy that links.
+- llama.cpp and transcribe.cpp each vendor ggml, and a static link keeps one copy for both. This is allowed only while the two pins vendor the same ggml release (0.26.0 for `llama-cpp-sys-2` 0.1.161 and `transcribe-cpp` 0.4.2, with an identical `ggml.h`). transcribe.cpp's copy adds small patches and one registry function, so it is the copy that links.
 - When a local engine is unavailable, the app says so and shows red; it never returns placeholder text.
 - A stop request reports `Stopping` while the runtime is released outside the UI thread, then `Stopped`. A load that finishes after a stop request cannot restore the stopped runtime.
 - Nothing downloads until the user asks; models in use start at launch, and a model the user stopped stays stopped.

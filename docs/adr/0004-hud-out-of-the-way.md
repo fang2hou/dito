@@ -49,7 +49,7 @@ Every new HUD control must work through the polled hover and click-through. Appl
 
 Moves that look reasonable but go against this decision:
 
-- Switching to a Normal or Floating window, or removing `configure_nonactivating_panel`.
+- Switching to a Normal or Floating window, or removing `keep_panel_inactive` or `raise_to_status_level`.
 - Replacing the pointer poll with hover events.
 - Raising the HUD above menus (PopUp's default level), or keeping the status level while a text field is open, which hides the input method's candidate window.
 - Adding controls that need keyboard focus to the capsule, the choice window or any dictation state.

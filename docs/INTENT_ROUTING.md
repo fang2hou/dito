@@ -145,7 +145,7 @@ The heads in `crates/dito-core/src/intent/heads/` are committed build inputs: bu
 ## Constraints
 
 - **Qwen3.5 memory cannot be truncated.** In llama.cpp the architecture is `qwen35`: every fourth block is full attention and the others are gated delta net blocks with recurrent state. Dropping the tail of a sequence is refused, so the resident prefix is reused by a sequence copy.
-- **Layer inputs come from an extension API.** `llama_set_embeddings_layer_inp` and `llama_get_embeddings_layer_inp` are C++ symbols of `llama-ext.h`, which the Rust bindings skip. `dito-runtimes` declares them by their mangled names and takes the raw model handle from `llama-cpp-2`'s transparent wrapper. Both depend on the exact llama.cpp tree, so `llama-cpp-2` and `llama-cpp-sys-2` are pinned to 0.1.160; an upgrade must recheck `crates/dito-runtimes/src/readout.rs`.
+- **Layer inputs come from an extension API.** `llama_set_embeddings_layer_inp` and `llama_get_embeddings_layer_inp` are C++ symbols of `llama-ext.h`, which the Rust bindings skip. `dito-runtimes` declares them by their mangled names and takes the raw model handle from `llama-cpp-2`'s transparent wrapper. Both depend on the exact llama.cpp tree, so `llama-cpp-2` and `llama-cpp-sys-2` are pinned to 0.1.161; an upgrade must recheck `crates/dito-runtimes/src/readout.rs`.
 - **The output of the last block is not available that way.** Layer `l` means the input of block `l`, for `l` below the block count.
 - **A decision context stays loaded.** It is created on the first decision and holds the prefix for both sequences, in addition to the model's own memory.
 - **One call at a time.** A decision takes the model's gate like a polish does. It runs before the tool, never beside it.
