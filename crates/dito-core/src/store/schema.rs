@@ -126,3 +126,125 @@ pub(super) fn decode<T: DeserializeOwned + Default>(column: &str, stored: &str) 
         T::default()
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::config::EngineLabels;
+
+    use super::super::*;
+    use super::*;
+
+    /// The schema as it shipped before versioning. Frozen here on purpose: real databases hold exactly this, whatever
+    /// migrations are appended later. It omits `IF NOT EXISTS`, so migration 1 must tolerate tables that already exist.
+    const PRE_VERSIONING_SCHEMA: &str = "CREATE TABLE history (
+       id INTEGER PRIMARY KEY AUTOINCREMENT,
+       ts INTEGER NOT NULL,
+       day TEXT NOT NULL,
+       kind TEXT NOT NULL,
+       style TEXT NOT NULL,
+       app TEXT NOT NULL,
+       lang TEXT NOT NULL,
+       duration_ms INTEGER NOT NULL,
+       raw TEXT NOT NULL,
+       polished TEXT,
+       error TEXT,
+       audio_path TEXT
+     );
+     CREATE INDEX history_ts ON history(ts DESC);
+     CREATE TABLE dictionary (
+       term TEXT PRIMARY KEY,
+       created INTEGER NOT NULL
+     );";
+
+    #[test]
+    fn a_fresh_store_is_at_the_latest_schema_version() {
+        let s = Store::open_in_memory().unwrap();
+        assert_eq!(user_version(&s.conn()).unwrap(), SCHEMA_VERSION);
+    }
+
+    #[test]
+    fn an_older_database_keeps_its_rows_and_reaches_the_latest_version() {
+        // Version 0 predates versioning, version 1 adopted that schema, version 2 added the engine columns and version 3
+        // renamed the wordbook.
+        for applied in [0u32, 1, 2, 3] {
+            let dir = tempfile::tempdir().unwrap();
+            let path = dir.path().join("h.db");
+            {
+                let old = Connection::open(&path).unwrap();
+                old.execute_batch(PRE_VERSIONING_SCHEMA).unwrap();
+                if applied >= 2 {
+                    old.execute_batch(MIGRATIONS[1]).unwrap();
+                }
+                if applied == 3 {
+                    old.execute_batch(MIGRATIONS[2]).unwrap();
+                }
+                old.execute(
+                    "INSERT INTO history (ts, day, kind, style, app, lang, duration_ms, raw)
+                     VALUES (10, '1970-01-01', 'dictation', 'general', 'Notes', 'ja', 6000, 'from the old build')",
+                    (),
+                )
+                .unwrap();
+                let words = if applied == 3 { "wordbook" } else { "dictionary" };
+                old.execute(&format!("INSERT INTO {words} (term, created) VALUES ('Acme', 10)"), ()).unwrap();
+                old.pragma_update(None, "user_version", applied).unwrap();
+                assert_eq!(user_version(&old).unwrap(), applied);
+            }
+
+            let s = Store::open(&path, 0).unwrap();
+            assert_eq!(user_version(&s.conn()).unwrap(), SCHEMA_VERSION, "upgrading from version {applied}");
+            assert_eq!(s.words(None).unwrap(), ["Acme"]);
+            let rows = s.list_history(&HistoryFilter::default()).unwrap();
+            assert_eq!(rows.iter().map(|e| e.raw.as_str()).collect::<Vec<_>>(), ["from the old build"]);
+            assert_eq!(rows[0].engines, EngineLabels::default(), "a row from before the engine columns is unlabelled");
+            assert_eq!(rows[0].timings, StepMillis::default(), "a row from before the timing columns has none");
+            assert_eq!((rows[0].source.as_deref(), rows[0].command.as_ref()), (None, None));
+            drop(s);
+
+            let reopened = Store::open(&path, 0).unwrap();
+            assert_eq!(user_version(&reopened.conn()).unwrap(), SCHEMA_VERSION, "a current database opens unchanged");
+            assert_eq!(reopened.list_history(&HistoryFilter::default()).unwrap().len(), 1);
+        }
+    }
+
+    #[test]
+    fn a_version_six_database_gains_the_chat_tables_and_keeps_its_transcripts() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("h.db");
+        {
+            let old = Connection::open(&path).unwrap();
+            for migration in &MIGRATIONS[..6] {
+                old.execute_batch(migration).unwrap();
+            }
+            old.execute("INSERT INTO transcripts (started_ts, title, with_mic) VALUES (7, 'weekly', 0)", ()).unwrap();
+            old.pragma_update(None, "user_version", 6).unwrap();
+        }
+
+        let s = Store::open(&path, 0).unwrap();
+        assert_eq!(user_version(&s.conn()).unwrap(), SCHEMA_VERSION);
+        assert_eq!(s.list_transcripts().unwrap()[0].title, "weekly");
+        assert!(s.list_chats().unwrap().is_empty());
+        let chat = s.create_chat("first", 1).unwrap();
+        assert_eq!(s.get_chat(chat).unwrap().unwrap().summary.title, "first");
+    }
+
+    #[test]
+    fn a_database_from_a_newer_build_is_refused_and_left_untouched() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("h.db");
+        let newer = SCHEMA_VERSION + 1;
+        {
+            let future = Connection::open(&path).unwrap();
+            future.execute_batch("CREATE TABLE added_by_a_newer_build (x INTEGER)").unwrap();
+            future.pragma_update(None, "user_version", newer).unwrap();
+        }
+
+        let err = Store::open(&path, 0).err().expect("a newer database is refused");
+        let StoreError::SchemaTooNew { found, supported } = err else { panic!("unexpected error: {err}") };
+        assert_eq!((found, supported), (newer, SCHEMA_VERSION));
+
+        let conn = Connection::open(&path).unwrap();
+        assert_eq!(user_version(&conn).unwrap(), newer, "the version is not lowered");
+        let objects: i64 = conn.query_row("SELECT COUNT(*) FROM sqlite_master", (), |row| row.get(0)).unwrap();
+        assert_eq!(objects, 1, "no migration ran: only the newer build's table exists");
+    }
+}

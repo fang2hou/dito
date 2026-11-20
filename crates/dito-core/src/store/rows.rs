@@ -1,7 +1,9 @@
 //! Mapping a `history` row to a `HistoryEntry`.
 
+use crate::config::EngineLabels;
+
 use super::schema::decode;
-use super::{CommandDetails, EngineLabels, HistoryEntry, StepMillis};
+use super::{CommandDetails, HistoryEntry, StepMillis};
 
 pub(super) const SELECT_HISTORY: &str =
     "SELECT id, ts, kind, style, app, lang, duration_ms, raw, polished, error, audio_path,
