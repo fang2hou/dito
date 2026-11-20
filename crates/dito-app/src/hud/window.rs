@@ -87,6 +87,7 @@ fn open_window(st: Arc<AppState>, cx: &mut App) {
     // Its text fields need a `Root`, like every window with inputs; transparent so only the HUD's own surfaces show.
     match cx.open_window(opts, |window, cx| {
         configure_native_window(window);
+        crate::theme::repaint_with_system(window);
         let view = cx.new(|cx| HudView::new(st, cx));
         view_slot = Some(view.clone());
         cx.new(|cx| Root::new(view, window, cx).bg(ui::transparent()))
