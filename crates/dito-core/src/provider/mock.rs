@@ -59,7 +59,7 @@ impl Transcriber for MockTranscriber {
 }
 
 pub struct MockTextModel {
-    script: Mutex<VecDeque<Reply>>,
+    script: Mutex<VecDeque<ProviderResult<String>>>,
     delay: Duration,
     calls: AtomicUsize,
 }
@@ -110,6 +110,13 @@ impl MockTextModel {
     }
 
     pub fn script(self, replies: impl IntoIterator<Item = Reply>) -> Self {
+        self.script.lock().expect("script mutex poisoned").extend(
+            replies.into_iter().map(|reply| reply.map_err(|kind| ProviderError::new(kind, "scripted failure"))),
+        );
+        self
+    }
+
+    pub fn script_provider(self, replies: impl IntoIterator<Item = ProviderResult<String>>) -> Self {
         self.script.lock().expect("script mutex poisoned").extend(replies);
         self
     }
@@ -126,11 +133,11 @@ impl TextModel for MockTextModel {
         if !self.delay.is_zero() {
             tokio::time::sleep(self.delay).await;
         }
-        match self.script.lock().expect("script mutex poisoned").pop_front() {
-            Some(Ok(text)) => Ok(text),
-            Some(Err(kind)) => Err(ProviderError::new(kind, "scripted failure")),
-            None => Ok(rule_reply(req.system, req.text)),
-        }
+        self.script
+            .lock()
+            .expect("script mutex poisoned")
+            .pop_front()
+            .unwrap_or_else(|| Ok(rule_reply(req.system, req.text)))
     }
 
     /// Streams the next scripted reply, or the rule reply to the last user turn, a few characters at a time.
@@ -141,8 +148,7 @@ impl TextModel for MockTextModel {
         }
         let last = |role: ChatRole| req.messages.iter().rfind(|m| m.role == role).map_or("", |m| m.content.as_str());
         let reply = match self.script.lock().expect("script mutex poisoned").pop_front() {
-            Some(Ok(text)) => text,
-            Some(Err(kind)) => return Err(ProviderError::new(kind, "scripted failure")),
+            Some(reply) => reply?,
             None => rule_reply(last(ChatRole::System), last(ChatRole::User)),
         };
         let chars: Vec<char> = reply.chars().collect();

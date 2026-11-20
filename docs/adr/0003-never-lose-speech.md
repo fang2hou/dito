@@ -12,6 +12,7 @@ A dictation is effort the user can't repeat exactly. Every failure mode (polish 
 Once speech is transcribed, it reaches the user one way or another.
 
 - A polish failure inserts the transcript and records the error in History.
+- A polish attempt that fails safely before a response, cannot use a local engine, or returns objectively broken scaffold output is retried once with the same transcript and prompt. The retry stays inside the pipeline before delivery, and if it also fails, the original transcript and final error are delivered exactly as for a single failure.
 - With nowhere to type, the text goes to the clipboard and the HUD says Copied.
 - The 5-minute limit finishes and processes the recording; it never discards it.
 - Every result is kept in History with its audio; cancelled recordings that contain speech are kept as Cancelled; errors keep the clip so Retry can run it again.

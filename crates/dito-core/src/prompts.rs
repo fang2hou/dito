@@ -481,7 +481,18 @@ pub struct PolishPrompt {
 
 /// A line of its own before and after the transcript. The sections of the system prompt are named `#Section#`, and
 /// reference lists sit in escaped XML tags, so the three kinds of block cannot be taken for one another.
-const FENCE: &str = "===";
+pub(crate) const FENCE: &str = "===";
+pub(crate) const SCAFFOLD_MARKERS: [&str; 9] = [
+    "#Background#",
+    "#Purpose#",
+    "#Constraints#",
+    "#Style#",
+    "#Vocabulary#",
+    "#Outputs#",
+    "<reference_vocabulary>",
+    "</reference_vocabulary>",
+    FENCE,
+];
 
 /// A demonstration turn written out as [`fence`] builds the real one. The text must hold no `===`.
 macro_rules! fenced {

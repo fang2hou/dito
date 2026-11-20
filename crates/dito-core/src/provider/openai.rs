@@ -254,6 +254,18 @@ impl SseLines {
     }
 }
 
+fn polish_response(v: Value) -> ProviderResult<String> {
+    if v.pointer("/choices/0/finish_reason").and_then(Value::as_str) == Some("length") {
+        return Err(ProviderError::retryable(ErrorKind::BadResponse, "output was cut off at the token limit"));
+    }
+    v.pointer("/choices/0/message/content")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|text| !text.is_empty())
+        .map(str::to_string)
+        .ok_or_else(|| ProviderError::retryable(ErrorKind::BadResponse, "no content in response"))
+}
+
 #[async_trait]
 impl TextModel for OpenAiEngine {
     async fn polish(&self, req: &TextRequest<'_>) -> ProviderResult<String> {
@@ -268,16 +280,7 @@ impl TextModel for OpenAiEngine {
             }
             other => other?,
         };
-        if v.pointer("/choices/0/finish_reason").and_then(Value::as_str) == Some("length") {
-            return Err(ProviderError::new(ErrorKind::BadResponse, "output was cut off at the token limit"));
-        }
-        let text = v
-            .pointer("/choices/0/message/content")
-            .and_then(Value::as_str)
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .ok_or_else(|| ProviderError::new(ErrorKind::BadResponse, "no content in response"))?;
-        Ok(text)
+        polish_response(v)
     }
 
     async fn preconnect(&self) {
@@ -334,6 +337,21 @@ mod tests {
     fn compat(base: &str) -> OpenAiEngine {
         OpenAiEngine::new(Flavor::Compat { base_url: base.into(), model: "m".into() }, "", CloudTextParams::default())
             .unwrap()
+    }
+
+    #[test]
+    fn only_incomplete_polish_responses_are_retryable() {
+        let length = json!({"choices": [{"finish_reason": "length", "message": {"content": "partial"}}]});
+        let empty = json!({"choices": [{"finish_reason": "stop", "message": {"content": "  "}}]});
+        let complete = json!({"choices": [{"finish_reason": "stop", "message": {"content": "done"}}]});
+        assert!(polish_response(length).unwrap_err().is_retryable());
+        assert!(polish_response(empty).unwrap_err().is_retryable());
+        assert_eq!(polish_response(complete), Ok("done".into()));
+        assert!(!ProviderError::from_status(429, "slow").is_retryable());
+        assert!(!ProviderError::from_status(401, "no").is_retryable());
+        assert!(!ProviderError::from_status(404, "gone").is_retryable());
+        assert!(!ProviderError::from_status(408, "late").is_retryable());
+        assert!(!ProviderError::from_status(504, "late").is_retryable());
     }
 
     #[test]

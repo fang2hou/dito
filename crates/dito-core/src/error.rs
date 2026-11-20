@@ -62,11 +62,20 @@ impl ErrorKind {
 pub struct ProviderError {
     pub kind: ErrorKind,
     pub message: String,
+    pub retryable: bool,
 }
 
 impl ProviderError {
     pub fn new(kind: ErrorKind, message: impl Into<String>) -> Self {
-        Self { kind, message: message.into() }
+        Self { kind, message: message.into(), retryable: false }
+    }
+
+    pub fn retryable(kind: ErrorKind, message: impl Into<String>) -> Self {
+        Self { kind, message: message.into(), retryable: true }
+    }
+
+    pub fn is_retryable(&self) -> bool {
+        self.retryable
     }
 
     pub fn from_status(status: u16, body: &str) -> Self {
@@ -82,17 +91,23 @@ impl ProviderError {
     }
 
     pub fn from_reqwest(err: &reqwest::Error) -> Self {
-        let kind = if err.is_timeout() {
-            ErrorKind::Timeout
-        } else if err.is_connect() || err.is_request() {
-            ErrorKind::Network
-        } else if err.is_decode() {
-            ErrorKind::BadResponse
-        } else {
-            ErrorKind::Other
-        };
-        Self::new(kind, err.to_string())
+        let (kind, retryable) = classify_reqwest(err.is_timeout(), err.is_connect(), err.is_request(), err.is_decode());
+        let message = err.to_string();
+        if retryable { Self::retryable(kind, message) } else { Self::new(kind, message) }
     }
+}
+
+fn classify_reqwest(is_timeout: bool, is_connect: bool, is_request: bool, is_decode: bool) -> (ErrorKind, bool) {
+    let kind = if is_timeout {
+        ErrorKind::Timeout
+    } else if is_connect || is_request {
+        ErrorKind::Network
+    } else if is_decode {
+        ErrorKind::BadResponse
+    } else {
+        ErrorKind::Other
+    };
+    (kind, is_connect)
 }
 
 pub type ProviderResult<T> = Result<T, ProviderError>;
@@ -100,13 +115,32 @@ pub type ProviderResult<T> = Result<T, ProviderError>;
 #[cfg(test)]
 mod tests {
     use super::*;
-
     #[test]
     fn stored_error_lines_decode_to_kind_and_detail() {
         let e = ProviderError::new(ErrorKind::RateLimit, "HTTP 429: slow down");
         assert_eq!(ErrorKind::decode(&e.to_string()), Some((ErrorKind::RateLimit, "HTTP 429: slow down")));
         assert_eq!(ErrorKind::decode("plain text"), None);
         assert_eq!(ErrorKind::decode("Nope: x"), None);
+    }
+
+    #[test]
+    fn retry_safety_does_not_change_stored_error_lines() {
+        let ordinary = ProviderError::new(ErrorKind::Timeout, "waiting");
+        let retryable = ProviderError::retryable(ErrorKind::Timeout, "waiting");
+        assert!(!ordinary.is_retryable());
+        assert!(retryable.is_retryable());
+        assert_eq!(ordinary.to_string(), retryable.to_string());
+        assert_eq!(ErrorKind::decode(&retryable.to_string()), Some((ErrorKind::Timeout, "waiting")));
+    }
+
+    #[test]
+    fn only_reqwest_connection_failures_are_retryable() {
+        assert_eq!(classify_reqwest(false, true, true, false), (ErrorKind::Network, true));
+        assert_eq!(classify_reqwest(true, true, true, false), (ErrorKind::Timeout, true));
+        assert_eq!(classify_reqwest(true, false, true, false), (ErrorKind::Timeout, false));
+        assert_eq!(classify_reqwest(false, false, true, false), (ErrorKind::Network, false));
+        assert_eq!(classify_reqwest(false, false, false, true), (ErrorKind::BadResponse, false));
+        assert_eq!(classify_reqwest(false, false, false, false), (ErrorKind::Other, false));
     }
 
     #[test]

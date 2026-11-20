@@ -8,8 +8,9 @@ use crate::audio::AudioClip;
 use crate::config::Config;
 use crate::error::{ErrorKind, ProviderError, ProviderResult};
 use crate::factory::Engines;
+use crate::health::EngineStatus;
 use crate::i18n::Lang;
-use crate::prompts::{AppTarget, PromptInput, Prompts, build_prompt, detect_lang};
+use crate::prompts::{AppTarget, PromptInput, Prompts, SCAFFOLD_MARKERS, build_prompt, detect_lang};
 use crate::provider::{AsrRequest, TextModel, TextRequest};
 use crate::trace_log;
 
@@ -141,34 +142,224 @@ async fn polish(
     cancel: &CancellationToken,
     out: &mut Output,
 ) -> Result<(), PipelineError> {
-    let text_model = match engines.text_model(cfg).await {
-        Ok(Some(text_model)) => text_model,
-        Ok(None) => {
-            trace_log!("polish skipped, it is switched off");
-            return Ok(());
-        }
-        Err(e) => {
-            trace_log!(error = %e, "polish engine unavailable, the transcript is delivered");
-            out.polish_error = Some(e);
-            return Ok(());
-        }
-    };
+    if !cfg.polish.enabled {
+        trace_log!("polish skipped, it is switched off");
+        return Ok(());
+    }
 
     let started = Instant::now();
     on_phase(PipelinePhase::Polishing { input_chars: out.raw.chars().count(), started });
-    let polish_job = PolishJob {
+    let resolved = resolve_polish_model(engines, cfg, cancel).await?;
+    let prompt = build_prompt(&PromptInput {
         prompts: &cfg.prompts,
         target: job.target.clone(),
         text: &out.raw,
         wordbook: polish_wordbook(cfg, job.wordbook),
         lang: out.lang,
-    };
-    match or_cancel(cancel, polish_text(text_model.as_ref(), polish_job)).await? {
-        Ok(text) => out.polished = Some(text),
-        Err(e) => out.polish_error = Some(e),
+    });
+    let request = TextRequest { system: &prompt.system, examples: prompt.examples, text: &prompt.user };
+    let result = attempt_polish(engines, cfg, cancel, resolved, &request).await?;
+    match result {
+        Ok(Some(text)) => out.polished = Some(text),
+        Ok(None) => {}
+        Err(error) => out.polish_error = Some(error),
     }
     out.polish_ms = started.elapsed().as_millis() as u64;
     Ok(())
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Recovery {
+    Reuse,
+    Resolve,
+    Preconnect,
+    None,
+}
+
+impl Recovery {
+    fn of(status: Option<&EngineStatus>) -> Self {
+        match status {
+            Some(EngineStatus::Running) => Self::Reuse,
+            Some(EngineStatus::Loading | EngineStatus::Stopped | EngineStatus::Stopping | EngineStatus::Failed(_)) => {
+                Self::Resolve
+            }
+            Some(EngineStatus::Remote) | None => Self::Preconnect,
+            Some(EngineStatus::NotInstalled) => Self::None,
+        }
+    }
+
+    fn initial_action(self) -> &'static str {
+        match self {
+            Self::Preconnect => "warm up and resolve",
+            Self::Reuse | Self::Resolve => "resolve text model",
+            Self::None => "do not retry",
+        }
+    }
+
+    fn attempt_action(self) -> &'static str {
+        match self {
+            Self::Reuse => "reuse running model",
+            Self::Resolve => "resolve text model",
+            Self::Preconnect => "preconnect cached model",
+            Self::None => "do not retry",
+        }
+    }
+}
+
+enum ResolvedModel {
+    First(std::sync::Arc<dyn TextModel>),
+    Recovered(std::sync::Arc<dyn TextModel>),
+    Skipped,
+    Failed(ProviderError),
+}
+
+async fn resolve_polish_model(
+    engines: &dyn Engines,
+    cfg: &Config,
+    cancel: &CancellationToken,
+) -> Result<ResolvedModel, PipelineError> {
+    let first = or_cancel(cancel, engines.text_model(cfg)).await?;
+    match first {
+        Ok(Some(model)) => Ok(ResolvedModel::First(model)),
+        Ok(None) => Ok(ResolvedModel::Skipped),
+        Err(error) if !error.is_retryable() => {
+            trace_log!(error = %error, "polish engine unavailable, the transcript is delivered");
+            Ok(ResolvedModel::Failed(error))
+        }
+        Err(error) => {
+            let status = engines.text_model_status(cfg);
+            let recovery = Recovery::of(status.as_ref());
+            if recovery == Recovery::None {
+                return Ok(ResolvedModel::Failed(error));
+            }
+            trace_log!(error = ?error.kind, engine_status = ?status, action = recovery.initial_action(), "polish retry started");
+            if recovery == Recovery::Preconnect
+                && let Err(cancelled) = or_cancel(cancel, engines.warm_up(cfg)).await
+            {
+                trace_polish_retry(false, None);
+                return Err(cancelled);
+            }
+            let resolved = match or_cancel(cancel, engines.text_model(cfg)).await {
+                Ok(resolved) => resolved,
+                Err(cancelled) => {
+                    trace_polish_retry(false, None);
+                    return Err(cancelled);
+                }
+            };
+            match resolved {
+                Ok(Some(model)) => Ok(ResolvedModel::Recovered(model)),
+                Ok(None) => {
+                    trace_polish_retry(false, Some(error.kind));
+                    Ok(ResolvedModel::Failed(error))
+                }
+                Err(recovery_error) => {
+                    trace_polish_retry(false, Some(recovery_error.kind));
+                    Ok(ResolvedModel::Failed(recovery_error))
+                }
+            }
+        }
+    }
+}
+
+async fn attempt_polish(
+    engines: &dyn Engines,
+    cfg: &Config,
+    cancel: &CancellationToken,
+    resolved: ResolvedModel,
+    request: &TextRequest<'_>,
+) -> Result<ProviderResult<Option<String>>, PipelineError> {
+    let (model, recovered) = match resolved {
+        ResolvedModel::First(model) => (model, false),
+        ResolvedModel::Recovered(model) => (model, true),
+        ResolvedModel::Skipped => return Ok(Ok(None)),
+        ResolvedModel::Failed(error) => return Ok(Err(error)),
+    };
+    let first = if recovered {
+        match checked_attempt(cancel, model.as_ref(), request).await {
+            Err(cancelled) => {
+                trace_polish_retry(false, None);
+                return Err(cancelled);
+            }
+            Ok(first) => first,
+        }
+    } else {
+        checked_attempt(cancel, model.as_ref(), request).await?
+    };
+    if recovered {
+        trace_polish_retry(first.is_ok(), first.as_ref().err().map(|error| error.kind));
+        return Ok(first.map(Some));
+    }
+    match first {
+        Ok(text) => Ok(Ok(Some(text))),
+        Err(error) if error.is_retryable() => retry_polish(engines, cfg, cancel, model, request, error).await,
+        Err(error) => Ok(Err(error)),
+    }
+}
+
+async fn retry_polish(
+    engines: &dyn Engines,
+    cfg: &Config,
+    cancel: &CancellationToken,
+    model: std::sync::Arc<dyn TextModel>,
+    request: &TextRequest<'_>,
+    error: ProviderError,
+) -> Result<ProviderResult<Option<String>>, PipelineError> {
+    let status = engines.text_model_status(cfg);
+    let recovery = Recovery::of(status.as_ref());
+    if recovery == Recovery::None {
+        return Ok(Err(error));
+    }
+    trace_log!(error = ?error.kind, engine_status = ?status, action = recovery.attempt_action(), "polish retry started");
+    let operation = async {
+        Ok(match recovery {
+            Recovery::Reuse => checked_attempt(cancel, model.as_ref(), request).await?,
+            Recovery::Preconnect => {
+                or_cancel(cancel, model.preconnect()).await?;
+                checked_attempt(cancel, model.as_ref(), request).await?
+            }
+            Recovery::Resolve => match or_cancel(cancel, engines.text_model(cfg)).await? {
+                Ok(Some(model)) => checked_attempt(cancel, model.as_ref(), request).await?,
+                Ok(None) => Err(error),
+                Err(recovery_error) => Err(recovery_error),
+            },
+            Recovery::None => Err(error),
+        })
+    };
+    let result = match operation.await {
+        Ok(result) => result,
+        Err(cancelled) => {
+            trace_polish_retry(false, None);
+            return Err(cancelled);
+        }
+    };
+    trace_polish_retry(result.is_ok(), result.as_ref().err().map(|error| error.kind));
+    Ok(result.map(Some))
+}
+
+fn trace_polish_retry(succeeded: bool, error: Option<ErrorKind>) {
+    trace_log!(succeeded, error = ?error, "polish retry finished");
+}
+
+fn validate_polish_output(text: String) -> ProviderResult<String> {
+    if text.trim().is_empty() {
+        return Err(ProviderError::retryable(ErrorKind::BadResponse, "empty model output"));
+    }
+    if text.lines().any(|line| SCAFFOLD_MARKERS.contains(&line) || matches!(line, "<think>" | "</think>")) {
+        return Err(ProviderError::retryable(ErrorKind::BadResponse, "polish output leaked its scaffold"));
+    }
+    Ok(text)
+}
+
+async fn checked_attempt(
+    cancel: &CancellationToken,
+    text_model: &dyn TextModel,
+    request: &TextRequest<'_>,
+) -> Result<ProviderResult<String>, PipelineError> {
+    or_cancel(cancel, checked_polish(text_model, request)).await
+}
+
+async fn checked_polish(text_model: &dyn TextModel, request: &TextRequest<'_>) -> ProviderResult<String> {
+    validate_polish_output(call_text_model(text_model, "polish", request).await?)
 }
 
 pub struct PolishJob<'a> {
@@ -255,7 +446,7 @@ mod tests {
         FixedEngines::new(Arc::new(asr), Arc::new(polish))
     }
 
-    async fn go(e: &FixedEngines, cfg: &Config, clip: &AudioClip) -> Result<Output, PipelineError> {
+    async fn go(e: &dyn Engines, cfg: &Config, clip: &AudioClip) -> Result<Output, PipelineError> {
         run(
             e,
             cfg,
@@ -305,6 +496,191 @@ mod tests {
         let out = go(&e, &Config::default(), &tone()).await.unwrap();
         assert_eq!(out.text(), "hello");
         assert_eq!(out.polish_error.as_ref().unwrap().kind, ErrorKind::RateLimit);
+    }
+
+    #[tokio::test]
+    async fn a_retryable_polish_failure_retries_once_and_can_succeed() {
+        let polish = Arc::new(MockTextModel::default().script_provider([
+            Err(ProviderError::retryable(ErrorKind::Network, "before response")),
+            Ok("cleaned".into()),
+        ]));
+        let e = FixedEngines::new(Arc::new(MockTranscriber::new("hello")), polish.clone());
+
+        let out = go(&e, &Config::default(), &tone()).await.unwrap();
+
+        assert_eq!(out.text(), "cleaned");
+        assert_eq!(out.polish_error, None);
+        assert_eq!(polish.calls(), 2);
+    }
+
+    #[tokio::test]
+    async fn a_second_polish_failure_replaces_the_first_and_delivers_raw_text() {
+        let polish = Arc::new(MockTextModel::default().script_provider([
+            Err(ProviderError::retryable(ErrorKind::Network, "first")),
+            Err(ProviderError::retryable(ErrorKind::Timeout, "second")),
+        ]));
+        let e = FixedEngines::new(Arc::new(MockTranscriber::new("hello")), polish.clone());
+
+        let out = go(&e, &Config::default(), &tone()).await.unwrap();
+
+        assert_eq!(out.text(), "hello");
+        assert_eq!(out.polish_error.as_ref().unwrap().message, "second");
+        assert_eq!(polish.calls(), 2);
+    }
+
+    #[tokio::test]
+    async fn non_retryable_polish_failures_are_not_retried() {
+        for error in [
+            ProviderError::new(ErrorKind::Auth, "bad credentials"),
+            ProviderError::new(ErrorKind::RateLimit, "slow down"),
+            ProviderError::new(ErrorKind::Timeout, "response started"),
+        ] {
+            let polish = Arc::new(MockTextModel::default().script_provider([Err(error)]));
+            let e = FixedEngines::new(Arc::new(MockTranscriber::new("hello")), polish.clone());
+            let out = go(&e, &Config::default(), &tone()).await.unwrap();
+            assert_eq!(out.text(), "hello");
+            assert_eq!(polish.calls(), 1);
+        }
+    }
+
+    #[tokio::test]
+    async fn empty_output_is_retried_before_a_good_output_is_accepted() {
+        let polish = Arc::new(MockTextModel::default().script_provider([Ok("  ".into()), Ok("good".into())]));
+        let e = FixedEngines::new(Arc::new(MockTranscriber::new("hello")), polish.clone());
+
+        let out = go(&e, &Config::default(), &tone()).await.unwrap();
+
+        assert_eq!(out.text(), "good");
+        assert_eq!(polish.calls(), 2);
+    }
+
+    struct RecoveringEngines {
+        base: FixedEngines,
+        status: Option<EngineStatus>,
+        resolutions: AtomicUsize,
+        fail_resolution: usize,
+    }
+
+    #[async_trait::async_trait]
+    impl Engines for RecoveringEngines {
+        async fn transcriber(&self, cfg: &Config) -> ProviderResult<std::sync::Arc<dyn crate::provider::Transcriber>> {
+            self.base.transcriber(cfg).await
+        }
+
+        async fn text_model(&self, cfg: &Config) -> ProviderResult<Option<std::sync::Arc<dyn TextModel>>> {
+            let resolution = self.resolutions.fetch_add(1, Ordering::SeqCst) + 1;
+            if resolution == self.fail_resolution {
+                return Err(ProviderError::retryable(ErrorKind::Unavailable, "reload failed"));
+            }
+            self.base.text_model(cfg).await
+        }
+
+        async fn router(&self, cfg: &Config) -> ProviderResult<std::sync::Arc<dyn crate::provider::Router>> {
+            self.base.router(cfg).await
+        }
+
+        fn text_model_status(&self, _: &Config) -> Option<EngineStatus> {
+            self.status.clone()
+        }
+    }
+
+    #[tokio::test]
+    async fn a_stopped_local_model_is_resolved_again_before_retry() {
+        let polish = Arc::new(MockTextModel::default().script_provider([
+            Err(ProviderError::retryable(ErrorKind::Unavailable, "stopped")),
+            Ok("recovered".into()),
+        ]));
+        let engines = RecoveringEngines {
+            base: FixedEngines::new(Arc::new(MockTranscriber::new("hello")), polish.clone()),
+            status: Some(EngineStatus::Stopped),
+            resolutions: AtomicUsize::new(0),
+            fail_resolution: usize::MAX,
+        };
+
+        let out = go(&engines, &Config::default(), &tone()).await.unwrap();
+
+        assert_eq!(out.text(), "recovered");
+        assert_eq!(polish.calls(), 2);
+        assert_eq!(engines.resolutions.load(Ordering::SeqCst), 2);
+    }
+
+    #[tokio::test]
+    async fn a_retryable_initial_model_resolution_is_attempted_once_more() {
+        let polish = Arc::new(MockTextModel::default().script_provider([Ok("loaded".into())]));
+        let engines = RecoveringEngines {
+            base: FixedEngines::new(Arc::new(MockTranscriber::new("hello")), polish.clone()),
+            status: Some(EngineStatus::Stopped),
+            resolutions: AtomicUsize::new(0),
+            fail_resolution: 1,
+        };
+
+        let out = go(&engines, &Config::default(), &tone()).await.unwrap();
+
+        assert_eq!(out.text(), "loaded");
+        assert_eq!(polish.calls(), 1);
+        assert_eq!(engines.resolutions.load(Ordering::SeqCst), 2);
+    }
+
+    #[tokio::test]
+    async fn a_failed_local_model_recovery_delivers_raw_text_without_a_second_call() {
+        let polish = Arc::new(
+            MockTextModel::default()
+                .script_provider([Err(ProviderError::retryable(ErrorKind::Unavailable, "stopped"))]),
+        );
+        let engines = RecoveringEngines {
+            base: FixedEngines::new(Arc::new(MockTranscriber::new("hello")), polish.clone()),
+            status: Some(EngineStatus::Stopped),
+            resolutions: AtomicUsize::new(0),
+            fail_resolution: 2,
+        };
+
+        let out = go(&engines, &Config::default(), &tone()).await.unwrap();
+
+        assert_eq!(out.text(), "hello");
+        assert_eq!(out.polish_error.as_ref().unwrap().message, "reload failed");
+        assert_eq!(polish.calls(), 1);
+    }
+
+    #[tokio::test]
+    async fn a_model_that_is_not_installed_is_not_retried() {
+        let polish = Arc::new(
+            MockTextModel::default()
+                .script_provider([Err(ProviderError::retryable(ErrorKind::Unavailable, "not installed"))]),
+        );
+        let engines = RecoveringEngines {
+            base: FixedEngines::new(Arc::new(MockTranscriber::new("hello")), polish.clone()),
+            status: Some(EngineStatus::NotInstalled),
+            resolutions: AtomicUsize::new(0),
+            fail_resolution: usize::MAX,
+        };
+
+        let out = go(&engines, &Config::default(), &tone()).await.unwrap();
+
+        assert_eq!(out.text(), "hello");
+        assert_eq!(polish.calls(), 1);
+        assert_eq!(engines.resolutions.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn unchanged_output_is_accepted_without_a_retry() {
+        let polish = Arc::new(MockTextModel::default().script_provider([Ok("hello".into())]));
+        let e = FixedEngines::new(Arc::new(MockTranscriber::new("hello")), polish.clone());
+
+        let out = go(&e, &Config::default(), &tone()).await.unwrap();
+
+        assert_eq!(out.text(), "hello");
+        assert_eq!(polish.calls(), 1);
+    }
+
+    #[test]
+    fn polish_output_check_rejects_only_known_broken_shapes() {
+        for marker in SCAFFOLD_MARKERS.into_iter().chain(["<think>", "</think>"]) {
+            let error = validate_polish_output(format!("before\n{marker}\nafter")).unwrap_err();
+            assert!(error.is_retryable(), "{marker}");
+        }
+        for text in ["hello", "x", "hello hello hello", &"x".repeat(20_000)] {
+            assert_eq!(validate_polish_output(text.to_string()).unwrap(), text);
+        }
     }
 
     #[tokio::test]
@@ -363,6 +739,39 @@ mod tests {
         .await;
         assert!(matches!(r, Err(PipelineError::Cancelled)));
         assert_eq!(seen.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn cancelling_during_the_second_attempt_reports_cancelled() {
+        struct CancelSecond {
+            calls: AtomicUsize,
+            cancel: CancellationToken,
+        }
+        #[async_trait::async_trait]
+        impl TextModel for CancelSecond {
+            async fn polish(&self, _: &TextRequest<'_>) -> ProviderResult<String> {
+                if self.calls.fetch_add(1, Ordering::SeqCst) == 0 {
+                    return Err(ProviderError::retryable(ErrorKind::Network, "before response"));
+                }
+                self.cancel.cancel();
+                std::future::pending().await
+            }
+        }
+        let cancel = CancellationToken::new();
+        let model = Arc::new(CancelSecond { calls: AtomicUsize::new(0), cancel: cancel.clone() });
+        let e = FixedEngines::new(Arc::new(MockTranscriber::new("hello")), model.clone());
+
+        let result = run(
+            &e,
+            &Config::default(),
+            &PipelineJob { clip: &tone(), target: AppTarget::General, wordbook: &[] },
+            &|_| {},
+            &cancel,
+        )
+        .await;
+
+        assert!(matches!(result, Err(PipelineError::Cancelled)));
+        assert_eq!(model.calls.load(Ordering::SeqCst), 2);
     }
 
     #[tokio::test]

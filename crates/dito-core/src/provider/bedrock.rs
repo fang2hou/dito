@@ -87,6 +87,17 @@ fn inference_config(model_id: &str, params: &CloudTextParams) -> Option<Inferenc
     )
 }
 
+fn polish_response(truncated: bool, text: String) -> ProviderResult<String> {
+    if truncated {
+        return Err(ProviderError::retryable(ErrorKind::BadResponse, "output was cut off at the token limit"));
+    }
+    let text = text.trim().to_string();
+    if text.is_empty() {
+        return Err(ProviderError::retryable(ErrorKind::BadResponse, "no text in Converse output"));
+    }
+    Ok(text)
+}
+
 fn additional_fields(model_id: &str, params: &CloudTextParams) -> Option<Document> {
     let text = |value: &str| Document::String(value.to_owned());
     let mut fields = HashMap::new();
@@ -160,9 +171,6 @@ impl BedrockEngine {
             call = call.system(SystemContentBlock::Text(s.to_string()));
         }
         let out = call.send().await.map_err(classify)?;
-        if matches!(out.stop_reason(), aws_sdk_bedrockruntime::types::StopReason::MaxTokens) {
-            return Err(ProviderError::new(ErrorKind::BadResponse, "output was cut off at the token limit"));
-        }
         let text = out
             .output()
             .and_then(|o| o.as_message().ok())
@@ -170,11 +178,7 @@ impl BedrockEngine {
                 m.content().iter().filter_map(|c| c.as_text().ok().map(String::as_str)).collect::<Vec<_>>().join("")
             })
             .unwrap_or_default();
-        let text = text.trim().to_string();
-        if text.is_empty() {
-            return Err(ProviderError::new(ErrorKind::BadResponse, "no text in Converse output"));
-        }
-        Ok(text)
+        polish_response(matches!(out.stop_reason(), aws_sdk_bedrockruntime::types::StopReason::MaxTokens), text)
     }
 
     /// Consecutive turns of one role share a message, since Converse wants the roles to alternate.
@@ -283,6 +287,13 @@ mod tests {
             reasoning_effort: ReasoningEffort::from(effort.to_owned()),
             ..CloudTextParams::default()
         }
+    }
+
+    #[test]
+    fn only_empty_or_truncated_polish_output_is_retryable() {
+        assert!(polish_response(true, "partial".into()).unwrap_err().is_retryable());
+        assert!(polish_response(false, "  ".into()).unwrap_err().is_retryable());
+        assert_eq!(polish_response(false, "done".into()), Ok("done".into()));
     }
 
     #[test]
