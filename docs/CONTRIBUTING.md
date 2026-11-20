@@ -38,7 +38,7 @@ Releasing:
 
 ## Checks
 
-Checks run on your machine at commit time through [prek](https://prek.j178.dev) (`prek.toml`); GitHub Actions does not run tests. Install the hooks once per clone with `mise run hooks:install`.
+Checks run on your machine at commit time through [prek](https://prek.j178.dev) (`prek.toml`). GitHub Actions independently runs the fast tests, CI clippy set and text checks on every pull request into `main` and every push to `main`. Install the hooks once per clone with `mise run hooks:install`.
 
 | Hook | Runs when | Command |
 | --- | --- | --- |
@@ -51,13 +51,14 @@ Checks run on your machine at commit time through [prek](https://prek.j178.dev) 
 | Workflow lint | `.github/workflows/` changes | `mise run lint:actions` |
 | Commit message is a Conventional Commit | every commit | `mise run hooks:commit-msg` |
 
-`mise run lint:rust` is the one clippy command: it lints the workspace, then again with the `mock` and `screenshots` features so the code behind them is covered. Docs and scripts refer to it instead of spelling out the cargo command. `mise run hooks` runs every hook against all files. Hooks only see what is staged, and `git commit --no-verify` skips them, so nothing server-side backs them up: do not skip them.
+`mise run lint:rust` is the complete local clippy command: it lints the workspace, then again with the `mock` and `screenshots` features so the code behind them is covered. `mise run lint:rust:ci` uses the same mock and screenshot coverage over the crate set that does not require local runtimes. `mise run hooks` runs every hook against all files. Hooks only see what is staged, and `git commit --no-verify` skips them, so do not skip them even though GitHub Actions provides a server-side check.
 
-GitHub Actions only enforces what cannot be checked locally. Workflows live in `.github/workflows` and call `mise run` tasks.
+Workflows live in `.github/workflows` and call `mise run` tasks.
 
 | Workflow | Runs on | Does |
 | --- | --- | --- |
 | Pull request rules | every pull request, including title edits | Conventional Commit title, branch flow |
+| Checks | pull requests into `main` and pushes to `main` | actionlint, shellcheck, design reference checks, fast Rust tests, CI clippy |
 | Release | tags `v*.*.*` | tag matches the workspace version and is on `main`, then a draft release with the zipped app |
 
 ## Pull Request Descriptions

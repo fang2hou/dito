@@ -17,7 +17,8 @@ mise run bench:lint                          # ruff and ty for the Python bench 
 cargo test -p <crate>                        # tests for the crate you changed
 cargo test -p dito-app --no-default-features --test i18n_coverage  # after editing crates/dito-core/src/i18n/messages.toml
 cargo fmt --all -- --check                   # format check
-mise run lint:rust                           # clippy, also with the mock and screenshots features (the one lint command)
+mise run lint:rust                           # complete local clippy, also with mock and screenshots features
+mise run lint:rust:ci                        # CI clippy without local runtimes
 ./scripts/check.sh fast                      # fmt and fast tests (`mise run check`); the commit hooks run it
 ./scripts/check.sh full                      # adds compile checks of every build flavor
 mise run check:design-refs                   # every design:<id> reference resolves against design/sections.toml

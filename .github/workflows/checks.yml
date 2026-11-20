@@ -1,0 +1,56 @@
+name: Checks
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  MISE_TASK_RUN_AUTO_INSTALL: "false"
+
+jobs:
+  text:
+    name: Text checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+      - name: Install the pinned text tools (mise)
+        uses: jdx/mise-action@v5
+        with:
+          install_args: python actionlint shellcheck
+      - name: Lint the GitHub Actions workflows
+        run: mise run lint:actions
+      - name: Lint the shell scripts
+        run: mise run lint:shell
+      - name: Check the design references
+        run: mise run check:design-refs
+
+  rust:
+    name: Rust checks
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+      - name: Install the pinned Rust toolchain (mise)
+        uses: jdx/mise-action@v5
+        with:
+          install_args: rust
+      - name: Cache Cargo registry and build artifacts
+        uses: Swatinem/rust-cache@v2
+      - name: Install the Xcode Metal toolchain when needed
+        run: mise run setup:macos
+      - name: Check formatting and run the fast tests
+        run: ./scripts/check.sh fast
+      - name: Lint the CI Rust crate set
+        run: mise run lint:rust:ci

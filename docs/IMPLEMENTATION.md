@@ -25,6 +25,7 @@ mise run release                              # optimized release bundle at targ
 bash scripts/install-local.sh                 # build, sign and install to ~/Applications/Dito.app
 mise run check                                # ./scripts/check.sh fast: fmt, unit tests, mock-server tests, i18n coverage
 mise run lint:rust                            # clippy for the workspace, again with the mock and screenshots features
+mise run lint:rust:ci                         # clippy for the CI crate set without local runtimes
 mise run check:full                           # fast, plus compile checks of every build flavor
 mise run check:design-refs                    # every design:<id> reference resolves
 mise run lint                                 # lint:rust, ruff and ty for bench, actionlint for workflows
@@ -63,7 +64,7 @@ The Python benchmark harness has its own tasks: `mise run bench:sync`, `bench:te
 - `design/`: `dito.figcraft` (UI and motion), `sections.toml` (the ids behind `design:<id>`), `features.md`, the cloud speech request JSON contract, and `asr-templates/` (compiled into the app).
 - `assets/icon/`: the Icon Composer document.
 - `bench/`: Python benchmark harness for ASR and polish models, with stored results.
-- `mise.toml`: tool versions and the project tasks. `prek.toml`: commit hooks. `.github/`: PR rules, and the release workflow (see [CONTRIBUTING.md](CONTRIBUTING.md)).
+- `mise.toml`: tool versions and the project tasks. `prek.toml`: commit hooks. `.github/`: PR rules, project checks and the release workflow (see [CONTRIBUTING.md](CONTRIBUTING.md)).
 - `scripts/`: `bundle.sh` (release app), `install.sh` (install to `~/Applications`), `install-local.sh` (standalone source installer), `dmg.sh` (release DMG), `quit.sh` (quit the running release Dito), `certs.sh` (signing identity), `check.sh` (checks), `dev-runner.sh` (wraps runs in `DitoDev.app`), `icon.sh` (icon build and preview), `setup-macos.sh` (Metal toolchain), `readme-assets.py` (README animations), `check-design-icons.py` (geometry check of the saved design), `check-design-refs.py` (`design:<id>` references against `design/sections.toml`), `check-flow.sh` and `check-release-tag.sh` (branch and tag rules for CI), `workspace-version.sh` (the version in `Cargo.toml`, read by the bundle, DMG and tag scripts). `.agents/skills/` holds the project skills, including `icon-keylines`.
 - `docs/`: this document, architecture, glossary, debugging, contributing and ADRs. `docs/workflow/`: step-by-step workflows.
 
@@ -113,12 +114,12 @@ Things that look removable or simplifiable but exist for a reason. Product-level
 - Bedrock polishing is covered only by the mock server, not by a real account.
 - The warm-up of the cloud engines while a recording runs is verified only against the mock server on loopback: what a real provider answers to `HEAD /`, and how long it keeps the connection open afterwards, is not measured. A recording longer than the provider keeps an idle connection gains nothing, and a Bedrock engine is built by the warm-up but gets no open connection.
 - A cloud request that reuses a pooled connection fails with a network error when the server or the network drops that connection in the same moment, and Retry then succeeds on a new one. Dictations in quick succession always reused connections; with the warm-up the first dictation after a pause does too.
-- GitHub Actions enforces only the pull request rules and the release tag; tests and clippy run in the local commit hooks, which `--no-verify` skips.
+- GitHub Actions runs the fast tests, CI clippy set and text checks on pull requests into `main` and pushes to `main`. It does not build the default-feature local runtimes; full runtime and release checks remain local.
 - The display language defaults to the system language; the design calls for Japanese by default.
 
 ## Validation
 
-The commit hooks run `./scripts/check.sh fast` and `mise run lint:rust`; run `./scripts/check.sh full` before a release build. A green run proves the commands passed, not that the behavior is right; check UI changes in the running app.
+The commit hooks run `./scripts/check.sh fast` and `mise run lint:rust`. The Checks workflow repeats the fast script, runs `mise run lint:rust:ci` and runs the text checks for every pull request into `main` and push to `main`; run `./scripts/check.sh full` before a release build. A green run proves the commands passed, not that the behavior is right; check UI changes in the running app.
 
 ### Changing the database schema
 
