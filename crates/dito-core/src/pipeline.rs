@@ -36,9 +36,11 @@ impl Output {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum PipelineError {
+    #[error("pipeline cancelled")]
     Cancelled,
+    #[error(transparent)]
     Failed(ProviderError),
 }
 

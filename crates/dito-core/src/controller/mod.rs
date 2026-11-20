@@ -18,6 +18,7 @@ pub use env::{
     SelectionSource, Sink,
 };
 pub use handle::DictationHandle;
+pub use history::{HistoryRerunError, polish_again, transcribe_again};
 pub use hud::{Choice, ErrorAction, HudState, ResultWrite, RunKind};
 pub use progress::{ProcessingEstimate, StepTimes};
 pub use recorder_error::RecorderError;

@@ -12,10 +12,11 @@ use crate::settings::page_query::QueryPage;
 use crate::state::AppState;
 
 impl HistoryPage {
-    pub(super) fn run_job<F, Fut>(&mut self, id: i64, cx: &mut Context<Self>, job: F)
+    pub(super) fn run_job<F, Fut, E>(&mut self, id: i64, cx: &mut Context<Self>, job: F)
     where
         F: FnOnce(Arc<AppState>, HistoryEntry) -> Fut + 'static,
-        Fut: Future<Output = Result<(), String>> + 'static,
+        Fut: Future<Output = Result<(), E>> + 'static,
+        E: std::fmt::Display + 'static,
     {
         // Reserve before the first await: repeated clicks while the lookup runs must not launch a second lookup for the
         // same row.
