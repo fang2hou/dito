@@ -39,6 +39,7 @@ mod select_badge;
 mod selectable;
 mod shimmer;
 mod switch;
+mod tag;
 mod test_state;
 mod tip_bubble;
 mod tooltip;
@@ -82,7 +83,7 @@ pub use inputs::{
 };
 pub use layout::{
     StatusTone, card, card_segment, drag_area, group, page_title, row, row_described, source_label, status_chip,
-    status_tag, tinted_tag,
+    status_tag,
 };
 pub use menu_button::{menu_button, menu_button_on};
 pub use method_label::{MethodKind, MethodSize, method_label};
@@ -105,6 +106,7 @@ pub use select_badge::SelectBadge;
 pub use selectable::{selectable_runs, selectable_spans, selectable_text};
 pub use shimmer::{ShimmerInk, shimmer_text};
 pub use switch::switch;
+pub use tag::tag;
 pub use test_state::{ErrorPlacement, TestState, test_summary};
 pub use tip_bubble::TIP_BUBBLE_H;
 pub use tooltip::{dismiss_tips, tip_above, tip_label, tip_pop, tip_pop_with, tooltip_root};

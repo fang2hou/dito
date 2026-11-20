@@ -196,6 +196,12 @@ pub enum Tint {
     Neutral,
 }
 
+impl From<Palette> for UiPalette {
+    fn from(palette: Palette) -> Self {
+        palette.ui
+    }
+}
+
 impl std::ops::Deref for Palette {
     type Target = UiPalette;
 

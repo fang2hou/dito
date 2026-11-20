@@ -16,7 +16,8 @@ const RIGHT: f32 = -18.;
 const WEIGHT: FontWeight = FontWeight::SEMIBOLD;
 
 /// Shared by the sharp wordmark and its frosted copy, so the two line up.
-pub fn wordmark(title: &'static str, p: Palette) -> Div {
+pub fn wordmark(title: &'static str, p: impl Into<Palette>) -> Div {
+    let p = p.into();
     div().absolute().top(px(TOP)).right(px(RIGHT)).child(
         super::typography::text(title, FONT_SIZE, WEIGHT, p.accent)
             .line_height(relative(1.))
@@ -67,7 +68,8 @@ impl ttf_parser::OutlineBuilder for Outline {
 }
 
 /// Mount before the wordmark and page, so card paint sees the current window's backdrop.
-pub fn prepare(title: &'static str, p: Palette) -> AnyElement {
+pub fn prepare(title: &'static str, p: impl Into<Palette>) -> AnyElement {
+    let p = p.into();
     canvas(
         move |bounds, window, cx| {
             let id = window.window_handle().window_id();
