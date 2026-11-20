@@ -1656,34 +1656,34 @@
       }
     },
     "b-en-08--general--app": {
-      "fingerprint": "efeaf9c8401c5109",
-      "recorded_at": "2026-11-20T16:05:01+00:00",
+      "fingerprint": "7c2610f181c87c3d",
+      "recorded_at": "2026-11-20T16:24:45+00:00",
       "result": {
-        "text": "The autumn internal event is led by Watanabe, and the keynote speaker is Elena Ruiz. It is scheduled for Friday, October 30, 2026, at Hall C of the Singapore Convention Center. We expect 260 employees and 40 guests, 300 people in total.\n\n1. Check-in opens at 9:30 a.m.\n2. The 60-minute keynote starts at 10:15 a.m.\n3. The afternoon has three product demos:\n   • Voice input at 2 p.m.\n   • Translation at 2:35 p.m.\n   • Summarization at 3:10 p.m.\n4. Dinner runs from 6 p.m. to 8 p.m. with a food ceiling of 65 dollars per person.\n\nWe moved from Hall B to Hall C because C has 24 wheelchair spaces while B has 12, and the route to reception is 35 meters shorter. The contingency fund is 720 thousand dollars, the coordination code is EV-610, and final slide materials are due October 15.",
-        "elapsed_s": 7.35,
-        "tokens": 247,
-        "prompt_tokens": 865,
-        "max_tokens": 1297,
-        "context_tokens": 2162,
+        "text": "The autumn internal event is led by Watanabe, and the keynote speaker is Elena Ruiz. It is scheduled for Friday, October 30, 2026, at Hall C of the Singapore Convention Center. We expect 260 employees and 40 guests, 300 people in total.\n\n1. Check-in opens at 9:30 a.m.\n2. The 60-minute keynote starts at 10:15 a.m.\n3. The afternoon has three product demos:\n   • Voice input at 2 p.m.\n   • Translation at 2:35 p.m.\n   • Summarization at 3:10 p.m.\n4. Dinner runs from 6 p.m. to 8 p.m. with a food ceiling of 65 dollars per person.\n\nWe moved from Hall B to Hall C because C has 24 wheelchair spaces while B has 12, and the route to reception is 35 meters shorter.\n\n1. The contingency fund is 720 thousand dollars.\n2. The coordination code is EV-610.\n3. Final slide materials are due October 15.\n\nThe venue has two entrance lanes, rehearsal is at 4 p.m. the day before the event, and the technical team tests the main hall lighting at 2 p.m.",
+        "elapsed_s": 7.565,
+        "tokens": 292,
+        "prompt_tokens": 901,
+        "max_tokens": 1351,
+        "context_tokens": 2252,
         "quality": {
           "unchanged": false,
           "verbatim_unchanged": false,
           "missing": [],
           "forbidden": [],
-          "input_chars": 766,
-          "output_chars": 785,
-          "length_ratio": 1.0248
+          "input_chars": 911,
+          "output_chars": 937,
+          "length_ratio": 1.0285
         }
       }
     },
     "b-en-08--general--legacy": {
-      "fingerprint": "95163f68eaa5e558",
-      "recorded_at": "2026-11-20T16:05:09+00:00",
+      "fingerprint": "54684efdbc12634c",
+      "recorded_at": "2026-11-20T16:24:53+00:00",
       "result": {
-        "text": "The autumn internal event is led by Watanabe, and the keynote speaker is Elena Ruiz. It is scheduled for Friday, October 30, 2026, at Hall C of the Singapore Convention Center. We expect 260 employees and 40 guests, 300 people in total.\n\n1. Check-in opens at 9:30 a.m.\n2. The 60-minute keynote starts at 10:15 a.m.\n3. The afternoon has three product demos:\n   • Voice input at 2 p.m.\n   • Translation at 2:35 p.m.\n   • Summarization at 3:10 p.m.\n4. Dinner runs from 6 p.m. to 8 p.m. with a food ceiling of 65 dollars per person.\n\nWe moved from Hall B to Hall C because C has 24 wheelchair spaces while B has 12, and the route to reception is 35 meters shorter. The contingency fund is 720 thousand dollars, the coordination code is EV-610, and final slide materials are due October 15.",
-        "elapsed_s": 7.233,
-        "tokens": 247,
-        "prompt_tokens": 865,
+        "text": "The autumn internal event is led by Watanabe, and the keynote speaker is Elena Ruiz. It is scheduled for Friday, October 30, 2026, at Hall C of the Singapore Convention Center. We expect 260 employees and 40 guests, 300 people in total.\n\n1. Check-in opens at 9:30 a.m.\n2. The 60-minute keynote starts at 10:15 a.m.\n3. The afternoon has three product demos:\n   • Voice input at 2 p.m.\n   • Translation at 2:35 p.m.\n   • Summarization at 3:10 p.m.\n4. Dinner runs from 6 p.m. to 8 p.m. with a food ceiling of 65 dollars per person.\n\nWe moved from Hall B to Hall C because C has 24 wheelchair spaces while B has 12, and the route to reception is 35 meters shorter. The contingency fund is 720 thousand dollars, the coordination code is EV-610, and final slide materials are due October 15. The venue has two entrance lanes, rehearsal is at 4 p.m. the day before the event, and the technical team tests the main hall lighting at 2 p.m.",
+        "elapsed_s": 7.23,
+        "tokens": 283,
+        "prompt_tokens": 901,
         "max_tokens": 300,
         "context_tokens": 2048,
         "quality": {
@@ -1691,41 +1691,41 @@
           "verbatim_unchanged": false,
           "missing": [],
           "forbidden": [],
-          "input_chars": 766,
-          "output_chars": 785,
-          "length_ratio": 1.0248
+          "input_chars": 911,
+          "output_chars": 930,
+          "length_ratio": 1.0209
         }
       }
     },
     "b-en-08--herdr--app": {
-      "fingerprint": "eec16caa604210d6",
-      "recorded_at": "2026-11-20T16:05:18+00:00",
+      "fingerprint": "31097e538d21b82d",
+      "recorded_at": "2026-11-20T16:25:02+00:00",
       "result": {
-        "text": "The autumn internal event is led by Watanabe, and the keynote speaker is Elena Ruiz. It is scheduled for Friday, October 30, 2026, at Hall C of the Singapore Convention Center. We expect 260 employees and 40 guests, 300 people in total.\n1. Check-in opens at 9:30 a.m.\n2. The 60-minute keynote starts at 10:15 a.m.\n3. The afternoon has three product demos:\n   • Voice input at 2 p.m.\n   • Translation at 2:35 p.m.\n   • Summarization at 3:10 p.m.\n4. Dinner runs from 6 p.m. to 8 p.m. with a food ceiling of 65 dollars per person.\nWe moved from Hall B to Hall C because C has 24 wheelchair spaces while B has 12, and the route to reception is 35 meters shorter.\n1. The contingency fund is 720 thousand dollars.\n2. The coordination code is EV-610.\n3. Final slide materials are due October 15.",
-        "elapsed_s": 7.702,
-        "tokens": 255,
-        "prompt_tokens": 944,
-        "max_tokens": 1416,
-        "context_tokens": 2360,
+        "text": "The autumn internal event is led by Watanabe, and the keynote speaker is Elena Ruiz. It is scheduled for Friday, October 30, 2026, at Hall C of the Singapore Convention Center. We expect 260 employees and 40 guests, 300 people in total.\n1. Check-in opens at 9:30 a.m.\n2. The 60-minute keynote starts at 10:15 a.m.\n3. The afternoon has three product demos:\n   • Voice input at 2 p.m.\n   • Translation at 2:35 p.m.\n   • Summarization at 3:10 p.m.\n4. Dinner runs from 6 p.m. to 8 p.m. with a food ceiling of 65 dollars per person.\nWe moved from Hall B to Hall C because C has 24 wheelchair spaces while B has 12, and the route to reception is 35 meters shorter.\n1. The contingency fund is 720 thousand dollars.\n2. The coordination code is EV-610.\n3. Final slide materials are due October 15.\nThe venue has two entrance lanes, rehearsal is at 4 p.m. the day before the event, and the technical team tests the main hall lighting at 2 p.m.",
+        "elapsed_s": 7.583,
+        "tokens": 292,
+        "prompt_tokens": 980,
+        "max_tokens": 1470,
+        "context_tokens": 2450,
         "quality": {
           "unchanged": false,
           "verbatim_unchanged": false,
           "missing": [],
           "forbidden": [],
-          "input_chars": 766,
-          "output_chars": 788,
-          "length_ratio": 1.0287
+          "input_chars": 911,
+          "output_chars": 933,
+          "length_ratio": 1.0241
         }
       }
     },
     "b-en-08--herdr--legacy": {
-      "fingerprint": "c5b039da5c15edb7",
-      "recorded_at": "2026-11-20T16:05:26+00:00",
+      "fingerprint": "a0402a0fa5578e1c",
+      "recorded_at": "2026-11-20T16:25:10+00:00",
       "result": {
-        "text": "The autumn internal event is led by Watanabe, and the keynote speaker is Elena Ruiz. It is scheduled for Friday, October 30, 2026, at Hall C of the Singapore Convention Center. We expect 260 employees and 40 guests, 300 people in total. Check-in opens at 9:30 a.m., and the 60-minute keynote starts at 10:15 a.m. The afternoon has three product demos:\n1. Voice input at 2 p.m.\n2. Translation at 2:35 p.m.\n3. Summarization at 3:10 p.m.\nDinner runs from 6 p.m. to 8 p.m. with a food ceiling of 65 dollars per person. We moved from Hall B to Hall C because C has 24 wheelchair spaces while B has 12, and the route to reception is 35 meters shorter. The contingency fund is 720 thousand dollars, the coordination code is EV-610, and final slide materials are due October 15.",
-        "elapsed_s": 7.045,
-        "tokens": 237,
-        "prompt_tokens": 944,
+        "text": "The autumn internal event is led by Watanabe, and the keynote speaker is Elena Ruiz. It is scheduled for Friday, October 30, 2026, at Hall C of the Singapore Convention Center. We expect 260 employees and 40 guests, 300 people in total.\n\n1. Check-in opens at 9:30 a.m.\n2. The 60-minute keynote starts at 10:15 a.m.\n3. The afternoon has three product demos:\n   • Voice input at 2 p.m.\n   • Translation at 2:35 p.m.\n   • Summarization at 3:10 p.m.\n4. Dinner runs from 6 p.m. to 8 p.m. with a food ceiling of 65 dollars per person.\n\nWe moved from Hall B to Hall C because C has 24 wheelchair spaces while B has 12, and the route to reception is 35 meters shorter. The contingency fund is 720 thousand dollars, the coordination code is EV-610, and final slide materials are due October 15. The venue has two entrance lanes, rehearsal is at 4 p.m. the day before the event, and the technical team tests the main hall lighting at 2 p.m.",
+        "elapsed_s": 7.297,
+        "tokens": 283,
+        "prompt_tokens": 980,
         "max_tokens": 300,
         "context_tokens": 2048,
         "quality": {
@@ -1733,41 +1733,41 @@
           "verbatim_unchanged": false,
           "missing": [],
           "forbidden": [],
-          "input_chars": 766,
-          "output_chars": 770,
-          "length_ratio": 1.0052
+          "input_chars": 911,
+          "output_chars": 930,
+          "length_ratio": 1.0209
         }
       }
     },
     "b-en-08--slack--app": {
-      "fingerprint": "36507b68ac89896c",
-      "recorded_at": "2026-11-20T16:05:34+00:00",
+      "fingerprint": "7e8ff7075d4ef048",
+      "recorded_at": "2026-11-20T16:25:19+00:00",
       "result": {
-        "text": "The Autumn Internal Event details:\n• Led by Watanabe with keynote speaker Elena Ruiz\n• Date: Friday, October 30, 2026\n• Location: Hall C, Singapore Convention Center (moved from Hall B for 24 wheelchair spaces and a shorter route to reception)\n• Attendees: 260 employees and 40 guests (300 total)\n• Schedule:\n  1. Check-in: 9:30 a.m.\n  2. Keynote: 10:15 a.m. (60 minutes)\n  3. Afternoon demos: Voice input (2:00 p.m.), Translation (2:35 p.m.), Summarization (3:10 p.m.)\n  4. Dinner: 6:00 p.m. to 8:00 p.m. ($65 per person)\n• Budget: Contingency fund of $720,000\n• Coordination code: EV-610\n• Deadline: Final slide materials due October 15",
-        "elapsed_s": 7.113,
-        "tokens": 234,
-        "prompt_tokens": 938,
-        "max_tokens": 1407,
-        "context_tokens": 2345,
+        "text": "The Autumn Internal Event details:\n• Led by Watanabe with keynote speaker Elena Ruiz\n• Date: Friday, October 30, 2026\n• Location: Hall C, Singapore Convention Center (moved from Hall B for 24 wheelchair spaces and a shorter route to reception)\n• Attendees: 260 employees and 40 guests (300 total)\n• Schedule:\n  1. Check-in: 9:30 a.m.\n  2. Keynote: 10:15 a.m. (60 minutes)\n  3. Afternoon demos: Voice input (2 p.m.), Translation (2:35 p.m.), Summarization (3:10 p.m.)\n  4. Dinner: 6 p.m. to 8 p.m. ($65 per person)\n• Logistics:\n  - Contingency fund: $720,000\n  - Coordination code: EV-610\n  - Final slide materials due: October 15\n  - Venue: Two entrance lanes\n  - Rehearsal: 4 p.m. the day before\n  - Technical test: Main hall lighting at 2 p.m.",
+        "elapsed_s": 7.168,
+        "tokens": 268,
+        "prompt_tokens": 974,
+        "max_tokens": 1461,
+        "context_tokens": 2435,
         "quality": {
           "unchanged": false,
           "verbatim_unchanged": false,
           "missing": [],
           "forbidden": [],
-          "input_chars": 766,
-          "output_chars": 638,
-          "length_ratio": 0.8329
+          "input_chars": 911,
+          "output_chars": 745,
+          "length_ratio": 0.8178
         }
       }
     },
     "b-en-08--slack--legacy": {
-      "fingerprint": "6d050873b8e56b33",
-      "recorded_at": "2026-11-20T16:05:42+00:00",
+      "fingerprint": "112ee02793581a16",
+      "recorded_at": "2026-11-20T16:25:27+00:00",
       "result": {
-        "text": "The autumn internal event is led by Watanabe, with Elena Ruiz as the keynote speaker. It is scheduled for Friday, October 30, 2026, at Hall C of the Singapore Convention Center.\n\n*   **Attendees:** 260 employees and 40 guests (300 total)\n*   **Schedule:**\n    *   Check-in: 9:30 a.m.\n    *   Keynote: 10:15 a.m. (60 minutes)\n    *   Product demos: Voice input at 2 p.m., translation at 2:35 p.m., and summarization at 3:10 p.m.\n    *   Dinner: 6 p.m. to 8 p.m. ($65 per person)\n*   **Venue Change:** Moved from Hall B to Hall C for 24 wheelchair spaces (vs. 12 in B) and a 35-meter shorter route to reception.\n*   **Logistics:** Contingency fund is $720,000; coordination code is EV-610; final slide materials due October 15.",
-        "elapsed_s": 7.441,
-        "tokens": 249,
-        "prompt_tokens": 938,
+        "text": "The autumn internal event is led by Watanabe, with Elena Ruiz as the keynote speaker. It is scheduled for Friday, October 30, 2026, at Hall C of the Singapore Convention Center.\n\n*   **Attendees:** 260 employees and 40 guests (300 total).\n*   **Schedule:**\n    *   Check-in: 9:30 a.m.\n    *   Keynote: 10:15 a.m. (60 minutes)\n    *   Afternoon demos: Voice input at 2 p.m., translation at 2:35 p.m., and summarization at 3:10 p.m.\n    *   Dinner: 6 p.m. to 8 p.m. ($65 per person).\n*   **Venue Details:** Moved from Hall B to Hall C for 24 wheelchair spaces (vs. 12 in B) and a 35-meter shorter route to reception.\n*   **Logistics:**\n    *   Contingency fund: $720,000.\n    *   Coordination code: EV-610.\n    *   Final slide materials due: October 15.\n    *   Rehearsal: 4 p.m. the day before.\n    *   Technical lighting test: 2 p.m.",
+        "elapsed_s": 7.614,
+        "tokens": 295,
+        "prompt_tokens": 974,
         "max_tokens": 300,
         "context_tokens": 2048,
         "quality": {
@@ -1775,9 +1775,9 @@
           "verbatim_unchanged": false,
           "missing": [],
           "forbidden": [],
-          "input_chars": 766,
-          "output_chars": 725,
-          "length_ratio": 0.9465
+          "input_chars": 911,
+          "output_chars": 833,
+          "length_ratio": 0.9144
         }
       }
     },
@@ -3815,6 +3815,512 @@
           "input_chars": 89,
           "output_chars": 74,
           "length_ratio": 0.8315
+        }
+      }
+    },
+    "h-en-control-01--general--app": {
+      "fingerprint": "968a554305b00d84",
+      "recorded_at": "2026-11-20T16:26:30+00:00",
+      "result": {
+        "text": "The draft is ready for review.",
+        "elapsed_s": 1.637,
+        "tokens": 7,
+        "prompt_tokens": 647,
+        "max_tokens": 970,
+        "context_tokens": 1617,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": true,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 30,
+          "output_chars": 30,
+          "length_ratio": 1.0
+        }
+      }
+    },
+    "h-en-control-02--general--app": {
+      "fingerprint": "8363e5eb55e47220",
+      "recorded_at": "2026-11-20T16:26:33+00:00",
+      "result": {
+        "text": "We can send the notes tomorrow.",
+        "elapsed_s": 1.62,
+        "tokens": 7,
+        "prompt_tokens": 647,
+        "max_tokens": 970,
+        "context_tokens": 1617,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": true,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 31,
+          "output_chars": 31,
+          "length_ratio": 1.0
+        }
+      }
+    },
+    "h-en-filler-01--general--app": {
+      "fingerprint": "402196963361d70c",
+      "recorded_at": "2026-11-20T16:26:12+00:00",
+      "result": {
+        "text": "Well, the draft is ready for review.",
+        "elapsed_s": 1.809,
+        "tokens": 9,
+        "prompt_tokens": 649,
+        "max_tokens": 973,
+        "context_tokens": 1622,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": true,
+          "missing": [],
+          "forbidden": [
+            "well"
+          ],
+          "input_chars": 36,
+          "output_chars": 36,
+          "length_ratio": 1.0
+        }
+      }
+    },
+    "h-en-filler-02--general--app": {
+      "fingerprint": "3436d11989e6cfa0",
+      "recorded_at": "2026-11-20T16:26:15+00:00",
+      "result": {
+        "text": "We can send the notes tomorrow.",
+        "elapsed_s": 1.732,
+        "tokens": 7,
+        "prompt_tokens": 649,
+        "max_tokens": 973,
+        "context_tokens": 1622,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 35,
+          "output_chars": 31,
+          "length_ratio": 0.8857
+        }
+      }
+    },
+    "h-en-filler-03--general--app": {
+      "fingerprint": "a59c50b91ff993c4",
+      "recorded_at": "2026-11-20T16:26:18+00:00",
+      "result": {
+        "text": "The report is ready for approval.",
+        "elapsed_s": 1.708,
+        "tokens": 7,
+        "prompt_tokens": 650,
+        "max_tokens": 975,
+        "context_tokens": 1625,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 38,
+          "output_chars": 33,
+          "length_ratio": 0.8684
+        }
+      }
+    },
+    "h-en-filler-04--general--app": {
+      "fingerprint": "41b699e3c091fcce",
+      "recorded_at": "2026-11-20T16:26:21+00:00",
+      "result": {
+        "text": "Maya will verify the release notes.",
+        "elapsed_s": 1.726,
+        "tokens": 8,
+        "prompt_tokens": 651,
+        "max_tokens": 976,
+        "context_tokens": 1627,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 42,
+          "output_chars": 35,
+          "length_ratio": 0.8333
+        }
+      }
+    },
+    "h-en-filler-05--general--app": {
+      "fingerprint": "c9f282415014df25",
+      "recorded_at": "2026-11-20T16:26:24+00:00",
+      "result": {
+        "text": "The review is scheduled for Tuesday.",
+        "elapsed_s": 1.597,
+        "tokens": 7,
+        "prompt_tokens": 649,
+        "max_tokens": 973,
+        "context_tokens": 1622,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 40,
+          "output_chars": 36,
+          "length_ratio": 0.9
+        }
+      }
+    },
+    "h-en-filler-06--general--app": {
+      "fingerprint": "edeaae5a9e89a809",
+      "recorded_at": "2026-11-20T16:26:27+00:00",
+      "result": {
+        "text": "Send the signed copy by Friday.",
+        "elapsed_s": 1.706,
+        "tokens": 7,
+        "prompt_tokens": 650,
+        "max_tokens": 975,
+        "context_tokens": 1625,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 41,
+          "output_chars": 31,
+          "length_ratio": 0.7561
+        }
+      }
+    },
+    "h-ja-control-01--general--app": {
+      "fingerprint": "5f92b3f4fff46a25",
+      "recorded_at": "2026-11-20T16:25:42+00:00",
+      "result": {
+        "text": "明日は午後二時に出発します。",
+        "elapsed_s": 1.061,
+        "tokens": 9,
+        "prompt_tokens": 656,
+        "max_tokens": 984,
+        "context_tokens": 1640,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": true,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 14,
+          "output_chars": 14,
+          "length_ratio": 1.0
+        }
+      }
+    },
+    "h-ja-control-02--general--app": {
+      "fingerprint": "db0da5c246a1b282",
+      "recorded_at": "2026-11-20T16:25:45+00:00",
+      "result": {
+        "text": "予約番号をメールで送ります。",
+        "elapsed_s": 1.334,
+        "tokens": 8,
+        "prompt_tokens": 655,
+        "max_tokens": 982,
+        "context_tokens": 1637,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": true,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 14,
+          "output_chars": 14,
+          "length_ratio": 1.0
+        }
+      }
+    },
+    "h-ja-filler-01--general--app": {
+      "fingerprint": "38032d50eb3d8ad4",
+      "recorded_at": "2026-11-20T16:25:29+00:00",
+      "result": {
+        "text": "明日は午後二時に出発します。",
+        "elapsed_s": 0.99,
+        "tokens": 9,
+        "prompt_tokens": 658,
+        "max_tokens": 987,
+        "context_tokens": 1645,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 17,
+          "output_chars": 14,
+          "length_ratio": 0.8235
+        }
+      }
+    },
+    "h-ja-filler-02--general--app": {
+      "fingerprint": "6fcf6adfca546644",
+      "recorded_at": "2026-11-20T16:25:31+00:00",
+      "result": {
+        "text": "予約番号をメールで送ります。",
+        "elapsed_s": 0.957,
+        "tokens": 8,
+        "prompt_tokens": 658,
+        "max_tokens": 987,
+        "context_tokens": 1645,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 18,
+          "output_chars": 14,
+          "length_ratio": 0.7778
+        }
+      }
+    },
+    "h-ja-filler-03--general--app": {
+      "fingerprint": "b753503a967cb3de",
+      "recorded_at": "2026-11-20T16:25:33+00:00",
+      "result": {
+        "text": "予定は水曜のままです。",
+        "elapsed_s": 0.925,
+        "tokens": 7,
+        "prompt_tokens": 657,
+        "max_tokens": 985,
+        "context_tokens": 1642,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 15,
+          "output_chars": 11,
+          "length_ratio": 0.7333
+        }
+      }
+    },
+    "h-ja-filler-04--general--app": {
+      "fingerprint": "f8e087989c6f0389",
+      "recorded_at": "2026-11-20T16:25:35+00:00",
+      "result": {
+        "text": "田中さんに資料を渡してください。",
+        "elapsed_s": 0.943,
+        "tokens": 8,
+        "prompt_tokens": 659,
+        "max_tokens": 988,
+        "context_tokens": 1647,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 20,
+          "output_chars": 16,
+          "length_ratio": 0.8
+        }
+      }
+    },
+    "h-ja-filler-05--general--app": {
+      "fingerprint": "5abbbf278c4b8f4a",
+      "recorded_at": "2026-11-20T16:25:38+00:00",
+      "result": {
+        "text": "来週の火曜に確認します。",
+        "elapsed_s": 0.995,
+        "tokens": 8,
+        "prompt_tokens": 657,
+        "max_tokens": 985,
+        "context_tokens": 1642,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 15,
+          "output_chars": 12,
+          "length_ratio": 0.8
+        }
+      }
+    },
+    "h-ja-filler-06--general--app": {
+      "fingerprint": "c917fafb39c6503c",
+      "recorded_at": "2026-11-20T16:25:40+00:00",
+      "result": {
+        "text": "資料は昨日送りました。",
+        "elapsed_s": 0.907,
+        "tokens": 6,
+        "prompt_tokens": 657,
+        "max_tokens": 985,
+        "context_tokens": 1642,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 15,
+          "output_chars": 11,
+          "length_ratio": 0.7333
+        }
+      }
+    },
+    "h-zh-control-01--general--app": {
+      "fingerprint": "ffe5609d78e6ecdb",
+      "recorded_at": "2026-11-20T16:26:06+00:00",
+      "result": {
+        "text": "下午三点开始评审。",
+        "elapsed_s": 1.614,
+        "tokens": 5,
+        "prompt_tokens": 612,
+        "max_tokens": 918,
+        "context_tokens": 1530,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": true,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 9,
+          "output_chars": 9,
+          "length_ratio": 1.0
+        }
+      }
+    },
+    "h-zh-control-02--general--app": {
+      "fingerprint": "a48aa031e24b956b",
+      "recorded_at": "2026-11-20T16:26:09+00:00",
+      "result": {
+        "text": "合同已经发给李芳。",
+        "elapsed_s": 1.636,
+        "tokens": 6,
+        "prompt_tokens": 613,
+        "max_tokens": 919,
+        "context_tokens": 1532,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": true,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 9,
+          "output_chars": 9,
+          "length_ratio": 1.0
+        }
+      }
+    },
+    "h-zh-filler-01--general--app": {
+      "fingerprint": "753e42445924dde5",
+      "recorded_at": "2026-11-20T16:25:48+00:00",
+      "result": {
+        "text": "下午三点开始评审。",
+        "elapsed_s": 1.417,
+        "tokens": 5,
+        "prompt_tokens": 614,
+        "max_tokens": 921,
+        "context_tokens": 1535,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 11,
+          "output_chars": 9,
+          "length_ratio": 0.8182
+        }
+      }
+    },
+    "h-zh-filler-02--general--app": {
+      "fingerprint": "24af28887c60a9d4",
+      "recorded_at": "2026-11-20T16:25:51+00:00",
+      "result": {
+        "text": "合同已经发给李芳。",
+        "elapsed_s": 1.655,
+        "tokens": 6,
+        "prompt_tokens": 615,
+        "max_tokens": 922,
+        "context_tokens": 1537,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 13,
+          "output_chars": 9,
+          "length_ratio": 0.6923
+        }
+      }
+    },
+    "h-zh-filler-03--general--app": {
+      "fingerprint": "451e7daeefceaae1",
+      "recorded_at": "2026-11-20T16:25:54+00:00",
+      "result": {
+        "text": "明天我们一起检查预算。",
+        "elapsed_s": 1.604,
+        "tokens": 5,
+        "prompt_tokens": 615,
+        "max_tokens": 922,
+        "context_tokens": 1537,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 14,
+          "output_chars": 11,
+          "length_ratio": 0.7857
+        }
+      }
+    },
+    "h-zh-filler-04--general--app": {
+      "fingerprint": "e7939c2a8ec349a1",
+      "recorded_at": "2026-11-20T16:25:57+00:00",
+      "result": {
+        "text": "会议室已经预订好了。",
+        "elapsed_s": 1.613,
+        "tokens": 5,
+        "prompt_tokens": 615,
+        "max_tokens": 922,
+        "context_tokens": 1537,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 13,
+          "output_chars": 10,
+          "length_ratio": 0.7692
+        }
+      }
+    },
+    "h-zh-filler-05--general--app": {
+      "fingerprint": "daefeec1739f5ddc",
+      "recorded_at": "2026-11-20T16:26:00+00:00",
+      "result": {
+        "text": "材料已经上传了。",
+        "elapsed_s": 1.581,
+        "tokens": 5,
+        "prompt_tokens": 614,
+        "max_tokens": 921,
+        "context_tokens": 1535,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 10,
+          "output_chars": 8,
+          "length_ratio": 0.8
+        }
+      }
+    },
+    "h-zh-filler-06--general--app": {
+      "fingerprint": "f2d0d1aa2c019de3",
+      "recorded_at": "2026-11-20T16:26:03+00:00",
+      "result": {
+        "text": "周五前发最终版。",
+        "elapsed_s": 1.613,
+        "tokens": 6,
+        "prompt_tokens": 615,
+        "max_tokens": 922,
+        "context_tokens": 1537,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 10,
+          "output_chars": 8,
+          "length_ratio": 0.8
         }
       }
     },

@@ -52,9 +52,13 @@ def test_quality_cases_cover_balanced_groups_targets_and_lengths() -> None:
     sources = {case.source_id: case for case in expanded}
     pattern_a = [case for case in sources.values() if case.group == "pattern-a"]
     pattern_b = [case for case in sources.values() if case.group == "pattern-b"]
+    held_out = [case for case in sources.values() if case.group == "held-out"]
     assert len(pattern_a) == 36
     assert len(pattern_b) == 24
-    assert all(len(case.text) < 100 for case in pattern_a)
+    assert len(held_out) == 24
+    assert all(len(case.text) < 100 for case in [*pattern_a, *held_out])
+    for case in held_out:
+        assert case.unchanged if case.kind == "control" else case.forbidden
     assert all(300 <= len(case.text) <= 1500 for case in pattern_b)
     assert {case.target for case in expanded if case.group == "pattern-b"} == {
         "general",

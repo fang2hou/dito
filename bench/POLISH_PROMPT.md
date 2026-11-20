@@ -188,6 +188,51 @@ The reported under-half Pattern B does **not reproduce** in these synthetic inpu
 
 Pattern A reproduces as a small but real no-op problem (2 filler no-ops of 18 dirty cases) plus one retained abandoned amount. Pattern B does not reproduce as over-shortening or fact loss: the measured minimum ratio was 0.763 and all 144 target/profile outputs retained their mechanical fact list. No prompt, sampling, or app-code change is made by this benchmark.
 
+## Experiment: filler-only demonstrations for short clauses
+
+The first cause above was tested directly: three extra demonstration turns, one per language type, each a short fenced clause whose only defect is a filler, answered with the same clause without it. The fillers are a leading Chinese hesitation, `ええと`, and `So`; none is one of the two fillers that fail in the baseline, and no demonstration reuses a bench case. The exact turns are in [results/exploration/apple-m5-pro/short-filler-first.json](results/exploration/apple-m5-pro/short-filler-first.json). Instructions, sampling and budgets were unchanged.
+
+To guard against fitting the test, a held-out set was added to `data/polish_cases.json` before the prompt changed: 18 short inputs (6 per language) whose only defect is a filler, leading, mid-sentence or trailing, using a wider range of fillers than Pattern A, plus 6 clean controls. Their expectations follow Pattern A: a `forbidden` filler for dirty cases, `unchanged` for controls. The shipped prompt's results for them are in the regular result store.
+
+Two orders were measured with the `app` profile:
+
+- **paired**: each filler-only turn right after the existing turn of its language;
+- **short first**: the three filler-only turns before the three existing ones.
+
+The prompt-escape suite ran with the notebook's own builder, ChatML rendering and scorer (`notebooks/prompt_escape.py`), the 30-term wordbook, temperature 0.2 and seeds 1 to 3, for the shipped prompt and the short-first order. Its records are in [results/exploration/apple-m5-pro/short-filler-escape.json](results/exploration/apple-m5-pro/short-filler-escape.json); the paired order was rejected on Pattern B before this step.
+
+| Measure | Shipped | Paired | Short first |
+| --- | ---: | ---: | ---: |
+| Pattern A: dirty returned verbatim | 2 of 18 | 1 of 18 | 2 of 18 |
+| Pattern A: dirty with the forbidden token left | 3 of 18 | 2 of 18 | 3 of 18 |
+| Pattern A: controls changed | 0 of 18 | 0 of 18 | 0 of 18 |
+| Held-out: dirty returned verbatim | 1 of 18 | 0 of 18 | 0 of 18 |
+| Held-out: dirty with the forbidden token left | 1 of 18 | 0 of 18 | 0 of 18 |
+| Held-out: controls changed | 0 of 6 | 0 of 6 | 0 of 6 |
+| Pattern B General: losing a listed fact | 0 of 24 | 0 of 24 | 0 of 24 |
+| Pattern B Herdr: losing a listed fact | 0 of 24 | 1 of 24 | 0 of 24 |
+| Pattern B Slack: losing a listed fact (mechanical) | 0 of 24 | 1 of 24 | 1 of 24 |
+| Escape, language and unseen | 52 of 54 | not run | 54 of 54 |
+| Correction | 18 of 18 | not run | 18 of 18 |
+| Hotword | 9 of 12 | not run | 9 of 12 |
+| Fixed prompt prefix, Japanese, Chinese, English (tokens) | 631, 591, 624 | 721, 681, 714 | 721, 681, 714 |
+| Mean latency per short case | 0.899 s | not measured | 0.953 s |
+
+Notes on the table:
+
+- The verbatim Pattern A cases on the shipped prompt are the leading Chinese demonstrative filler (`a-zh-filler-02`) and `You know, the review starts at three.`; the held-out one is `Well, the draft is ready for review.` Short first fixes only the held-out case. Paired also fixes `a-zh-filler-02`. Neither order fixes `You know`.
+- The paired order dropped a real fact: `b-zh-02` under Herdr lost the contract salary ceiling. Its Slack flag (`b-en-03`) is a formatting variant: `18 degrees` came back as `18°C`.
+- The short-first Slack flag is `b-en-08`, where `24 wheelchair` came back as "better wheelchair access (24 vs. 12 spaces)". The fact is kept; this was counted as retained by a manual call on one paraphrase, as with the `9:30` and `2%` variants above. The scorer was not changed.
+- The Japanese amount correction (`a-ja-correction-02`) kept `三百万円ではなく` under all three prompts; it was not a target here.
+- Latency was measured separately, with both prompts interleaved case by case over the 60 short cases in one process, because another bench process shared the GPU during the main runs and doubled their latencies. The prefix grows by 90 tokens in every language.
+- The three verbatim cases on the shipped prompt come back verbatim at temperature 0 as well as at 0.2 (same seed and budget), so the no-op does not depend on sampling temperature.
+
+### Conclusion
+
+By the letter, the short-first order met the acceptance criteria: 3 to 2 dirty verbatim cases in total, 4 to 3 forbidden tokens left, no control changed, no Pattern B fact lost after the manual call, and no more escapes. It was **not shipped**. The two Pattern A cases it was built for are unchanged; the whole gain is one held-out case and one forbidden token, which is within what any prompt edit moves under deterministic sampling. The paired order showed that these demonstrations can cost a fact in a long input, and the extra turns add 90 prompt tokens to every dictation. The filler-only demonstrations do not fix the two verbatim cases, and the app's prompt, its bench mirror and ADR-0012 stay as they are.
+
+A better next experiment: both persistent failures open with words that are also content (the Chinese filler is also the demonstrative "that", and `You know` is also a verb phrase), unlike the plain hesitations of the demonstrations and most of the held-out set. A demonstration whose filler is a clause-initial word that could be read as content would test whether ambiguity, rather than shortness, causes the no-op.
+
 
 ## Rerun
 
