@@ -15,8 +15,8 @@ use super::scope::{ScopeHandle, motion_scope};
 use super::select_badge::{SelectBadge, select_badge};
 use super::tween::{RING_MS, count_flips, tweened};
 use super::typography::text;
-use crate::theme::Palette;
 use crate::ui::Ic;
+use crate::ui::Palette;
 
 pub struct SelectItem {
     pub label: SharedString,

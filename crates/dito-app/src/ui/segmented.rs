@@ -10,7 +10,7 @@ use super::scope::{ScopeHandle, motion_scope};
 use super::tooltip::{tip_above, tip_label};
 use super::tween::tweened_at;
 use super::typography::{self, text_width};
-use crate::theme::Palette;
+use crate::ui::Palette;
 
 const SEG_PAD: f32 = 3.;
 const SEG_GAP: f32 = 2.;

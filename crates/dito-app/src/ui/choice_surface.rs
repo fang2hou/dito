@@ -6,7 +6,7 @@ use gpui_kit::*;
 use super::hover::{hover_fill_if, hover_tracker};
 use super::inputs::with_ring;
 use super::primitives::hex_alpha;
-use crate::theme::Palette;
+use crate::ui::Palette;
 
 const RADIUS: f32 = 16.;
 

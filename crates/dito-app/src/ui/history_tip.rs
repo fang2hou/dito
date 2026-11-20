@@ -6,8 +6,8 @@ use super::scope::motion_scope;
 use super::tip_bubble::TIP_BUBBLE_H;
 use super::tween::tweened_at;
 use super::typography::{text, text_width};
-use crate::theme::Palette;
 use crate::ui::Ic;
+use crate::ui::Palette;
 
 /// Passive, so it never steals a row click.
 pub fn history_tip(

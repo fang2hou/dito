@@ -1,7 +1,7 @@
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
-use crate::theme::Palette;
+use crate::ui::Palette;
 
 pub fn progress_bar(p: &Palette, fraction: f32) -> Div {
     div()

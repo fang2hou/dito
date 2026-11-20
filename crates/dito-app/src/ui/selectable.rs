@@ -6,7 +6,7 @@ use gpui_kit::*;
 
 use super::primitives::hex_alpha;
 use super::typography::family_for;
-use crate::theme::Palette;
+use crate::ui::Palette;
 
 /// The window must be rooted in `Root`, which paints the selection and handles the copy.
 pub fn selectable_text(

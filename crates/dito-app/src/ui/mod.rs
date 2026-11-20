@@ -23,6 +23,7 @@ mod menu_panel;
 mod method_label;
 mod modal;
 mod motion;
+mod palette;
 mod params;
 mod plate;
 mod popup_menu;
@@ -81,13 +82,14 @@ pub use inputs::{
 };
 pub use layout::{
     StatusTone, card, card_segment, drag_area, group, page_title, row, row_described, source_label, status_chip,
-    status_tag, tag,
+    status_tag, tinted_tag,
 };
 pub use menu_button::{menu_button, menu_button_on};
 pub use method_label::{MethodKind, MethodSize, method_label};
 pub use modal::modal_layer;
 pub(crate) use motion::install_reduce_motion_source;
 pub use motion::{Motion, SpringCurve, ease, lerp};
+pub use palette::{Palette, hex, hud_color};
 pub use params::{ParamField, parameter_block};
 pub use plate::{GLASS_MS, coverage, plate_state};
 pub use popup_menu::{AddEntry, MenuItem, MenuTone, add_menu, popup_menu, popup_menu_grouped};

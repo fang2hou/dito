@@ -5,7 +5,7 @@ use gpui_kit::*;
 
 use super::ConfigTile;
 use super::geometry::TILE_H;
-use crate::theme::Palette;
+use crate::ui::Palette;
 use crate::ui::{hex_alpha, hover_fill_if, hover_tracker, radio, ring_overlay, text, transparent};
 
 /// Hovers like the choice tiles of the Models page. `hover` turns the fill off while another tile is dragged.

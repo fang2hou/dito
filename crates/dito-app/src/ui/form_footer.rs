@@ -7,8 +7,8 @@ use gpui_kit::*;
 use super::button::{BtnKind, BtnSize, CircleSize, button, disabled_button, disabled_icon_button, icon_button_with};
 use super::callbacks::Cb;
 use super::tooltip::{tip_above, tip_label};
-use crate::theme::Palette;
 use crate::ui::Ic;
+use crate::ui::Palette;
 
 pub struct FooterTrash {
     pub id: &'static str,

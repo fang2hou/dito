@@ -5,8 +5,8 @@ use super::callbacks::{Cb, click_cb};
 use super::hover::{hover_fill, hover_tracker};
 use super::primitives::icon;
 use super::typography;
-use crate::theme::Palette;
 use crate::ui::Ic;
+use crate::ui::Palette;
 
 pub const CONTROL_H: f32 = 36.0;
 

@@ -9,7 +9,7 @@ use gpui_kit::*;
 use super::button::CircleSize;
 use super::copy_button::ghost_copy_button;
 use super::typography::text;
-use crate::theme::Palette;
+use crate::ui::Palette;
 
 const HEADER_H: f32 = 32.;
 const PAD_X: f32 = 14.;

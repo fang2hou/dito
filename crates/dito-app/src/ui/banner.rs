@@ -5,8 +5,8 @@ use super::button::{BtnKind, button};
 use super::callbacks::Cb;
 use super::primitives::{hex_alpha, icon};
 use super::typography::text;
-use crate::theme::Palette;
 use crate::ui::Ic;
+use crate::ui::Palette;
 
 pub struct BannerAction {
     pub id: ElementId,

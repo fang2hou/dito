@@ -6,8 +6,8 @@ use super::callbacks::Cb;
 use super::menu_panel::{float, menu_label, menu_panel, menu_row, menu_separator};
 use super::primitives::icon;
 use super::typography::text;
-use crate::theme::Palette;
 use crate::ui::Ic;
+use crate::ui::Palette;
 
 /// For menus outside Local Models.
 #[derive(Clone, Copy, PartialEq, Eq, Default)]

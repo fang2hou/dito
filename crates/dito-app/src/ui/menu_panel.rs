@@ -9,7 +9,7 @@ use super::motion::ease;
 use super::scope::motion_scope;
 use super::tween::RING_MS;
 use super::typography::text;
-use crate::theme::Palette;
+use crate::ui::Palette;
 
 /// Closes itself on any press outside it.
 pub fn menu_panel(id: ElementId, p: &Palette, on_close: Cb) -> Stateful<Div> {

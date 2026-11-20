@@ -7,7 +7,7 @@ use std::{cell::RefCell, collections::HashMap, fmt::Write, sync::Arc};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
-use crate::theme::Palette;
+use crate::ui::Palette;
 
 const PAD: f32 = 32.;
 const FONT_SIZE: f32 = 150.;

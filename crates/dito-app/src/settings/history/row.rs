@@ -128,13 +128,29 @@ impl HistoryPage {
         let p = &c.p;
         let id = e.id;
         let RowParts { mut meta, mut body, mut actions } = parts;
-        meta = meta.child(ui::tag(p, c.t(Tr::HistoryCommand), Tint::Command));
+        meta = meta.child({
+            let (bg, fg) = p.on_tint(Tint::Command);
+            ui::tinted_tag(c.t(Tr::HistoryCommand), bg, fg)
+        });
         if let Some(tool) = e.command_tool {
-            meta = meta.child(ui::tag(p, intent_label(c.lang, tool), Tint::Neutral));
+            meta = meta.child({
+                let (bg, fg) = p.on_tint(Tint::Neutral);
+                ui::tinted_tag(intent_label(c.lang, tool), bg, fg)
+            });
         }
         match e.command_outcome {
-            Some(CommandOutcome::Failed) => meta = meta.child(ui::tag(p, c.t(Tr::ModelsFailed), Tint::Danger)),
-            Some(CommandOutcome::Cancelled) => meta = meta.child(ui::tag(p, c.t(Tr::ModelsCancel), Tint::Warning)),
+            Some(CommandOutcome::Failed) => {
+                meta = meta.child({
+                    let (bg, fg) = p.on_tint(Tint::Danger);
+                    ui::tinted_tag(c.t(Tr::ModelsFailed), bg, fg)
+                })
+            }
+            Some(CommandOutcome::Cancelled) => {
+                meta = meta.child({
+                    let (bg, fg) = p.on_tint(Tint::Warning);
+                    ui::tinted_tag(c.t(Tr::ModelsCancel), bg, fg)
+                })
+            }
             _ => {}
         }
         match (&e.result, &e.error) {
@@ -171,7 +187,10 @@ impl HistoryPage {
         let p = &c.p;
         let id = e.id;
         let RowParts { mut meta, mut body, mut actions } = parts;
-        meta = meta.child(ui::tag(p, e.target.clone(), Tint::Blue));
+        meta = meta.child({
+            let (bg, fg) = p.on_tint(Tint::Blue);
+            ui::tinted_tag(e.target.clone(), bg, fg)
+        });
         body = body.child(text(e.final_text.clone(), 14., FontWeight::NORMAL, p.text).line_height(relative(1.6)));
         if expandable(e) {
             let lines = vec![(c.t(Tr::HistoryOriginal), e.raw.clone())];
@@ -190,12 +209,12 @@ impl HistoryPage {
     fn cancelled_parts(&self, c: &Ctx, cx: &mut Context<Self>, e: &HistoryRow, parts: RowParts) -> RowParts {
         let p = &c.p;
         let RowParts { mut meta, mut body, mut actions } = parts;
-        meta = meta.child(ui::tag(p, c.t(Tr::ModelsCancel), Tint::Warning)).child(text(
-            e.duration.clone(),
-            12.,
-            FontWeight::NORMAL,
-            p.muted,
-        ));
+        meta = meta
+            .child({
+                let (bg, fg) = p.on_tint(Tint::Warning);
+                ui::tinted_tag(c.t(Tr::ModelsCancel), bg, fg)
+            })
+            .child(text(e.duration.clone(), 12., FontWeight::NORMAL, p.muted));
         body = body.child(text(c.t(Tr::HistoryCancelled), 14., FontWeight::NORMAL, p.muted));
         actions = actions.child(self.retry_button(c, cx, e.id, c.t(Tr::HistoryTranscribeAgain), Ic::Mic));
         RowParts { meta, body, actions }
@@ -204,7 +223,10 @@ impl HistoryPage {
     fn failed_parts(&self, c: &Ctx, cx: &mut Context<Self>, e: &HistoryRow, parts: RowParts) -> RowParts {
         let p = &c.p;
         let RowParts { mut meta, mut body, mut actions } = parts;
-        meta = meta.child(ui::tag(p, c.t(Tr::ModelsFailed), Tint::Danger));
+        meta = meta.child({
+            let (bg, fg) = p.on_tint(Tint::Danger);
+            ui::tinted_tag(c.t(Tr::ModelsFailed), bg, fg)
+        });
         body = body.child(text(e.error.clone().unwrap_or_default(), 14., FontWeight::NORMAL, p.muted));
         actions = actions.child(self.retry_button(c, cx, e.id, c.t(Tr::HistoryRetry), Ic::Refresh));
         RowParts { meta, body, actions }

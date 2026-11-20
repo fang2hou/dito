@@ -4,7 +4,7 @@ use std::sync::Arc;
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
-use crate::theme::Palette;
+use crate::ui::Palette;
 
 pub fn is_cjk(s: &str) -> bool {
     s.chars().any(|c| {

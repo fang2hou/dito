@@ -4,8 +4,7 @@ use gpui_kit::*;
 use super::button::CONTROL_H;
 use super::primitives::{icon, white};
 use super::typography::text;
-use crate::theme::{Palette, Tint};
-use crate::ui::Ic;
+use crate::ui::{Ic, Palette};
 
 pub fn card(p: &Palette) -> Div {
     card_segment(p, true, true)
@@ -106,8 +105,7 @@ pub fn source_label(p: &Palette, local: bool, label: impl Into<SharedString>) ->
         .child(text(label, 12., FontWeight::MEDIUM, p.muted).line_height(px(18.)))
 }
 
-pub fn tag(p: &Palette, label: impl Into<SharedString>, tint: Tint) -> Div {
-    let (bg, fg) = p.on_tint(tint);
+pub fn tinted_tag(label: impl Into<SharedString>, bg: Hsla, fg: Hsla) -> Div {
     div()
         .px(px(8.))
         .py(px(2.))

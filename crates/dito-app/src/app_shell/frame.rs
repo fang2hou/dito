@@ -46,8 +46,8 @@ fn page_column(title: Option<&'static str>, page: impl IntoElement, p: Palette) 
     let column = div().flex_1().h_full().relative().overflow_hidden();
     let Some(title) = title else { return column.child(page) };
     column
-        .child(ui::prepare_card_backdrop(title, p))
-        .child(ui::page_wordmark(title, p))
+        .child(ui::prepare_card_backdrop(title, p.ui))
+        .child(ui::page_wordmark(title, p.ui))
         .child(page)
         // Scroll still passes through, and content never enters these zones, so nothing is blocked.
         .child(ui::drag_area("gutter-left").absolute().top_0().left_0().h_full().w(px(56.)).block_mouse_except_scroll())

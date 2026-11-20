@@ -6,7 +6,7 @@ use gpui_kit::*;
 
 use super::hover::HOVER_MS;
 use super::tween::tweened;
-use crate::theme::Palette;
+use crate::ui::Palette;
 
 const THUMB_W: f32 = 4.;
 const THUMB_GAP: f32 = 6.;

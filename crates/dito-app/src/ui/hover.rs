@@ -8,7 +8,7 @@ use super::primitives::mix;
 use super::scope::{self, ScopeHandle};
 use super::tween::{self, tweened};
 use super::typography::text;
-use crate::theme::Palette;
+use crate::ui::Palette;
 
 pub const HOVER_MS: u64 = 160;
 

@@ -12,7 +12,7 @@ use super::primitives::white;
 use super::scope::{self, ScopeHandle, motion_scope};
 use super::tip_bubble::{TIP_BUBBLE_H, TipColors, paint_shared, tip_bubble};
 use super::tween::tweened_at;
-use crate::theme::Palette;
+use crate::ui::Palette;
 
 use motion::{Geometry, TooltipMotion};
 
