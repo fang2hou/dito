@@ -234,6 +234,7 @@ impl Actor {
             Msg::RecordingLimit(g) if g == self.epoch && matches!(self.state, State::Listening { .. }) => {
                 self.finish_listening()
             }
+            Msg::SelectionCaptured(g, selection) if g == self.epoch => self.selection_captured(selection),
             Msg::RevealCapsule(g) if g == self.epoch => self.reveal_capsule(),
             _ => {}
         }
@@ -337,7 +338,7 @@ impl Actor {
         self.epoch += 1;
         let kind = match start {
             Start::Dictation => RunKind::Dictation,
-            Start::Command { .. } => RunKind::Command,
+            Start::Command => RunKind::Command,
         };
         self.run_kind.send_replace(kind);
         let id = RunId::new(if kind == RunKind::Command { 'c' } else { 'd' });
@@ -345,15 +346,19 @@ impl Actor {
         let span = self.span.clone();
         let _entered = span.enter();
         trace_log!(kind = ?kind, mode = ?mode, hold_capsule, "shortcut down, run started");
-        if let Start::Command { selection } = &start {
-            commands::trace_selection(selection.as_deref(), None);
-        }
         if let Err(detail) = self.deps.env.recorder.start() {
             trace_log!(error = %detail, "recording did not start");
             self.show_error(ErrorKind::Mic, detail.to_string(), ErrorAction::OpenSettings, None);
             return;
         }
         trace_log!("recording started");
+        let command_selection = match start {
+            Start::Command => Some(self.deps.env.selection.capture()),
+            Start::Dictation => None,
+        };
+        if let Some(selection) = &command_selection {
+            commands::trace_selection(selection.as_deref(), None);
+        }
         self.deps.env.focus_warmer.warm();
         let warm_up = self.warm_up_engines();
         let mute = (self.deps.config.get().general.music_mute == MusicMuteMode::Auto)
@@ -362,10 +367,7 @@ impl Actor {
         // The app's name is recorded with every entry; the history resolves the label against the current prompts
         // list at display time, so removing an app reads Other and adding it back restores its name.
         let meta = Meta { target: self.deps.config.get().prompts.for_application(&app.bundle_id), app, ts: now() };
-        let command = match start {
-            Start::Dictation => None,
-            Start::Command { selection } => Some(CommandRun::new(selection, &meta)),
-        };
+        let command = command_selection.map(|selection| CommandRun::new(selection, &meta));
         let started = Instant::now();
         let held_capsule = hold_capsule.then_some(mode);
         self.state = State::Listening { meta, mute, command, pressed: started, held_capsule, _warm_up: warm_up };

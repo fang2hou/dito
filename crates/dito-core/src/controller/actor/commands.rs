@@ -29,12 +29,14 @@ use crate::trace_log;
 
 pub(super) enum Start {
     Dictation,
-    Command { selection: Option<Arc<dyn CapturedSelection>> },
+    Command,
 }
 
 pub(super) struct CommandRun {
     /// Captured at shortcut down and refreshed when recording ends, unless the second read fails.
     selection: Option<Arc<dyn CapturedSelection>>,
+    selection_capture_pending: bool,
+    instruction_ready: bool,
     /// Frontmost app target captured at shortcut down.
     target: AppTarget,
     /// Empty when started from the polish button.
@@ -68,7 +70,14 @@ struct Record {
 impl CommandRun {
     pub(super) fn new(selection: Option<Arc<dyn CapturedSelection>>, meta: &Meta) -> Self {
         let record = Record { ts: meta.ts, app: meta.app.name.clone(), ..Record::default() };
-        Self { selection, target: meta.target.clone(), instruction: String::new(), record }
+        Self {
+            selection,
+            selection_capture_pending: false,
+            instruction_ready: false,
+            target: meta.target.clone(),
+            instruction: String::new(),
+            record,
+        }
     }
 
     /// The captured selection is also there when only the field's text was read; then nothing is selected.
@@ -234,11 +243,9 @@ pub(super) fn trace_selection(selection: Option<&dyn CapturedSelection>, replace
 }
 
 impl Actor {
-    /// The selection is read before the microphone starts, so the user's first words cannot change it. It is read
-    /// again when the recording ends.
+    /// The microphone starts before the selection is read, so its Copy delays cannot clip the user's first words.
     pub(super) fn start_command(&mut self, mode: RecordMode) {
-        let selection = self.deps.env.selection.capture();
-        self.start_listening(mode, Start::Command { selection });
+        self.start_listening(mode, Start::Command);
     }
 
     /// The command shortcut completed the press that started this dictation: the recording, its run and its HUD go on
@@ -264,7 +271,11 @@ impl Actor {
     /// second reading replaces the first, even when it finds nothing selected: the user deselected. It is dropped when
     /// it fails (nothing readable, or an error), because then the first is all there is.
     fn reread_selection(&self, run: &mut CommandRun) {
-        match self.deps.env.selection.capture() {
+        self.apply_reread_selection(run, self.deps.env.selection.capture());
+    }
+
+    fn apply_reread_selection(&self, run: &mut CommandRun, selection: Option<Arc<dyn CapturedSelection>>) {
+        match selection {
             Some(selection) => {
                 trace_selection(Some(selection.as_ref()), Some(true));
                 run.selection = Some(selection);
@@ -300,10 +311,8 @@ impl Actor {
     }
 
     pub(super) fn transcribe_instruction(&mut self, clip: Arc<AudioClip>, mut run: CommandRun) {
-        // A silent clip ends in "no speech" and never reaches a tool, so the selection is not worth reading again.
-        if !clip.is_effectively_silent() {
-            self.reread_selection(&mut run);
-        }
+        let reread_selection = !clip.is_effectively_silent();
+        run.selection_capture_pending = reread_selection;
         let cfg = self.deps.config.get();
         let models = Models::new(&cfg.asr, &cfg.text_model);
         self.processing.send_replace(ProcessingEstimate {
@@ -315,9 +324,44 @@ impl Actor {
         run.record.asr_engine = Some(cfg.asr.label());
         trace_log!(audio_ms = clip.duration_ms(), engine = %cfg.asr.label(), "instruction sent to speech recognition");
         self.start_step(run, HudState::Transcribing, move |env| transcribe_step(env, clip));
+        if reread_selection {
+            self.capture_selection_in_background();
+        }
+    }
+
+    fn capture_selection_in_background(&self) {
+        let (selection, tx, epoch, span) =
+            (self.deps.env.selection.clone(), self.tx.clone(), self.epoch, self.span.clone());
+        tokio::task::spawn_blocking(move || {
+            let captured =
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| span.in_scope(|| selection.capture())));
+            let captured = captured.unwrap_or_else(|_| {
+                tracing::warn!(operation = "capture selection", "selection task failed");
+                None
+            });
+            let _ = tx.send(Msg::SelectionCaptured(epoch, captured));
+        });
+    }
+
+    pub(super) fn selection_captured(&mut self, selection: Option<Arc<dyn CapturedSelection>>) {
+        let Some((mut run, phase)) = self.take_command(|phase| matches!(phase, Phase::Working { .. })) else {
+            return;
+        };
+        if !run.selection_capture_pending {
+            self.state = State::Command(CommandState { run, phase });
+            return;
+        }
+        self.apply_reread_selection(&mut run, selection);
+        run.selection_capture_pending = false;
+        if run.instruction_ready {
+            self.route(run);
+        } else {
+            self.state = State::Command(CommandState { run, phase });
+        }
     }
 
     fn route(&mut self, mut run: CommandRun) {
+        run.instruction_ready = false;
         let instruction = run.instruction.clone();
         // The router is always the local chat model, whatever the polish source is.
         run.record.router_engine = Some(format!("local:{}", self.deps.config.get().text_model.local_model));
@@ -401,14 +445,19 @@ impl Actor {
     }
 
     pub(super) fn step_result(&mut self, result: StepResult) {
-        let Some((mut run, _)) = self.take_command(|p| matches!(p, Phase::Working { .. })) else { return };
+        let Some((mut run, phase)) = self.take_command(|p| matches!(p, Phase::Working { .. })) else { return };
         match result {
             StepResult::Instruction(Ok(out)) => {
                 trace_log!(instruction = ?out.raw, asr_ms = out.asr_ms, "the instruction was transcribed");
                 run.record.asr_ms = Some(out.asr_ms);
                 run.record.lang = Some(out.lang.code().to_string());
                 run.instruction = out.raw;
-                self.route(run);
+                run.instruction_ready = true;
+                if !run.selection_capture_pending {
+                    self.route(run);
+                } else {
+                    self.state = State::Command(CommandState { run, phase });
+                }
             }
             StepResult::Instruction(Err(PipelineError::Cancelled)) => {
                 self.finish_run(run, CommandOutcome::Cancelled, None);
@@ -590,7 +639,7 @@ impl Actor {
 
     /// Queues the history row of the run.
     fn finish_run(&self, run: CommandRun, outcome: CommandOutcome, error: Option<String>) {
-        let CommandRun { selection, target: style, instruction, record } = run;
+        let CommandRun { selection, target: style, instruction, record, .. } = run;
         let source = record.source.or_else(|| {
             selection
                 .filter(|selection| !selection.text().is_empty())
