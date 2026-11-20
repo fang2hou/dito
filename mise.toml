@@ -59,8 +59,12 @@ description = "Check that every design:<id> reference resolves and matches the s
 run = "python scripts/check-design-refs.py"
 
 [tasks.lint]
-description = "Clippy for the workspace, ruff and ty for bench, and actionlint for workflows"
-depends = ["lint:rust", "bench:lint", "lint:actions"]
+description = "Clippy, bench lint and type checks, shell lint and actionlint"
+depends = ["lint:rust", "bench:lint", "lint:shell", "lint:actions"]
+
+[tasks."lint:shell"]
+description = "Lint shell scripts with ShellCheck"
+run = "shellcheck --severity=style scripts/*.sh"
 
 [tasks."lint:rust"]
 description = "Clippy over the whole workspace, then again with the mock and screenshots features"
