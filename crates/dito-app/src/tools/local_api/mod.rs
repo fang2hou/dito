@@ -169,7 +169,7 @@ impl LocalApiPage {
     }
 
     /// The fields show what is saved, so a cleared token field never outlives the token that is still in force. The
-    /// token is read here, not earlier: a Mac that never opens the settings never asks the Keychain for it.
+    /// token is read here, not earlier: a Mac that never opens the settings never creates the token file.
     fn show_saved_values(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let (port, token) = (self.st.cfg.get().local_api.port.to_string(), self.st.local_api.token());
         self.port.update(cx, |input, cx| input.set_value(port, window, cx));

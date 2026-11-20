@@ -11,7 +11,6 @@ use super::*;
 use crate::audio::AudioClip;
 use crate::provider::mock::{MockTextModel, MockTranscriber};
 use crate::provider::{AsrRequest, ChatCancel, ChatDelta, ChatRequest, Transcript};
-use crate::secrets::MemorySecrets;
 
 struct Fake {
     text: Arc<dyn TextModel>,
@@ -111,7 +110,7 @@ async fn fixture(text: Arc<dyn TextModel>, speech: Arc<dyn Transcriber>) -> Fixt
     let api = LocalApi::spawn(
         Deps {
             cfg: cfg.clone(),
-            secrets: Arc::new(MemorySecrets::default()),
+            token_path: dir.path().join("local_api.token"),
             backend: Arc::new(Fake { text, speech }),
             installed: Arc::new(NoModels),
         },
