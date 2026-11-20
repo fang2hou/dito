@@ -22,30 +22,20 @@ fn is_cyrillic(s: &str) -> bool {
     s.chars().any(|c| matches!(c, '\u{0400}'..='\u{052f}'))
 }
 
-static LANGUAGE: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
+const ALL_FAMILIES: [&str; 6] =
+    ["Outfit", "Helvetica Neue", "M PLUS 1p", "Apple SD Gothic Neo", "IBM Plex Sans SC", "PingFang TC"];
+static FAMILIES: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new((2 << 3) | 2);
 
-/// Language-dependent typography reads it: the CJK or script typeface (see [`cjk_family`]).
-pub fn set_ui_language(lang: dito_core::i18n::Lang) {
-    LANGUAGE.store(
-        dito_core::i18n::Lang::ALL.iter().position(|l| *l == lang).unwrap_or(0) as u8,
-        std::sync::atomic::Ordering::Relaxed,
-    );
+pub(super) fn set_ui_families(cjk: &'static str, primary: &'static str) {
+    FAMILIES.store((family_index(primary) << 3) | family_index(cjk), std::sync::atomic::Ordering::Relaxed);
 }
 
-pub fn ui_language() -> dito_core::i18n::Lang {
-    let all = dito_core::i18n::Lang::ALL;
-    all[LANGUAGE.load(std::sync::atomic::Ordering::Relaxed) as usize % all.len()]
+fn family_index(family: &'static str) -> u8 {
+    ALL_FAMILIES.iter().position(|candidate| *candidate == family).expect("known UI font family") as u8
 }
 
 pub fn cjk_family() -> &'static str {
-    use dito_core::i18n::Lang;
-    match ui_language() {
-        Lang::Zh => "IBM Plex Sans SC",
-        Lang::ZhHant => "PingFang TC",
-        Lang::Ko => "Apple SD Gothic Neo",
-        Lang::Mn => "Helvetica Neue",
-        Lang::Ja | Lang::En | Lang::Fr => "M PLUS 1p",
-    }
+    ALL_FAMILIES[(FAMILIES.load(std::sync::atomic::Ordering::Relaxed) >> 3) as usize]
 }
 
 /// What a text's characters say about its typeface. Text that is drawn every frame keeps this instead of scanning
@@ -73,16 +63,11 @@ impl Script {
     }
 
     pub fn family(self) -> &'static str {
-        use dito_core::i18n::Lang;
         match self {
-            Self::Hangul => "Apple SD Gothic Neo",
-            Self::Cjk => match ui_language() {
-                Lang::Zh => "IBM Plex Sans SC",
-                Lang::ZhHant => "PingFang TC",
-                _ => "M PLUS 1p",
-            },
-            Self::Cyrillic => "Helvetica Neue",
-            Self::Latin => "Outfit",
+            Self::Hangul => ALL_FAMILIES[3],
+            Self::Cjk => ALL_FAMILIES[(FAMILIES.load(std::sync::atomic::Ordering::Relaxed) & 0b111) as usize],
+            Self::Cyrillic => ALL_FAMILIES[1],
+            Self::Latin => ALL_FAMILIES[0],
         }
     }
 }

@@ -41,6 +41,8 @@ mod test_state;
 mod tip_bubble;
 mod tooltip;
 mod tween;
+#[path = "../typefaces.rs"]
+mod typefaces;
 mod typography;
 mod watch;
 
@@ -103,9 +105,10 @@ pub use test_state::{ErrorPlacement, TestState, test_summary};
 pub use tip_bubble::TIP_BUBBLE_H;
 pub use tooltip::{dismiss_tips, tip_above, tip_label, tip_pop, tip_pop_with, tooltip_root};
 pub use tween::{fade_value, spring, tweened, tweened_at, tweened_linear};
+pub use typefaces::set_ui_language;
 pub use typography::{
-    Script, baseline_in_line, cjk_family, family_for, init_text_system, is_cjk, label, muted12, set_ui_language, text,
-    text_lines, text_width, tracked,
+    Script, baseline_in_line, cjk_family, family_for, init_text_system, is_cjk, label, muted12, text, text_lines,
+    text_width, tracked,
 };
 pub use watch::{notify_on_change, observe};
 
