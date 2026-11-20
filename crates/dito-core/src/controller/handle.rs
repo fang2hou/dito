@@ -1,9 +1,10 @@
+use std::sync::Arc;
 use std::time::Instant;
 
 use tokio::sync::{mpsc, watch};
 
 use super::command::Command;
-use super::env::Delivery;
+use super::env::{CapturedSelection, Delivery};
 use super::hud::{HudState, ResultWrite, RunKind};
 use super::progress::{ProcessingEstimate, StepTimes};
 use crate::error::ProviderResult;
@@ -17,6 +18,7 @@ pub(super) enum Msg {
     Delivered(u64, Delivery),
     Hide(u64, u64),
     RecordingLimit(u64),
+    SelectionCaptured(u64, Option<Arc<dyn CapturedSelection>>),
     /// The wait of a recording whose capsule is held back is over.
     RevealCapsule(u64),
     Step(u64, StepResult),

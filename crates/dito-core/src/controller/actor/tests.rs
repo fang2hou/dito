@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -68,6 +69,47 @@ struct GateControl {
     release: std::sync::mpsc::Sender<()>,
 }
 
+struct SelectionGate {
+    entered: tokio::sync::mpsc::UnboundedSender<usize>,
+    finished: tokio::sync::mpsc::UnboundedSender<usize>,
+    releases: Mutex<HashMap<usize, std::sync::mpsc::Receiver<()>>>,
+}
+
+struct SelectionGateControl {
+    entered: tokio::sync::mpsc::UnboundedReceiver<usize>,
+    finished: tokio::sync::mpsc::UnboundedReceiver<usize>,
+    releases: HashMap<usize, std::sync::mpsc::Sender<()>>,
+}
+
+impl SelectionGateControl {
+    async fn entered(&mut self, capture: usize) {
+        assert_eq!(self.entered.recv().await, Some(capture));
+    }
+
+    async fn finished(&mut self, capture: usize) {
+        assert_eq!(self.finished.recv().await, Some(capture));
+    }
+
+    fn release(&mut self, capture: usize) {
+        self.releases.remove(&capture).expect("capture is gated").send(()).expect("capture is still waiting");
+    }
+}
+
+fn selection_gate(captures: &[usize]) -> (SelectionGate, SelectionGateControl) {
+    let (entered_tx, entered_rx) = tokio::sync::mpsc::unbounded_channel();
+    let (finished_tx, finished_rx) = tokio::sync::mpsc::unbounded_channel();
+    let (mut receivers, mut senders) = (HashMap::new(), HashMap::new());
+    for capture in captures {
+        let (release, wait) = std::sync::mpsc::channel();
+        receivers.insert(*capture, wait);
+        senders.insert(*capture, release);
+    }
+    (
+        SelectionGate { entered: entered_tx, finished: finished_tx, releases: Mutex::new(receivers) },
+        SelectionGateControl { entered: entered_rx, finished: finished_rx, releases: senders },
+    )
+}
+
 /// What a command run replaces, shared with the source that captured it.
 type Replaced = Arc<Mutex<Vec<String>>>;
 
@@ -105,10 +147,38 @@ struct FakeSelectionSource {
     later_editable: bool,
     replaced: Replaced,
     captures: Arc<AtomicUsize>,
+    readings: Option<Vec<Option<&'static str>>>,
+    gate: Option<SelectionGate>,
 }
 impl SelectionSource for FakeSelectionSource {
     fn capture(&self) -> Option<Arc<dyn CapturedSelection>> {
-        if self.captures.fetch_add(1, Ordering::SeqCst) > 0
+        let capture = self.captures.fetch_add(1, Ordering::SeqCst) + 1;
+        if let Some(gate) = &self.gate {
+            let release = gate.releases.lock().unwrap().remove(&capture);
+            let Some(release) = release else {
+                return self.reading(capture);
+            };
+            let _ = gate.entered.send(capture);
+            release.recv().expect("selection release was dropped");
+            let _ = gate.finished.send(capture);
+        }
+        self.reading(capture)
+    }
+}
+
+impl FakeSelectionSource {
+    fn reading(&self, capture: usize) -> Option<Arc<dyn CapturedSelection>> {
+        if let Some(reading) = self.readings.as_ref().and_then(|readings| readings.get(capture - 1)) {
+            return reading.map(|text| {
+                Arc::new(FakeSelection {
+                    text: text.into(),
+                    surrounding: (capture > 1).then(later_around).flatten(),
+                    editable: self.later_editable,
+                    replaced: self.replaced.clone(),
+                }) as Arc<dyn CapturedSelection>
+            });
+        }
+        if capture > 1
             && let Some(later) = self.later
         {
             return later.map(|text| {
@@ -243,6 +313,8 @@ struct RigOptions {
     /// Whether the first reading, and the later ones, can be written over.
     editable: bool,
     later_editable: bool,
+    selection_reads: Option<Vec<Option<&'static str>>>,
+    selection_gate: Option<SelectionGate>,
     router: MockRouter,
 }
 
@@ -260,6 +332,8 @@ impl Default for RigOptions {
             later_selection: None,
             editable: true,
             later_editable: true,
+            selection_reads: None,
+            selection_gate: None,
             router: MockRouter::default(),
         }
     }
@@ -272,6 +346,7 @@ struct Rig {
     store: Arc<Store>,
     config: Arc<ConfigStore>,
     asr: Arc<MockTranscriber>,
+    router: Arc<MockRouter>,
     warm_ups: Arc<WarmUps>,
     mute: FakeMusicMute,
     /// How often the microphone was opened and the selection was read.
@@ -326,7 +401,8 @@ fn rig(asr: MockTranscriber, polish: impl TextModel + 'static, options: RigOptio
     let replaced = Replaced::default();
     let (recordings, captures) = (Arc::new(AtomicUsize::new(0)), Arc::new(AtomicUsize::new(0)));
     let mut engines = FixedEngines::new(asr.clone(), Arc::new(polish));
-    engines.router = Arc::new(options.router);
+    let router = Arc::new(options.router);
+    engines.router = router.clone();
     let warm_ups = Arc::new(WarmUps::default());
     let h = spawn(Deps {
         env: Env {
@@ -347,6 +423,8 @@ fn rig(asr: MockTranscriber, polish: impl TextModel + 'static, options: RigOptio
                 later_editable: options.later_editable,
                 replaced: replaced.clone(),
                 captures: captures.clone(),
+                readings: options.selection_reads,
+                gate: options.selection_gate,
             }),
         },
         config: config.clone(),
@@ -361,6 +439,7 @@ fn rig(asr: MockTranscriber, polish: impl TextModel + 'static, options: RigOptio
         store,
         config,
         asr,
+        router,
         warm_ups,
         mute: music_mute,
         recordings,
@@ -806,6 +885,92 @@ async fn speak_command(r: &Rig) {
     r.h.send(Command::CommandKeyDown);
     wait_for(&r.h, |s| matches!(s, HudState::Listening { .. })).await;
     r.h.send(Command::CommandKeyDown);
+}
+
+async fn wait_until(mut ready: impl FnMut() -> bool) {
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while !ready() {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("timed out waiting for condition");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_command_starts_recording_while_its_first_selection_is_blocked() {
+    let (gate, mut control) = selection_gate(&[1]);
+    let r = rig(
+        MockTranscriber::new("make it shorter"),
+        MockTextModel::default(),
+        RigOptions { selection_gate: Some(gate), selection: Some("text"), ..Default::default() },
+    );
+
+    r.h.send(Command::CommandKeyDown);
+    control.entered(1).await;
+    assert_eq!(r.recordings.load(Ordering::SeqCst), 1);
+    assert!(r.h.recording_started().is_none(), "the actor is still completing the initial capture");
+
+    control.release(1);
+    control.finished(1).await;
+    wait_for(&r.h, |s| matches!(s, HudState::Listening { .. })).await;
+}
+
+#[tokio::test]
+async fn command_transcription_and_routing_wait_only_for_their_required_selection() {
+    let (gate, mut control) = selection_gate(&[2]);
+    let spy = Arc::new(SpyTextModel::default());
+    let r = rig(
+        MockTranscriber::new("make it shorter"),
+        spy.clone(),
+        RigOptions {
+            selection_reads: Some(vec![Some("first"), Some("second")]),
+            selection_gate: Some(gate),
+            router: routes_to(Intent::Rewrite, 0.99),
+            ..Default::default()
+        },
+    );
+
+    speak_command(&r).await;
+    control.entered(2).await;
+    wait_until(|| r.asr.calls() == 1).await;
+    assert_eq!(r.router.calls(), 0, "routing waits for the second selection");
+    assert_eq!(*r.h.hud().borrow(), HudState::Transcribing);
+
+    control.release(2);
+    control.finished(2).await;
+    wait_for(&r.h, |s| *s == HudState::Replaced).await;
+    assert!(spy.seen.lock().unwrap()[0].1.contains("===\nsecond\n==="));
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn cancelling_a_blocked_selection_keeps_the_next_command_clean() {
+    let (gate, mut control) = selection_gate(&[2]);
+    let spy = Arc::new(SpyTextModel::default());
+    let r = rig(
+        MockTranscriber::new("make it shorter"),
+        spy.clone(),
+        RigOptions {
+            selection_reads: Some(vec![Some("old first"), Some("old second"), Some("new first"), Some("new second")]),
+            selection_gate: Some(gate),
+            router: routes_to(Intent::Rewrite, 0.99),
+            ..Default::default()
+        },
+    );
+
+    speak_command(&r).await;
+    control.entered(2).await;
+    wait_until(|| r.asr.calls() == 1).await;
+    r.h.send(Command::Cancel);
+    wait_for(&r.h, |s| *s == HudState::Hidden).await;
+
+    speak_command(&r).await;
+    control.release(2);
+    control.finished(2).await;
+    wait_for(&r.h, |s| *s == HudState::Replaced).await;
+    assert!(spy.seen.lock().unwrap()[0].1.contains("===\nnew second\n==="));
+    tokio::task::yield_now().await;
+    assert!(!spy.seen.lock().unwrap()[0].1.contains("old second"));
 }
 
 #[tokio::test]
