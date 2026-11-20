@@ -13,13 +13,13 @@ name = "dito"
 path = "src/main.rs"
 
 [dev-dependencies]
-tempfile = "3"
+tempfile.workspace = true
 
 [features]
 default = ["runtimes"]
 runtimes = ["dep:dito-runtimes"]
 mock = ["dep:dito-testkit"]
-screenshots = ["mock", "gpui-kit/test-support"]
+screenshots = ["mock", "gpui-kit/test-support", "dep:image"]
 
 [dependencies]
 serde_json.workspace = true
@@ -39,5 +39,5 @@ tracing.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 rust-embed = "8"
 tray-icon = "0.26"
-image = { version = "0.25", default-features = false, features = ["png"] }
+image = { version = "0.25", default-features = false, features = ["png"], optional = true }
 time.workspace = true

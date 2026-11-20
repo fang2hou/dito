@@ -11,15 +11,15 @@ workspace = true
 dito-core = { path = "../dito-core" }
 thiserror.workspace = true
 tokio.workspace = true
-tokio-util = "0.7"
+tokio-util.workspace = true
 reqwest.workspace = true
 futures-util.workspace = true
 sha2.workspace = true
 hex.workspace = true
 async-trait.workspace = true
 tracing.workspace = true
-libc = "0.2"
+libc.workspace = true
 
 [dev-dependencies]
 dito-testkit = { path = "../dito-testkit" }
-tempfile = "3"
+tempfile.workspace = true
