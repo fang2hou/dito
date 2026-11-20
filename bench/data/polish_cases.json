@@ -363,7 +363,127 @@
   {
     "id": "b-en-08", "lang": "en", "note": "Pattern B event plan narrative", "group": "pattern-b",
     "kind": "long", "features": {"has_list": false}, "targets": ["general", "herdr", "slack"], "samplings": ["app", "legacy"],
-    "text": "The autumn internal event is led by Watanabe, and the keynote speaker is Elena Ruiz. It is scheduled for Friday, October 30, 2026 at Hall C of the Singapore Convention Center. We expect 260 employees and 40 guests, 300 people in total. Check-in opens at 9:30 a.m., and the 60-minute keynote starts at 10:15 a.m. The afternoon has three product demos: voice input at 2 p.m., translation at 2:35 p.m., and summarization at 3:10 p.m. Dinner runs from 6 p.m. to 8 p.m. with a food ceiling of 65 dollars per person. We moved from Hall B to Hall C because C has 24 wheelchair spaces while B has 12, and the route to reception is 35 meters shorter. The contingency fund is 720 thousand dollars, the coordination code is EV-610, and final slide materials are due October 15.",
+    "text": "The autumn internal event is led by Watanabe, and the keynote speaker is Elena Ruiz. It is scheduled for Friday, October 30, 2026 at Hall C of the Singapore Convention Center. We expect 260 employees and 40 guests, 300 people in total. Check-in opens at 9:30 a.m., and the 60-minute keynote starts at 10:15 a.m. The afternoon has three product demos: voice input at 2 p.m., translation at 2:35 p.m., and summarization at 3:10 p.m. Dinner runs from 6 p.m. to 8 p.m. with a food ceiling of 65 dollars per person. We moved from Hall B to Hall C because C has 24 wheelchair spaces while B has 12, and the route to reception is 35 meters shorter. The contingency fund is 720 thousand dollars, the coordination code is EV-610, and final slide materials are due October 15. The venue has two entrance lanes, rehearsal is at 4 p.m. the day before the event, and the technical team tests the main hall lighting at 2 p.m.",
     "required": ["Watanabe", "Elena Ruiz", "October 30, 2026", "Hall C", "300 people", "9:30 a.m.", "65 dollars", "24 wheelchair", "720 thousand dollars", "EV-610"]
+  },
+  {
+    "id": "h-ja-filler-01", "lang": "ja", "note": "Held-out leading filler", "group": "held-out",
+    "kind": "filler", "text": "その、明日は午後二時に出発します。", "forbidden": ["その"],
+    "targets": ["general"], "samplings": ["app"]
+  },
+  {
+    "id": "h-ja-filler-02", "lang": "ja", "note": "Held-out leading filler", "group": "held-out",
+    "kind": "filler", "text": "えっと、予約番号をメールで送ります。", "forbidden": ["えっと"],
+    "targets": ["general"], "samplings": ["app"]
+  },
+  {
+    "id": "h-ja-filler-03", "lang": "ja", "note": "Held-out middle filler", "group": "held-out",
+    "kind": "filler", "text": "予定は、まあ、水曜のままです。", "forbidden": ["まあ"],
+    "targets": ["general"], "samplings": ["app"]
+  },
+  {
+    "id": "h-ja-filler-04", "lang": "ja", "note": "Held-out middle filler", "group": "held-out",
+    "kind": "filler", "text": "田中さんに、えー、資料を渡してください。", "forbidden": ["えー"],
+    "targets": ["general"], "samplings": ["app"]
+  },
+  {
+    "id": "h-ja-filler-05", "lang": "ja", "note": "Held-out trailing filler", "group": "held-out",
+    "kind": "filler", "text": "来週の火曜に確認します、あの。", "forbidden": ["あの"],
+    "targets": ["general"], "samplings": ["app"]
+  },
+  {
+    "id": "h-ja-filler-06", "lang": "ja", "note": "Held-out trailing filler", "group": "held-out",
+    "kind": "filler", "text": "資料は昨日送りました、えーと。", "forbidden": ["えーと"],
+    "targets": ["general"], "samplings": ["app"]
+  },
+  {
+    "id": "h-ja-control-01", "lang": "ja", "note": "Held-out clean control", "group": "held-out",
+    "kind": "control", "text": "明日は午後二時に出発します。", "unchanged": true,
+    "targets": ["general"], "samplings": ["app"]
+  },
+  {
+    "id": "h-ja-control-02", "lang": "ja", "note": "Held-out clean control", "group": "held-out",
+    "kind": "control", "text": "予約番号をメールで送ります。", "unchanged": true,
+    "targets": ["general"], "samplings": ["app"]
+  },
+  {
+    "id": "h-zh-filler-01", "lang": "zh", "note": "Held-out leading filler", "group": "held-out",
+    "kind": "filler", "text": "呃，下午三点开始评审。", "forbidden": ["呃"],
+    "targets": ["general"], "samplings": ["app"]
+  },
+  {
+    "id": "h-zh-filler-02", "lang": "zh", "note": "Held-out leading filler", "group": "held-out",
+    "kind": "filler", "text": "就是说，合同已经发给李芳。", "forbidden": ["就是说"],
+    "targets": ["general"], "samplings": ["app"]
+  },
+  {
+    "id": "h-zh-filler-03", "lang": "zh", "note": "Held-out middle filler", "group": "held-out",
+    "kind": "filler", "text": "明天，唉，我们一起检查预算。", "forbidden": ["唉"],
+    "targets": ["general"], "samplings": ["app"]
+  },
+  {
+    "id": "h-zh-filler-04", "lang": "zh", "note": "Held-out middle filler", "group": "held-out",
+    "kind": "filler", "text": "会议室，嗯，已经预订好了。", "forbidden": ["嗯"],
+    "targets": ["general"], "samplings": ["app"]
+  },
+  {
+    "id": "h-zh-filler-05", "lang": "zh", "note": "Held-out trailing filler", "group": "held-out",
+    "kind": "filler", "text": "材料已经上传了，呃。", "forbidden": ["呃"],
+    "targets": ["general"], "samplings": ["app"]
+  },
+  {
+    "id": "h-zh-filler-06", "lang": "zh", "note": "Held-out trailing filler", "group": "held-out",
+    "kind": "filler", "text": "周五前发最终版，嗯。", "forbidden": ["嗯"],
+    "targets": ["general"], "samplings": ["app"]
+  },
+  {
+    "id": "h-zh-control-01", "lang": "zh", "note": "Held-out clean control", "group": "held-out",
+    "kind": "control", "text": "下午三点开始评审。", "unchanged": true,
+    "targets": ["general"], "samplings": ["app"]
+  },
+  {
+    "id": "h-zh-control-02", "lang": "zh", "note": "Held-out clean control", "group": "held-out",
+    "kind": "control", "text": "合同已经发给李芳。", "unchanged": true,
+    "targets": ["general"], "samplings": ["app"]
+  },
+  {
+    "id": "h-en-filler-01", "lang": "en", "note": "Held-out leading filler", "group": "held-out",
+    "kind": "filler", "text": "Well, the draft is ready for review.", "forbidden": ["well"],
+    "targets": ["general"], "samplings": ["app"]
+  },
+  {
+    "id": "h-en-filler-02", "lang": "en", "note": "Held-out leading filler", "group": "held-out",
+    "kind": "filler", "text": "Er, we can send the notes tomorrow.", "forbidden": ["er"],
+    "targets": ["general"], "samplings": ["app"]
+  },
+  {
+    "id": "h-en-filler-03", "lang": "en", "note": "Held-out middle filler", "group": "held-out",
+    "kind": "filler", "text": "The report is, uh, ready for approval.", "forbidden": ["uh"],
+    "targets": ["general"], "samplings": ["app"]
+  },
+  {
+    "id": "h-en-filler-04", "lang": "en", "note": "Held-out middle filler", "group": "held-out",
+    "kind": "filler", "text": "Maya will, like, verify the release notes.", "forbidden": ["like"],
+    "targets": ["general"], "samplings": ["app"]
+  },
+  {
+    "id": "h-en-filler-05", "lang": "en", "note": "Held-out trailing filler", "group": "held-out",
+    "kind": "filler", "text": "The review is scheduled for Tuesday, um.", "forbidden": ["um"],
+    "targets": ["general"], "samplings": ["app"]
+  },
+  {
+    "id": "h-en-filler-06", "lang": "en", "note": "Held-out trailing filler", "group": "held-out",
+    "kind": "filler", "text": "Send the signed copy by Friday, you know.", "forbidden": ["you know"],
+    "targets": ["general"], "samplings": ["app"]
+  },
+  {
+    "id": "h-en-control-01", "lang": "en", "note": "Held-out clean control", "group": "held-out",
+    "kind": "control", "text": "The draft is ready for review.", "unchanged": true,
+    "targets": ["general"], "samplings": ["app"]
+  },
+  {
+    "id": "h-en-control-02", "lang": "en", "note": "Held-out clean control", "group": "held-out",
+    "kind": "control", "text": "We can send the notes tomorrow.", "unchanged": true,
+    "targets": ["general"], "samplings": ["app"]
   }
 ]
