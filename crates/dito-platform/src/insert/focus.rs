@@ -1,3 +1,5 @@
+use std::sync::Mutex;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
 use objc2_app_kit::NSWorkspace;
@@ -16,6 +18,27 @@ const MANUAL_ACCESSIBILITY: &str = "AXManualAccessibility";
 const DESCENDANT_BUDGET: usize = 32;
 const DESCENDANT_TIME: Duration = Duration::from_millis(80);
 const DESCENDANT_DEPTH: usize = 4;
+
+static WARM_FOCUS_GENERATION: AtomicU64 = AtomicU64::new(0);
+static WARMED_FOCUS: Mutex<Option<FocusReading<FocusTarget>>> = Mutex::new(None);
+
+#[derive(Debug)]
+struct FocusReading<T> {
+    target: T,
+    observed_at: Instant,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum FocusReadiness {
+    Editable,
+    ForeignKeyWindow,
+    NotDeliverable,
+}
+
+trait StableFocus {
+    fn same_identity(&self, other: &Self) -> bool;
+    fn readiness(&self) -> FocusReadiness;
+}
 
 #[derive(Debug, Clone)]
 pub(super) struct FocusTarget {
@@ -46,6 +69,56 @@ impl FocusTarget {
     fn deliverable(&self) -> bool {
         self.editable || self.foreign_key_window()
     }
+}
+
+impl StableFocus for FocusTarget {
+    fn same_identity(&self, other: &Self) -> bool {
+        FocusTarget::same_identity(self, other)
+    }
+
+    fn readiness(&self) -> FocusReadiness {
+        if self.editable {
+            FocusReadiness::Editable
+        } else if self.foreign_key_window() {
+            FocusReadiness::ForeignKeyWindow
+        } else {
+            FocusReadiness::NotDeliverable
+        }
+    }
+}
+
+fn should_accept_warmed_focus<T: StableFocus>(
+    kept: Option<&FocusReading<T>>,
+    current: Option<&T>,
+    elapsed: Duration,
+) -> bool {
+    let (Some(kept), Some(current)) = (kept, current) else {
+        return false;
+    };
+    if !kept.target.same_identity(current) {
+        return false;
+    }
+    match (kept.target.readiness(), current.readiness()) {
+        (FocusReadiness::Editable, FocusReadiness::Editable) => true,
+        (FocusReadiness::ForeignKeyWindow, FocusReadiness::ForeignKeyWindow) => elapsed >= FOCUS_BUDGET,
+        _ => false,
+    }
+}
+
+fn next_warm_focus_generation() -> u64 {
+    WARM_FOCUS_GENERATION.fetch_add(1, Ordering::Relaxed).wrapping_add(1)
+}
+
+fn replace_warmed_focus(generation: u64, reading: Option<FocusReading<FocusTarget>>) {
+    let mut slot = WARMED_FOCUS.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    if WARM_FOCUS_GENERATION.load(Ordering::Relaxed) == generation {
+        *slot = reading;
+    }
+}
+
+fn take_warmed_focus() -> Option<FocusReading<FocusTarget>> {
+    next_warm_focus_generation();
+    WARMED_FOCUS.lock().unwrap_or_else(std::sync::PoisonError::into_inner).take()
 }
 
 pub(super) fn own_pid() -> i32 {
@@ -211,15 +284,26 @@ fn enable_chromium_accessibility() -> Option<i32> {
 /// Called the moment recording starts: the user speaks for seconds, while the first delivery attempt would otherwise
 /// pay the tree-build latency of a lazily built tree and often lose the race.
 pub fn warm_focus() {
-    std::thread::spawn(|| {
-        if !is_trusted() || read_focus().is_some_and(|target| target.editable) {
+    let generation = next_warm_focus_generation();
+    *WARMED_FOCUS.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = None;
+    std::thread::spawn(move || {
+        if !is_trusted() {
+            return;
+        }
+        let target = read_focus();
+        let observed_at = Instant::now();
+        if target.as_ref().is_some_and(|target| target.editable) {
+            replace_warmed_focus(generation, target.map(|target| FocusReading { target, observed_at }));
             return;
         }
         if let Some(pid) = enable_chromium_accessibility() {
             tracing::info!(
                 "insert: frontmost app (pid {pid}) keeps its accessibility tree off; warming it during recording"
             );
+            replace_warmed_focus(generation, None);
+            return;
         }
+        replace_warmed_focus(generation, target.map(|target| FocusReading { target, observed_at }));
     });
 }
 
@@ -233,12 +317,19 @@ pub fn has_text_target() -> bool {
 /// report a generic container first while the real editable node materializes a moment later, so a stable but generic
 /// read is not final and polling continues. On timeout, report focus only if the same element was observed twice.
 pub(super) fn wait_for_stable_focus() -> Option<FocusTarget> {
+    let kept = take_warmed_focus();
     if !is_trusted() {
         return None;
     }
     let started = Instant::now();
     let mut deadline = started + FOCUS_BUDGET;
     let mut prev = read_focus();
+    if let Some(kept) = kept.as_ref()
+        && should_accept_warmed_focus(Some(kept), prev.as_ref(), kept.observed_at.elapsed())
+    {
+        // A recording-start read plus this unchanged identity are the two stability readings.
+        return prev;
+    }
     if !prev.as_ref().is_some_and(|target| target.editable)
         && let Some(pid) = enable_chromium_accessibility()
     {
@@ -271,5 +362,74 @@ pub(super) fn wait_for_stable_focus() -> Option<FocusTarget> {
             }
             return if stable { prev } else { None };
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::{Duration, Instant};
+
+    use super::{FOCUS_BUDGET, FocusReadiness, FocusReading, StableFocus, should_accept_warmed_focus};
+
+    #[derive(Clone, Copy)]
+    struct FakeTarget {
+        identity: i32,
+        readiness: FocusReadiness,
+    }
+
+    impl StableFocus for FakeTarget {
+        fn same_identity(&self, other: &Self) -> bool {
+            self.identity == other.identity
+        }
+
+        fn readiness(&self) -> FocusReadiness {
+            self.readiness
+        }
+    }
+
+    fn accepts(kept: Option<&FocusReading<FakeTarget>>, current: Option<&FakeTarget>, elapsed: Duration) -> bool {
+        should_accept_warmed_focus(kept, current, elapsed)
+    }
+
+    fn reading(identity: i32, readiness: FocusReadiness) -> FocusReading<FakeTarget> {
+        FocusReading { target: FakeTarget { identity, readiness }, observed_at: Instant::now() }
+    }
+
+    #[test]
+    fn accepts_the_same_editable_focus_immediately() {
+        let kept = reading(1, FocusReadiness::Editable);
+        assert!(accepts(Some(&kept), Some(&kept.target), FOCUS_BUDGET / 100));
+    }
+
+    #[test]
+    fn accepts_the_same_old_key_window_immediately() {
+        let kept = reading(1, FocusReadiness::ForeignKeyWindow);
+        assert!(accepts(Some(&kept), Some(&kept.target), FOCUS_BUDGET));
+    }
+
+    #[test]
+    fn a_recent_key_window_still_waits() {
+        let kept = reading(1, FocusReadiness::ForeignKeyWindow);
+        let elapsed = FOCUS_BUDGET - Duration::from_millis(1);
+        assert!(!accepts(Some(&kept), Some(&kept.target), elapsed));
+    }
+
+    #[test]
+    fn a_different_identity_still_waits() {
+        let kept = reading(1, FocusReadiness::Editable);
+        let current = FakeTarget { identity: 2, readiness: FocusReadiness::Editable };
+        assert!(!accepts(Some(&kept), Some(&current), FOCUS_BUDGET));
+    }
+
+    #[test]
+    fn no_kept_reading_still_waits() {
+        let current = FakeTarget { identity: 1, readiness: FocusReadiness::Editable };
+        assert!(!accepts(None, Some(&current), FOCUS_BUDGET));
+    }
+
+    #[test]
+    fn a_not_deliverable_target_still_waits() {
+        let kept = reading(1, FocusReadiness::NotDeliverable);
+        assert!(!accepts(Some(&kept), Some(&kept.target), FOCUS_BUDGET));
     }
 }
