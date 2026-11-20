@@ -16,6 +16,8 @@
 # (mise run lint:rust) and release builds.
 #
 # Notes:
+#   - The integration test names in the cargo test command are listed explicitly; add every new
+#     integration test file to that list so it runs under fast checks.
 #   - Steps run sequentially and all run even after a failure; the exit code is 1 if any failed.
 #   - Set CARGO_TARGET_DIR to share artifacts across worktrees.
 #   - The Apple runner override keeps cargo from launching test binaries through the signing path.

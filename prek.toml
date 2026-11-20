@@ -45,11 +45,29 @@ stages = ["commit-msg"]
 priority = "static"
 
 [[repos.hooks]]
+id = "design-refs"
+name = "Check design references"
+language = "system"
+entry = "mise run check:design-refs"
+files = '^(design/(sections\.toml|dito\.figcraft)$|.*\.(rs|md|py|sh|toml)$)'
+pass_filenames = false
+priority = "static"
+
+[[repos.hooks]]
+id = "shell-lint"
+name = "Lint shell scripts"
+language = "system"
+entry = "mise run lint:shell"
+files = '^scripts/.*\.sh$'
+pass_filenames = false
+priority = "static"
+
+[[repos.hooks]]
 id = "rust-check"
 name = "Rust format and tests"
 language = "system"
 entry = "mise run check"
-files = '^(crates/|Cargo\.(toml|lock)$|rustfmt\.toml$|\.cargo/|scripts/check\.sh$|mise\.toml$)'
+files = '^(crates/|design/asr-templates/|assets/icon/|Cargo\.(toml|lock)$|rustfmt\.toml$|\.cargo/|scripts/check\.sh$|mise\.toml$)'
 pass_filenames = false
 priority = "rust"
 
@@ -58,7 +76,7 @@ id = "rust-clippy"
 name = "Rust clippy"
 language = "system"
 entry = "mise run lint:rust"
-files = '^(crates/|Cargo\.(toml|lock)$|rustfmt\.toml$|\.cargo/|mise\.toml$)'
+files = '^(crates/|design/asr-templates/|assets/icon/|Cargo\.(toml|lock)$|rustfmt\.toml$|\.cargo/|mise\.toml$)'
 pass_filenames = false
 priority = "rust-lint"
 
