@@ -49,7 +49,7 @@ id = "design-refs"
 name = "Check design references"
 language = "system"
 entry = "mise run check:design-refs"
-files = '^(design/(sections\.toml|dito\.figcraft)$|.*\.(rs|md|toml)$)'
+files = '^(design/(sections\.toml|dito\.figcraft)$|.*\.(rs|md|py|sh|toml)$)'
 pass_filenames = false
 priority = "static"
 

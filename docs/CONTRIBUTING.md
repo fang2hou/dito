@@ -45,7 +45,7 @@ Checks run on your machine at commit time through [prek](https://prek.j178.dev) 
 | Secret scan, merge-conflict, TOML, JSON, YAML and large-file checks (500 KB, 8 MB for benchmark records under `bench/results/`, or 24 MB for intro films under `assets/intro/`) | every commit | gitleaks and prek built-ins |
 | Rust format and tests | Rust, Cargo, mise, scripts/check.sh, compiled design templates or app icon files change | `mise run check` (`scripts/check.sh fast`) |
 | Rust clippy | Rust, Cargo, mise, compiled design templates or app icon files change | `mise run lint:rust` |
-| Design reference check | `design/sections.toml`, `design/dito.figcraft`, or `.rs`, `.md`, `.toml` files change | `mise run check:design-refs` |
+| Design reference check | `design/sections.toml`, `design/dito.figcraft`, or `.rs`, `.md`, `.py`, `.sh`, `.toml` files change (the suffixes the check scans) | `mise run check:design-refs` |
 | Shell lint | `scripts/*.sh` files change | `mise run lint:shell` |
 | Bench lint, types and tests | `bench/` or mise files change | `mise run bench:check` |
 | Workflow lint | `.github/workflows/` changes | `mise run lint:actions` |
