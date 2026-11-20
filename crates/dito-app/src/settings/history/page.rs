@@ -78,7 +78,8 @@ impl QueryPage for HistoryPage {
         let lang = cfg.general.lang();
         let prompts = cfg.prompts.clone();
         let off = dito_platform::local_utc_offset_secs();
-        async move { list.await.map(|entries| Arc::new(HistorySnapshot::new(entries, lang, &prompts, off))) }
+        let today = local_day(now(), off);
+        async move { list.await.map(|entries| Arc::new(HistorySnapshot::new(entries, lang, &prompts, off, today))) }
     }
 
     fn applied(&mut self, cx: &mut Context<Self>) {
@@ -105,7 +106,8 @@ impl HistoryPage {
         });
         let cfg = st.cfg.get();
         let lang = cfg.general.lang();
-        let empty = HistorySnapshot::new(Vec::new(), lang, &cfg.prompts, dito_platform::local_utc_offset_secs());
+        let off = dito_platform::local_utc_offset_secs();
+        let empty = HistorySnapshot::new(Vec::new(), lang, &cfg.prompts, off, local_day(now(), off));
         let search = cx.new(|cx| InputState::new(window, cx).placeholder(lang.tr(Tr::HistorySearch)));
         ui::notify_on_focus(&search, window, cx);
         cx.subscribe_in(&search, window, |this: &mut Self, state, ev: &InputEvent, _, cx| {
@@ -241,7 +243,9 @@ impl HistoryPage {
         match probe {
             Ok(entries) => {
                 let newest = entries.first().map(|e| e.id).unwrap_or(0);
-                if newest != self.last_seen_id {
+                // Past midnight the headings and the Today period name the wrong day until the list is fetched again.
+                let today = local_day(now(), dito_platform::local_utc_offset_secs());
+                if newest != self.last_seen_id || today != self.list.data.today {
                     self.last_seen_id = newest;
                     self.load(cx);
                 }

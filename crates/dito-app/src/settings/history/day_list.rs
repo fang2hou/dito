@@ -7,7 +7,7 @@ use gpui_kit::*;
 
 use super::page::HistoryPage;
 use crate::settings::Ctx;
-use crate::timefmt::{hhmm, local_day, now, ymd};
+use crate::timefmt::{hhmm, local_day, ymd};
 use crate::ui::{self, text};
 
 #[derive(Clone, PartialEq)]
@@ -39,11 +39,12 @@ pub(super) enum HistoryItem {
 pub struct HistorySnapshot {
     pub(super) rows: Vec<HistoryRow>,
     pub(super) items: Vec<HistoryItem>,
+    /// The local day the Today and Yesterday headings were named against; a snapshot from another day is stale.
+    pub(super) today: i64,
 }
 
 impl HistorySnapshot {
-    pub(super) fn new(entries: Vec<HistoryEntry>, lang: Lang, prompts: &Prompts, off: i32) -> Self {
-        let today = local_day(now(), off);
+    pub(super) fn new(entries: Vec<HistoryEntry>, lang: Lang, prompts: &Prompts, off: i32, today: i64) -> Self {
         let rows: Vec<HistoryRow> = entries
             .into_iter()
             .map(|entry| {
@@ -78,7 +79,7 @@ impl HistorySnapshot {
         let mut items = Vec::new();
         if rows.is_empty() {
             items.push(HistoryItem::Empty);
-            return Self { rows, items };
+            return Self { rows, items, today };
         }
         let mut start = 0;
         let mut first_group = true;
@@ -102,7 +103,7 @@ impl HistorySnapshot {
             }
             start = end;
         }
-        Self { rows, items }
+        Self { rows, items, today }
     }
 
     pub(super) fn item_index(&self, id: i64) -> Option<usize> {
@@ -160,5 +161,76 @@ impl HistoryPage {
                 ui::card_segment(&c.p, *first, *last).child(row).into_any_element()
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use dito_core::config::EngineLabels;
+    use dito_core::i18n::{Lang, Tr};
+    use dito_core::prompts::{AppTarget, Prompts};
+    use dito_core::store::{HistoryEntry, HistoryKind};
+
+    use super::{HistoryItem, HistorySnapshot};
+    use crate::timefmt::ymd;
+
+    const JST: i32 = 9 * 3600;
+
+    fn entry(id: i64, ts: i64) -> HistoryEntry {
+        HistoryEntry {
+            id,
+            ts,
+            kind: HistoryKind::Dictation,
+            style: AppTarget::General,
+            app: "Notes".into(),
+            lang: "en".into(),
+            duration_ms: 1_000,
+            raw: "hello".into(),
+            polished: None,
+            error: None,
+            audio_path: None,
+            engines: EngineLabels::default(),
+            timings: Default::default(),
+            source: None,
+            command: None,
+        }
+    }
+
+    fn headings(snapshot: &HistorySnapshot) -> Vec<String> {
+        snapshot
+            .items
+            .iter()
+            .filter_map(|item| match item {
+                HistoryItem::Heading { label, .. } => Some(label.to_string()),
+                _ => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn day_groups_are_named_against_the_day_the_snapshot_was_built_on() {
+        let day = 20_000;
+        let noon = |d: i64| crate::timefmt::day_start(d, JST) + 12 * 3600;
+        let entries =
+            vec![entry(4, noon(day) + 60), entry(3, noon(day)), entry(2, noon(day - 1)), entry(1, noon(day - 5))];
+        let prompts = Prompts::default();
+
+        let snapshot = HistorySnapshot::new(entries.clone(), Lang::En, &prompts, JST, day);
+        assert_eq!(
+            headings(&snapshot),
+            [Lang::En.tr(Tr::HistoryToday), Lang::En.tr(Tr::HistoryYesterday), &ymd(day - 5)]
+        );
+        let rows: Vec<(bool, bool)> = snapshot
+            .items
+            .iter()
+            .filter_map(|item| match item {
+                HistoryItem::Row { first, last, .. } => Some((*first, *last)),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(rows, [(true, false), (false, true), (true, true), (true, true)], "each day is one card");
+
+        let after_midnight = HistorySnapshot::new(entries, Lang::En, &prompts, JST, day + 1);
+        assert_eq!(headings(&after_midnight), [Lang::En.tr(Tr::HistoryYesterday), &ymd(day - 1), &ymd(day - 5)]);
     }
 }
