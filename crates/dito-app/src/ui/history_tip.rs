@@ -6,8 +6,8 @@ use super::scope::motion_scope;
 use super::tip_bubble::TIP_BUBBLE_H;
 use super::tween::tweened_at;
 use super::typography::{text, text_width};
-use crate::assets::Ic;
-use crate::theme::Palette;
+use crate::ui::Ic;
+use crate::ui::Palette;
 
 /// Passive, so it never steals a row click.
 pub fn history_tip(
@@ -19,7 +19,7 @@ pub fn history_tip(
     on: bool,
 ) -> AnyElement {
     let p = *p;
-    let reduced = dito_platform::system::reduce_motion();
+    let reduced = super::motion::reduce_motion();
     // Keep the disclosure clock alive even while its hint is hidden.
     let toggle_id = ElementId::from((id.clone(), "history-toggle"));
     let pop_id = ElementId::from((id, "history-tip"));

@@ -1,14 +1,14 @@
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
-use crate::assets::{HudIc, Ic};
+use crate::ui::Ic;
 
 pub fn icon(ic: Ic, size: f32, color: Hsla) -> Svg {
     svg().path(ic.path()).size(px(size)).flex_none().text_color(color)
 }
 
-pub fn hud_icon(ic: HudIc, size: f32, color: Hsla) -> Svg {
-    svg().path(ic.path()).size(px(size)).flex_none().text_color(color)
+pub fn icon_path(path: &'static str, size: f32, color: Hsla) -> Svg {
+    svg().path(path).size(px(size)).flex_none().text_color(color)
 }
 
 pub fn mix(a: Hsla, b: Hsla, t: f32) -> Hsla {

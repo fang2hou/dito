@@ -7,8 +7,8 @@ use gpui_kit::*;
 use super::hover::hover_tracker;
 use super::primitives::{icon, mix_rgb};
 use super::typography::text;
-use crate::assets::Ic;
-use crate::theme::Palette;
+use crate::ui::Ic;
+use crate::ui::Palette;
 
 /// The 16 pt selection marker of a word chip: `hover` fills the inside of its outline, `chosen` turns it into the
 /// solid disc with a check.

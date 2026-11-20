@@ -9,8 +9,8 @@ use super::scope::{ScopeHandle, motion_scope};
 use super::segmented::segment_hover_colors;
 use super::tooltip::{tip_above, tip_label};
 use super::tween::tweened_at;
-use crate::assets::Ic;
-use crate::theme::Palette;
+use crate::ui::Ic;
+use crate::ui::Palette;
 
 const GLYPHS: [&str; 3] = ["system", "light", "dark"];
 const CELL_W: f32 = 42.;

@@ -20,6 +20,7 @@ pub fn init(cx: &mut App) {
     gpui_kit::init(cx);
     dito_platform::system::set_app_icon(include_bytes!("../../../assets/icon/AppIcon-1024.png"));
     cx.text_system().add_fonts(crate::assets::fonts()).expect("bundled fonts");
+    crate::ui::install_reduce_motion_source(dito_platform::system::reduce_motion);
     crate::ui::init_text_system(cx);
     cx.on_action(|_: &Quit, cx| cx.quit());
     cx.bind_keys([KeyBinding::new("cmd-q", Quit, None)]);

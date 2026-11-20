@@ -4,7 +4,7 @@ use gpui_kit::prelude::*;
 use gpui_kit::*;
 
 use super::typography::family_for;
-use crate::theme::Palette;
+use crate::ui::Palette;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum MethodKind {

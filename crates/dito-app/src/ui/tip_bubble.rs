@@ -3,7 +3,7 @@ use gpui_kit::*;
 
 use super::primitives::transparent;
 use super::typography::{family_for, text};
-use crate::theme::Palette;
+use crate::ui::Palette;
 
 /// The bubble's fixed height: the label's line box is taller than its font size, so the height is stated,
 /// not measured. The tooltip's anchor offset depends on it exactly.

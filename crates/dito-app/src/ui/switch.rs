@@ -7,7 +7,7 @@ use super::callbacks::ToggleCb;
 use super::motion::Motion;
 use super::primitives::mix;
 use super::tween::{count_flips, spring};
-use crate::theme::Palette;
+use crate::ui::Palette;
 
 const SWITCH_W: f32 = 42.;
 const SWITCH_H: f32 = 24.;

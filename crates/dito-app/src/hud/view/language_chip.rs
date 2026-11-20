@@ -117,7 +117,7 @@ impl HudView {
                 .hud_languages()
                 .map(|language| ui::SegOption {
                     content: match language {
-                        PreferredLanguage::Auto => ui::SegContent::Icon(HudIc::Auto),
+                        PreferredLanguage::Auto => ui::SegContent::Icon(HudIc::Auto.path()),
                         PreferredLanguage::Ja => ui::SegContent::Text(lang.tr(Tr::HudLanguageJaShort).into()),
                         PreferredLanguage::En => ui::SegContent::Text("En".into()),
                         PreferredLanguage::Zh => ui::SegContent::Text(lang.tr(Tr::HudLanguageZhShort).into()),

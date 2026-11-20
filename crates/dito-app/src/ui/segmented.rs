@@ -5,12 +5,12 @@ use super::button::CONTROL_H;
 use super::callbacks::IndexCb;
 use super::hover::{HOVER_MS, hover_fill_if, hover_tracker, is_hovered};
 use super::plate::{coverage, plate_state};
-use super::primitives::{hud_icon, mix, mix_rgb};
+use super::primitives::{icon_path, mix, mix_rgb};
 use super::scope::{ScopeHandle, motion_scope};
 use super::tooltip::{tip_above, tip_label};
 use super::tween::tweened_at;
 use super::typography::{self, text_width};
-use crate::{assets::HudIc, theme::Palette};
+use crate::ui::Palette;
 
 const SEG_PAD: f32 = 3.;
 const SEG_GAP: f32 = 2.;
@@ -84,7 +84,7 @@ impl SegLayout {
 #[derive(Clone)]
 pub enum SegContent {
     Text(SharedString),
-    Icon(HudIc),
+    Icon(&'static str),
 }
 
 pub struct SegOption {
@@ -196,7 +196,7 @@ fn labels_layer(layout: &SegLayout, labels: &[SegLabel], paint: &LabelPaint, a: 
                 let ink = mix(mix(muted, hover_label, hv), text_c, cover);
                 match &content {
                     SegContent::Text(label) => typography::label(label, size, weight, ink).into_any_element(),
-                    SegContent::Icon(icon) => hud_icon(*icon, size, ink).into_any_element(),
+                    SegContent::Icon(path) => icon_path(path, size, ink).into_any_element(),
                 }
             });
         layer = layer.child(

@@ -6,8 +6,8 @@ use super::hover::{HOVER_MS, hover_tracker, is_hovered};
 use super::primitives::{hex_alpha, icon};
 use super::tooltip::{tip_above, tip_label};
 use super::tween::tweened;
-use crate::assets::Ic;
-use crate::theme::Palette;
+use crate::ui::Ic;
+use crate::ui::Palette;
 
 /// Clicking it flips its own state and leaves the menu open; it never picks the row.
 pub struct SelectBadge {

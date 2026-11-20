@@ -8,7 +8,7 @@ use super::primitives::mix;
 use super::scope::{self, ScopeHandle};
 use super::tween::{self, tweened};
 use super::typography::text;
-use crate::theme::Palette;
+use crate::ui::Palette;
 
 pub const HOVER_MS: u64 = 160;
 
@@ -85,7 +85,7 @@ pub fn hover_pop<E: IntoElement + 'static>(id: ElementId, on: bool, build: impl 
     if !active {
         return Some(el.into_any_element());
     }
-    let reduced = dito_platform::system::reduce_motion();
+    let reduced = super::motion::reduce_motion();
     Some(
         div()
             .child(el)
@@ -117,7 +117,7 @@ pub fn hover_pop_scaled<E: IntoElement + 'static>(
     if !on && !active {
         return None;
     }
-    let reduced = dito_platform::system::reduce_motion();
+    let reduced = super::motion::reduce_motion();
     Some(tween::tweened_at(scope, id, f32::from(on), MS, move |v| {
         let e = 1. - (1. - v).powi(3);
         let (k, rise) = if reduced { (1., 0.) } else { (from + (1. - from) * e, (1. - e) * RISE) };

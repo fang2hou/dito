@@ -15,6 +15,7 @@ mod format;
 mod glass;
 mod history_tip;
 mod hover;
+mod icons;
 mod inputs;
 mod layout;
 mod menu_button;
@@ -22,6 +23,7 @@ mod menu_panel;
 mod method_label;
 mod modal;
 mod motion;
+mod palette;
 mod params;
 mod plate;
 mod popup_menu;
@@ -37,10 +39,13 @@ mod select_badge;
 mod selectable;
 mod shimmer;
 mod switch;
+mod tag;
 mod test_state;
 mod tip_bubble;
 mod tooltip;
 mod tween;
+#[path = "../typefaces.rs"]
+mod typefaces;
 mod typography;
 mod watch;
 
@@ -71,18 +76,21 @@ pub use hover::{
     HOVER_MS, choice_label, hover_fill, hover_fill_edges, hover_fill_if, hover_pop, hover_pop_scaled, hover_tracker,
     is_hovered, is_hovered_in, reset_hover, reset_hover_in,
 };
+pub use icons::Ic;
 pub use inputs::{
     TextAreaStyle, blur_on_outside, field, focus_notifier, focus_on_click, form_field, new_input, notify_on_focus,
     ring_overlay, text_area, text_input, with_ring,
 };
 pub use layout::{
     StatusTone, card, card_segment, drag_area, group, page_title, row, row_described, source_label, status_chip,
-    status_tag, tag,
+    status_tag,
 };
 pub use menu_button::{menu_button, menu_button_on};
 pub use method_label::{MethodKind, MethodSize, method_label};
 pub use modal::modal_layer;
+pub(crate) use motion::install_reduce_motion_source;
 pub use motion::{Motion, SpringCurve, ease, lerp};
+pub use palette::{Palette, hex, hud_color};
 pub use params::{ParamField, parameter_block};
 pub use plate::{GLASS_MS, coverage, plate_state};
 pub use popup_menu::{AddEntry, MenuItem, MenuTone, add_menu, popup_menu, popup_menu_grouped};
@@ -98,13 +106,15 @@ pub use select_badge::SelectBadge;
 pub use selectable::{selectable_runs, selectable_spans, selectable_text};
 pub use shimmer::{ShimmerInk, shimmer_text};
 pub use switch::switch;
+pub use tag::tag;
 pub use test_state::{ErrorPlacement, TestState, test_summary};
 pub use tip_bubble::TIP_BUBBLE_H;
 pub use tooltip::{dismiss_tips, tip_above, tip_label, tip_pop, tip_pop_with, tooltip_root};
 pub use tween::{fade_value, spring, tweened, tweened_at, tweened_linear};
+pub use typefaces::set_ui_language;
 pub use typography::{
-    Script, baseline_in_line, cjk_family, family_for, init_text_system, is_cjk, label, muted12, set_ui_language, text,
-    text_lines, text_width, tracked,
+    Script, baseline_in_line, cjk_family, family_for, init_text_system, is_cjk, label, muted12, text, text_lines,
+    text_width, tracked,
 };
 pub use watch::{notify_on_change, observe};
 

@@ -6,7 +6,7 @@ use gpui_kit::*;
 use super::motion::Motion;
 use super::primitives::mix_rgb;
 use super::typography::{text, text_width};
-use crate::theme::{self, Palette};
+use crate::ui::{Palette, hud_color};
 
 const SWEEP_MS: f32 = 2500.;
 const SWEEP_TRAVEL: f32 = 1100.;
@@ -22,9 +22,9 @@ impl ShimmerInk {
     /// The HUD processing label's colors.
     pub fn processing(p: &Palette) -> Self {
         ShimmerInk {
-            base: theme::hud_color(p, "#8A867B", "#C2BDB2"),
-            shoulder: theme::hud_color(p, "#706C61", "#FFECBD"),
-            hot: theme::hud_color(p, "#575247", "#FFFFFF"),
+            base: hud_color(p, "#8A867B", "#C2BDB2"),
+            shoulder: hud_color(p, "#706C61", "#FFECBD"),
+            hot: hud_color(p, "#575247", "#FFFFFF"),
         }
     }
 }

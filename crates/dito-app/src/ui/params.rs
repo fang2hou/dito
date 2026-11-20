@@ -7,7 +7,7 @@ use gpui_kit::*;
 
 use super::inputs::{form_field, text_input};
 use super::typography::text;
-use crate::theme::Palette;
+use crate::ui::Palette;
 
 pub struct ParamField {
     label: SharedString,
