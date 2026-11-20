@@ -16,7 +16,7 @@ use dito_core::i18n::{Lang, Tr};
 use dito_core::secrets::{Role, text_account};
 use gpui_kit::*;
 
-use super::capture::{page_shot, resize_settings_window, theme_tag};
+use super::capture::{close_window, page_shot, resize_settings_window, theme_tag};
 use super::input::{click, drag_to, hover, on_settings_window, press, press_key, redraw, release};
 use crate::services;
 use crate::settings::{self, ModelsProbe, Page};
@@ -337,6 +337,10 @@ async fn scene(rig: &mut Rig<'_>, appearance: Appearance) {
 }
 
 async fn behavior(rig: &mut Rig<'_>, server: &str) {
+    // A new window builds a new page, which has read no key yet when it first shows a configuration.
+    if let Some((window, _)) = rig.cx.update(|cx| settings::handle(cx)) {
+        close_window(rig.cx, window);
+    }
     rig.start(Appearance::Light, DisplayLanguage::Ja, Some(staged(false)), (WIDTH, HEIGHT)).await;
     let st = rig.st.clone();
 
