@@ -36,6 +36,7 @@ unsafe extern "C" {
         parameter: CFTypeRef,
         value: *mut CFTypeRef,
     ) -> i32;
+    safe fn AXValueGetTypeID() -> usize;
     fn AXValueCreate(value_type: u32, value: *const c_void) -> CFTypeRef;
     fn AXValueGetValue(value: CFTypeRef, the_type: u32, value: *mut c_void) -> bool;
 }
@@ -180,7 +181,7 @@ impl AxElement {
     }
 
     pub(super) fn selection(&self) -> Option<AxSelection> {
-        self.attribute("AXSelectedTextRange").map(AxSelection)
+        self.attribute("AXSelectedTextRange").filter(|value| value.type_of() == AXValueGetTypeID()).map(AxSelection)
     }
 
     pub(super) fn attribute_names(&self) -> Option<Vec<String>> {
@@ -250,8 +251,8 @@ impl AxSelection {
 
     fn read(&self) -> Option<CFRange> {
         let mut range = CFRange { location: 0, length: 0 };
-        // SAFETY: the value is the AXValue returned for AXSelectedTextRange and `range` is a valid CFRange
-        // out-buffer; the call writes through it only when the value's type matches.
+        // SAFETY: `AxElement::selection` builds this only from an AXValue, and `range` is a valid CFRange
+        // out-buffer; the call writes through it only when the value holds a CFRange.
         let ok = unsafe { AXValueGetValue(self.0.as_CFTypeRef(), AX_VALUE_TYPE_CF_RANGE, (&raw mut range).cast()) };
         ok.then_some(range)
     }
