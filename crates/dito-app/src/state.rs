@@ -94,7 +94,7 @@ impl AppState {
         let models = ModelManager::new(cfg.clone());
         let local = LocalEngines::new(models.clone(), runtime_loader());
         let secrets: Arc<dyn SecretStore> =
-            if opts.mock { Arc::new(MemorySecrets::default()) } else { Arc::new(KeychainSecrets::new()) };
+            if opts.uses_keychain() { Arc::new(KeychainSecrets::new()) } else { Arc::new(MemorySecrets::default()) };
         #[cfg(feature = "mock")]
         let mock_speech = mock_server.as_ref().map(|server| dito_testkit::mock_cloud_asr_config(&server.url));
         #[cfg(not(feature = "mock"))]
