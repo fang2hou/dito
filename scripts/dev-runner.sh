@@ -68,6 +68,9 @@ if [[ "$(basename "$bin")" == dito ]]; then
 </dict>
 </plist>
 PLIST
+  version=$("$(dirname "$0")/workspace-version.sh")
+  plutil -replace CFBundleVersion -string "$version" "$app/Contents/Info.plist"
+  plutil -replace CFBundleShortVersionString -string "$version" "$app/Contents/Info.plist"
   # without Assets.car, CFBundleIconName would name a missing icon
   if [[ ! -s "$app/Contents/Resources/Assets.car" ]]; then
     /usr/libexec/PlistBuddy -c "Delete :CFBundleIconName" "$app/Contents/Info.plist"

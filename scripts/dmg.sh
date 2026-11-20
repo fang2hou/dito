@@ -7,11 +7,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-version=$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"$/\1/p' Cargo.toml)
-if [[ -z $version ]]; then
-  echo "error: no workspace version in Cargo.toml" >&2
-  exit 1
-fi
+version=$(scripts/workspace-version.sh)
 if ! command -v figcraft-cli >/dev/null; then
   echo "error: figcraft-cli is required to export the DMG background" >&2
   exit 1
