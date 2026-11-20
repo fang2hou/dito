@@ -34,6 +34,7 @@ pub(crate) use view::POP_MS;
 pub use view::{HudView, PreviewHover};
 #[cfg(feature = "screenshots")]
 pub(crate) use window::live_window;
+pub(crate) use window::native_window;
 #[cfg(feature = "screenshots")]
 pub use window::{WIN_H, WIN_W};
 pub use window::{WIN_PAD, run};

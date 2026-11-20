@@ -220,7 +220,7 @@ fn configure_native_window(window: &Window) {
     native.keep_panel_inactive();
 }
 
-pub(super) fn native_window(window: &Window) -> Option<HudNativeWindow<'_>> {
+pub(crate) fn native_window(window: &Window) -> Option<HudNativeWindow<'_>> {
     let handle = HasWindowHandle::window_handle(window).ok()?;
     let RawWindowHandle::AppKit(h) = handle.as_raw() else { return None };
     // SAFETY: the view belongs to `window`, which the borrow keeps alive.

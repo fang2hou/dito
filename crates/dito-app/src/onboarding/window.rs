@@ -3,10 +3,10 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use dito_platform::system::HudNativeWindow;
 use gpui_kit::prelude::*;
 use gpui_kit::*;
-use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+
+use crate::hud::native_window;
 
 use crate::state::AppState;
 use crate::ui::Root;
@@ -29,10 +29,7 @@ pub(crate) fn try_anchor(cx: &mut App) -> Option<Point<Pixels>> {
                     return None;
                 }
                 let rect = view.try_bounds.get()?;
-                let handle = HasWindowHandle::window_handle(window).ok()?;
-                let RawWindowHandle::AppKit(handle) = handle.as_raw() else { return None };
-                // SAFETY: the window borrow keeps its NSView alive through the conversion.
-                let native = unsafe { HudNativeWindow::from_ns_view(handle.ns_view) }?;
+                let native = native_window(window)?;
                 let (x, y) = native.point_on_screen(f32::from(rect.center().x), f32::from(rect.bottom() - px(16.)))?;
                 Some(point(px(x), px(y)))
             })

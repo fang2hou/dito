@@ -3,10 +3,9 @@ use std::rc::Rc;
 
 use dito_core::config::{Appearance, restore_defaults};
 use dito_core::i18n::{Lang, Tr, system_language};
-use dito_platform::system::{FramelessWindow, HudNativeWindow};
+use dito_platform::system::FramelessWindow;
 use gpui_kit::prelude::*;
 use gpui_kit::*;
-use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 
 use super::failure::{Failure, display_path};
 use crate::opts::Opts;
@@ -263,10 +262,7 @@ fn card_height(failure: &Failure, reason: &str) -> f32 {
 /// away and the window made as large as the card. The change is applied later, once the borrow of the app that this
 /// runs under is released.
 fn frameless(window: &Window, height: f32) -> Option<FramelessWindow> {
-    let handle = HasWindowHandle::window_handle(window).ok()?;
-    let RawWindowHandle::AppKit(handle) = handle.as_raw() else { return None };
-    // SAFETY: the view belongs to `window`, which the borrow keeps alive.
-    unsafe { HudNativeWindow::from_ns_view(handle.ns_view) }?.frameless((f64::from(WIDTH), f64::from(height)))
+    crate::hud::native_window(window)?.frameless((f64::from(WIDTH), f64::from(height)))
 }
 
 /// `shown` is false for the screenshot harness, whose windows are never put on screen.
