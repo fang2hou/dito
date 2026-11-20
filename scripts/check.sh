@@ -69,7 +69,7 @@ fi
 # One invocation: cargo builds dito-core once per feature set, so splitting this up multiplies compile time.
 test_args=(
   --locked
-  -p dito-core -p dito-audio -p dito-platform -p dito-local -p dito-testkit -p dito-app
+  -p dito-core -p dito-audio -p dito-platform -p dito-local -p dito-testkit -p dito-ui -p dito-app
   --no-default-features --features dito-app/mock
 )
 

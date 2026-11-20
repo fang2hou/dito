@@ -40,7 +40,8 @@ Project-specific overrides:
 
 ## Layout
 
-- `crates/dito-app`: GPUI app (`hud/`, `settings/`, `onboarding/`, shared `ui/`).
+- `crates/dito-app`: GPUI app (`hud/`, `settings/`, `onboarding/`, and the app-bound `ui/` facade).
+- `crates/dito-ui`: generic GPUI controls, motion, typography, and color tokens.
 - `crates/dito-core`: dictation pipeline, config, providers, i18n strings (`i18n/messages.toml`).
 - `crates/dito-platform`: macOS integration (hotkeys, text insertion, permissions, windows).
 - `crates/dito-audio`, `crates/dito-local`, `crates/dito-runtimes`: capture, local model management, on-device inference.
@@ -53,7 +54,7 @@ Project-specific overrides:
 
 Always:
 
-- Reuse shared UI controls in `crates/dito-app/src/ui` before composing screen-specific chrome. Extend the shared component when a new content type needs the same behavior; keep sizing, arrow and hover animation, disabled states, and input focus ownership in that shared path.
+- Reuse shared UI controls in `crates/dito-ui/src` before composing screen-specific chrome. App-bound wrappers stay in `crates/dito-app/src/ui`; extend the shared component when a new content type needs the same behavior, keeping sizing, arrow and hover animation, disabled states, and input focus ownership in that shared path.
 
 - Treat `design/dito.figcraft` as the source of truth: the design leads and the code follows it. Change the design first for any UI change, through the `figcraft-live` MCP, and save it with `file.save` after every change without asking.
 - Before editing the design, decide whether the change is a shared component or belongs to one screen. Shared components live in `design:components` and `design:motion`; screen-specific parts live in that screen's section under `design:settings`, `design:hud` or `design:onboarding`. Refer to sections by these ids (`design/sections.toml`), never by number; `mise run check:design-refs` verifies them.

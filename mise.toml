@@ -75,7 +75,7 @@ run = [
 
 [tasks."lint:rust:ci"]
 description = "Clippy for the CI crate set with mock and screenshots, without local runtimes"
-run = "cargo clippy --locked -p dito-core -p dito-audio -p dito-platform -p dito-local -p dito-testkit -p dito-app --no-default-features --features dito-app/mock,dito-app/screenshots --all-targets -- -D warnings"
+run = "cargo clippy --locked -p dito-core -p dito-audio -p dito-platform -p dito-local -p dito-testkit -p dito-ui -p dito-app --no-default-features --features dito-app/mock,dito-app/screenshots,dito-ui/screenshots --all-targets -- -D warnings"
 
 [tasks."lint:actions"]
 description = "Lint the GitHub Actions workflows"

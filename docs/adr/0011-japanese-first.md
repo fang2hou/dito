@@ -39,4 +39,4 @@ A right-to-left script or runtime-downloaded locale pack is requested.
 
 ## Code
 
-`crates/dito-core/build.rs`, `crates/dito-core/src/i18n/messages.toml`, `crates/dito-app/tests/i18n_coverage.rs`, `crates/dito-app/src/ui/typography.rs`.
+`crates/dito-core/build.rs`, `crates/dito-core/src/i18n/messages.toml`, `crates/dito-app/tests/i18n_coverage.rs`, `crates/dito-ui/src/typography.rs`.

@@ -1,0 +1,19 @@
+[package]
+name = "dito-ui"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+screenshots = []
+
+[dependencies]
+gpui-kit.workspace = true
+ttf-parser = "0.25"
+tokio.workspace = true
+tracing.workspace = true

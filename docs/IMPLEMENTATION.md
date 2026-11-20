@@ -75,7 +75,7 @@ The Python benchmark harness has its own tasks: `mise run bench:sync`, `bench:te
 - Keep platform code in `dito-platform` and logic in `dito-core`; the app wires them together.
 - Every `unsafe` block states its safety conditions; AppKit calls stay on the main thread.
 - Prefer a clearer ownership or type over a defensive check (see [fix code](workflow/code-fix.md)).
-- gpui-kit component types (`gpui_kit::component::...`) are imported through `crate::ui`; only `crates/dito-app/src/ui` names those paths.
+- gpui-kit component types (`gpui_kit::component::...`) are re-exported by `crates/dito-ui/src` and imported by the app through `crate::ui`; only that crate names those paths.
 
 ## Testing
 
