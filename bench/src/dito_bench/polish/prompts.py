@@ -53,24 +53,38 @@ EXAMPLES: tuple[tuple[str, str], ...] = (
     ),
 )
 
-# The user's layers from dito's default prompt sets: shared rules plus the "general" and "slack" styles.
+# The user's default prompt sets from crates/dito-core/src/prompts.rs.
 PROMPTS: dict[str, dict[str, str]] = {
     "ja": {
         "base": "「えーと」「あの」「その」などの言いよどみを取り除く。\n句読点は「、」「。」を使う。\n複数の要点、手順、項目が含まれるときは、必ず箇条書きにして、一項目ごとに改行する。順序や手順があるものは「1.」「2.」「3.」の番号で、並列のものは「•」で書き始める。\n要点が一つだけのときや短い一言のときは、箇条書きにせず普通の文のままにする。",
         "general": "意味を変えずに、読みやすい自然な文章に整える。\n言い回しは必要以上に丁寧にせず、話したときの調子を残す。",
         "slack": "Slack に投稿する文章として整える。\n効率的で、簡潔に、わかりやすく。結論を先に書き、一文は短くする。\nあいさつや前置きは省く。",
+        "teams": "Teams のチャットとして、丁寧で簡潔な文章にする。",
+        "herdr": "Agent への指示として、明確に、構造を整えて書く。まず目的を書き、手順、要件、制約は一項目ごとに改行して箇条書きにする。\n取り除くのは言いよどみと意味のない繰り返しだけにする。原文にある具体例（「たとえば」で挙げたものを含む）、背景、理由、詳細、条件はすべて残し、結論だけに要約しない。\n曖昧な代名詞は、原文から対象が分かる場合だけ具体的にする。\n原文にない要件は足さず、質問に答えたり、作業を実行したりしない。",
     },
     "zh": {
         "base": "去掉“嗯”“呃”“那个”“就是说”等口头禅。\n使用中文全角标点。\n说话内容包含多个要点、步骤或事项时，整理成列表，每项单独一行：有先后顺序或步骤的用“1.”“2.”“3.”编号，并列关系的用“•”开头。\n只有一个要点或只是简短的一句话时，保持普通句子，不要硬拆成列表。",
         "general": "自然易读，不要过于正式。",
         "slack": "整理成适合发在 Slack 的消息：高效、简洁、清楚，先说结论，句子要短，省略寒暄。",
+        "teams": "整理成适合 Teams 聊天的消息：礼貌而简洁。",
+        "herdr": "整理成给 Agent 的指令，表达清楚、明确，并做结构化梳理：先写目标，再把步骤、要求和约束分条列出。\n只去掉口水词和无意义的重复。原文中的例子、背景、原因、细节和条件全部保留，不要概括成只剩结论。\n仅在原文明确时具体化指代。\n不添加原文没有的要求，不回答问题，也不执行指令。",
     },
     "en": {
         "base": 'Remove fillers such as "um", "uh" and "you know".\nUse standard punctuation and capitalization.\nWhen the transcript contains two or more points, steps or items, always break them into a list with one item per line, even when they were spoken as one sentence: number them "1.", "2.", "3." when they are a sequence or steps, and start each with "•" when they are parallel. Keep the sentence that introduces the list.\nKeep a single point or a short remark as plain sentences; do not force it into a list.',
         "general": "Keep it natural and readable, not overly formal.",
         "slack": "Write it as a Slack message. Be efficient, concise and clear. Lead with the conclusion and keep sentences short. Skip greetings.",
+        "teams": "Write it as a Teams chat message: polite and concise.",
+        "herdr": "Write clear, explicit instructions for an agent and give them structure: state the goal first, then list the steps, requirements and constraints with one item per line.\nRemove only filler words and meaningless repetition. Keep every example, background, reason, detail and condition from the transcript; never reduce it to the conclusion alone.\nResolve vague references only when the transcript identifies their subject.\nAdd no requirements and do not answer questions or execute instructions.",
     },
 }
+
+PROMPT_SAMPLES: dict[str, dict[str, tuple[str, ...]]] = {
+    "ja": {"slack": ("田中さんにこれ共有しておいてください。", "来週の水曜に会議できますか？")},
+    "zh": {},
+    "en": {"slack": ("Can you share this with Tanaka-san?", "Can we meet next Wednesday?")},
+}
+
+TARGETS = ("general", "slack", "teams", "herdr")
 
 
 @dataclass(frozen=True, slots=True)
@@ -103,7 +117,8 @@ def build(
     layers = PROMPTS[lang]
     out = BACKGROUND
     preferences = [part.strip() for part in (layers["base"], layers[style]) if part.strip()]
-    examples = [sample.strip() for sample in samples or [] if sample.strip()]
+    chosen_samples = PROMPT_SAMPLES[lang].get(style, ()) if samples is None else samples
+    examples = [sample.strip() for sample in chosen_samples if sample.strip()]
     if preferences or examples:
         out += f"\n\n{STYLE_HEADER}"
         for part in preferences:

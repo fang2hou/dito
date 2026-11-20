@@ -1,0 +1,3948 @@
+{
+  "schema": 1,
+  "weights": "files:4f0d7149eaa4b0ac",
+  "environment": {
+    "chip": "Apple M5 Pro",
+    "memory_gb": 48,
+    "macos": "27.2.1",
+    "python": "3.15.2",
+    "packages": {
+      "llama-cpp-python": "0.3.36"
+    }
+  },
+  "records": {
+    "a-en-control-01--general--app": {
+      "fingerprint": "452ba46809d80732",
+      "recorded_at": "2026-11-20T15:45:51+00:00",
+      "result": {
+        "text": "Meet me at Central Station at three.",
+        "elapsed_s": 0.924,
+        "tokens": 8,
+        "prompt_tokens": 648,
+        "max_tokens": 972,
+        "context_tokens": 1620,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": true,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 36,
+          "output_chars": 36,
+          "length_ratio": 1.0
+        }
+      }
+    },
+    "a-en-control-02--general--app": {
+      "fingerprint": "274463a076d8209d",
+      "recorded_at": "2026-11-20T15:45:53+00:00",
+      "result": {
+        "text": "Submit the application by Friday.",
+        "elapsed_s": 0.88,
+        "tokens": 6,
+        "prompt_tokens": 646,
+        "max_tokens": 969,
+        "context_tokens": 1615,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": true,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 33,
+          "output_chars": 33,
+          "length_ratio": 1.0
+        }
+      }
+    },
+    "a-en-control-03--general--app": {
+      "fingerprint": "7b366f790ab3dd0c",
+      "recorded_at": "2026-11-20T15:45:55+00:00",
+      "result": {
+        "text": "Maya will verify the final version.",
+        "elapsed_s": 0.925,
+        "tokens": 8,
+        "prompt_tokens": 648,
+        "max_tokens": 972,
+        "context_tokens": 1620,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": true,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 35,
+          "output_chars": 35,
+          "length_ratio": 1.0
+        }
+      }
+    },
+    "a-en-control-04--general--app": {
+      "fingerprint": "7e57674bbf34dfb1",
+      "recorded_at": "2026-11-20T15:45:57+00:00",
+      "result": {
+        "text": "The budget stays unchanged.",
+        "elapsed_s": 0.858,
+        "tokens": 5,
+        "prompt_tokens": 645,
+        "max_tokens": 967,
+        "context_tokens": 1612,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": true,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 27,
+          "output_chars": 27,
+          "length_ratio": 1.0
+        }
+      }
+    },
+    "a-en-control-05--general--app": {
+      "fingerprint": "2cc60959cd11a4f1",
+      "recorded_at": "2026-11-20T15:45:59+00:00",
+      "result": {
+        "text": "The next review is in Seattle.",
+        "elapsed_s": 0.902,
+        "tokens": 7,
+        "prompt_tokens": 647,
+        "max_tokens": 970,
+        "context_tokens": 1617,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": true,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 30,
+          "output_chars": 30,
+          "length_ratio": 1.0
+        }
+      }
+    },
+    "a-en-control-06--general--app": {
+      "fingerprint": "f941235715ee5897",
+      "recorded_at": "2026-11-20T15:46:01+00:00",
+      "result": {
+        "text": "We will check each change in order.",
+        "elapsed_s": 0.925,
+        "tokens": 8,
+        "prompt_tokens": 648,
+        "max_tokens": 972,
+        "context_tokens": 1620,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": true,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 35,
+          "output_chars": 35,
+          "length_ratio": 1.0
+        }
+      }
+    },
+    "a-en-correction-01--general--app": {
+      "fingerprint": "1e1aad4665fda87b",
+      "recorded_at": "2026-11-20T15:45:47+00:00",
+      "result": {
+        "text": "Meet me in Seattle on Monday.",
+        "elapsed_s": 0.905,
+        "tokens": 7,
+        "prompt_tokens": 652,
+        "max_tokens": 978,
+        "context_tokens": 1630,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 44,
+          "output_chars": 29,
+          "length_ratio": 0.6591
+        }
+      }
+    },
+    "a-en-correction-02--general--app": {
+      "fingerprint": "1b8cef2dc6b004cd",
+      "recorded_at": "2026-11-20T15:45:49+00:00",
+      "result": {
+        "text": "The budget is thirty-five thousand.",
+        "elapsed_s": 0.903,
+        "tokens": 7,
+        "prompt_tokens": 652,
+        "max_tokens": 978,
+        "context_tokens": 1630,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 58,
+          "output_chars": 35,
+          "length_ratio": 0.6034
+        }
+      }
+    },
+    "a-en-filler-01--general--app": {
+      "fingerprint": "3fda2aa514bf7f36",
+      "recorded_at": "2026-11-20T15:45:40+00:00",
+      "result": {
+        "text": "Send the final brief by Friday.",
+        "elapsed_s": 0.903,
+        "tokens": 7,
+        "prompt_tokens": 649,
+        "max_tokens": 973,
+        "context_tokens": 1622,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 35,
+          "output_chars": 31,
+          "length_ratio": 0.8857
+        }
+      }
+    },
+    "a-en-filler-02--general--app": {
+      "fingerprint": "d877a0171a244de0",
+      "recorded_at": "2026-11-20T15:45:42+00:00",
+      "result": {
+        "text": "You know, the review starts at three.",
+        "elapsed_s": 0.948,
+        "tokens": 9,
+        "prompt_tokens": 649,
+        "max_tokens": 973,
+        "context_tokens": 1622,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": true,
+          "missing": [],
+          "forbidden": [
+            "you know"
+          ],
+          "input_chars": 37,
+          "output_chars": 37,
+          "length_ratio": 1.0
+        }
+      }
+    },
+    "a-en-repeat-01--general--app": {
+      "fingerprint": "932ff7a700748b36",
+      "recorded_at": "2026-11-20T15:45:44+00:00",
+      "result": {
+        "text": "We ship tomorrow with the small patch.",
+        "elapsed_s": 0.927,
+        "tokens": 8,
+        "prompt_tokens": 651,
+        "max_tokens": 976,
+        "context_tokens": 1627,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 49,
+          "output_chars": 38,
+          "length_ratio": 0.7755
+        }
+      }
+    },
+    "a-en-repeat-02--general--app": {
+      "fingerprint": "942a69d5030e482f",
+      "recorded_at": "2026-11-20T15:45:45+00:00",
+      "result": {
+        "text": "Maya will own the handoff this week.",
+        "elapsed_s": 0.975,
+        "tokens": 10,
+        "prompt_tokens": 652,
+        "max_tokens": 978,
+        "context_tokens": 1630,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 42,
+          "output_chars": 36,
+          "length_ratio": 0.8571
+        }
+      }
+    },
+    "a-ja-control-01--general--app": {
+      "fingerprint": "3b39ff8d7cf6de29",
+      "recorded_at": "2026-11-20T15:45:08+00:00",
+      "result": {
+        "text": "明日の十五時に東京駅で待ち合わせます。",
+        "elapsed_s": 0.996,
+        "tokens": 11,
+        "prompt_tokens": 658,
+        "max_tokens": 987,
+        "context_tokens": 1645,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": true,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 19,
+          "output_chars": 19,
+          "length_ratio": 1.0
+        }
+      }
+    },
+    "a-ja-control-02--general--app": {
+      "fingerprint": "24b3edbef90047d9",
+      "recorded_at": "2026-11-20T15:45:09+00:00",
+      "result": {
+        "text": "申請書を金曜までに共有します。",
+        "elapsed_s": 0.928,
+        "tokens": 8,
+        "prompt_tokens": 655,
+        "max_tokens": 982,
+        "context_tokens": 1637,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": true,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 15,
+          "output_chars": 15,
+          "length_ratio": 1.0
+        }
+      }
+    },
+    "a-ja-control-03--general--app": {
+      "fingerprint": "a347bcfad225cd46",
+      "recorded_at": "2026-11-20T15:45:11+00:00",
+      "result": {
+        "text": "田中さんが最終版を確認します。",
+        "elapsed_s": 0.928,
+        "tokens": 8,
+        "prompt_tokens": 655,
+        "max_tokens": 982,
+        "context_tokens": 1637,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": true,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 15,
+          "output_chars": 15,
+          "length_ratio": 1.0
+        }
+      }
+    },
+    "a-ja-control-04--general--app": {
+      "fingerprint": "3384f052785ad023",
+      "recorded_at": "2026-11-20T15:45:13+00:00",
+      "result": {
+        "text": "予算は変更せずに進めます。",
+        "elapsed_s": 0.906,
+        "tokens": 7,
+        "prompt_tokens": 654,
+        "max_tokens": 981,
+        "context_tokens": 1635,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": true,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 13,
+          "output_chars": 13,
+          "length_ratio": 1.0
+        }
+      }
+    },
+    "a-ja-control-05--general--app": {
+      "fingerprint": "487451a99b9fda17",
+      "recorded_at": "2026-11-20T15:45:15+00:00",
+      "result": {
+        "text": "次回は大阪で開催します。",
+        "elapsed_s": 0.884,
+        "tokens": 6,
+        "prompt_tokens": 653,
+        "max_tokens": 979,
+        "context_tokens": 1632,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": true,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 12,
+          "output_chars": 12,
+          "length_ratio": 1.0
+        }
+      }
+    },
+    "a-ja-control-06--general--app": {
+      "fingerprint": "6abb68c307a92f98",
+      "recorded_at": "2026-11-20T15:45:17+00:00",
+      "result": {
+        "text": "この変更を一件ずつ確認します。",
+        "elapsed_s": 0.932,
+        "tokens": 8,
+        "prompt_tokens": 655,
+        "max_tokens": 982,
+        "context_tokens": 1637,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": true,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 15,
+          "output_chars": 15,
+          "length_ratio": 1.0
+        }
+      }
+    },
+    "a-ja-correction-01--general--app": {
+      "fingerprint": "c91d43b38ece2076",
+      "recorded_at": "2026-11-20T15:45:04+00:00",
+      "result": {
+        "text": "会議は木曜です。",
+        "elapsed_s": 0.886,
+        "tokens": 6,
+        "prompt_tokens": 658,
+        "max_tokens": 987,
+        "context_tokens": 1645,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 16,
+          "output_chars": 8,
+          "length_ratio": 0.5
+        }
+      }
+    },
+    "a-ja-correction-02--general--app": {
+      "fingerprint": "6879099745940ed8",
+      "recorded_at": "2026-11-20T15:45:06+00:00",
+      "result": {
+        "text": "予算は三百万円ではなく、二百五十万円です。",
+        "elapsed_s": 1.02,
+        "tokens": 12,
+        "prompt_tokens": 659,
+        "max_tokens": 988,
+        "context_tokens": 1647,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [
+            "三百万円"
+          ],
+          "input_chars": 22,
+          "output_chars": 21,
+          "length_ratio": 0.9545
+        }
+      }
+    },
+    "a-ja-filler-01--general--app": {
+      "fingerprint": "a6f7274b107551b3",
+      "recorded_at": "2026-11-20T15:44:56+00:00",
+      "result": {
+        "text": "明日の会議は十五時です。",
+        "elapsed_s": 0.931,
+        "tokens": 8,
+        "prompt_tokens": 659,
+        "max_tokens": 988,
+        "context_tokens": 1647,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 16,
+          "output_chars": 12,
+          "length_ratio": 0.75
+        }
+      }
+    },
+    "a-ja-filler-02--general--app": {
+      "fingerprint": "18af0818d94479e5",
+      "recorded_at": "2026-11-20T15:44:58+00:00",
+      "result": {
+        "text": "資料を金曜までに送ります。",
+        "elapsed_s": 0.929,
+        "tokens": 8,
+        "prompt_tokens": 657,
+        "max_tokens": 985,
+        "context_tokens": 1642,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 16,
+          "output_chars": 13,
+          "length_ratio": 0.8125
+        }
+      }
+    },
+    "a-ja-repeat-01--general--app": {
+      "fingerprint": "e32e6a47f5cf04a2",
+      "recorded_at": "2026-11-20T15:45:00+00:00",
+      "result": {
+        "text": "これは明日納品します。",
+        "elapsed_s": 0.884,
+        "tokens": 6,
+        "prompt_tokens": 656,
+        "max_tokens": 984,
+        "context_tokens": 1640,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 15,
+          "output_chars": 11,
+          "length_ratio": 0.7333
+        }
+      }
+    },
+    "a-ja-repeat-02--general--app": {
+      "fingerprint": "237c695f2b74bf9b",
+      "recorded_at": "2026-11-20T15:45:02+00:00",
+      "result": {
+        "text": "田中さんが進行します。",
+        "elapsed_s": 0.888,
+        "tokens": 6,
+        "prompt_tokens": 657,
+        "max_tokens": 985,
+        "context_tokens": 1642,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 16,
+          "output_chars": 11,
+          "length_ratio": 0.6875
+        }
+      }
+    },
+    "a-zh-control-01--general--app": {
+      "fingerprint": "e648cfc4add5921e",
+      "recorded_at": "2026-11-20T15:45:29+00:00",
+      "result": {
+        "text": "明天下午三点在北京路见面。",
+        "elapsed_s": 0.798,
+        "tokens": 7,
+        "prompt_tokens": 614,
+        "max_tokens": 921,
+        "context_tokens": 1535,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": true,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 13,
+          "output_chars": 13,
+          "length_ratio": 1.0
+        }
+      }
+    },
+    "a-zh-control-02--general--app": {
+      "fingerprint": "b44b466cec6172f9",
+      "recorded_at": "2026-11-20T15:45:31+00:00",
+      "result": {
+        "text": "请在周五前提交申请。",
+        "elapsed_s": 0.777,
+        "tokens": 6,
+        "prompt_tokens": 613,
+        "max_tokens": 919,
+        "context_tokens": 1532,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": true,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 10,
+          "output_chars": 10,
+          "length_ratio": 1.0
+        }
+      }
+    },
+    "a-zh-control-03--general--app": {
+      "fingerprint": "7c8bc7c0d73b1b66",
+      "recorded_at": "2026-11-20T15:45:33+00:00",
+      "result": {
+        "text": "王敏会检查最终版本。",
+        "elapsed_s": 0.798,
+        "tokens": 7,
+        "prompt_tokens": 614,
+        "max_tokens": 921,
+        "context_tokens": 1535,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": true,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 10,
+          "output_chars": 10,
+          "length_ratio": 1.0
+        }
+      }
+    },
+    "a-zh-control-04--general--app": {
+      "fingerprint": "a0a87be0efffae06",
+      "recorded_at": "2026-11-20T15:45:34+00:00",
+      "result": {
+        "text": "预算维持不变。",
+        "elapsed_s": 0.74,
+        "tokens": 4,
+        "prompt_tokens": 611,
+        "max_tokens": 916,
+        "context_tokens": 1527,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": true,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 7,
+          "output_chars": 7,
+          "length_ratio": 1.0
+        }
+      }
+    },
+    "a-zh-control-05--general--app": {
+      "fingerprint": "82a6bcc5029ee9ad",
+      "recorded_at": "2026-11-20T15:45:36+00:00",
+      "result": {
+        "text": "下次会议在深圳举行。",
+        "elapsed_s": 0.754,
+        "tokens": 5,
+        "prompt_tokens": 612,
+        "max_tokens": 918,
+        "context_tokens": 1530,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": true,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 10,
+          "output_chars": 10,
+          "length_ratio": 1.0
+        }
+      }
+    },
+    "a-zh-control-06--general--app": {
+      "fingerprint": "bf2745373342d06f",
+      "recorded_at": "2026-11-20T15:45:38+00:00",
+      "result": {
+        "text": "我们逐项确认这些修改。",
+        "elapsed_s": 0.777,
+        "tokens": 6,
+        "prompt_tokens": 613,
+        "max_tokens": 919,
+        "context_tokens": 1532,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": true,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 11,
+          "output_chars": 11,
+          "length_ratio": 1.0
+        }
+      }
+    },
+    "a-zh-correction-01--general--app": {
+      "fingerprint": "ef68c540489967c8",
+      "recorded_at": "2026-11-20T15:45:26+00:00",
+      "result": {
+        "text": "地点在深圳。",
+        "elapsed_s": 0.711,
+        "tokens": 3,
+        "prompt_tokens": 615,
+        "max_tokens": 922,
+        "context_tokens": 1537,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 13,
+          "output_chars": 6,
+          "length_ratio": 0.4615
+        }
+      }
+    },
+    "a-zh-correction-02--general--app": {
+      "fingerprint": "8c294fab307d8d71",
+      "recorded_at": "2026-11-20T15:45:27+00:00",
+      "result": {
+        "text": "预算是十五万。",
+        "elapsed_s": 0.759,
+        "tokens": 5,
+        "prompt_tokens": 618,
+        "max_tokens": 927,
+        "context_tokens": 1545,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 16,
+          "output_chars": 7,
+          "length_ratio": 0.4375
+        }
+      }
+    },
+    "a-zh-filler-01--general--app": {
+      "fingerprint": "cefba8e22d584795",
+      "recorded_at": "2026-11-20T15:45:19+00:00",
+      "result": {
+        "text": "会议改到明天下午三点。",
+        "elapsed_s": 0.8,
+        "tokens": 7,
+        "prompt_tokens": 616,
+        "max_tokens": 924,
+        "context_tokens": 1540,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 13,
+          "output_chars": 11,
+          "length_ratio": 0.8462
+        }
+      }
+    },
+    "a-zh-filler-02--general--app": {
+      "fingerprint": "bd0a0a61f514e165",
+      "recorded_at": "2026-11-20T15:45:21+00:00",
+      "result": {
+        "text": "那个，我周五提交最终版本。",
+        "elapsed_s": 0.823,
+        "tokens": 8,
+        "prompt_tokens": 615,
+        "max_tokens": 922,
+        "context_tokens": 1537,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": true,
+          "missing": [],
+          "forbidden": [
+            "那个"
+          ],
+          "input_chars": 13,
+          "output_chars": 13,
+          "length_ratio": 1.0
+        }
+      }
+    },
+    "a-zh-repeat-01--general--app": {
+      "fingerprint": "c10eca227f61624b",
+      "recorded_at": "2026-11-20T15:45:22+00:00",
+      "result": {
+        "text": "我们明天一起发布新版本。",
+        "elapsed_s": 0.778,
+        "tokens": 6,
+        "prompt_tokens": 615,
+        "max_tokens": 922,
+        "context_tokens": 1537,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 15,
+          "output_chars": 12,
+          "length_ratio": 0.8
+        }
+      }
+    },
+    "a-zh-repeat-02--general--app": {
+      "fingerprint": "b5920f0cfe977fc4",
+      "recorded_at": "2026-11-20T15:45:24+00:00",
+      "result": {
+        "text": "王敏负责整理会议记录。",
+        "elapsed_s": 0.801,
+        "tokens": 7,
+        "prompt_tokens": 617,
+        "max_tokens": 925,
+        "context_tokens": 1542,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 14,
+          "output_chars": 11,
+          "length_ratio": 0.7857
+        }
+      }
+    },
+    "b-en-01--general--app": {
+      "fingerprint": "9db1285086032860",
+      "recorded_at": "2026-11-20T15:59:47+00:00",
+      "result": {
+        "text": "For next month's release, Tanaka owns delivery and Mina reviews the result. The release date is December 5, 2026 at 9 a.m., and the target is mobile version 7.2.0. We settled on three actions:\n1. Add the contract confirmation screen by Friday.\n2. Run a load test with 80 people on Saturday morning.\n3. Remove the old price sheet by 4 p.m. on Sunday.\n\nWe decided not to delay the launch. The reason is that any payment interruption should last no more than 4 hours and the fallback route can keep accepting orders. Only if the test failure rate exceeds 2 percent will we reopen the launch review, and Tanaka will send the outcome to Sato in Osaka and the quality team that same day. The budget is 1.8 million dollars, the room is 6A, and the document reference is R-284. We will monitor for 48 hours after launch and keep the decision log for 90 days.",
+        "elapsed_s": 6.377,
+        "tokens": 217,
+        "prompt_tokens": 854,
+        "max_tokens": 1281,
+        "context_tokens": 2135,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 866,
+          "output_chars": 850,
+          "length_ratio": 0.9815
+        }
+      }
+    },
+    "b-en-01--general--legacy": {
+      "fingerprint": "1d7d9d40d2ffd692",
+      "recorded_at": "2026-11-20T15:59:54+00:00",
+      "result": {
+        "text": "For next month's release, Tanaka owns delivery and Mina reviews the result. The release date is December 5, 2026 at 9 a.m., and the target is mobile version 7.2.0. We settled on three actions:\n1. Add the contract confirmation screen by Friday.\n2. Run a load test with 80 people on Saturday morning.\n3. Remove the old price sheet by 4 p.m. on Sunday.\n\nWe decided not to delay the launch. The reason is that any payment interruption should last no more than 4 hours and the fallback route can keep accepting orders. Only if the test failure rate exceeds 2 percent will we reopen the launch review, and Tanaka will send the outcome to Sato in Osaka and the quality team that same day. The budget is 1.8 million dollars, the room is 6A, and the document reference is R-284. We will monitor for 48 hours after launch and keep the decision log for 90 days.",
+        "elapsed_s": 6.387,
+        "tokens": 217,
+        "prompt_tokens": 854,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 866,
+          "output_chars": 850,
+          "length_ratio": 0.9815
+        }
+      }
+    },
+    "b-en-01--herdr--app": {
+      "fingerprint": "74780fe2f580f07f",
+      "recorded_at": "2026-11-20T16:00:02+00:00",
+      "result": {
+        "text": "For next month's release, Tanaka owns delivery and Mina reviews the result. The release date is December 5, 2026 at 9 a.m., and the target is mobile version 7.2.0. We settled on three actions:\n1. Add the contract confirmation screen by Friday.\n2. Run a load test with 80 people on Saturday morning.\n3. Remove the old price sheet by 4 p.m. on Sunday.\nWe decided not to delay the launch. The reason is that any payment interruption should last no more than 4 hours and the fallback route can keep accepting orders. Only if the test failure rate exceeds 2 percent will we reopen the launch review, and Tanaka will send the outcome to Sato in Osaka and the quality team that same day. The budget is 1.8 million dollars, the room is 6A, and the document reference is R-284. We will monitor for 48 hours after launch and keep the decision log for 90 days.",
+        "elapsed_s": 6.622,
+        "tokens": 217,
+        "prompt_tokens": 933,
+        "max_tokens": 1399,
+        "context_tokens": 2332,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 866,
+          "output_chars": 849,
+          "length_ratio": 0.9804
+        }
+      }
+    },
+    "b-en-01--herdr--legacy": {
+      "fingerprint": "576936d164f4f362",
+      "recorded_at": "2026-11-20T16:00:10+00:00",
+      "result": {
+        "text": "For next month's release, Tanaka owns delivery and Mina reviews the result. The release date is December 5, 2026 at 9 a.m., and the target is mobile version 7.2.0. We settled on three actions:\n1. Add the contract confirmation screen by Friday.\n2. Run a load test with 80 people on Saturday morning.\n3. Remove the old price sheet by 4 p.m. on Sunday.\n\nWe decided not to delay the launch. The reason is that any payment interruption should last no more than 4 hours and the fallback route can keep accepting orders. Only if the test failure rate exceeds 2 percent will we reopen the launch review, and Tanaka will send the outcome to Sato in Osaka and the quality team that same day. The budget is 1.8 million dollars, the room is 6A, and the document reference is R-284. We will monitor for 48 hours after launch and keep the decision log for 90 days.",
+        "elapsed_s": 6.556,
+        "tokens": 217,
+        "prompt_tokens": 933,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 866,
+          "output_chars": 850,
+          "length_ratio": 0.9815
+        }
+      }
+    },
+    "b-en-01--slack--app": {
+      "fingerprint": "c034941333be8905",
+      "recorded_at": "2026-11-20T16:00:17+00:00",
+      "result": {
+        "text": "For next month's release, Tanaka owns delivery and Mina reviews the result. The release date is December 5, 2026 at 9 a.m., and the target is mobile version 7.2.0. We settled on three actions:\n1. Add the contract confirmation screen by Friday.\n2. Run a load test with 80 people on Saturday morning.\n3. Remove the old price sheet by 4 p.m. on Sunday.\n\nWe decided not to delay the launch. The reason is that any payment interruption should last no more than 4 hours and the fallback route can keep accepting orders. Only if the test failure rate exceeds 2 percent will we reopen the launch review, and Tanaka will send the outcome to Sato in Osaka and the quality team that same day. The budget is 1.8 million dollars, the room is 6A, and the document reference is R-284. We will monitor for 48 hours after launch and keep the decision log for 90 days.",
+        "elapsed_s": 6.644,
+        "tokens": 217,
+        "prompt_tokens": 927,
+        "max_tokens": 1390,
+        "context_tokens": 2317,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 866,
+          "output_chars": 850,
+          "length_ratio": 0.9815
+        }
+      }
+    },
+    "b-en-01--slack--legacy": {
+      "fingerprint": "35f239ebf8894d03",
+      "recorded_at": "2026-11-20T16:00:25+00:00",
+      "result": {
+        "text": "For next month's release, Tanaka owns delivery and Mina reviews the result. The release date is December 5, 2026 at 9 a.m., and the target is mobile version 7.2.0. We settled on three actions:\n1. Add the contract confirmation screen by Friday.\n2. Run a load test with 80 people on Saturday morning.\n3. Remove the old price sheet by 4 p.m. on Sunday.\n\nWe decided not to delay the launch. The reason is that any payment interruption should last no more than 4 hours and the fallback route can keep accepting orders. Only if the test failure rate exceeds 2 percent will we reopen the launch review, and Tanaka will send the outcome to Sato in Osaka and the quality team that same day. The budget is 1.8 million dollars, the room is 6A, and the document reference is R-284. We will monitor for 48 hours after launch and keep the decision log for 90 days.",
+        "elapsed_s": 6.482,
+        "tokens": 217,
+        "prompt_tokens": 927,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 866,
+          "output_chars": 850,
+          "length_ratio": 0.9815
+        }
+      }
+    },
+    "b-en-02--general--app": {
+      "fingerprint": "428604b964f79989",
+      "recorded_at": "2026-11-20T16:00:33+00:00",
+      "result": {
+        "text": "For next year's hiring round:\n1. The process is owned by Li Fang from People Operations.\n2. The candidates are Aiko Mori and Ken Ito.\n3. Their first interviews are on November 24 and November 25, 2026, in the Boston office on floor 5, with 45 minutes assigned to each person.\n4. Both candidates will receive the same case study, and technical lead Marcus will score it.\n5. The contract ceiling is 120 thousand dollars a year.\n6. We decided to advance both candidates to the final interview because Mori has process improvement experience and Ito led a 16-month migration project, which together cover the team's two largest gaps.\n7. An English score below B2 blocks approval.\n8. The interview panel must send comments to Li Fang by 1 p.m. next Wednesday.\n9. The remaining budget difference is 8 thousand dollars.\n10. Their location preferences are Seattle and Austin.\n11. The position reference is HR-318.",
+        "elapsed_s": 6.774,
+        "tokens": 227,
+        "prompt_tokens": 832,
+        "max_tokens": 1248,
+        "context_tokens": 2080,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 874,
+          "output_chars": 905,
+          "length_ratio": 1.0355
+        }
+      }
+    },
+    "b-en-02--general--legacy": {
+      "fingerprint": "686544d8d0ef3585",
+      "recorded_at": "2026-11-20T16:00:40+00:00",
+      "result": {
+        "text": "For next year's hiring round:\n1. Li Fang from People Operations owns the process.\n2. The candidates are Aiko Mori and Ken Ito.\n3. Their first interviews are on November 24 and November 25, 2026, in the Boston office on floor 5, with 45 minutes assigned to each person.\n4. Both candidates will receive the same case study, and technical lead Marcus will score it.\n5. The contract ceiling is 120 thousand dollars a year.\n6. We decided to advance both candidates to the final interview because Mori has process improvement experience and Ito led a 16-month migration project, which together cover the team's two largest gaps.\n7. An English score below B2 blocks approval.\n8. The interview panel must send comments to Li Fang by 1 p.m. next Wednesday.\n9. The remaining budget difference is 8 thousand dollars.\n10. Their location preferences are Seattle and Austin.\n11. The position reference is HR-318.",
+        "elapsed_s": 6.561,
+        "tokens": 225,
+        "prompt_tokens": 832,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 874,
+          "output_chars": 898,
+          "length_ratio": 1.0275
+        }
+      }
+    },
+    "b-en-02--herdr--app": {
+      "fingerprint": "cdecb4540bac606c",
+      "recorded_at": "2026-11-20T16:00:48+00:00",
+      "result": {
+        "text": "For next year's hiring round, Li Fang from people operations owns the process, and the candidates are Aiko Mori and Ken Ito.\n1. Their first interviews are on November 24 and November 25, 2026 in the Boston office on floor 5, with 45 minutes assigned to each person.\n2. Both candidates will receive the same case study, and technical lead Marcus will score it.\n3. The contract ceiling is 120 thousand dollars a year.\n4. We decided to advance both candidates to the final interview because Mori has process improvement experience and Ito led a 16-month migration project, which together cover the team's two largest gaps.\n5. An English score below B2 blocks approval, and the interview panel must send comments to Li Fang by 1 p.m. next Wednesday.\n6. The remaining budget difference is 8 thousand dollars.\n7. Their location preferences are Seattle and Austin.\n8. The position reference is HR-318.",
+        "elapsed_s": 6.55,
+        "tokens": 215,
+        "prompt_tokens": 911,
+        "max_tokens": 1366,
+        "context_tokens": 2277,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 874,
+          "output_chars": 894,
+          "length_ratio": 1.0229
+        }
+      }
+    },
+    "b-en-02--herdr--legacy": {
+      "fingerprint": "141e8006b8f172a7",
+      "recorded_at": "2026-11-20T16:00:55+00:00",
+      "result": {
+        "text": "For next year's hiring round, Li Fang from people operations owns the process. The candidates are Aiko Mori and Ken Ito.\n1. Their first interviews are on November 24 and November 25, 2026 in the Boston office on floor 5.\n2. 45 minutes are assigned to each person.\n3. Both candidates will receive the same case study, and technical lead Marcus will score it.\n4. The contract ceiling is 120 thousand dollars a year.\n5. We decided to advance both candidates to the final interview because Mori has process improvement experience and Ito led a 16-month migration project, which together cover the team's two largest gaps.\n6. An English score below B2 blocks approval.\n7. The interview panel must send comments to Li Fang by 1 p.m. next Wednesday.\n8. The remaining budget difference is 8 thousand dollars.\n9. Their location preferences are Seattle and Austin.\n10. The position reference is HR-318.",
+        "elapsed_s": 6.588,
+        "tokens": 220,
+        "prompt_tokens": 911,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 874,
+          "output_chars": 892,
+          "length_ratio": 1.0206
+        }
+      }
+    },
+    "b-en-02--slack--app": {
+      "fingerprint": "2e229de4b5f8c257",
+      "recorded_at": "2026-11-20T16:01:02+00:00",
+      "result": {
+        "text": "Next year's hiring round details:\n• Process owner: Li Fang (People Operations)\n• Candidates: Aiko Mori and Ken Ito\n• Interviews: Nov 24 and Nov 25, 2026, Boston office (floor 5), 45 mins each\n• Assessment: Same case study scored by technical lead Marcus\n• Contract ceiling: $120k/year\n• Advancement rationale: Mori has process improvement experience; Ito led a 16-month migration project, covering the team's two largest gaps\n• Requirement: English score below B2 blocks approval\n• Deadline: Interview panel must send comments to Li Fang by 1 p.m. next Wednesday\n• Remaining budget difference: $8k\n• Location preferences: Seattle and Austin\n• Position reference: HR-318",
+        "elapsed_s": 5.387,
+        "tokens": 172,
+        "prompt_tokens": 905,
+        "max_tokens": 1357,
+        "context_tokens": 2262,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 874,
+          "output_chars": 669,
+          "length_ratio": 0.7654
+        }
+      }
+    },
+    "b-en-02--slack--legacy": {
+      "fingerprint": "19282a78460e670a",
+      "recorded_at": "2026-11-20T16:01:08+00:00",
+      "result": {
+        "text": "Next year's hiring round details:\n• Process owner: Li Fang (People Operations)\n• Candidates: Aiko Mori and Ken Ito\n• First interviews: November 24 and 25, 2026, Boston office, floor 5 (45 mins each)\n• Case study: Same for both, scored by technical lead Marcus\n• Contract ceiling: $120k/year\n• Advancement reason: Mori has process improvement experience; Ito led a 16-month migration project (covers team's two largest gaps)\n• Requirement: English score below B2 blocks approval\n• Deadline: Interview panel must send comments to Li Fang by 1 p.m. next Wednesday\n• Remaining budget difference: $8k\n• Location preferences: Seattle and Austin\n• Position reference: HR-318",
+        "elapsed_s": 5.35,
+        "tokens": 174,
+        "prompt_tokens": 905,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 874,
+          "output_chars": 667,
+          "length_ratio": 0.7632
+        }
+      }
+    },
+    "b-en-03--general--app": {
+      "fingerprint": "204bc51e230fc520",
+      "recorded_at": "2026-11-20T16:01:15+00:00",
+      "result": {
+        "text": "The data migration is owned by Jordan Lee, with Nora as the audit lead, and is scheduled for 11 p.m. on January 18, 2027. The runbook has four steps:\n1. Freeze 1.2 million customer records.\n2. Copy 480 thousand inventory records.\n3. Reconcile 9 invoice categories.\n4. Complete a 3-hour rollback exercise.\n\nThe destination is Region K, retention is 90 days, and the permitted outage is 25 minutes. We selected plan A instead of the newer plan B because plan A preserves the full audit log and can recover in 17 minutes. The abort conditions are a count difference above 0.5 percent or a data room temperature below 18 degrees; either one requires a call to facilities. Legal lead Omar needs the completion report by 8 a.m. the next day, the change ID is CHG-772, and the backup set is BK-11.",
+        "elapsed_s": 6.345,
+        "tokens": 212,
+        "prompt_tokens": 843,
+        "max_tokens": 1264,
+        "context_tokens": 2107,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 796,
+          "output_chars": 790,
+          "length_ratio": 0.9925
+        }
+      }
+    },
+    "b-en-03--general--legacy": {
+      "fingerprint": "2880da038855e064",
+      "recorded_at": "2026-11-20T16:01:23+00:00",
+      "result": {
+        "text": "The data migration is owned by Jordan Lee, with Nora as the audit lead, and it is scheduled for 11 p.m. on January 18, 2027. The runbook has four steps:\n1. Freeze 1.2 million customer records.\n2. Copy 480 thousand inventory records.\n3. Reconcile 9 invoice categories.\n4. Complete a 3-hour rollback exercise.\n\nThe destination is Region K, retention is 90 days, and the permitted outage is 25 minutes. We selected plan A instead of the newer plan B. The reason is that plan A preserves the full audit log and can recover in 17 minutes. The abort conditions are a count difference above 0.5 percent or a data room temperature below 18 degrees; either one requires a call to facilities. Legal lead Omar needs the completion report by 8 a.m. the next day, the change ID is CHG-772, and the backup set is BK-11.",
+        "elapsed_s": 6.387,
+        "tokens": 217,
+        "prompt_tokens": 843,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 796,
+          "output_chars": 805,
+          "length_ratio": 1.0113
+        }
+      }
+    },
+    "b-en-03--herdr--app": {
+      "fingerprint": "c73c8df3b6222551",
+      "recorded_at": "2026-11-20T16:01:30+00:00",
+      "result": {
+        "text": "The data migration is owned by Jordan Lee, with Nora as the audit lead, and it is scheduled for 11 p.m. on January 18, 2027. The runbook has four steps:\n1. Freeze 1.2 million customer records.\n2. Copy 480 thousand inventory records.\n3. Reconcile 9 invoice categories.\n4. Complete a 3-hour rollback exercise.\nThe destination is Region K, retention is 90 days, and the permitted outage is 25 minutes. We selected plan A instead of the newer plan B. The reason is that plan A preserves the full audit log and can recover in 17 minutes. The abort conditions are a count difference above 0.5 percent or a data room temperature below 18 degrees; either one requires a call to facilities. Legal lead Omar needs the completion report by 8 a.m. the next day, the change ID is CHG-772, and the backup set is BK-11.",
+        "elapsed_s": 6.629,
+        "tokens": 217,
+        "prompt_tokens": 922,
+        "max_tokens": 1383,
+        "context_tokens": 2305,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 796,
+          "output_chars": 804,
+          "length_ratio": 1.0101
+        }
+      }
+    },
+    "b-en-03--herdr--legacy": {
+      "fingerprint": "f0dd69ba745a245b",
+      "recorded_at": "2026-11-20T16:01:38+00:00",
+      "result": {
+        "text": "The data migration is owned by Jordan Lee, with Nora as the audit lead, and it is scheduled for 11 p.m. on January 18, 2027. The runbook has four steps:\n1. Freeze 1.2 million customer records.\n2. Copy 480 thousand inventory records.\n3. Reconcile 9 invoice categories.\n4. Complete a 3-hour rollback exercise.\nThe destination is Region K, retention is 90 days, and the permitted outage is 25 minutes. We selected plan A instead of the newer plan B. The reason is that plan A preserves the full audit log and can recover in 17 minutes. The abort conditions are a count difference above 0.5 percent or a data room temperature below 18 degrees; either one requires a call to facilities. Legal lead Omar needs the completion report by 8 a.m. the next day, the change ID is CHG-772, and the backup set is BK-11.",
+        "elapsed_s": 6.556,
+        "tokens": 217,
+        "prompt_tokens": 922,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 796,
+          "output_chars": 804,
+          "length_ratio": 1.0101
+        }
+      }
+    },
+    "b-en-03--slack--app": {
+      "fingerprint": "1a5a7fe82cbfd41d",
+      "recorded_at": "2026-11-20T16:01:45+00:00",
+      "result": {
+        "text": "The data migration is owned by Jordan Lee, with Nora as the audit lead, and is scheduled for 11 p.m. on January 18, 2027. We selected plan A instead of plan B because plan A preserves the full audit log and can recover in 17 minutes.\n\nKey details:\n• Destination: Region K\n• Retention: 90 days\n• Permitted outage: 25 minutes\n• Runbook steps:\n1. Freeze 1.2 million customer records\n2. Copy 480 thousand inventory records\n3. Reconcile 9 invoice categories\n4. Complete a 3-hour rollback exercise\n• Abort conditions:\n1. Count difference above 0.5 percent\n2. Data room temperature below 18 degrees (requires a call to facilities)\n• Legal lead Omar needs the completion report by 8 a.m. the next day\n• Change ID: CHG-772\n• Backup set: BK-11",
+        "elapsed_s": 6.476,
+        "tokens": 212,
+        "prompt_tokens": 916,
+        "max_tokens": 1374,
+        "context_tokens": 2290,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 796,
+          "output_chars": 733,
+          "length_ratio": 0.9209
+        }
+      }
+    },
+    "b-en-03--slack--legacy": {
+      "fingerprint": "6b4a9f50ee1cd650",
+      "recorded_at": "2026-11-20T16:01:52+00:00",
+      "result": {
+        "text": "The data migration is owned by Jordan Lee, with Nora as the audit lead, and is scheduled for 11 p.m. on January 18, 2027. We selected plan A instead of the newer plan B because plan A preserves the full audit log and can recover in 17 minutes.\n\nKey details:\n• Runbook steps: freeze 1.2 million customer records, copy 480 thousand inventory records, reconcile 9 invoice categories, and complete a 3-hour rollback exercise.\n• Destination: Region K with 90-day retention and a permitted outage of 25 minutes.\n• Abort conditions: a count difference above 0.5 percent or a data room temperature below 18 degrees; either requires a call to facilities.\n• Legal lead Omar needs the completion report by 8 a.m. the next day.\n• Change ID: CHG-772.\n• Backup set: BK-11.",
+        "elapsed_s": 6.143,
+        "tokens": 203,
+        "prompt_tokens": 916,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 796,
+          "output_chars": 758,
+          "length_ratio": 0.9523
+        }
+      }
+    },
+    "b-en-04--general--app": {
+      "fingerprint": "714e06be14d2de32",
+      "recorded_at": "2026-11-20T16:02:00+00:00",
+      "result": {
+        "text": "For Cedar's outage:\n• Andre owns first response\n• Priya owns customer communication\n• The incident began at 2:07 p.m. on October 9, 2026\n• It affected 23 devices, and 5 did not restart\n• The ticket is INC-9928\n• The contractual response window is 30 minutes\n• The affected sites are Portland and Tacoma\n• We decided on a temporary rollback from version 3.14 to version 3.13 because 3.14 reached 92 percent memory use while 3.13 has been verified at 61 percent\n• Fujita must deliver a durable settings fix by November 2 and run 240 validation scenarios\n• The next customer update is at 5:30 p.m.\n• Cedar's recurrence contact is Lee\n• The rollback window is 20 minutes\n• If that window is missed, Priya will escalate to the duty manager and include the serial numbers for all 5 failed devices",
+        "elapsed_s": 6.568,
+        "tokens": 220,
+        "prompt_tokens": 848,
+        "max_tokens": 1272,
+        "context_tokens": 2120,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 788,
+          "output_chars": 790,
+          "length_ratio": 1.0025
+        }
+      }
+    },
+    "b-en-04--general--legacy": {
+      "fingerprint": "55ea1ceedaf2f16d",
+      "recorded_at": "2026-11-20T16:02:08+00:00",
+      "result": {
+        "text": "For Cedar's outage:\n• Andre owns first response\n• Priya owns customer communication\n\nIncident details:\n• Began at 2:07 p.m. on October 9, 2026\n• Affected 23 devices; 5 did not restart\n• Ticket: INC-9928\n• Contractual response window: 30 minutes\n• Affected sites: Portland and Tacoma\n\nResolution:\n• Temporary rollback from version 3.14 to version 3.13\n• Reason: Version 3.14 reached 92 percent memory use, while version 3.13 has been verified at 61 percent\n\nAction items:\n• Fujita must deliver a durable settings fix by November 2\n• Fujita must run 240 validation scenarios\n\nNext steps:\n• Next customer update at 5:30 p.m.\n• Cedar's recurrence contact is Lee\n• Rollback window is 20 minutes\n• If the window is missed, Priya will escalate to the duty manager and include the serial numbers for all 5 failed devices",
+        "elapsed_s": 6.921,
+        "tokens": 237,
+        "prompt_tokens": 848,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 788,
+          "output_chars": 812,
+          "length_ratio": 1.0305
+        }
+      }
+    },
+    "b-en-04--herdr--app": {
+      "fingerprint": "25d7899e9e849fa2",
+      "recorded_at": "2026-11-20T16:02:15+00:00",
+      "result": {
+        "text": "For Cedar's outage:\n• Andre owns first response\n• Priya owns customer communication\n• Incident began at 2:07 p.m. on October 9, 2026\n• Affected 23 devices, and 5 did not restart\n• Ticket is INC-9928\n• Contractual response window is 30 minutes\n• Affected sites are Portland and Tacoma\n• Decided on a temporary rollback from version 3.14 to version 3.13 because 3.14 reached 92 percent memory use while 3.13 has been verified at 61 percent\n• Fujita must deliver a durable settings fix by November 2 and run 240 validation scenarios\n• Next customer update is at 5:30 p.m.\n• Cedar's recurrence contact is Lee\n• Rollback window is 20 minutes\n• If that window is missed, Priya will escalate to the duty manager and include the serial numbers for all 5 failed devices",
+        "elapsed_s": 6.681,
+        "tokens": 217,
+        "prompt_tokens": 927,
+        "max_tokens": 1390,
+        "context_tokens": 2317,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 788,
+          "output_chars": 760,
+          "length_ratio": 0.9645
+        }
+      }
+    },
+    "b-en-04--herdr--legacy": {
+      "fingerprint": "1ebf16ad15a8e253",
+      "recorded_at": "2026-11-20T16:02:23+00:00",
+      "result": {
+        "text": "For Cedar's outage, Andre owns first response and Priya owns customer communication.\nThe incident began at 2:07 p.m. on October 9, 2026.\nIt affected 23 devices, and 5 did not restart.\nThe ticket is INC-9928, the contractual response window is 30 minutes, and the affected sites are Portland and Tacoma.\nWe decided on a temporary rollback from version 3.14 to version 3.13 because 3.14 reached 92 percent memory use while 3.13 has been verified at 61 percent.\nFujita must deliver a durable settings fix by November 2 and run 240 validation scenarios.\nThe next customer update is at 5:30 p.m., Cedar's recurrence contact is Lee, and the rollback window is 20 minutes.\nIf that window is missed, Priya will escalate to the duty manager and include the serial numbers for all 5 failed devices.",
+        "elapsed_s": 6.555,
+        "tokens": 216,
+        "prompt_tokens": 927,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 788,
+          "output_chars": 788,
+          "length_ratio": 1.0
+        }
+      }
+    },
+    "b-en-04--slack--app": {
+      "fingerprint": "dede679e0469b328",
+      "recorded_at": "2026-11-20T16:02:31+00:00",
+      "result": {
+        "text": "For Cedar's outage:\n1. Andre owns first response; Priya owns customer communication.\n2. Incident began at 2:07 p.m. on October 9, 2026.\n3. Affected 23 devices; 5 did not restart.\n4. Ticket: INC-9928.\n5. Contractual response window: 30 minutes.\n6. Affected sites: Portland and Tacoma.\n7. Temporary rollback from version 3.14 to 3.13 due to high memory use (92% vs. 61%).\n8. Fujita must deliver a durable settings fix by November 2 and run 240 validation scenarios.\n9. Next customer update: 5:30 p.m.\n10. Cedar's recurrence contact: Lee.\n11. Rollback window: 20 minutes.\n12. If missed, Priya will escalate to the duty manager and include serial numbers for all 5 failed devices.",
+        "elapsed_s": 6.686,
+        "tokens": 218,
+        "prompt_tokens": 921,
+        "max_tokens": 1381,
+        "context_tokens": 2302,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 788,
+          "output_chars": 676,
+          "length_ratio": 0.8579
+        }
+      }
+    },
+    "b-en-04--slack--legacy": {
+      "fingerprint": "1ee85053cb7864e8",
+      "recorded_at": "2026-11-20T16:02:38+00:00",
+      "result": {
+        "text": "For Cedar's outage:\n• Andre owns first response\n• Priya owns customer communication\n• Incident began at 2:07 p.m. on October 9, 2026\n• Affected 23 devices; 5 did not restart\n• Ticket: INC-9928\n• Contractual response window: 30 minutes\n• Affected sites: Portland and Tacoma\n• Temporary rollback from version 3.14 to 3.13 (3.14 reached 92% memory use; 3.13 verified at 61%)\n• Fujita must deliver a durable settings fix by November 2 and run 240 validation scenarios\n• Next customer update: 5:30 p.m.\n• Cedar's recurrence contact: Lee\n• Rollback window: 20 minutes\n• If missed, Priya will escalate to the duty manager and include serial numbers for all 5 failed devices",
+        "elapsed_s": 6.146,
+        "tokens": 203,
+        "prompt_tokens": 921,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 788,
+          "output_chars": 666,
+          "length_ratio": 0.8452
+        }
+      }
+    },
+    "b-en-05--general--app": {
+      "fingerprint": "0be2375a5841d25b",
+      "recorded_at": "2026-11-20T16:02:45+00:00",
+      "result": {
+        "text": "The voice search study is led by Marta, with Leo handling analysis.\nThere are 20 participants: 12 employees and 8 customers.\nThe study runs from December 1 through December 19, 2026, every Tuesday and Thursday for 35 minutes per session.\nThe test items are:\n• recognition at 65 dB\n• correction of homophones\n• searches longer than 20 words\n• operation while wearing gloves\nThe task ID is UX-440.\nWe will use 6 Pixel 9 devices and 6 iPhone 17 devices.\nThe success threshold is a 90 percent search completion rate.\nWe decided to conduct half the sessions in person in room H-3 instead of doing all of them remotely.\nThe reason is that device volume and speaking distance must stay controlled so we can distinguish recognition errors from missing audio.\nThe report is due December 22.\nThe cost ceiling is 640 thousand dollars.\nParticipant compensation is 300 dollars each.",
+        "elapsed_s": 6.628,
+        "tokens": 222,
+        "prompt_tokens": 846,
+        "max_tokens": 1269,
+        "context_tokens": 2115,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 862,
+          "output_chars": 869,
+          "length_ratio": 1.0081
+        }
+      }
+    },
+    "b-en-05--general--legacy": {
+      "fingerprint": "291fae71fe9af829",
+      "recorded_at": "2026-11-20T16:02:53+00:00",
+      "result": {
+        "text": "The voice search study is led by Marta, with Leo handling analysis.\nThere are 20 participants: 12 employees and 8 customers.\nThe study runs from December 1 through December 19, 2026, every Tuesday and Thursday for 35 minutes per session.\nThe test items are:\n• recognition at 65 dB\n• correction of homophones\n• searches longer than 20 words\n• operation while wearing gloves\nThe task ID is UX-440.\nWe will use 6 Pixel 9 devices and 6 iPhone 17 devices.\nThe success threshold is a 90 percent search completion rate.\nWe decided to conduct half the sessions in person in room H-3 instead of doing all of them remotely.\nThe reason is that device volume and speaking distance must stay controlled so we can distinguish recognition errors from missing audio.\nThe report is due December 22.\nThe cost ceiling is 640 thousand dollars.\nParticipant compensation is 300 dollars each.",
+        "elapsed_s": 6.536,
+        "tokens": 222,
+        "prompt_tokens": 846,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 862,
+          "output_chars": 869,
+          "length_ratio": 1.0081
+        }
+      }
+    },
+    "b-en-05--herdr--app": {
+      "fingerprint": "9893b25a8926a342",
+      "recorded_at": "2026-11-20T16:03:00+00:00",
+      "result": {
+        "text": "The voice search study is led by Marta, with Leo handling analysis and 20 participants: 12 employees and 8 customers. It runs from December 1 through December 19, 2026, every Tuesday and Thursday for 35 minutes per session. The test items are recognition at 65 dB, correction of homophones, searches longer than 20 words, and operation while wearing gloves. The task ID is UX-440. We will use 6 Pixel 9 devices and 6 iPhone 17 devices, and the success threshold is a 90 percent search completion rate. We decided to conduct half the sessions in person in room H-3 instead of doing all of them remotely. The reason is that device volume and speaking distance must stay controlled so we can distinguish recognition errors from missing audio. The report is due December 22, the cost ceiling is 640 thousand dollars, and participant compensation is 300 dollars each.",
+        "elapsed_s": 6.31,
+        "tokens": 206,
+        "prompt_tokens": 925,
+        "max_tokens": 1387,
+        "context_tokens": 2312,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": true,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 862,
+          "output_chars": 862,
+          "length_ratio": 1.0
+        }
+      }
+    },
+    "b-en-05--herdr--legacy": {
+      "fingerprint": "1dee1b483aef19af",
+      "recorded_at": "2026-11-20T16:03:07+00:00",
+      "result": {
+        "text": "The voice search study is led by Marta, with Leo handling analysis and 20 participants: 12 employees and 8 customers. It runs from December 1 through December 19, 2026, every Tuesday and Thursday for 35 minutes per session. The test items are recognition at 65 dB, correction of homophones, searches longer than 20 words, and operation while wearing gloves. The task ID is UX-440. We will use 6 Pixel 9 devices and 6 iPhone 17 devices, and the success threshold is a 90 percent search completion rate. We decided to conduct half the sessions in person in room H-3 instead of doing all of them remotely. The reason is that device volume and speaking distance must stay controlled so we can distinguish recognition errors from missing audio. The report is due December 22, the cost ceiling is 640 thousand dollars, and participant compensation is 300 dollars each.",
+        "elapsed_s": 6.266,
+        "tokens": 206,
+        "prompt_tokens": 925,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": true,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 862,
+          "output_chars": 862,
+          "length_ratio": 1.0
+        }
+      }
+    },
+    "b-en-05--slack--app": {
+      "fingerprint": "f0252b3cac481544",
+      "recorded_at": "2026-11-20T16:03:15+00:00",
+      "result": {
+        "text": "The voice search study is led by Marta, with Leo handling analysis.\n• 20 participants: 12 employees and 8 customers.\n• Runs from December 1 through December 19, 2026, every Tuesday and Thursday for 35 minutes per session.\n• Test items: recognition at 65 dB, correction of homophones, searches longer than 20 words, and operation while wearing gloves.\n• Task ID: UX-440.\n• Devices: 6 Pixel 9 and 6 iPhone 17.\n• Success threshold: 90 percent search completion rate.\n• We will conduct half the sessions in person in room H-3 instead of remotely to control device volume and speaking distance, allowing us to distinguish recognition errors from missing audio.\n• Report due: December 22.\n• Cost ceiling: 640 thousand dollars.\n• Participant compensation: 300 dollars each.",
+        "elapsed_s": 6.296,
+        "tokens": 204,
+        "prompt_tokens": 919,
+        "max_tokens": 1378,
+        "context_tokens": 2297,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 862,
+          "output_chars": 766,
+          "length_ratio": 0.8886
+        }
+      }
+    },
+    "b-en-05--slack--legacy": {
+      "fingerprint": "96bc894928449c5d",
+      "recorded_at": "2026-11-20T16:03:22+00:00",
+      "result": {
+        "text": "The voice search study is led by Marta, with Leo handling analysis.\n• 20 participants: 12 employees and 8 customers.\n• Runs from December 1 through December 19, 2026, every Tuesday and Thursday for 35 minutes per session.\n• Test items: recognition at 65 dB, correction of homophones, searches longer than 20 words, and operation while wearing gloves.\n• Task ID: UX-440.\n• Devices: 6 Pixel 9 and 6 iPhone 17.\n• Success threshold: 90 percent search completion rate.\n• We will conduct half the sessions in person in room H-3 instead of remotely to control device volume and speaking distance, allowing us to distinguish recognition errors from missing audio.\n• Report due: December 22.\n• Cost ceiling: 640 thousand dollars.\n• Participant compensation: 300 dollars each.",
+        "elapsed_s": 6.186,
+        "tokens": 204,
+        "prompt_tokens": 919,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 862,
+          "output_chars": 766,
+          "length_ratio": 0.8886
+        }
+      }
+    },
+    "b-en-06--general--app": {
+      "fingerprint": "c36477dccf0c6add",
+      "recorded_at": "2026-11-20T16:03:29+00:00",
+      "result": {
+        "text": "The meeting room equipment purchase is being handled by procurement lead Aoki and business owner Noah. The scope covers 12 rooms in London and 3 in Manchester, 15 rooms total.\n• Delivery is requested for December 10, 2026, with installation on December 12.\n• Three suppliers were quoted: Orchid at 4.2 million dollars, Maple at 3.98 million dollars, and Pine at 4.55 million dollars.\n• We chose Maple because it is the lowest price, includes a 36-month warranty, and can deliver replacement parts within 48 hours.\n• The order includes 30 displays, 15 microphones, 15 cameras, and 90 cables under purchase order PO-731.\n• The contract pays 25 percent up front and the rest after acceptance, with a 0.2 percent deduction for each day of delay.\n• Aoki confirms receipt, and the interface specification cannot change without a signed variation.",
+        "elapsed_s": 6.477,
+        "tokens": 217,
+        "prompt_tokens": 844,
+        "max_tokens": 1266,
+        "context_tokens": 2110,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 823,
+          "output_chars": 840,
+          "length_ratio": 1.0207
+        }
+      }
+    },
+    "b-en-06--general--legacy": {
+      "fingerprint": "c40c4ab45c13f736",
+      "recorded_at": "2026-11-20T16:03:36+00:00",
+      "result": {
+        "text": "The meeting room equipment purchase is being handled by procurement lead Aoki and business owner Noah. The scope covers 12 rooms in London and 3 in Manchester, 15 rooms total. Delivery is requested for December 10, 2026, with installation on December 12. Three suppliers quoted:\n• Orchid at 4.2 million dollars\n• Maple at 3.98 million dollars\n• Pine at 4.55 million dollars\nWe chose Maple because it is the lowest price, includes a 36-month warranty, and can deliver replacement parts within 48 hours. The order includes 30 displays, 15 microphones, 15 cameras, and 90 cables under purchase order PO-731. The contract pays 25 percent up front and the rest after acceptance, with a 0.2 percent deduction for each day of delay. Aoki confirms receipt, and the interface specification cannot change without a signed variation.",
+        "elapsed_s": 6.102,
+        "tokens": 207,
+        "prompt_tokens": 844,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 823,
+          "output_chars": 822,
+          "length_ratio": 0.9988
+        }
+      }
+    },
+    "b-en-06--herdr--app": {
+      "fingerprint": "33e6b63e978792e8",
+      "recorded_at": "2026-11-20T16:03:44+00:00",
+      "result": {
+        "text": "The meeting room equipment purchase is being handled by procurement lead Aoki and business owner Noah. The scope covers 12 rooms in London and 3 in Manchester, 15 rooms total. Delivery is requested for December 10, 2026, with installation on December 12. Three suppliers quoted:\n• Orchid at 4.2 million dollars\n• Maple at 3.98 million dollars\n• Pine at 4.55 million dollars\nWe chose Maple because it is the lowest price, includes a 36-month warranty, and can deliver replacement parts within 48 hours. The order includes 30 displays, 15 microphones, 15 cameras, and 90 cables under purchase order PO-731. The contract pays 25 percent up front and the rest after acceptance, with a 0.2 percent deduction for each day of delay. Aoki confirms receipt, and the interface specification cannot change without a signed variation.",
+        "elapsed_s": 6.387,
+        "tokens": 207,
+        "prompt_tokens": 923,
+        "max_tokens": 1384,
+        "context_tokens": 2307,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 823,
+          "output_chars": 822,
+          "length_ratio": 0.9988
+        }
+      }
+    },
+    "b-en-06--herdr--legacy": {
+      "fingerprint": "c5a911de21543cd4",
+      "recorded_at": "2026-11-20T16:03:51+00:00",
+      "result": {
+        "text": "The meeting room equipment purchase is being handled by procurement lead Aoki and business owner Noah. The scope covers 12 rooms in London and 3 in Manchester, 15 rooms total. Delivery is requested for December 10, 2026, with installation on December 12. Three suppliers quoted:\n• Orchid at 4.2 million dollars\n• Maple at 3.98 million dollars\n• Pine at 4.55 million dollars\nWe chose Maple because it is the lowest price, includes a 36-month warranty, and can deliver replacement parts within 48 hours. The order includes 30 displays, 15 microphones, 15 cameras, and 90 cables under purchase order PO-731. The contract pays 25 percent up front and the rest after acceptance, with a 0.2 percent deduction for each day of delay. Aoki confirms receipt, and the interface specification cannot change without a signed variation.",
+        "elapsed_s": 6.317,
+        "tokens": 207,
+        "prompt_tokens": 923,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 823,
+          "output_chars": 822,
+          "length_ratio": 0.9988
+        }
+      }
+    },
+    "b-en-06--slack--app": {
+      "fingerprint": "7715da2e7abbeaab",
+      "recorded_at": "2026-11-20T16:03:58+00:00",
+      "result": {
+        "text": "The meeting room equipment purchase is being handled by procurement lead Aoki and business owner Noah.\n• Scope: 12 rooms in London and 3 in Manchester (15 total).\n• Timeline: Delivery by December 10, 2026; installation on December 12.\n• Suppliers: Orchid ($4.2M), Maple ($3.98M), Pine ($4.55M).\n• Selection: Maple was chosen for the lowest price, 36-month warranty, and 48-hour replacement parts.\n• Order: 30 displays, 15 microphones, 15 cameras, and 90 cables under PO-731.\n• Payment: 25% upfront, balance after acceptance; 0.2% daily penalty for delays.\n• Status: Aoki confirms receipt; interface specs cannot change without a signed variation.",
+        "elapsed_s": 5.893,
+        "tokens": 190,
+        "prompt_tokens": 917,
+        "max_tokens": 1375,
+        "context_tokens": 2292,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 823,
+          "output_chars": 646,
+          "length_ratio": 0.7849
+        }
+      }
+    },
+    "b-en-06--slack--legacy": {
+      "fingerprint": "501b46b3d76bd03b",
+      "recorded_at": "2026-11-20T16:04:05+00:00",
+      "result": {
+        "text": "The meeting room equipment purchase is being handled by procurement lead Aoki and business owner Noah.\n\n*   **Scope**: 12 rooms in London and 3 in Manchester (15 total).\n*   **Timeline**: Delivery requested for December 10, 2026, with installation on December 12.\n*   **Suppliers**: Orchid ($4.2M), Maple ($3.98M), and Pine ($4.55M).\n*   **Selection**: Maple was chosen for the lowest price, 36-month warranty, and 48-hour replacement parts delivery.\n*   **Order**: 30 displays, 15 microphones, 15 cameras, and 90 cables under PO-731.\n*   **Payment**: 25% upfront, balance after acceptance, with a 0.2% daily delay penalty.\n*   **Notes**: Aoki confirms receipt; interface specifications cannot change without a signed variation.",
+        "elapsed_s": 6.372,
+        "tokens": 210,
+        "prompt_tokens": 917,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 823,
+          "output_chars": 728,
+          "length_ratio": 0.8846
+        }
+      }
+    },
+    "b-en-07--general--app": {
+      "fingerprint": "aa6b9cf4f23d385c",
+      "recorded_at": "2026-11-20T16:04:13+00:00",
+      "result": {
+        "text": "The endpoint certificate renewal is owned by Nakamura, with Sofia as administrator, and starts at 6 a.m. on February 8, 2027. There are 1,450 target devices across Paris, Berlin, and Madrid. The rollout is a three-stage process:\n1. A 50-device pilot that verifies signatures.\n2. 300 devices.\n3. The remaining 1,100 devices.\n\nCertificate ID CERT-57 expires on February 7, 2030, using RSA 3072 together with ECDSA P-256. We roll back if the first stage fails on 1 percent or more, and we stop the second stage if any device takes more than 8 seconds. Instead of one Sunday-wide update, we selected a three-stage rollout because that limits disruption for 150 sales staff working on Saturday to 40 minutes. The service stays monitored for 48 hours afterward, audit records are retained for 180 days, and approval SEC-204 is required before the final stage.",
+        "elapsed_s": 6.894,
+        "tokens": 231,
+        "prompt_tokens": 859,
+        "max_tokens": 1288,
+        "context_tokens": 2147,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 835,
+          "output_chars": 853,
+          "length_ratio": 1.0216
+        }
+      }
+    },
+    "b-en-07--general--legacy": {
+      "fingerprint": "cc75fc234844df4d",
+      "recorded_at": "2026-11-20T16:04:21+00:00",
+      "result": {
+        "text": "The endpoint certificate renewal is owned by Nakamura, with Sofia as administrator, and starts at 6 a.m. on February 8, 2027. There are 1,450 target devices across Paris, Berlin, and Madrid. The rollout is:\n1. A 50-device pilot that verifies signatures.\n2. 300 devices.\n3. The remaining 1,100 devices.\n\nCertificate ID CERT-57 expires on February 7, 2030, using RSA 3072 together with ECDSA P-256. We roll back if the first stage fails on 1 percent or more, and we stop the second stage if any device takes more than 8 seconds. Instead of one Sunday-wide update, we selected a three-stage rollout because that limits disruption for 150 sales staff working on Saturday to 40 minutes. The service stays monitored for 48 hours afterward, audit records are retained for 180 days, and approval SEC-204 is required before the final stage.",
+        "elapsed_s": 6.71,
+        "tokens": 227,
+        "prompt_tokens": 859,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 835,
+          "output_chars": 831,
+          "length_ratio": 0.9952
+        }
+      }
+    },
+    "b-en-07--herdr--app": {
+      "fingerprint": "b11691b8b8e053b3",
+      "recorded_at": "2026-11-20T16:04:28+00:00",
+      "result": {
+        "text": "The endpoint certificate renewal is owned by Nakamura, with Sofia as administrator, and starts at 6 a.m. on February 8, 2027. There are 1,450 target devices across Paris, Berlin, and Madrid. The rollout is first a 50-device pilot that verifies signatures, then 300 devices, and finally the remaining 1,100. Certificate ID CERT-57 expires on February 7, 2030, using RSA 3072 together with ECDSA P-256. We roll back if the first stage fails on 1 percent or more, and we stop the second stage if any device takes more than 8 seconds. Instead of one Sunday-wide update, we selected a three-stage rollout because that limits disruption for 150 sales staff working on Saturday to 40 minutes. The service stays monitored for 48 hours afterward, audit records are retained for 180 days, and approval SEC-204 is required before the final stage.",
+        "elapsed_s": 6.706,
+        "tokens": 219,
+        "prompt_tokens": 938,
+        "max_tokens": 1407,
+        "context_tokens": 2345,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": true,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 835,
+          "output_chars": 835,
+          "length_ratio": 1.0
+        }
+      }
+    },
+    "b-en-07--herdr--legacy": {
+      "fingerprint": "173dac1b2b49af7a",
+      "recorded_at": "2026-11-20T16:04:36+00:00",
+      "result": {
+        "text": "The endpoint certificate renewal is owned by Nakamura, with Sofia as administrator, and starts at 6 a.m. on February 8, 2027. There are 1,450 target devices across Paris, Berlin, and Madrid. The rollout is first a 50-device pilot that verifies signatures, then 300 devices, and finally the remaining 1,100. Certificate ID CERT-57 expires on February 7, 2030, using RSA 3072 together with ECDSA P-256. We roll back if the first stage fails on 1 percent or more, and we stop the second stage if any device takes more than 8 seconds. Instead of one Sunday-wide update, we selected a three-stage rollout because that limits disruption for 150 sales staff working on Saturday to 40 minutes. The service stays monitored for 48 hours afterward, audit records are retained for 180 days, and approval SEC-204 is required before the final stage.",
+        "elapsed_s": 6.639,
+        "tokens": 219,
+        "prompt_tokens": 938,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": true,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 835,
+          "output_chars": 835,
+          "length_ratio": 1.0
+        }
+      }
+    },
+    "b-en-07--slack--app": {
+      "fingerprint": "8cb239863310c971",
+      "recorded_at": "2026-11-20T16:04:44+00:00",
+      "result": {
+        "text": "The endpoint certificate renewal is owned by Nakamura, with Sofia as administrator, and starts at 6 a.m. on February 8, 2027. There are 1,450 target devices across Paris, Berlin, and Madrid.\n\n1. The rollout is a three-stage process:\n   • A 50-device pilot that verifies signatures\n   • 300 devices\n   • The remaining 1,100 devices\n2. Certificate ID CERT-57 expires on February 7, 2030, using RSA 3072 together with ECDSA P-256.\n3. We roll back if the first stage fails on 1 percent or more, and we stop the second stage if any device takes more than 8 seconds.\n4. We selected a three-stage rollout instead of one Sunday-wide update to limit disruption for 150 sales staff working on Saturday to 40 minutes.\n5. The service stays monitored for 48 hours afterward, audit records are retained for 180 days, and approval SEC-204 is required before the final stage.",
+        "elapsed_s": 7.249,
+        "tokens": 240,
+        "prompt_tokens": 932,
+        "max_tokens": 1398,
+        "context_tokens": 2330,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 835,
+          "output_chars": 859,
+          "length_ratio": 1.0287
+        }
+      }
+    },
+    "b-en-07--slack--legacy": {
+      "fingerprint": "14228beb8470ebe2",
+      "recorded_at": "2026-11-20T16:04:52+00:00",
+      "result": {
+        "text": "The endpoint certificate renewal is owned by Nakamura, with Sofia as administrator, and starts at 6 a.m. on February 8, 2027. There are 1,450 target devices across Paris, Berlin, and Madrid.\n\n1. The rollout is a three-stage process:\n   • A 50-device pilot that verifies signatures\n   • 300 devices\n   • The remaining 1,100 devices\n2. Certificate ID CERT-57 expires on February 7, 2030, using RSA 3072 together with ECDSA P-256.\n3. We roll back if the first stage fails on 1 percent or more, and we stop the second stage if any device takes more than 8 seconds.\n4. We selected a three-stage rollout instead of one Sunday-wide update to limit disruption for 150 sales staff working on Saturday to 40 minutes.\n5. The service stays monitored for 48 hours afterward, audit records are retained for 180 days, and approval SEC-204 is required before the final stage.",
+        "elapsed_s": 7.204,
+        "tokens": 240,
+        "prompt_tokens": 932,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 835,
+          "output_chars": 859,
+          "length_ratio": 1.0287
+        }
+      }
+    },
+    "b-en-08--general--app": {
+      "fingerprint": "efeaf9c8401c5109",
+      "recorded_at": "2026-11-20T16:05:01+00:00",
+      "result": {
+        "text": "The autumn internal event is led by Watanabe, and the keynote speaker is Elena Ruiz. It is scheduled for Friday, October 30, 2026, at Hall C of the Singapore Convention Center. We expect 260 employees and 40 guests, 300 people in total.\n\n1. Check-in opens at 9:30 a.m.\n2. The 60-minute keynote starts at 10:15 a.m.\n3. The afternoon has three product demos:\n   • Voice input at 2 p.m.\n   • Translation at 2:35 p.m.\n   • Summarization at 3:10 p.m.\n4. Dinner runs from 6 p.m. to 8 p.m. with a food ceiling of 65 dollars per person.\n\nWe moved from Hall B to Hall C because C has 24 wheelchair spaces while B has 12, and the route to reception is 35 meters shorter. The contingency fund is 720 thousand dollars, the coordination code is EV-610, and final slide materials are due October 15.",
+        "elapsed_s": 7.35,
+        "tokens": 247,
+        "prompt_tokens": 865,
+        "max_tokens": 1297,
+        "context_tokens": 2162,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 766,
+          "output_chars": 785,
+          "length_ratio": 1.0248
+        }
+      }
+    },
+    "b-en-08--general--legacy": {
+      "fingerprint": "95163f68eaa5e558",
+      "recorded_at": "2026-11-20T16:05:09+00:00",
+      "result": {
+        "text": "The autumn internal event is led by Watanabe, and the keynote speaker is Elena Ruiz. It is scheduled for Friday, October 30, 2026, at Hall C of the Singapore Convention Center. We expect 260 employees and 40 guests, 300 people in total.\n\n1. Check-in opens at 9:30 a.m.\n2. The 60-minute keynote starts at 10:15 a.m.\n3. The afternoon has three product demos:\n   • Voice input at 2 p.m.\n   • Translation at 2:35 p.m.\n   • Summarization at 3:10 p.m.\n4. Dinner runs from 6 p.m. to 8 p.m. with a food ceiling of 65 dollars per person.\n\nWe moved from Hall B to Hall C because C has 24 wheelchair spaces while B has 12, and the route to reception is 35 meters shorter. The contingency fund is 720 thousand dollars, the coordination code is EV-610, and final slide materials are due October 15.",
+        "elapsed_s": 7.233,
+        "tokens": 247,
+        "prompt_tokens": 865,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 766,
+          "output_chars": 785,
+          "length_ratio": 1.0248
+        }
+      }
+    },
+    "b-en-08--herdr--app": {
+      "fingerprint": "eec16caa604210d6",
+      "recorded_at": "2026-11-20T16:05:18+00:00",
+      "result": {
+        "text": "The autumn internal event is led by Watanabe, and the keynote speaker is Elena Ruiz. It is scheduled for Friday, October 30, 2026, at Hall C of the Singapore Convention Center. We expect 260 employees and 40 guests, 300 people in total.\n1. Check-in opens at 9:30 a.m.\n2. The 60-minute keynote starts at 10:15 a.m.\n3. The afternoon has three product demos:\n   • Voice input at 2 p.m.\n   • Translation at 2:35 p.m.\n   • Summarization at 3:10 p.m.\n4. Dinner runs from 6 p.m. to 8 p.m. with a food ceiling of 65 dollars per person.\nWe moved from Hall B to Hall C because C has 24 wheelchair spaces while B has 12, and the route to reception is 35 meters shorter.\n1. The contingency fund is 720 thousand dollars.\n2. The coordination code is EV-610.\n3. Final slide materials are due October 15.",
+        "elapsed_s": 7.702,
+        "tokens": 255,
+        "prompt_tokens": 944,
+        "max_tokens": 1416,
+        "context_tokens": 2360,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 766,
+          "output_chars": 788,
+          "length_ratio": 1.0287
+        }
+      }
+    },
+    "b-en-08--herdr--legacy": {
+      "fingerprint": "c5b039da5c15edb7",
+      "recorded_at": "2026-11-20T16:05:26+00:00",
+      "result": {
+        "text": "The autumn internal event is led by Watanabe, and the keynote speaker is Elena Ruiz. It is scheduled for Friday, October 30, 2026, at Hall C of the Singapore Convention Center. We expect 260 employees and 40 guests, 300 people in total. Check-in opens at 9:30 a.m., and the 60-minute keynote starts at 10:15 a.m. The afternoon has three product demos:\n1. Voice input at 2 p.m.\n2. Translation at 2:35 p.m.\n3. Summarization at 3:10 p.m.\nDinner runs from 6 p.m. to 8 p.m. with a food ceiling of 65 dollars per person. We moved from Hall B to Hall C because C has 24 wheelchair spaces while B has 12, and the route to reception is 35 meters shorter. The contingency fund is 720 thousand dollars, the coordination code is EV-610, and final slide materials are due October 15.",
+        "elapsed_s": 7.045,
+        "tokens": 237,
+        "prompt_tokens": 944,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 766,
+          "output_chars": 770,
+          "length_ratio": 1.0052
+        }
+      }
+    },
+    "b-en-08--slack--app": {
+      "fingerprint": "36507b68ac89896c",
+      "recorded_at": "2026-11-20T16:05:34+00:00",
+      "result": {
+        "text": "The Autumn Internal Event details:\n• Led by Watanabe with keynote speaker Elena Ruiz\n• Date: Friday, October 30, 2026\n• Location: Hall C, Singapore Convention Center (moved from Hall B for 24 wheelchair spaces and a shorter route to reception)\n• Attendees: 260 employees and 40 guests (300 total)\n• Schedule:\n  1. Check-in: 9:30 a.m.\n  2. Keynote: 10:15 a.m. (60 minutes)\n  3. Afternoon demos: Voice input (2:00 p.m.), Translation (2:35 p.m.), Summarization (3:10 p.m.)\n  4. Dinner: 6:00 p.m. to 8:00 p.m. ($65 per person)\n• Budget: Contingency fund of $720,000\n• Coordination code: EV-610\n• Deadline: Final slide materials due October 15",
+        "elapsed_s": 7.113,
+        "tokens": 234,
+        "prompt_tokens": 938,
+        "max_tokens": 1407,
+        "context_tokens": 2345,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 766,
+          "output_chars": 638,
+          "length_ratio": 0.8329
+        }
+      }
+    },
+    "b-en-08--slack--legacy": {
+      "fingerprint": "6d050873b8e56b33",
+      "recorded_at": "2026-11-20T16:05:42+00:00",
+      "result": {
+        "text": "The autumn internal event is led by Watanabe, with Elena Ruiz as the keynote speaker. It is scheduled for Friday, October 30, 2026, at Hall C of the Singapore Convention Center.\n\n*   **Attendees:** 260 employees and 40 guests (300 total)\n*   **Schedule:**\n    *   Check-in: 9:30 a.m.\n    *   Keynote: 10:15 a.m. (60 minutes)\n    *   Product demos: Voice input at 2 p.m., translation at 2:35 p.m., and summarization at 3:10 p.m.\n    *   Dinner: 6 p.m. to 8 p.m. ($65 per person)\n*   **Venue Change:** Moved from Hall B to Hall C for 24 wheelchair spaces (vs. 12 in B) and a 35-meter shorter route to reception.\n*   **Logistics:** Contingency fund is $720,000; coordination code is EV-610; final slide materials due October 15.",
+        "elapsed_s": 7.441,
+        "tokens": 249,
+        "prompt_tokens": 938,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 766,
+          "output_chars": 725,
+          "length_ratio": 0.9465
+        }
+      }
+    },
+    "b-ja-01--general--app": {
+      "fingerprint": "0294da9f683e401a",
+      "recorded_at": "2026-11-20T15:46:07+00:00",
+      "result": {
+        "text": "来月のリリースについて、担当は田中さん、確認担当はMinaさんです。\n公開日は2026年12月5日、開始は午前9時で、対象はモバイル版7.2.0です。\n決めたことを三つあります。\n• 金曜までに契約画面を追加します。\n• 土曜の朝に負荷試験を80人で行います。\n• 日曜の16時までに旧料金表を削除します。\n判断として公開を延期せず、予定どおり進めます。理由は、決済停止の影響が4時間にとどまり、代替案を使えば顧客の注文を止めずに済むためです。\nもしテスト失敗率が2％を超えた場合だけ公開判断を再確認し、結果は大阪の佐藤さんと品質チームに同じ日に共有してください。\n予算は180万円、会議室は6階A、資料番号はR-284です。",
+        "elapsed_s": 5.474,
+        "tokens": 204,
+        "prompt_tokens": 844,
+        "max_tokens": 1266,
+        "context_tokens": 2110,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 306,
+          "output_chars": 313,
+          "length_ratio": 1.0229
+        }
+      }
+    },
+    "b-ja-01--general--legacy": {
+      "fingerprint": "5cea47326c604907",
+      "recorded_at": "2026-11-20T15:46:14+00:00",
+      "result": {
+        "text": "来月のリリースについて、担当は田中さん、確認担当は Mina さんです。公開日は 2026 年 12 月 5 日、開始は午前 9 時で、対象はモバイル版 7.2.0 です。決めたことは以下の三つです。\n1. 金曜までに契約画面を追加します。\n2. 土曜の朝に負荷試験を 80 人で行います。\n3. 日曜の 16 時までに旧料金表を削除します。\n\n判断として公開を延期せず、予定どおり進めます。理由は、決済停止の影響が 4 時間にとどまり、代替案を使えば顧客の注文を止めずに済むためです。もしテスト失敗率が 2％を超えた場合だけ公開判断を再確認し、結果は大阪の佐藤さんと品質チームに同じ日に共有してください。予算は 180 万円、会議室は 6 階 A、資料番号は R-284 です。",
+        "elapsed_s": 5.77,
+        "tokens": 224,
+        "prompt_tokens": 844,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 306,
+          "output_chars": 340,
+          "length_ratio": 1.1111
+        }
+      }
+    },
+    "b-ja-01--herdr--app": {
+      "fingerprint": "b596ee1a7a8e1b70",
+      "recorded_at": "2026-11-20T15:46:20+00:00",
+      "result": {
+        "text": "来月のリリースについて、担当は田中さん、確認担当はMinaさんです。\n公開日は2026年12月5日、開始は午前9時で、対象はモバイル版7.2.0です。\n決めたことを三つあります。\nまず、金曜までに契約画面を追加します。\n次に、土曜の朝に負荷試験を80人で行います。\n最後に、日曜の16時までに旧料金表を削除します。\n判断として公開を延期せず、予定どおり進めます。\n理由は、決済停止の影響が4時間にとどまり、代替案を使えば顧客の注文を止めずに済むためです。\nもしテスト失敗率が2％を超えた場合だけ公開判断を再確認し、結果は大阪の佐藤さんと品質チームに同じ日に共有してください。\n予算は180万円、会議室は6階A、資料番号はR-284です。",
+        "elapsed_s": 5.636,
+        "tokens": 205,
+        "prompt_tokens": 936,
+        "max_tokens": 1404,
+        "context_tokens": 2340,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 306,
+          "output_chars": 318,
+          "length_ratio": 1.0392
+        }
+      }
+    },
+    "b-ja-01--herdr--legacy": {
+      "fingerprint": "bb0b91573502ef37",
+      "recorded_at": "2026-11-20T15:46:27+00:00",
+      "result": {
+        "text": "来月のリリースについて、担当は田中さん、確認担当はMinaさんです。\n公開日は2026年12月5日、開始は午前9時で、対象はモバイル版7.2.0です。\n決めたことを三つあります。\n1. 金曜までに契約画面を追加します。\n2. 土曜の朝に負荷試験を80人で行います。\n3. 日曜の16時までに旧料金表を削除します。\n判断として公開を延期せず予定どおり進めます。\n理由は、決済停止の影響が4時間にとどまり、代替案を使えば顧客の注文を止めずに済むためです。\nもしテスト失敗率が2％を超えた場合だけ公開判断を再確認し、結果は大阪の佐藤さんと品質チームに同じ日に共有してください。\n予算は180万円、会議室は6階A、資料番号はR-284です。",
+        "elapsed_s": 5.563,
+        "tokens": 207,
+        "prompt_tokens": 936,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 306,
+          "output_chars": 316,
+          "length_ratio": 1.0327
+        }
+      }
+    },
+    "b-ja-01--slack--app": {
+      "fingerprint": "b9a517408c43a414",
+      "recorded_at": "2026-11-20T15:46:35+00:00",
+      "result": {
+        "text": "来月のリリースについて、以下の通りです。\n*   担当：田中さん\n*   確認担当：Mina さん\n*   公開日：2026 年 12 月 5 日（午前 9 時開始）\n*   対象：モバイル版 7.2.0\n*   予算：180 万円\n*   会議室：6 階 A\n*   資料番号：R-284\n\n決めたこと\n1. 金曜までに契約画面を追加する\n2. 土曜の朝に負荷試験を 80 人で行う\n3. 日曜の 16 時までに旧料金表を削除する\n\n判断\n*   公開を延期せず、予定どおり進めます。\n*   理由は、決済停止の影響が 4 時間にとどまり、代替案を使えば顧客の注文を止めずに済むためです。\n\n条件\n*   テスト失敗率が 2％を超えた場合のみ、公開判断を再確認してください。\n*   結果は、大阪の佐藤さんと品質チームに同じ日に共有してください。",
+        "elapsed_s": 6.852,
+        "tokens": 255,
+        "prompt_tokens": 916,
+        "max_tokens": 1374,
+        "context_tokens": 2290,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 306,
+          "output_chars": 374,
+          "length_ratio": 1.2222
+        }
+      }
+    },
+    "b-ja-01--slack--legacy": {
+      "fingerprint": "cb61e8a723af06f9",
+      "recorded_at": "2026-11-20T15:46:43+00:00",
+      "result": {
+        "text": "来月のリリースについて、以下の通りです。\n\n*   担当：田中さん\n*   確認担当：Mina さん\n*   公開日：2026 年 12 月 5 日 午前 9 時\n*   対象：モバイル版 7.2.0\n\n決めたこと\n*   金曜までに契約画面を追加\n*   土曜の朝に負荷試験を 80 人で行う\n*   日曜の 16 時までに旧料金表を削除\n\n判断と理由\n*   公開を延期せず、予定どおり進めます。\n*   理由は、決済停止の影響が 4 時間にとどまり、代替案を使えば顧客の注文を止めずに済むためです。\n\n追加指示\n*   テスト失敗率が 2％を超えた場合のみ、公開判断を再確認してください。\n*   結果は、大阪の佐藤さんと品質チームに同じ日に共有してください。\n\nその他\n*   予算：180 万円\n*   会議室：6 階 A\n*   資料番号：R-284",
+        "elapsed_s": 6.775,
+        "tokens": 256,
+        "prompt_tokens": 916,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 306,
+          "output_chars": 381,
+          "length_ratio": 1.2451
+        }
+      }
+    },
+    "b-ja-02--general--app": {
+      "fingerprint": "69a8f34027f3cc72",
+      "recorded_at": "2026-11-20T15:46:50+00:00",
+      "result": {
+        "text": "来年度の採用について整理すると、以下の通りです。\n\n*   責任者：人事の小林さん\n*   候補者：Aiko Mori、Ken Ito\n*   一次面接：2026年11月24日と25日、東京の5階でそれぞれ45分ずつ実施\n*   課題と採点：二人に同じケース課題を渡し、技術職の山田さんが採点\n*   契約可能額：年収720万円まで\n*   決定事項：二人とも最終面接へ進める\n    *   Moriさん：業務改善の経験があるため\n    *   Itoさん：16か月間の移行プロジェクトを率いたため\n*   条件：英語の面談結果がB2未満では承認しない\n*   期限：来週水曜の13時までに面接官のコメントを小林さんへ送る\n*   予算差額：年間80万円\n*   異動希望：大阪支社",
+        "elapsed_s": 6.011,
+        "tokens": 220,
+        "prompt_tokens": 830,
+        "max_tokens": 1245,
+        "context_tokens": 2075,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 300,
+          "output_chars": 343,
+          "length_ratio": 1.1433
+        }
+      }
+    },
+    "b-ja-02--general--legacy": {
+      "fingerprint": "41ffb0dbdece397b",
+      "recorded_at": "2026-11-20T15:46:57+00:00",
+      "result": {
+        "text": "来年度の採用について整理すると、以下の通りです。\n\n*   責任者：人事の小林さん\n*   候補者：Aiko Mori、Ken Ito\n*   一次面接：2026年11月24日と25日、東京の5階でそれぞれ45分ずつ実施\n*   課題と採点：二人に同じケース課題を渡し、技術職の山田さんが採点\n*   契約可能額：年収720万円まで\n*   決定事項：二人とも最終面接へ進める\n    *   Moriさん：業務改善の経験があるため\n    *   Itoさん：16か月間の移行プロジェクトを率いたため\n*   条件：英語の面談結果がB2未満では承認しない\n*   期限：来週水曜の13時までに面接官のコメントを小林さんへ送る\n*   予算差額：年間80万円\n*   異動希望：大阪支社",
+        "elapsed_s": 5.871,
+        "tokens": 220,
+        "prompt_tokens": 830,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 300,
+          "output_chars": 343,
+          "length_ratio": 1.1433
+        }
+      }
+    },
+    "b-ja-02--herdr--app": {
+      "fingerprint": "6baa3a6b04563fb9",
+      "recorded_at": "2026-11-20T15:47:04+00:00",
+      "result": {
+        "text": "来年度の採用について整理すると、以下の通りです。\n\n*   責任者：人事の小林さん\n*   候補者：Aiko Mori、Ken Ito\n*   一次面接日程：2026年11月24日と25日（東京5階、それぞれ45分）\n*   選考方法：二人に同じケース課題を渡し、技術職の山田さんが採点\n*   契約可能額：年収720万円まで\n*   決定事項：二名とも最終面接へ進める\n    *   理由：Moriさんが業務改善の経験を持ち、Itoさんが16か月間の移行プロジェクトを率いたため\n*   条件：英語の面談結果がB2未満では承認しない\n*   期限：来週水曜の13時までに面接官のコメントを小林さんへ送る\n*   予算差額：年間80万円\n*   異動希望：大阪支社",
+        "elapsed_s": 6.115,
+        "tokens": 217,
+        "prompt_tokens": 922,
+        "max_tokens": 1383,
+        "context_tokens": 2305,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 300,
+          "output_chars": 333,
+          "length_ratio": 1.11
+        }
+      }
+    },
+    "b-ja-02--herdr--legacy": {
+      "fingerprint": "f32bbf81a477c51c",
+      "recorded_at": "2026-11-20T15:47:11+00:00",
+      "result": {
+        "text": "来年度の採用について整理すると、以下の通りです。\n\n*   責任者：人事の小林さん\n*   候補者：Aiko Mori、Ken Ito\n*   一次面接：2026年11月24日と25日、東京の5階、それぞれ45分\n*   課題と採点：二人に同じケース課題を渡し、技術職の山田さんが採点\n*   契約可能額：年収720万円まで\n*   決定事項：二名とも最終面接へ進める\n    *   Moriさん：業務改善の経験があるため\n    *   Itoさん：16か月間の移行プロジェクトを率いたため\n*   条件：英語の面談結果がB2未満では承認しない\n*   期限：来週水曜の13時までに面接官のコメントを小林さんへ送る\n*   予算差額：年間80万円\n*   異動希望：大阪支社",
+        "elapsed_s": 5.978,
+        "tokens": 219,
+        "prompt_tokens": 922,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 300,
+          "output_chars": 339,
+          "length_ratio": 1.13
+        }
+      }
+    },
+    "b-ja-02--slack--app": {
+      "fingerprint": "d21de0bf02bdc870",
+      "recorded_at": "2026-11-20T15:47:18+00:00",
+      "result": {
+        "text": "来年度の採用に関する決定事項を整理しました。\n\n*   **責任者**: 人事の小林さん\n*   **候補者**: Aiko Mori、Ken Ito\n*   **一次面接**: 2026年11月24日・25日（東京5階、各45分）\n    *   二人とも同じケース課題を解答し、技術職の山田さんが採点します。\n    *   契約可能額は年収720万円までです。\n*   **決定事項**: 二人とも最終面接へ進めます。\n    *   Moriさん: 業務改善の経験があるため\n    *   Itoさん: 16か月の移行プロジェクトを率いたため\n*   **条件**: 英語の面談結果がB2未満の場合は承認されません。\n*   **アクション**: 来週水曜13時までに、面接官のコメントを小林さんへ送ります。\n*   **その他**: 予算差額は年間80万円、異動希望は大阪支社です。",
+        "elapsed_s": 6.369,
+        "tokens": 230,
+        "prompt_tokens": 902,
+        "max_tokens": 1353,
+        "context_tokens": 2255,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 300,
+          "output_chars": 397,
+          "length_ratio": 1.3233
+        }
+      }
+    },
+    "b-ja-02--slack--legacy": {
+      "fingerprint": "4e454e4fec1f1e9d",
+      "recorded_at": "2026-11-20T15:47:25+00:00",
+      "result": {
+        "text": "来年度の採用について整理しました。\n\n*   **責任者**: 人事の小林さん\n*   **候補者**: Aiko Mori、Ken Ito\n*   **一次面接**: 2026年11月24日・25日（東京5階、各45分）\n    *   二人とも同じケース課題を解き、技術職の山田さんが採点します。\n    *   契約可能額は年収720万円までです。\n*   **決定事項**: 二人とも最終面接へ進めます。\n    *   Moriさんは業務改善の経験があるため。\n    *   Itoさんは16か月の移行プロジェクトを率いたため。\n*   **条件**: 英語の面談結果がB2未満の場合は承認しません。\n*   **次のアクション**: 来週水曜13時までに、面接官のコメントを小林さんへ送ります。\n*   **その他**: 予算差額は年間80万円、異動希望は大阪支社です。",
+        "elapsed_s": 6.082,
+        "tokens": 225,
+        "prompt_tokens": 902,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 300,
+          "output_chars": 392,
+          "length_ratio": 1.3067
+        }
+      }
+    },
+    "b-ja-03--general--app": {
+      "fingerprint": "ce5a04de50cda150",
+      "recorded_at": "2026-11-20T15:47:32+00:00",
+      "result": {
+        "text": "データ移行の今回の計画は、責任者を石井さん、監査担当をNoraさんとし、実施日を2027年1月18日の夜23時と決めます。作業項目は以下の通りです。\n1. 顧客表120万件を凍結する\n2. 在庫表48万件を複製する\n3. 請求表9個の区分を照合する\n4. 3時間のロールバック演習を実施する\n\n移行先はRegion K、保留期間は90日、許容停止は25分です。今回新規方式Bではなく方式Aを選びました。理由は、Aなら照合に必要な監査ログが残り、障害時に17分で戻せるためです。失敗条件は以下の通りです。\n• 件数差が0.5％を超えること\n• 温度が18度未満になる場合は設備班へ連絡すること\n• 完了報告は翌朝8時までに法務の李さんへ送ること",
+        "elapsed_s": 5.797,
+        "tokens": 211,
+        "prompt_tokens": 845,
+        "max_tokens": 1267,
+        "context_tokens": 2112,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 305,
+          "output_chars": 321,
+          "length_ratio": 1.0525
+        }
+      }
+    },
+    "b-ja-03--general--legacy": {
+      "fingerprint": "14487641d1e96d84",
+      "recorded_at": "2026-11-20T15:47:39+00:00",
+      "result": {
+        "text": "データ移行の今回の計画は、責任者を石井さん、監査担当をNoraさんとし、実施日を2027年1月18日の夜23時と決めます。\n作業項目は以下の通りです。\n1. 顧客表120万件を凍結する\n2. 在庫表48万件を複製する\n3. 請求表9個の区分を照合する\n4. 3時間のロールバック演習を実施する\n移行先はRegion K、保留期間は90日、許容停止は25分です。\n今回新規方式Bではなく方式Aを選びました。理由はAなら照合に必要な監査ログが残り、障害時に17分で戻せるためです。\n失敗条件は以下の通りです。\n• 件数差が0.5％を超えること\n• 温度が18度未満になる場合は設備班へ連絡すること\n• 完了報告は翌朝8時までに法務の李さんへ送ること",
+        "elapsed_s": 6.113,
+        "tokens": 213,
+        "prompt_tokens": 845,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 305,
+          "output_chars": 322,
+          "length_ratio": 1.0557
+        }
+      }
+    },
+    "b-ja-03--herdr--app": {
+      "fingerprint": "9f8b8097ee3dea59",
+      "recorded_at": "2026-11-20T15:47:47+00:00",
+      "result": {
+        "text": "データ移行の今回の計画は、責任者を石井さん、監査担当をNoraさんとし、実施日を2027年1月18日の夜23時と決めます。\n\n作業項目は以下の通りです。\n1. 顧客表120万件を凍結する\n2. 在庫表48万件を複製する\n3. 請求表9個の区分を照合する\n4. 3時間のロールバック演習を実施する\n\n移行先はRegion K、保留期間は90日、許容停止は25分です。今回新規方式Bではなく方式Aを選びました。理由はAなら照合に必要な監査ログが残り、障害時に17分で戻せるためです。\n\n失敗条件は以下の通りです。\n• 件数差が0.5％を超えること\n• 温度が18度未満になる場合は設備班へ連絡すること\n• 完了報告は翌朝8時までに法務の李さんへ送ること",
+        "elapsed_s": 7.034,
+        "tokens": 212,
+        "prompt_tokens": 937,
+        "max_tokens": 1405,
+        "context_tokens": 2342,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 305,
+          "output_chars": 324,
+          "length_ratio": 1.0623
+        }
+      }
+    },
+    "b-ja-03--herdr--legacy": {
+      "fingerprint": "7805ebbe61cf437d",
+      "recorded_at": "2026-11-20T15:47:56+00:00",
+      "result": {
+        "text": "データ移行の今回の計画は以下の通りです。\n目的：責任者を石井さん、監査担当をNoraさんとし、実施日を2027年1月18日の夜23時と決める。\n作業項目：\n1. 顧客表120万件を凍結する。\n2. 在庫表48万件を複製する。\n3. 請求表9個の区分を照合する。\n4. 3時間のロールバック演習を実施する。\n移行先：Region K\n保留期間：90日\n許容停止：25分\n方式：今回新規方式Bではなく方式Aを選択する。\n理由：Aなら照合に必要な監査ログが残り、障害時に17分で戻せるため。\n失敗条件：\n- 件数差が0.5％を超えること。\n- 温度が18度未満になる場合は設備班へ連絡すること。\n- 完了報告は翌朝8時までに法務の李さんへ送ること。",
+        "elapsed_s": 7.684,
+        "tokens": 220,
+        "prompt_tokens": 937,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 305,
+          "output_chars": 321,
+          "length_ratio": 1.0525
+        }
+      }
+    },
+    "b-ja-03--slack--app": {
+      "fingerprint": "ca29a99db5c306c5",
+      "recorded_at": "2026-11-20T15:48:06+00:00",
+      "result": {
+        "text": "データ移行計画の決定事項は以下の通りです。\n\n*   責任者：石井さん\n*   監査担当：Nora さん\n*   実施日：2027 年 1 月 18 日 23 時\n*   移行先：Region K\n*   保留期間：90 日\n*   許容停止時間：25 分\n*   方式：方式 A（方式 B の代わりに選定。監査ログが残るため障害時 17 分で復旧可能）\n\n作業項目は以下の通りです。\n\n1.  顧客表 120 万件を凍結\n2.  在庫表 48 万件を複製\n3.  請求表 9 個の区分を照合\n4.  3 時間のロールバック演習を実施\n\n失敗条件は以下の通りです。\n\n*   件数差が 0.5％を超える\n*   温度が 18 度未満になる場合は設備班へ連絡\n\n完了報告は翌朝 8 時までに法務の李さんへ送ってください。",
+        "elapsed_s": 9.417,
+        "tokens": 253,
+        "prompt_tokens": 917,
+        "max_tokens": 1375,
+        "context_tokens": 2292,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 305,
+          "output_chars": 359,
+          "length_ratio": 1.177
+        }
+      }
+    },
+    "b-ja-03--slack--legacy": {
+      "fingerprint": "8b5147011b7035c3",
+      "recorded_at": "2026-11-20T15:48:17+00:00",
+      "result": {
+        "text": "データ移行計画の決定事項です。\n\n*   **責任者**: 石井さん\n*   **監査担当**: Nora さん\n*   **実施日**: 2027 年 1 月 18 日 23 時\n*   **移行先**: Region K\n*   **保留期間**: 90 日\n*   **許容停止時間**: 25 分\n*   **方式**: 方式 A（方式 B ではなく選択。監査ログが残るため障害時 17 分で復旧可能）\n\n**作業項目**\n1.  顧客表 120 万件を凍結\n2.  在庫表 48 万件を複製\n3.  請求表 9 個の区分を照合\n4.  3 時間のロールバック演習を実施\n\n**失敗条件**\n*   件数差が 0.5％を超える場合\n\n**その他**\n*   温度が 18 度未満の場合は設備班へ連絡\n*   完了報告は翌朝 8 時までに法務の李さんへ送付",
+        "elapsed_s": 9.92,
+        "tokens": 253,
+        "prompt_tokens": 917,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 305,
+          "output_chars": 381,
+          "length_ratio": 1.2492
+        }
+      }
+    },
+    "b-ja-04--general--app": {
+      "fingerprint": "6bd7a6300e7991dd",
+      "recorded_at": "2026-11-20T15:48:29+00:00",
+      "result": {
+        "text": "顧客 Cedar 社の障害対応について、一次担当は安藤さん、連絡責任者は Priya です。発生時刻は 2026 年 10 月 9 日 14 時 07 分、影響した端末は 23 台で、再起動に失敗したのは 5 台でした。障害番号は INC-9928、契約上の応答期限は 30 分、地域は福岡と熊本の 2 拠点です。\n\n• 暫定対応は版 3.14 を版 3.13 へ戻すことに決めました。\n• 理由は版 3.14 でメモリ使用率が 92％に達し、版 3.13 では 61％まで下がることを検証できたからです。\n• 恒久対応は藤田さんが 11 月 2 日までに設定保存の修正を作り、検証環境で 240 件を試します。\n• 顧客への次回連絡は 17 時 30 分、再発時の連絡先は Cedar 社の Lee です。\n• 初回報告書は事件番号と連絡時刻を含め、翌日 12 時までに保存します。",
+        "elapsed_s": 10.869,
+        "tokens": 273,
+        "prompt_tokens": 868,
+        "max_tokens": 1302,
+        "context_tokens": 2170,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 327,
+          "output_chars": 392,
+          "length_ratio": 1.1988
+        }
+      }
+    },
+    "b-ja-04--general--legacy": {
+      "fingerprint": "21b37666fe40326d",
+      "recorded_at": "2026-11-20T15:48:41+00:00",
+      "result": {
+        "text": "顧客 Cedar 社の障害対応について、一次担当は安藤さん、連絡責任者は Priya です。\n発生時刻は 2026 年 10 月 9 日 14 時 07 分、影響した端末は 23 台で、再起動に失敗したのは 5 台でした。\n障害番号は INC-9928、契約上の応答期限は 30 分、地域は福岡と熊本の 2 拠点です。\n暫定対応は版 3.14 を版 3.13 へ戻すことに決めました。理由は版 3.14 でメモリ使用率が 92％に達し、版 3.13 では 61％まで下がることを検証できたからです。\n恒久対応は藤田さんが 11 月 2 日までに設定保存の修正を作り、検証環境で 240 件を試します。\n顧客への次回連絡は 17 時 30 分、再発時の連絡先は Cedar 社の Lee です。\n初回報告書は事件番号と連絡時刻を含め、翌日 12 時までに保存します。",
+        "elapsed_s": 10.721,
+        "tokens": 264,
+        "prompt_tokens": 868,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 327,
+          "output_chars": 382,
+          "length_ratio": 1.1682
+        }
+      }
+    },
+    "b-ja-04--herdr--app": {
+      "fingerprint": "4a7642470075d80f",
+      "recorded_at": "2026-11-20T15:48:54+00:00",
+      "result": {
+        "text": "顧客 Cedar 社の障害対応について、一次担当は安藤さん、連絡責任者は Priya です。\n\n*   発生時刻：2026 年 10 月 9 日 14 時 07 分\n*   影響した端末：23 台（再起動に失敗したのは 5 台）\n*   障害番号：INC-9928\n*   契約上の応答期限：30 分\n*   地域：福岡と熊本の 2 拠点\n\n暫定対応は版 3.14 を版 3.13 へ戻すことに決めました。理由は版 3.14 でメモリ使用率が 92％に達し、版 3.13 では 61％まで下がることを検証できたからです。\n\n恒久対応は藤田さんが 11 月 2 日までに設定保存の修正を作り、検証環境で 240 件を試します。\n\n顧客への次回連絡は 17 時 30 分、再発時の連絡先は Cedar 社の Lee です。\n\n初回報告書は事件番号と連絡時刻を含め、翌日 12 時までに保存します。",
+        "elapsed_s": 11.535,
+        "tokens": 272,
+        "prompt_tokens": 960,
+        "max_tokens": 1440,
+        "context_tokens": 2400,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 327,
+          "output_chars": 396,
+          "length_ratio": 1.211
+        }
+      }
+    },
+    "b-ja-04--herdr--legacy": {
+      "fingerprint": "1664a2eaefb8cd1c",
+      "recorded_at": "2026-11-20T15:49:05+00:00",
+      "result": {
+        "text": "顧客 Cedar 社の障害対応について、一次担当は安藤さん、連絡責任者は Priya です。\n発生時刻は 2026 年 10 月 9 日 14 時 07 分、影響した端末は 23 台で、再起動に失敗したのは 5 台でした。\n障害番号は INC-9928、契約上の応答期限は 30 分、地域は福岡と熊本の 2 拠点です。\n暫定対応は版 3.14 を版 3.13 へ戻すことに決めました。理由は版 3.14 でメモリ使用率が 92％に達し、版 3.13 では 61％まで下がることを検証できたからです。\n恒久対応は藤田さんが 11 月 2 日までに設定保存の修正を作り、検証環境で 240 件を試します。\n顧客への次回連絡は 17 時 30 分、再発時の連絡先は Cedar 社の Lee です。\n初回報告書は事件番号と連絡時刻を含め、翌日 12 時までに保存します。",
+        "elapsed_s": 10.688,
+        "tokens": 264,
+        "prompt_tokens": 960,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 327,
+          "output_chars": 382,
+          "length_ratio": 1.1682
+        }
+      }
+    },
+    "b-ja-04--slack--app": {
+      "fingerprint": "c3c67b60c0a2e3cf",
+      "recorded_at": "2026-11-20T15:49:17+00:00",
+      "result": {
+        "text": "顧客 Cedar 社の障害対応について、以下の通りです。\n\n*   **一次担当**: 安藤さん\n*   **連絡責任者**: Priya\n*   **発生時刻**: 2026 年 10 月 9 日 14 時 07 分\n*   **影響範囲**: 福岡・熊本（2 拠点）、影響端末 23 台（再起動失敗 5 台）\n*   **障害番号**: INC-9928\n*   **応答期限**: 30 分\n*   **暫定対応**: 版 3.14 を版 3.13 に戻す（メモリ使用率 92%→61% の改善を検証済み）\n*   **恒久対応**: 藤田さんが 11 月 2 日までに設定保存の修正を作成し、検証環境で 240 件の検証を実施\n*   **次回連絡**: 17 時 30 分\n*   **再発時連絡先**: Cedar 社の Lee\n*   **初回報告書**: 事件番号と連絡時刻を含み、翌日 12 時までに保存",
+        "elapsed_s": 10.468,
+        "tokens": 265,
+        "prompt_tokens": 940,
+        "max_tokens": 1410,
+        "context_tokens": 2350,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 327,
+          "output_chars": 411,
+          "length_ratio": 1.2569
+        }
+      }
+    },
+    "b-ja-04--slack--legacy": {
+      "fingerprint": "f60d3791e23deec9",
+      "recorded_at": "2026-11-20T15:49:29+00:00",
+      "result": {
+        "text": "顧客 Cedar 社の障害対応について、以下の通りです。\n\n*   **一次担当**: 安藤さん\n*   **連絡責任者**: Priya\n*   **発生時刻**: 2026 年 10 月 9 日 14 時 07 分\n*   **影響範囲**: 福岡・熊本の 2 拠点（23 台）\n    *   再起動失敗: 5 台\n*   **障害番号**: INC-9928\n*   **応答期限**: 30 分\n*   **暫定対応**: 版 3.14 を版 3.13 へ戻す\n    *   理由: 版 3.14 でメモリ使用率が 92％に達し、版 3.13 では 61％に下がることを検証済み\n*   **恒久対応**: 藤田さんが 11 月 2 日までに設定保存の修正を作成し、検証環境で 240 件を試す\n*   **顧客への連絡**: 17 時 30 分\n*   **再発時連絡先**: Cedar 社の Lee\n*   **初回報告書**: 事件番号と連絡時刻を含め、翌日 12 時までに保存",
+        "elapsed_s": 11.083,
+        "tokens": 295,
+        "prompt_tokens": 940,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 327,
+          "output_chars": 449,
+          "length_ratio": 1.3731
+        }
+      }
+    },
+    "b-ja-05--general--app": {
+      "fingerprint": "786737df39ef5b6c",
+      "recorded_at": "2026-11-20T15:49:39+00:00",
+      "result": {
+        "text": "音声検索の調査について、主担当は松田さん、分析担当は Leo、参加者は社員 12 名と顧客 8 名の合計 20 名です。期間は 2026 年 12 月 1 日から 12 月 19 日、毎週火曜と木曜に 1 回 35 分で行います。調査する項目は、騒音レベル 65dB での認識、同音語の訂正、20 文字を超える検索、手袋をした操作です。タスク番号は UX-440 で、端末は Pixel 9 と iPhone 17 を各 6 台ずつ使い、成功基準は検索完了率 90％です。方式は遠隔面談にせず、半分を会議室 H-3 で対面としました。理由は機器の音量と発話距離を同条件で測り、録音の欠落原因を切り分ける必要があるためです。報告日は 12 月 22 日、費用上限は 64 万円です。",
+        "elapsed_s": 8.87,
+        "tokens": 240,
+        "prompt_tokens": 857,
+        "max_tokens": 1285,
+        "context_tokens": 2142,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 305,
+          "output_chars": 340,
+          "length_ratio": 1.1148
+        }
+      }
+    },
+    "b-ja-05--general--legacy": {
+      "fingerprint": "12262d184c9d7523",
+      "recorded_at": "2026-11-20T15:49:48+00:00",
+      "result": {
+        "text": "音声検索の調査について、主担当は松田さん、分析担当は Leo、参加者は社員 12 名と顧客 8 名、合計 20 名です。期間は 2026 年 12 月 1 日から 12 月 19 日、毎週火曜と木曜、1 回 35 分で行います。調査する項目は、騒音レベル 65dB での認識、同音語の訂正、20 文字を超える検索、手袋をした操作です。タスク番号は UX-440 で、端末は Pixel 9 と iPhone 17 を各 6 台ずつ使い、成功基準は検索完了率 90％です。方式は遠隔面談にせず、半分を会議室 H-3 で対面にすることを決めました。理由は機器の音量と発話距離を同条件で測り、録音の欠落原因を切り分ける必要があるためです。報告日は 12 月 22 日、費用上限は 64 万円です。",
+        "elapsed_s": 8.461,
+        "tokens": 241,
+        "prompt_tokens": 857,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 305,
+          "output_chars": 345,
+          "length_ratio": 1.1311
+        }
+      }
+    },
+    "b-ja-05--herdr--app": {
+      "fingerprint": "f22c10921f360ba5",
+      "recorded_at": "2026-11-20T15:49:58+00:00",
+      "result": {
+        "text": "音声検索の調査について、主担当は松田さん、分析担当は Leo、参加者は社員 12 名と顧客 8 名、合計 20 名です。\n期間は 2026 年 12 月 1 日から 12 月 19 日、毎週火曜と木曜、1 回 35 分で行います。\n調査する項目は、騒音レベル 65dB での認識、同音語の訂正、20 文字を超える検索、手袋をした操作です。\nタスク番号は UX-440 で、端末は Pixel 9 と iPhone 17 を各 6 台ずつ使い、成功基準は検索完了率 90％です。\n方式は遠隔面談にせず、半分を会議室 H-3 で対面にすることを決めました。\n理由は機器の音量と発話距離を同条件で測り、録音の欠落原因を切り分ける必要があるためです。\n報告日は 12 月 22 日、費用上限は 64 万円です。",
+        "elapsed_s": 8.738,
+        "tokens": 247,
+        "prompt_tokens": 949,
+        "max_tokens": 1423,
+        "context_tokens": 2372,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 305,
+          "output_chars": 351,
+          "length_ratio": 1.1508
+        }
+      }
+    },
+    "b-ja-05--herdr--legacy": {
+      "fingerprint": "f1e9a2f15b1ed79f",
+      "recorded_at": "2026-11-20T15:50:07+00:00",
+      "result": {
+        "text": "音声検索の調査について、主担当は松田さん、分析担当は Leo、参加者は社員 12 名と顧客 8 名、合計 20 名です。\n期間は 2026 年 12 月 1 日から 12 月 19 日、毎週火曜と木曜、1 回 35 分で行います。\n調査する項目は、騒音レベル 65dB での認識、同音語の訂正、20 文字を超える検索、手袋をした操作です。\nタスク番号は UX-440 で、端末は Pixel 9 と iPhone 17 を各 6 台ずつ使い、成功基準は検索完了率 90％です。\n方式は遠隔面談にせず、半分を会議室 H-3 で対面にすることを決めました。\n理由は機器の音量と発話距離を同条件で測り、録音の欠落原因を切り分ける必要があるためです。\n報告日は 12 月 22 日、費用上限は 64 万円です。",
+        "elapsed_s": 8.379,
+        "tokens": 247,
+        "prompt_tokens": 949,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 305,
+          "output_chars": 351,
+          "length_ratio": 1.1508
+        }
+      }
+    },
+    "b-ja-05--slack--app": {
+      "fingerprint": "14c8ac212a14a8a1",
+      "recorded_at": "2026-11-20T15:50:16+00:00",
+      "result": {
+        "text": "音声検索調査の概要\n• 主担当：松田さん\n• 分析担当：Leo\n• 参加者：社員12名、顧客8名（合計20名）\n• 期間：2026年12月1日〜12月19日\n• 実施日：毎週火曜・木曜（1回35分）\n• 調査項目：\n  - 騒音レベル65dBでの認識\n  - 同音語の訂正\n  - 20文字を超える検索\n  - 手袋をした操作\n• タスク番号：UX-440\n• 端末：Pixel 9、iPhone 17（各6台）\n• 成功基準：検索完了率90％\n• 方式：対面（会議室H-3）\n• 理由：機器の音量と発話距離を同条件で測り、録音の欠落原因を切り分けるため\n• 報告日：12月22日\n• 費用上限：64万円",
+        "elapsed_s": 7.997,
+        "tokens": 234,
+        "prompt_tokens": 929,
+        "max_tokens": 1393,
+        "context_tokens": 2322,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 305,
+          "output_chars": 302,
+          "length_ratio": 0.9902
+        }
+      }
+    },
+    "b-ja-05--slack--legacy": {
+      "fingerprint": "f9a40a5560869613",
+      "recorded_at": "2026-11-20T15:50:25+00:00",
+      "result": {
+        "text": "音声検索調査の概要\n• 主担当：松田さん\n• 分析担当：Leo\n• 参加者：社員12名、顧客8名（合計20名）\n• 期間：2026年12月1日〜12月19日\n• 実施日：毎週火曜・木曜（1回35分）\n• 調査項目：\n  - 騒音レベル65dBでの認識\n  - 同音語の訂正\n  - 20文字を超える検索\n  - 手袋をした操作\n• タスク番号：UX-440\n• 端末：Pixel 9、iPhone 17（各6台）\n• 成功基準：検索完了率90％\n• 方式：半分を会議室H-3で対面実施（遠隔面談なし）\n  - 理由：機器の音量と発話距離を同条件で測定し、録音の欠落原因を切り分けるため\n• 報告日：12月22日\n• 費用上限：64万円",
+        "elapsed_s": 7.984,
+        "tokens": 244,
+        "prompt_tokens": 929,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 305,
+          "output_chars": 317,
+          "length_ratio": 1.0393
+        }
+      }
+    },
+    "b-ja-06--general--app": {
+      "fingerprint": "810c3284d191d962",
+      "recorded_at": "2026-11-20T15:50:33+00:00",
+      "result": {
+        "text": "会議室の機材購入は、調達担当の青木さんと利用部門のNoahで進めます。\n対象は東京本社12部屋、名古屋支店3部屋の合計15部屋で、納入希望日は2026年12月10日、設置日は12月12日です。\n見積もりは三社から取り、Orchidは420万円、Mapleは398万円、Pineは455万円でした。\n選定はMapleに決めました。理由は398万円で最も安く、保証が36か月あり、交換部品を48時間以内に届けられるためです。\n必要な端末はディスプレイ30台、マイク15台、カメラ15台、ケーブル90本で、発注番号はPO-731です。\n契約条件は前払いを25％、残りを納品検収後に払い、遅延1日ごとの控除は0.2％にします。\n受領確認者は青木さんです。",
+        "elapsed_s": 7.218,
+        "tokens": 224,
+        "prompt_tokens": 865,
+        "max_tokens": 1297,
+        "context_tokens": 2162,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 317,
+          "output_chars": 323,
+          "length_ratio": 1.0189
+        }
+      }
+    },
+    "b-ja-06--general--legacy": {
+      "fingerprint": "dd9402e472c7a556",
+      "recorded_at": "2026-11-20T15:50:41+00:00",
+      "result": {
+        "text": "会議室の機材購入は、調達担当の青木さんと利用部門のNoahで進めます。対象は東京本社12部屋、名古屋支店3部屋の合計15部屋で、納入希望日は2026年12月10日、設置日は12月12日です。\n\n• 見積もりは三社から取り、Orchidは420万円、Mapleは398万円、Pineは455万円でした。\n• 選定はMapleに決めました。理由は398万円で最も安く、保証が36か月あり、交換部品を48時間以内に届けられるためです。\n\n必要な端末はディスプレイ30台、マイク15台、カメラ15台、ケーブル90本で、発注番号はPO-731です。契約条件は前払いを25％、残りを納品検収後に払い、遅延1日ごとの控除は0.2％にします。受領確認者は青木さんです。",
+        "elapsed_s": 7.032,
+        "tokens": 225,
+        "prompt_tokens": 865,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 317,
+          "output_chars": 326,
+          "length_ratio": 1.0284
+        }
+      }
+    },
+    "b-ja-06--herdr--app": {
+      "fingerprint": "806609edf1545095",
+      "recorded_at": "2026-11-20T15:50:50+00:00",
+      "result": {
+        "text": "会議室の機材購入は、調達担当の青木さんと利用部門のNoahで進めます。\n対象は東京本社12部屋、名古屋支店3部屋の合計15部屋で、納入希望日は2026年12月10日、設置日は12月12日です。\n見積もりは三社から取り、Orchidは420万円、Mapleは398万円、Pineは455万円でした。\n選定はMapleに決めました。理由は398万円で最も安く、保証が36か月あり、交換部品を48時間以内に届けられるためです。\n必要な端末はディスプレイ30台、マイク15台、カメラ15台、ケーブル90本で、発注番号はPO-731です。\n契約条件は前払いを25％、残りを納品検収後に払い、遅延1日ごとの控除は0.2％にします。\n受領確認者は青木さんです。",
+        "elapsed_s": 7.188,
+        "tokens": 224,
+        "prompt_tokens": 957,
+        "max_tokens": 1435,
+        "context_tokens": 2392,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 317,
+          "output_chars": 323,
+          "length_ratio": 1.0189
+        }
+      }
+    },
+    "b-ja-06--herdr--legacy": {
+      "fingerprint": "ce61c390328f2404",
+      "recorded_at": "2026-11-20T15:50:58+00:00",
+      "result": {
+        "text": "会議室の機材購入は、調達担当の青木さんと利用部門のNoahで進めます。\n対象は東京本社12部屋、名古屋支店3部屋の合計15部屋で、納入希望日は2026年12月10日、設置日は12月12日です。\n見積もりは三社から取り、Orchidは420万円、Mapleは398万円、Pineは455万円でした。\n選定はMapleに決めました。理由は398万円で最も安く、保証が36か月あり、交換部品を48時間以内に届けられるためです。\n必要な端末はディスプレイ30台、マイク15台、カメラ15台、ケーブル90本で、発注番号はPO-731です。\n契約条件は前払いを25％、残りを納品検収後に払い、遅延1日ごとの控除は0.2％にします。\n受領確認者は青木さんです。",
+        "elapsed_s": 7.231,
+        "tokens": 224,
+        "prompt_tokens": 957,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 317,
+          "output_chars": 323,
+          "length_ratio": 1.0189
+        }
+      }
+    },
+    "b-ja-06--slack--app": {
+      "fingerprint": "29b68e9aba3f7ea5",
+      "recorded_at": "2026-11-20T15:51:05+00:00",
+      "result": {
+        "text": "会議室機材購入の進捗と条件は以下の通りです。\n• 担当：調達担当の青木さんと利用部門のNoah\n• 対象：東京本社12部屋、名古屋支店3部屋（合計15部屋）\n• 納期：2026年12月10日\n• 設置日：2026年12月12日\n• 選定：Maple（398万円）\n• 選定理由：最も安く、保証36か月、交換部品48時間以内配送\n• 必要機材：ディスプレイ30台、マイク15台、カメラ15台、ケーブル90本\n• 発注番号：PO-731\n• 契約条件：前払い25％、残りを納品検収後払い、遅延1日あたり控除0.2％\n• 受領確認者：青木さん",
+        "elapsed_s": 6.588,
+        "tokens": 205,
+        "prompt_tokens": 937,
+        "max_tokens": 1405,
+        "context_tokens": 2342,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 317,
+          "output_chars": 268,
+          "length_ratio": 0.8454
+        }
+      }
+    },
+    "b-ja-06--slack--legacy": {
+      "fingerprint": "0b7c0d1b3f79963b",
+      "recorded_at": "2026-11-20T15:51:14+00:00",
+      "result": {
+        "text": "会議室機材購入の進捗と条件を共有します。\n\n*   **担当者**: 調達担当の青木さんと利用部門の Noah\n*   **対象**: 東京本社 12 部屋、名古屋支店 3 部屋（合計 15 部屋）\n*   **スケジュール**: 納入 2026 年 12 月 10 日、設置 12 月 12 日\n*   **選定結果**: Maple（420 万円）\n    *   理由: 見積もり最安（398 万円）、保証 36 ヶ月、交換部品 48 時間以内対応\n*   **仕様**: ディスプレイ 30 台、マイク 15 台、カメラ 15 台、ケーブル 90 本\n*   **発注番号**: PO-731\n*   **契約条件**: 前払い 25％、残額納品検収後、遅延 1 日あたり控除 0.2％\n*   **受領確認者**: 青木さん",
+        "elapsed_s": 7.763,
+        "tokens": 249,
+        "prompt_tokens": 937,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 317,
+          "output_chars": 367,
+          "length_ratio": 1.1577
+        }
+      }
+    },
+    "b-ja-07--general--app": {
+      "fingerprint": "c4f2f42977ecccf8",
+      "recorded_at": "2026-11-20T15:51:23+00:00",
+      "result": {
+        "text": "端末証明書の更新は、責任者の中村さんと管理者の Sofia で担当し、展開日は 2027 年 2 月 8 日、開始時刻は朝 6 時です。対象端末は 1,450 台で、場所は横浜、神戸、札幌です。\n\n手順は以下の通りです。\n1. まずパイロット 50 台で署名を確認します。\n2. 次に先行展開 300 台を行います。\n3. 最後に残り 1,100 台を展開します。\n\n証明書番号は CERT-57、期限は 2030 年 2 月 7 日、暗号方式は RSA 3072 と ECDSA P-256 の組合せです。ロールバックの決定は、段階 1 で失敗率が 1％以上なら行い、2 段階目で端末当たり 8 秒を超える場合も止めます。方式は日曜一括ではなく三段階展開にしました。理由は土曜から出社する営業 150 人への影響を 40 分以内に抑えられるためです。完了後 48 時間監視します。",
+        "elapsed_s": 7.791,
+        "tokens": 256,
+        "prompt_tokens": 855,
+        "max_tokens": 1282,
+        "context_tokens": 2137,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 315,
+          "output_chars": 391,
+          "length_ratio": 1.2413
+        }
+      }
+    },
+    "b-ja-07--general--legacy": {
+      "fingerprint": "a9115b639f8fdf73",
+      "recorded_at": "2026-11-20T15:51:31+00:00",
+      "result": {
+        "text": "端末証明書の更新は、責任者の中村さんと管理者の Sofia で担当し、展開日は 2027 年 2 月 8 日、開始時刻は朝 6 時です。対象端末は 1,450 台で、場所は横浜、神戸、札幌です。手順は以下の通りです。\n1. まずパイロット 50 台で署名を確認します。\n2. 次に先行展開 300 台を行います。\n3. 最後に残り 1,100 台を展開します。\n\n証明書番号は CERT-57、期限は 2030 年 2 月 7 日、暗号方式は RSA 3072 と ECDSA P-256 の組合せです。ロールバックの決定は以下の条件で行います。\n• 段階 1 で失敗率が 1％以上の場合\n• 段階 2 で端末当たり 8 秒を超える場合\n\n方式は日曜一括ではなく三段階展開にしました。理由は土曜から出社する営業 150 人への影響を 40 分以内に抑えられるためです。完了後 48 時間監視します。",
+        "elapsed_s": 7.699,
+        "tokens": 259,
+        "prompt_tokens": 855,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 315,
+          "output_chars": 399,
+          "length_ratio": 1.2667
+        }
+      }
+    },
+    "b-ja-07--herdr--app": {
+      "fingerprint": "3c16c24cce3bc8df",
+      "recorded_at": "2026-11-20T15:51:41+00:00",
+      "result": {
+        "text": "端末証明書の更新は、責任者の中村さんと管理者の Sofia で担当し、展開日は 2027 年 2 月 8 日、開始時刻は朝 6 時です。対象端末は 1,450 台で、場所は横浜、神戸、札幌です。\n\n手順は以下の通りです。\n1. まずパイロット 50 台で署名を確認します。\n2. 次に先行展開 300 台を行います。\n3. 最後に残り 1,100 台を展開します。\n\n証明書番号は CERT-57、期限は 2030 年 2 月 7 日、暗号方式は RSA 3072 と ECDSA P-256 の組合せです。ロールバックの決定は以下の条件で行います。\n• 段階 1 で失敗率が 1％以上なら行います。\n• 2 段階目で端末当たり 8 秒を超える場合も止めます。\n\n方式は日曜一括ではなく三段階展開にしました。理由は土曜から出社する営業 150 人への影響を 40 分以内に抑えられるためです。完了後 48 時間監視します。",
+        "elapsed_s": 8.191,
+        "tokens": 267,
+        "prompt_tokens": 947,
+        "max_tokens": 1420,
+        "context_tokens": 2367,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 315,
+          "output_chars": 411,
+          "length_ratio": 1.3048
+        }
+      }
+    },
+    "b-ja-07--herdr--legacy": {
+      "fingerprint": "1edb1651954e9209",
+      "recorded_at": "2026-11-20T15:51:50+00:00",
+      "result": {
+        "text": "端末証明書の更新は、責任者の中村さんと管理者の Sofia で担当し、展開日は 2027 年 2 月 8 日、開始時刻は朝 6 時です。対象端末は 1,450 台で、場所は横浜、神戸、札幌です。\n\n手順は以下の通りです。\n1. まずパイロット 50 台で署名を確認します。\n2. 次に先行展開 300 台を行います。\n3. 最後に残り 1,100 台を展開します。\n\n証明書番号は CERT-57、期限は 2030 年 2 月 7 日、暗号方式は RSA 3072 と ECDSA P-256 の組合せです。ロールバックの決定は以下の条件で行います。\n• 段階 1 で失敗率が 1％以上なら行います。\n• 2 段階目で端末当たり 8 秒を超える場合も止めます。\n\n方式は日曜一括ではなく三段階展開にしました。理由は土曜から出社する営業 150 人への影響を 40 分以内に抑えられるためです。完了後 48 時間監視します。",
+        "elapsed_s": 8.037,
+        "tokens": 267,
+        "prompt_tokens": 947,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 315,
+          "output_chars": 411,
+          "length_ratio": 1.3048
+        }
+      }
+    },
+    "b-ja-07--slack--app": {
+      "fingerprint": "2159fd4a72609aed",
+      "recorded_at": "2026-11-20T15:51:58+00:00",
+      "result": {
+        "text": "端末証明書の更新手順と詳細です。\n• 責任者：中村さん、管理者：Sofia\n• 展開日：2027年2月8日 朝6時開始\n• 対象：1,450台（横浜、神戸、札幌）\n• 方式：三段階展開（日曜一括ではなく、営業150人の影響を40分以内に抑えるため）\n  1. パイロット：50台（署名確認）\n  2. 先行展開：300台\n  3. 残機展開：1,100台\n• 証明書情報：CERT-57、期限2030年2月7日、暗号方式RSA 3072とECDSA P-256の組合せ\n• ロールバック条件：\n  1. 段階1で失敗率が1％以上の場合\n  2. 段階2で端末当たり8秒を超える場合\n• 完了後48時間監視します。",
+        "elapsed_s": 7.004,
+        "tokens": 226,
+        "prompt_tokens": 927,
+        "max_tokens": 1390,
+        "context_tokens": 2317,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 315,
+          "output_chars": 306,
+          "length_ratio": 0.9714
+        }
+      }
+    },
+    "b-ja-07--slack--legacy": {
+      "fingerprint": "d60e3c59678f2d8f",
+      "recorded_at": "2026-11-20T15:52:05+00:00",
+      "result": {
+        "text": "端末証明書の更新についてです。\n• 担当：責任者の中村さんと管理者の Sofia\n• 展開日：2027 年 2 月 8 日 朝 6 時\n• 対象：1,450 台（横浜、神戸、札幌）\n• 手順：パイロット 50 台→先行展開 300 台→残り 1,100 台\n• 証明書：CERT-57（期限 2030 年 2 月 7 日、RSA 3072 と ECDSA P-256 組合せ）\n• ロールバック：段階 1 で失敗率 1％以上なら実施、段階 2 で端末当たり 8 秒超なら停止\n• 方式：日曜一括ではなく三段階展開（営業 150 人の影響を 40 分以内に抑えるため）\n• 完了後 48 時間監視します",
+        "elapsed_s": 6.651,
+        "tokens": 217,
+        "prompt_tokens": 927,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 315,
+          "output_chars": 300,
+          "length_ratio": 0.9524
+        }
+      }
+    },
+    "b-ja-08--general--app": {
+      "fingerprint": "ce002af1e0b0f42c",
+      "recorded_at": "2026-11-20T15:52:14+00:00",
+      "result": {
+        "text": "秋の社内イベントの詳細は以下の通りです。\n• 担当：渡辺さん\n• 講師：Elena Ruiz\n• 開催日：2026年10月30日（金）\n• 場所：福岡コンベンションセンター Hall C\n• 参加者：社員260名、招待客40名の合計300名\n• 受付開始：9時30分\n• 基調講演：10時15分から60分\n• 午後：製品デモを3部構成で実施\n  - 14時：音声入力\n  - 14時35分：翻訳\n  - 15時10分：要約\n  各項目を担当別に紹介します。\n• 夜の懇親会：18時から20時\n• 食事上限：一人6,500円\n• 会場変更理由：Hall BからCへ変更。Cには車椅子席が24席あり、Bは12席しかなく、受付までの距離も35メートル短いためです。\n• 予備費：72万円\n• 連絡コード：EV-610",
+        "elapsed_s": 7.907,
+        "tokens": 257,
+        "prompt_tokens": 859,
+        "max_tokens": 1288,
+        "context_tokens": 2147,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 312,
+          "output_chars": 355,
+          "length_ratio": 1.1378
+        }
+      }
+    },
+    "b-ja-08--general--legacy": {
+      "fingerprint": "bde31bdabbd55d3c",
+      "recorded_at": "2026-11-20T15:52:23+00:00",
+      "result": {
+        "text": "秋の社内イベントについて、以下の通り決定しました。\n\n*   担当：渡辺さん\n*   講師：Elena Ruiz\n*   開催日：2026年10月30日（金）\n*   場所：福岡コンベンションセンター Hall C\n*   参加人数：社員260名、招待客40名の合計300名\n*   受付開始：9時30分\n*   基調講演：10時15分から60分\n\n午後の製品デモは3部構成で、担当別に紹介します。\n*   14時：音声入力\n*   14時35分：翻訳\n*   15時10分：要約\n\n夜の懇親会は18時から20時までで、食事の上限は一人6,500円です。\n\n会場をHall BからCに変更した理由は、Cには車椅子席が24席あり、Bは12席しかなく、受付までの距離も35メートル短いためです。\n\n*   予備費：72万円\n*   連絡コード：EV-610",
+        "elapsed_s": 7.581,
+        "tokens": 256,
+        "prompt_tokens": 859,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 312,
+          "output_chars": 376,
+          "length_ratio": 1.2051
+        }
+      }
+    },
+    "b-ja-08--herdr--app": {
+      "fingerprint": "328ce3a08d7d444e",
+      "recorded_at": "2026-11-20T15:52:31+00:00",
+      "result": {
+        "text": "秋の社内イベントの詳細は以下の通りです。\n• 担当：渡辺さん\n• 講師：Elena Ruiz\n• 開催日：2026年10月30日（金）\n• 場所：福岡コンベンションセンター Hall C\n• 参加者：社員260名、招待客40名の合計300名\n• 受付開始：9時30分\n• 基調講演：10時15分から60分\n• 午後（製品デモ）：\n  - 14時：音声入力\n  - 14時35分：翻訳\n  - 15時10分：要約\n  （担当別に紹介）\n• 夜の懇親会：18時から20時\n• 食事上限：一人6,500円\n• 会場変更理由：Hall BからCへ変更。Cには車椅子席が24席あり、Bは12席しかなく、受付までの距離も35メートル短いためです。\n• 予備費：72万円\n• 連絡コード：EV-610",
+        "elapsed_s": 7.73,
+        "tokens": 251,
+        "prompt_tokens": 951,
+        "max_tokens": 1426,
+        "context_tokens": 2377,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 312,
+          "output_chars": 343,
+          "length_ratio": 1.0994
+        }
+      }
+    },
+    "b-ja-08--herdr--legacy": {
+      "fingerprint": "a8701a572e8981ba",
+      "recorded_at": "2026-11-20T15:52:40+00:00",
+      "result": {
+        "text": "秋の社内イベントの概要は以下の通りです。\n\n*   担当：渡辺さん\n*   講師：Elena Ruiz\n*   開催日：2026年10月30日（金）\n*   場所：福岡コンベンションセンター Hall C\n*   参加人数：社員260名、招待客40名の合計300名\n*   受付開始：9時30分\n*   基調講演：10時15分から60分\n\n午後の製品デモは3部構成で、担当別に紹介します。\n\n*   14時：音声入力\n*   14時35分：翻訳\n*   15時10分：要約\n\n夜の懇親会は18時から20時までで、食事の上限は一人6,500円です。\n\n会場をHall BからCへ変更した理由は以下の通りです。\n\n*   Cには車椅子席が24席あり、Bは12席しかありません。\n*   受付までの距離が35メートル短いためです。\n\n予備費は72万円、連絡コードはEV-610です。",
+        "elapsed_s": 7.935,
+        "tokens": 263,
+        "prompt_tokens": 951,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 312,
+          "output_chars": 388,
+          "length_ratio": 1.2436
+        }
+      }
+    },
+    "b-ja-08--slack--app": {
+      "fingerprint": "c757b3175eb49445",
+      "recorded_at": "2026-11-20T15:52:49+00:00",
+      "result": {
+        "text": "秋の社内イベントの詳細は以下の通りです。\n* 担当：渡辺さん\n* 講師：Elena Ruiz\n* 開催日：2026年10月30日（金）\n* 場所：福岡コンベンションセンター Hall C\n* 参加者：社員260名、招待客40名（合計300名）\n* 受付開始：9時30分\n* 基調講演：10時15分〜11時15分（60分）\n* 午後：製品デモ（3部構成）\n  * 14時：音声入力\n  * 14時35分：翻訳\n  * 15時10分：要約\n* 懇親会：18時〜20時（食事上限6,500円）\n* 会場変更理由：車椅子席24席確保（Bは12席）、受付までの距離35メートル短縮\n* 予備費：72万円\n* 連絡コード：EV-610",
+        "elapsed_s": 7.447,
+        "tokens": 240,
+        "prompt_tokens": 931,
+        "max_tokens": 1396,
+        "context_tokens": 2327,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 312,
+          "output_chars": 311,
+          "length_ratio": 0.9968
+        }
+      }
+    },
+    "b-ja-08--slack--legacy": {
+      "fingerprint": "09f3a3ff10dc749d",
+      "recorded_at": "2026-11-20T15:52:58+00:00",
+      "result": {
+        "text": "秋の社内イベントの詳細は以下の通りです。\n\n*   担当：渡辺さん\n*   講師：Elena Ruiz\n*   開催日：2026年10月30日（金）\n*   場所：福岡コンベンションセンター Hall C\n*   参加者：社員260名、招待客40名の合計300名\n*   受付開始：9時30分\n*   基調講演：10時15分〜60分\n*   午後（製品デモ）：\n    *   14時：音声入力\n    *   14時35分：翻訳\n    *   15時10分：要約\n    *   担当別に紹介\n*   夜の懇親会：18時〜20時\n*   食事上限：一人6,500円\n*   会場変更理由（Hall B→C）：車椅子席が24席あり（Bは12席）、受付までの距離が35メートル短い\n*   予備費：72万円\n*   連絡コード：EV-610",
+        "elapsed_s": 7.995,
+        "tokens": 262,
+        "prompt_tokens": 931,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 312,
+          "output_chars": 370,
+          "length_ratio": 1.1859
+        }
+      }
+    },
+    "b-zh-01--general--app": {
+      "fingerprint": "7983de7e5046cc2f",
+      "recorded_at": "2026-11-20T15:53:06+00:00",
+      "result": {
+        "text": "关于下月的版本发布，负责人是陈明，审核人是 Mina，发布日期定在 2026 年 12 月 5 日上午 9 点，目标版本是移动端 7.2.0。\n\n我们已经确定三件事：\n1. 周五前增加合同确认页\n2. 周六早上用 80 名测试用户做压力测试\n3. 周日 16 点前删除旧价目表\n\n决定不延期，按原计划上线，原因是支付中断最多影响 4 小时，而且备用通道可以继续接单。如果测试失败率超过 2%，就只重新开一次发布评审，结果当天同步给上海的张伟和质量组。\n\n预算是 180 万元，会议室在 6 楼 A 间，资料编号是 R-284。上线后还要观察 48 小时，值班电话是 011-555-9020。发布记录在第二天中午 12 点前归档，归档编号同时写入变更日志。当天由张伟复核。",
+        "elapsed_s": 6.998,
+        "tokens": 231,
+        "prompt_tokens": 811,
+        "max_tokens": 1216,
+        "context_tokens": 2027,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 304,
+          "output_chars": 336,
+          "length_ratio": 1.1053
+        }
+      }
+    },
+    "b-zh-01--general--legacy": {
+      "fingerprint": "06b33ab6a6b854cb",
+      "recorded_at": "2026-11-20T15:53:13+00:00",
+      "result": {
+        "text": "关于下月的版本发布，负责人是陈明，审核人是 Mina，发布日期定在 2026 年 12 月 5 日上午 9 点，目标版本是移动端 7.2.0。\n\n已确定的事项如下：\n1. 周五前增加合同确认页\n2. 周六早上用 80 名测试用户做压力测试\n3. 周日 16 点前删除旧价目表\n\n决定不延期，按原计划上线。原因是支付中断最多影响 4 小时，而且备用通道可以继续接单。如果测试失败率超过 2%，就只重新开一次发布评审，结果当天同步给上海的张伟和质量组。\n\n预算是 180 万元，会议室在 6 楼 A 间，资料编号是 R-284。上线后还要观察 48 小时，值班电话是 011-555-9020。发布记录在第二天中午 12 点前归档，归档编号同时写入变更日志。当天由张伟复核。",
+        "elapsed_s": 6.899,
+        "tokens": 231,
+        "prompt_tokens": 811,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 304,
+          "output_chars": 335,
+          "length_ratio": 1.102
+        }
+      }
+    },
+    "b-zh-01--herdr--app": {
+      "fingerprint": "1e198bb1318c81ec",
+      "recorded_at": "2026-11-20T15:53:24+00:00",
+      "result": {
+        "text": "关于下月版本发布的指令如下：\n\n**目标**\n按原计划上线移动端 7.2.0 版本，不延期。\n\n**人员与时间**\n*   负责人：陈明\n*   审核人：Mina\n*   发布日期：2026 年 12 月 5 日\n*   开始时间：上午 9 点\n\n**关键事项**\n1. 周五前增加合同确认页。\n2. 周六早上用 80 名测试用户做压力测试。\n3. 周日 16 点前删除旧价目表。\n\n**决策依据**\n*   支付中断最多影响 4 小时。\n*   备用通道可以继续接单。\n\n**异常处理**\n*   如果测试失败率超过 2％，只重新开一次发布评审。\n*   评审结果当天同步给上海的张伟和质量组。\n\n**资源与后续**\n*   预算：180 万元\n*   会议室：6 楼 A 间\n*   资料编号：R-284\n*   上线后观察时长：48 小时\n*   值班电话：011-555-9020\n*   发布记录归档：第二天中午 12 点前归档，归档编号同时写入变更日志。\n*   复核人：当天由张伟复核。",
+        "elapsed_s": 9.25,
+        "tokens": 313,
+        "prompt_tokens": 888,
+        "max_tokens": 1332,
+        "context_tokens": 2220,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 304,
+          "output_chars": 450,
+          "length_ratio": 1.4803
+        }
+      }
+    },
+    "b-zh-01--herdr--legacy": {
+      "fingerprint": "0a804641aff51562",
+      "recorded_at": "2026-11-20T15:53:33+00:00",
+      "result": {
+        "text": "关于下月版本发布的指令如下：\n\n**目标**\n于 2026 年 12 月 5 日上午 9 点上线移动端 7.2.0 版本。\n\n**人员与地点**\n*   负责人：陈明\n*   审核人：Mina\n*   会议室：6 楼 A 间\n*   资料编号：R-284\n\n**执行步骤与要求**\n1. 周五前增加合同确认页。\n2. 周六早上使用 80 名测试用户进行压力测试。\n3. 周日 16 点前删除旧价目表。\n4. 上线后观察 48 小时，值班电话为 011-555-9020。\n5. 第二天中午 12 点前归档发布记录，归档编号同时写入变更日志。\n6. 当天由张伟复核。\n\n**决策与原因**\n*   决定不延期，按原计划上线。\n*   原因：支付中断最多影响 4 小时，且备用通道可以继续接单。\n\n**异常处理**\n*   如果测试失败率超过 2%，则只重新召开一次发布评审，结果当天同步给上海的张伟和质量组。\n\n**预算**\n*   180 万元。",
+        "elapsed_s": 8.585,
+        "tokens": 295,
+        "prompt_tokens": 888,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 304,
+          "output_chars": 423,
+          "length_ratio": 1.3914
+        }
+      }
+    },
+    "b-zh-01--slack--app": {
+      "fingerprint": "70c70b6cd6bf8899",
+      "recorded_at": "2026-11-20T15:53:42+00:00",
+      "result": {
+        "text": "关于下月版本发布的安排如下：\n\n负责人：陈明\n审核人：Mina\n发布日期：2026年12月5日 上午9点\n目标版本：移动端 7.2.0\n\n已确定的三项任务：\n1. 周五前增加合同确认页\n2. 周六早上用80名测试用户做压力测试\n3. 周日16点前删除旧价目表\n\n关键决策与说明：\n• 决定不延期，按原计划上线\n• 原因：支付中断最多影响4小时，且备用通道可继续接单\n\n应急预案：\n• 若测试失败率超过2%，仅重新召开一次发布评审\n• 评审结果当天同步给上海的张伟和质量组\n\n其他事项：\n• 预算：180万元\n• 会议室：6楼A间\n• 资料编号：R-284\n• 上线后需观察48小时\n• 值班电话：011-555-9020\n• 发布记录需在第二天中午12点前归档，归档编号同时写入变更日志\n• 当天由张伟复核",
+        "elapsed_s": 7.389,
+        "tokens": 246,
+        "prompt_tokens": 831,
+        "max_tokens": 1246,
+        "context_tokens": 2077,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 304,
+          "output_chars": 353,
+          "length_ratio": 1.1612
+        }
+      }
+    },
+    "b-zh-01--slack--legacy": {
+      "fingerprint": "70c66151c6f6ec4e",
+      "recorded_at": "2026-11-20T15:53:50+00:00",
+      "result": {
+        "text": "关于下月版本发布（移动端 7.2.0），结论如下：\n1. 负责人：陈明；审核人：Mina；发布日期：2026 年 12 月 5 日上午 9 点。\n2. 已确定事项：\n   • 周五前增加合同确认页\n   • 周六早上用 80 名测试用户做压力测试\n   • 周日 16 点前删除旧价目表\n3. 决策：不延期，按原计划上线。原因：支付中断最多影响 4 小时，备用通道可继续接单。\n4. 应急预案：若测试失败率超 2%，仅重新召开一次发布评审，结果当天同步给上海张伟和质量组。\n5. 其他信息：\n   • 预算：180 万元\n   • 会议室：6 楼 A 间\n   • 资料编号：R-284\n   • 上线后观察 48 小时，值班电话：011-555-9020\n   • 发布记录于次日中午 12 点前归档，归档编号写入变更日志，当天由张伟复核。",
+        "elapsed_s": 7.78,
+        "tokens": 264,
+        "prompt_tokens": 831,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 304,
+          "output_chars": 371,
+          "length_ratio": 1.2204
+        }
+      }
+    },
+    "b-zh-02--general--app": {
+      "fingerprint": "46ec0ae29cec140d",
+      "recorded_at": "2026-11-20T15:53:58+00:00",
+      "result": {
+        "text": "下一年度招聘负责人是人力的李芳，两位候选人是 Aiko Mori 和 Ken Ito。\n• 第一轮面试安排在 2026 年 11 月 24 日和 25 日，地点是北京办公室 5 楼，每人 45 分钟。\n• 两人使用同一份业务案例，技术负责人王军负责评分，合同最高年薪是 72 万元。\n• 我们决定让两人都进入终面，理由是 Mori 有流程改进经验，Ito 带过 16 个月的迁移项目，这两项正好覆盖现有团队缺口。\n• 英语面试只要低于 B2 就不能通过，面试官意见要在下周三 13 点前发给李芳。\n• 年度预算差额是 8 万元，候选人异地偏好分别是深圳和杭州，是否愿意搬家要在终面前确认，职位编号是 HR-318。\n• 面试纪要在两天内发给候选人和部门负责人，邮件标题必须包含职位编号和候选人姓名。",
+        "elapsed_s": 6.647,
+        "tokens": 221,
+        "prompt_tokens": 788,
+        "max_tokens": 1182,
+        "context_tokens": 1970,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 303,
+          "output_chars": 349,
+          "length_ratio": 1.1518
+        }
+      }
+    },
+    "b-zh-02--general--legacy": {
+      "fingerprint": "5da4a77e07c07860",
+      "recorded_at": "2026-11-20T15:54:06+00:00",
+      "result": {
+        "text": "下一年度招聘负责人是人力的李芳，两位候选人是 Aiko Mori 和 Ken Ito。\n1. 第一轮面试安排在 2026 年 11 月 24 日和 25 日，地点是北京办公室 5 楼，每人 45 分钟。\n2. 两人使用同一份业务案例，技术负责人王军负责评分，合同最高年薪是 72 万元。\n3. 我们决定让两人都进入终面，理由是 Mori 有流程改进经验，Ito 带过 16 个月的迁移项目，这两项正好覆盖现有团队缺口。\n4. 英语面试只要低于 B2 就不能通过，面试官意见要在下周三 13 点前发给李芳。\n5. 年度预算差额是 8 万元，候选人异地偏好分别是深圳和杭州，是否愿意搬家要在终面前确认。\n6. 职位编号是 HR-318。\n7. 面试纪要在两天内发给候选人和部门负责人，邮件标题必须包含职位编号和候选人姓名。",
+        "elapsed_s": 6.95,
+        "tokens": 231,
+        "prompt_tokens": 788,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 303,
+          "output_chars": 359,
+          "length_ratio": 1.1848
+        }
+      }
+    },
+    "b-zh-02--herdr--app": {
+      "fingerprint": "123eefe98008bd98",
+      "recorded_at": "2026-11-20T15:54:16+00:00",
+      "result": {
+        "text": "下一年度招聘负责人是人力的李芳，两位候选人是 Aiko Mori 和 Ken Ito。具体安排如下：\n\n1. 第一轮面试安排\n   - 时间：2026 年 11 月 24 日和 25 日\n   - 地点：北京办公室 5 楼\n   - 时长：每人 45 分钟\n   - 内容：两人使用同一份业务案例\n   - 评分：技术负责人王军负责评分\n   - 薪资：合同最高年薪是 72 万元\n\n2. 录用决策与理由\n   - 决定：让两人都进入终面\n   - 理由：Mori 有流程改进经验，Ito 带过 16 个月的迁移项目，这两项正好覆盖现有团队缺口\n\n3. 面试要求与约束\n   - 英语要求：面试只要低于 B2 就不能通过\n   - 意见提交：面试官意见要在下周三 13 点前发给李芳\n   - 预算差额：年度预算差额是 8 万元\n   - 异地偏好：候选人异地偏好分别是深圳和杭州，是否愿意搬家要在终面前确认\n   - 职位编号：HR-318\n\n4. 后续事项\n   - 面试纪要：在两天内发给候选人和部门负责人\n   - 邮件标题：必须包含职位编号和候选人姓名",
+        "elapsed_s": 8.957,
+        "tokens": 303,
+        "prompt_tokens": 865,
+        "max_tokens": 1297,
+        "context_tokens": 2162,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 303,
+          "output_chars": 481,
+          "length_ratio": 1.5875
+        }
+      }
+    },
+    "b-zh-02--herdr--legacy": {
+      "fingerprint": "5012ba0333c00639",
+      "recorded_at": "2026-11-20T15:54:25+00:00",
+      "result": {
+        "text": "下一年度招聘负责人是人力的李芳，两位候选人是 Aiko Mori 和 Ken Ito。具体安排如下：\n\n1. 第一轮面试时间：2026 年 11 月 24 日和 25 日。\n2. 面试地点：北京办公室 5 楼。\n3. 面试时长：每人 45 分钟。\n4. 面试形式：两人使用同一份业务案例，技术负责人王军负责评分。\n5. 薪资标准：合同最高年薪是 72 万元。\n\n后续决策与要求如下：\n• 决定让两人都进入终面，理由是 Mori 有流程改进经验，Ito 带过 16 个月的迁移项目，这两项正好覆盖现有团队缺口。\n• 英语面试要求：只要低于 B2 就不能通过。\n• 面试官意见提交：要在下周三 13 点前发给李芳。\n• 预算说明：年度预算差额是 8 万元。\n• 异地偏好：候选人异地偏好分别是深圳和杭州，是否愿意搬家要在终面前确认。\n• 职位编号：HR-318。\n• 面试纪要发送：在两天内发给候选人和部门负责人，邮件标题必须包含职位编号和候选人姓名。",
+        "elapsed_s": 8.065,
+        "tokens": 277,
+        "prompt_tokens": 865,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 303,
+          "output_chars": 424,
+          "length_ratio": 1.3993
+        }
+      }
+    },
+    "b-zh-02--slack--app": {
+      "fingerprint": "142be432eb11a9f7",
+      "recorded_at": "2026-11-20T15:54:33+00:00",
+      "result": {
+        "text": "下一年度招聘负责人：人力李芳\n职位编号：HR-318\n候选人：Aiko Mori 和 Ken Ito\n核心优势：Mori 有流程改进经验，Ito 带过 16 个月迁移项目，覆盖团队缺口\n面试安排：\n1. 时间：2026 年 11 月 24 日和 25 日\n2. 地点：北京办公室 5 楼\n3. 时长：每人 45 分钟，共用一份业务案例\n4. 评分：技术负责人王军\n5. 薪资：合同最高年薪 72 万元\n决策：两人均进入终面\n关键要求：\n• 英语面试需达到 B2 及以上，否则不通过\n• 异地偏好（深圳/杭州）需在终面前确认是否搬家\n• 年度预算差额 8 万元\n• 面试纪要需在两天内发送给候选人和部门负责人\n• 邮件标题必须包含职位编号和候选人姓名\n• 面试官意见需在下周三 13 点前发给李芳",
+        "elapsed_s": 6.989,
+        "tokens": 234,
+        "prompt_tokens": 808,
+        "max_tokens": 1212,
+        "context_tokens": 2020,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 303,
+          "output_chars": 347,
+          "length_ratio": 1.1452
+        }
+      }
+    },
+    "b-zh-02--slack--legacy": {
+      "fingerprint": "7642d64a2647cdc4",
+      "recorded_at": "2026-11-20T15:54:41+00:00",
+      "result": {
+        "text": "下一年度招聘负责人：人力李芳\n职位编号：HR-318\n候选人：Aiko Mori 和 Ken Ito\n核心优势：Mori 有流程改进经验，Ito 带过 16 个月迁移项目，覆盖团队缺口\n面试安排：\n1. 时间：2026 年 11 月 24 日和 25 日\n2. 地点：北京办公室 5 楼\n3. 时长：每人 45 分钟，共用一份业务案例\n4. 评分：技术负责人王军\n5. 薪资：合同最高年薪 72 万元\n决策：两人均进入终面\n关键要求：\n• 英语面试需达到 B2 及以上，否则不通过\n• 异地偏好（深圳/杭州）需在终面前确认是否搬家\n• 年度预算差额 8 万元\n• 面试纪要需在两天内发给候选人和部门负责人\n• 邮件标题必须包含职位编号和候选人姓名\n• 面试官意见需在下周三 13 点前发给李芳",
+        "elapsed_s": 6.864,
+        "tokens": 234,
+        "prompt_tokens": 808,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 303,
+          "output_chars": 346,
+          "length_ratio": 1.1419
+        }
+      }
+    },
+    "b-zh-03--general--app": {
+      "fingerprint": "23c6dc8547100a42",
+      "recorded_at": "2026-11-20T15:54:49+00:00",
+      "result": {
+        "text": "数据迁移负责人是周涛，审计负责人是 Nora，操作时间定在 2027 年 1 月 18 日晚上 23 点。具体步骤如下：\n1. 冻结客户表的 120 万条记录\n2. 复制库存表的 48 万条记录\n3. 核对发票表的 9 个分类\n4. 做一次 3 小时的回滚演练\n\n目标区域是 Region K，数据保留 90 天，允许停机 25 分钟。我们选择方案 A 而不是新方案 B，原因是 A 保留完整审计日志，并且故障时 17 分钟内可以恢复。失败条件是记录数差异超过 0.5％，机房温度低于 18 度时联系设备组，完成报告必须在第二天早上 8 点前发给法务的刘伟。变更单编号是 CHG-772，备份集是 BK-11。迁移结束后保留操作录屏 30 天，并在次日复核全部抽样记录，抽样结论由 Nora 签字确认。",
+        "elapsed_s": 6.959,
+        "tokens": 234,
+        "prompt_tokens": 803,
+        "max_tokens": 1204,
+        "context_tokens": 2007,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 306,
+          "output_chars": 351,
+          "length_ratio": 1.1471
+        }
+      }
+    },
+    "b-zh-03--general--legacy": {
+      "fingerprint": "db46f9ffdb8e057f",
+      "recorded_at": "2026-11-20T15:54:56+00:00",
+      "result": {
+        "text": "数据迁移负责人是周涛，审计负责人是 Nora，操作时间定在 2027 年 1 月 18 日晚上 23 点。具体步骤如下：\n1. 冻结客户表的 120 万条记录\n2. 复制库存表的 48 万条记录\n3. 核对发票表的 9 个分类\n4. 做一次 3 小时的回滚演练\n\n目标区域是 Region K，数据保留 90 天，允许停机 25 分钟。我们选择方案 A 而不是新方案 B，原因是 A 保留完整审计日志，并且故障时 17 分钟内可以恢复。失败条件是记录数差异超过 0.5％，机房温度低于 18 度时联系设备组，完成报告必须在第二天早上 8 点前发给法务的刘伟。变更单编号是 CHG-772，备份集是 BK-11。迁移结束后保留操作录屏 30 天，并在次日复核全部抽样记录，抽样结论由 Nora 签字确认。",
+        "elapsed_s": 6.863,
+        "tokens": 234,
+        "prompt_tokens": 803,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 306,
+          "output_chars": 351,
+          "length_ratio": 1.1471
+        }
+      }
+    },
+    "b-zh-03--herdr--app": {
+      "fingerprint": "55c7d34fb857e9e6",
+      "recorded_at": "2026-11-20T15:55:05+00:00",
+      "result": {
+        "text": "数据迁移负责人是周涛，审计负责人是 Nora，操作时间定在 2027 年 1 月 18 日晚上 23 点。\n\n目标区域是 Region K，数据保留 90 天，允许停机 25 分钟。我们选择方案 A 而不是新方案 B，原因是 A 保留完整审计日志，并且故障时 17 分钟内可以恢复。\n\n具体步骤有四项：\n1. 冻结客户表的 120 万条记录。\n2. 复制库存表的 48 万条记录。\n3. 核对发票表的 9 个分类。\n4. 做一次 3 小时的回滚演练。\n\n失败条件是记录数差异超过 0.5％，机房温度低于 18 度时联系设备组。完成报告必须在第二天早上 8 点前发给法务的刘伟。\n\n变更单编号是 CHG-772，备份集是 BK-11。迁移结束后保留操作录屏 30 天，并在次日复核全部抽样记录，抽样结论由 Nora 签字确认。",
+        "elapsed_s": 7.186,
+        "tokens": 242,
+        "prompt_tokens": 880,
+        "max_tokens": 1320,
+        "context_tokens": 2200,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 306,
+          "output_chars": 362,
+          "length_ratio": 1.183
+        }
+      }
+    },
+    "b-zh-03--herdr--legacy": {
+      "fingerprint": "dc30cfb6cf19bc73",
+      "recorded_at": "2026-11-20T15:55:13+00:00",
+      "result": {
+        "text": "数据迁移负责人是周涛，审计负责人是 Nora，操作时间定在 2027 年 1 月 18 日晚上 23 点。\n\n目标区域是 Region K，数据保留 90 天，允许停机 25 分钟。我们选择方案 A 而不是新方案 B，原因是 A 保留完整审计日志，并且故障时 17 分钟内可以恢复。\n\n具体步骤如下：\n1. 冻结客户表的 120 万条记录。\n2. 复制库存表的 48 万条记录。\n3. 核对发票表的 9 个分类。\n4. 做一次 3 小时的回滚演练。\n\n失败条件如下：\n• 记录数差异超过 0.5％。\n• 机房温度低于 18 度时联系设备组。\n\n其他要求：\n• 完成报告必须在第二天早上 8 点前发给法务的刘伟。\n• 变更单编号是 CHG-772，备份集是 BK-11。\n• 迁移结束后保留操作录屏 30 天。\n• 并在次日复核全部抽样记录，抽样结论由 Nora 签字确认。",
+        "elapsed_s": 7.673,
+        "tokens": 264,
+        "prompt_tokens": 880,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 306,
+          "output_chars": 386,
+          "length_ratio": 1.2614
+        }
+      }
+    },
+    "b-zh-03--slack--app": {
+      "fingerprint": "58d670456eac3a03",
+      "recorded_at": "2026-11-20T15:55:21+00:00",
+      "result": {
+        "text": "数据迁移负责人是周涛，审计负责人是 Nora，操作时间定在 2027 年 1 月 18 日晚上 23 点。\n\n1. 冻结客户表的 120 万条记录\n2. 复制库存表的 48 万条记录\n3. 核对发票表的 9 个分类\n4. 做一次 3 小时的回滚演练\n\n目标区域是 Region K，数据保留 90 天，允许停机 25 分钟。我们选择方案 A 而不是新方案 B，原因是 A 保留完整审计日志，并且故障时 17 分钟内可以恢复。\n\n失败条件是记录数差异超过 0.5％，机房温度低于 18 度时联系设备组，完成报告必须在第二天早上 8 点前发给法务的刘伟。变更单编号是 CHG-772，备份集是 BK-11。迁移结束后保留操作录屏 30 天，并在次日复核全部抽样记录，抽样结论由 Nora 签字确认。",
+        "elapsed_s": 6.878,
+        "tokens": 231,
+        "prompt_tokens": 823,
+        "max_tokens": 1234,
+        "context_tokens": 2057,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 306,
+          "output_chars": 347,
+          "length_ratio": 1.134
+        }
+      }
+    },
+    "b-zh-03--slack--legacy": {
+      "fingerprint": "793e10a638f7a175",
+      "recorded_at": "2026-11-20T15:55:29+00:00",
+      "result": {
+        "text": "数据迁移负责人是周涛，审计负责人是 Nora，操作时间定在 2027 年 1 月 18 日晚上 23 点。\n• 冻结客户表的 120 万条记录\n• 复制库存表的 48 万条记录\n• 核对发票表的 9 个分类\n• 做一次 3 小时的回滚演练\n目标区域是 Region K，数据保留 90 天，允许停机 25 分钟。\n我们选择方案 A 而不是新方案 B，原因是 A 保留完整审计日志，并且故障时 17 分钟内可以恢复。\n失败条件是记录数差异超过 0.5％，机房温度低于 18 度时联系设备组，完成报告必须在第二天早上 8 点前发给法务的刘伟。\n变更单编号是 CHG-772，备份集是 BK-11。\n迁移结束后保留操作录屏 30 天，并在次日复核全部抽样记录，抽样结论由 Nora 签字确认。",
+        "elapsed_s": 6.683,
+        "tokens": 230,
+        "prompt_tokens": 823,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 306,
+          "output_chars": 343,
+          "length_ratio": 1.1209
+        }
+      }
+    },
+    "b-zh-04--general--app": {
+      "fingerprint": "c9f97f007e550217",
+      "recorded_at": "2026-11-20T15:55:36+00:00",
+      "result": {
+        "text": "Cedar公司的故障处理由安强负责一线，Priya负责客户沟通。故障发生在2026年10月9日14点07分，受影响终端23台，其中5台重启失败，故障编号是INC-9928，合同响应时限是30分钟，区域覆盖福州和厦门两个站点。\n\n临时措施决定把版本3.14回退到3.13，理由是3.14的内存使用率达到92％，而3.13已验证可以降到61％。\n\n长期修复由杜鹏在11月2日前提交设置保存补丁，并在验证环境跑240个场景。\n\n下一次联系客户是17点30分，再次发生时联系Cedar的Lee，回滚窗口是20分钟，若超过就升级给值班经理。\n\n事件期间每15分钟记录一次状态，通话纪要保存60天，并由Priya在值班结束前复核。",
+        "elapsed_s": 6.177,
+        "tokens": 208,
+        "prompt_tokens": 811,
+        "max_tokens": 1216,
+        "context_tokens": 2027,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 301,
+          "output_chars": 309,
+          "length_ratio": 1.0266
+        }
+      }
+    },
+    "b-zh-04--general--legacy": {
+      "fingerprint": "d30c184d1b603704",
+      "recorded_at": "2026-11-20T15:55:43+00:00",
+      "result": {
+        "text": "Cedar公司的故障处理由安强负责一线，Priya负责客户沟通。故障发生在2026年10月9日14点07分，受影响终端23台，其中5台重启失败，故障编号是INC-9928，合同响应时限是30分钟，区域覆盖福州和厦门两个站点。临时措施决定把版本3.14回退到3.13，理由是3.14的内存使用率达到92％，而3.13已验证可以降到61％。长期修复由杜鹏在11月2日前提交设置保存补丁，并在验证环境跑240个场景。下一次联系客户是17点30分，再次发生时联系Cedar的Lee，回滚窗口是20分钟，若超过就升级给值班经理。事件期间每15分钟记录一次状态，通话纪要保存60天，并由Priya在值班结束前复核。",
+        "elapsed_s": 6.019,
+        "tokens": 204,
+        "prompt_tokens": 811,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": true,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 301,
+          "output_chars": 301,
+          "length_ratio": 1.0
+        }
+      }
+    },
+    "b-zh-04--herdr--app": {
+      "fingerprint": "ae061f788378f5f7",
+      "recorded_at": "2026-11-20T15:55:51+00:00",
+      "result": {
+        "text": "Cedar 公司的故障处理由安强负责一线，Priya 负责客户沟通。故障发生在 2026 年 10 月 9 日 14 点 07 分，受影响终端 23 台，其中 5 台重启失败，故障编号是 INC-9928，合同响应时限是 30 分钟，区域覆盖福州和厦门两个站点。临时措施决定把版本 3.14 回退到 3.13，理由是 3.14 的内存使用率达到 92％，而 3.13 已验证可以降到 61％。长期修复由杜鹏在 11 月 2 日前提交设置保存补丁，并在验证环境跑 240 个场景。下一次联系客户是 17 点 30 分，再次发生时联系 Cedar 的 Lee，回滚窗口是 20 分钟，若超过就升级给值班经理。事件期间每 15 分钟记录一次状态，通话纪要保存 60 天，并由 Priya 在值班结束前复核。",
+        "elapsed_s": 7.366,
+        "tokens": 248,
+        "prompt_tokens": 888,
+        "max_tokens": 1332,
+        "context_tokens": 2220,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 301,
+          "output_chars": 350,
+          "length_ratio": 1.1628
+        }
+      }
+    },
+    "b-zh-04--herdr--legacy": {
+      "fingerprint": "5dce20b51595e973",
+      "recorded_at": "2026-11-20T15:55:59+00:00",
+      "result": {
+        "text": "Cedar 公司的故障处理由安强负责一线，Priya 负责客户沟通。故障发生在 2026 年 10 月 9 日 14 点 07 分，受影响终端 23 台，其中 5 台重启失败，故障编号是 INC-9928，合同响应时限是 30 分钟，区域覆盖福州和厦门两个站点。临时措施决定把版本 3.14 回退到 3.13，理由是 3.14 的内存使用率达到 92％，而 3.13 已验证可以降到 61％。长期修复由杜鹏在 11 月 2 日前提交设置保存补丁，并在验证环境跑 240 个场景。下一次联系客户是 17 点 30 分，再次发生时联系 Cedar 的 Lee，回滚窗口是 20 分钟，若超过就升级给值班经理。事件期间每 15 分钟记录一次状态，通话纪要保存 60 天，并由 Priya 在值班结束前复核。",
+        "elapsed_s": 7.21,
+        "tokens": 248,
+        "prompt_tokens": 888,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 301,
+          "output_chars": 350,
+          "length_ratio": 1.1628
+        }
+      }
+    },
+    "b-zh-04--slack--app": {
+      "fingerprint": "3beb6a5519b6c0b8",
+      "recorded_at": "2026-11-20T15:56:08+00:00",
+      "result": {
+        "text": "Cedar 公司故障处理分工：安强负责一线，Priya 负责客户沟通。\n故障概况：\n• 时间：2026 年 10 月 9 日 14:07\n• 影响：23 台终端（5 台重启失败）\n• 编号：INC-9928\n• 响应时限：30 分钟（区域覆盖福州、厦门）\n临时措施：\n• 将版本 3.14 回退至 3.13（3.14 内存使用率 92%，3.13 已验证降至 61%）\n长期修复：\n• 杜鹏于 11 月 2 日前提交设置保存补丁\n• 在验证环境跑 240 个场景\n后续安排：\n• 17:30 再次联系客户\n• 若再次发生，联系 Cedar 的 Lee\n• 回滚窗口 20 分钟，超时升级给值班经理\n记录要求：\n• 事件期间每 15 分钟记录一次状态\n• 通话纪要保存 60 天，由 Priya 在值班结束前复核",
+        "elapsed_s": 7.693,
+        "tokens": 265,
+        "prompt_tokens": 831,
+        "max_tokens": 1246,
+        "context_tokens": 2077,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 301,
+          "output_chars": 355,
+          "length_ratio": 1.1794
+        }
+      }
+    },
+    "b-zh-04--slack--legacy": {
+      "fingerprint": "399ace93961c7f81",
+      "recorded_at": "2026-11-20T15:56:16+00:00",
+      "result": {
+        "text": "Cedar 公司故障处理分工：安强负责一线，Priya 负责客户沟通。\n故障详情：\n• 时间：2026 年 10 月 9 日 14:07\n• 影响：23 台终端（5 台重启失败）\n• 编号：INC-9928\n• 范围：福州、厦门\n• 响应时限：30 分钟\n临时措施：\n• 将版本 3.14 回退至 3.13（3.14 内存占用 92%，3.13 降至 61%）\n长期修复：\n• 杜鹏于 11 月 2 日前提交设置保存补丁\n• 验证环境需跑完 240 个场景\n后续安排：\n• 17:30 再次联系客户\n• 若故障复发，联系 Cedar 的 Lee\n• 回滚窗口 20 分钟，超时升级值班经理\n• 每 15 分钟记录状态\n• 通话纪要保存 60 天，由 Priya 复核",
+        "elapsed_s": 7.321,
+        "tokens": 252,
+        "prompt_tokens": 831,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 301,
+          "output_chars": 333,
+          "length_ratio": 1.1063
+        }
+      }
+    },
+    "b-zh-05--general--app": {
+      "fingerprint": "54bc9618c581e847",
+      "recorded_at": "2026-11-20T15:56:23+00:00",
+      "result": {
+        "text": "语音搜索研究由马莉总负责，Leo做分析，受访者包括12名员工和8名客户，共20人。研究从2026年12月1日到12月19日，每周二和周四进行，每次35分钟。要测试的项目是65dB噪声识别、同音词修改、超过20个字的搜索，以及戴手套操作。任务编号UX-440，设备用6台Pixel 9和6台iPhone 17，成功标准是搜索完成率90％。我们决定不全部做远程访谈，而是一半安排在H-3会议室面对面，原因是只有这样才能控制设备音量和说话距离，并分清录音漏段。报告日期是12月22日，费用上限64万元，参与补贴每人300元，测试文案版本是V6。每次访谈结束后10分钟内上传原始记录并检查字段完整性，缺项要当天返回访谈人补齐。",
+        "elapsed_s": 6.032,
+        "tokens": 206,
+        "prompt_tokens": 813,
+        "max_tokens": 1219,
+        "context_tokens": 2032,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": true,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 309,
+          "output_chars": 309,
+          "length_ratio": 1.0
+        }
+      }
+    },
+    "b-zh-05--general--legacy": {
+      "fingerprint": "d081fb0bb18536b0",
+      "recorded_at": "2026-11-20T15:56:30+00:00",
+      "result": {
+        "text": "语音搜索研究由马莉总负责，Leo做分析，受访者包括12名员工和8名客户，共20人。研究从2026年12月1日到12月19日，每周二和周四进行，每次35分钟。要测试的项目是65dB噪声识别、同音词修改、超过20个字的搜索，以及戴手套操作。任务编号UX-440，设备用6台Pixel 9和6台iPhone 17，成功标准是搜索完成率90％。我们决定不全部做远程访谈，而是一半安排在H-3会议室面对面，原因是只有这样才能控制设备音量和说话距离，并分清录音漏段。报告日期是12月22日，费用上限64万元，参与补贴每人300元，测试文案版本是V6。每次访谈结束后10分钟内上传原始记录并检查字段完整性，缺项要当天返回访谈人补齐。",
+        "elapsed_s": 6.012,
+        "tokens": 206,
+        "prompt_tokens": 813,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": true,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 309,
+          "output_chars": 309,
+          "length_ratio": 1.0
+        }
+      }
+    },
+    "b-zh-05--herdr--app": {
+      "fingerprint": "f0d2acd63e93fa2d",
+      "recorded_at": "2026-11-20T15:56:37+00:00",
+      "result": {
+        "text": "语音搜索研究由马莉总负责，Leo做分析，受访者包括12名员工和8名客户，共20人。研究从2026年12月1日到12月19日，每周二和周四进行，每次35分钟。要测试的项目是65dB噪声识别、同音词修改、超过20个字的搜索，以及戴手套操作。任务编号UX-440，设备用6台Pixel 9和6台iPhone 17，成功标准是搜索完成率90％。我们决定不全部做远程访谈，而是一半安排在H-3会议室面对面，原因是只有这样才能控制设备音量和说话距离，并分清录音漏段。报告日期是12月22日，费用上限64万元，参与补贴每人300元，测试文案版本是V6。每次访谈结束后10分钟内上传原始记录并检查字段完整性，缺项要当天返回访谈人补齐。",
+        "elapsed_s": 6.114,
+        "tokens": 206,
+        "prompt_tokens": 890,
+        "max_tokens": 1335,
+        "context_tokens": 2225,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": true,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 309,
+          "output_chars": 309,
+          "length_ratio": 1.0
+        }
+      }
+    },
+    "b-zh-05--herdr--legacy": {
+      "fingerprint": "7bf01e4d063febb7",
+      "recorded_at": "2026-11-20T15:56:44+00:00",
+      "result": {
+        "text": "语音搜索研究由马莉总负责，Leo做分析，受访者包括12名员工和8名客户，共20人。研究从2026年12月1日到12月19日，每周二和周四进行，每次35分钟。要测试的项目是65dB噪声识别、同音词修改、超过20个字的搜索，以及戴手套操作。任务编号UX-440，设备用6台Pixel 9和6台iPhone 17，成功标准是搜索完成率90％。我们决定不全部做远程访谈，而是一半安排在H-3会议室面对面，原因是只有这样才能控制设备音量和说话距离，并分清录音漏段。报告日期是12月22日，费用上限64万元，参与补贴每人300元，测试文案版本是V6。每次访谈结束后10分钟内上传原始记录并检查字段完整性，缺项要当天返回访谈人补齐。",
+        "elapsed_s": 6.029,
+        "tokens": 206,
+        "prompt_tokens": 890,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": true,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 309,
+          "output_chars": 309,
+          "length_ratio": 1.0
+        }
+      }
+    },
+    "b-zh-05--slack--app": {
+      "fingerprint": "c109744fb36923f4",
+      "recorded_at": "2026-11-20T15:56:52+00:00",
+      "result": {
+        "text": "语音搜索研究由马莉总负责，Leo做分析。\n受访者包括12名员工和8名客户，共20人。\n研究从2026年12月1日到12月19日，每周二和周四进行，每次35分钟。\n要测试的项目是65dB噪声识别、同音词修改、超过20个字的搜索，以及戴手套操作。\n任务编号UX-440，设备用6台Pixel 9和6台iPhone 17，成功标准是搜索完成率90％。\n我们决定不全部做远程访谈，而是一半安排在H-3会议室面对面，原因是只有这样才能控制设备音量和说话距离，并分清录音漏段。\n报告日期是12月22日，费用上限64万元，参与补贴每人300元，测试文案版本是V6。\n每次访谈结束后10分钟内上传原始记录并检查字段完整性，缺项要当天返回访谈人补齐。",
+        "elapsed_s": 6.268,
+        "tokens": 213,
+        "prompt_tokens": 833,
+        "max_tokens": 1249,
+        "context_tokens": 2082,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 309,
+          "output_chars": 316,
+          "length_ratio": 1.0227
+        }
+      }
+    },
+    "b-zh-05--slack--legacy": {
+      "fingerprint": "51191670a683e109",
+      "recorded_at": "2026-11-20T15:56:59+00:00",
+      "result": {
+        "text": "语音搜索研究由马莉总负责，Leo做分析。\n受访者包括12名员工和8名客户，共20人。\n研究时间：2026年12月1日至12月19日，每周二和周四进行，每次35分钟。\n测试项目：65dB噪声识别、同音词修改、超过20个字的搜索、戴手套操作。\n任务编号：UX-440。\n设备：6台Pixel 9和6台iPhone 17。\n成功标准：搜索完成率90%。\n安排说明：不全部做远程访谈，一半安排在H-3会议室面对面，以便控制设备音量、说话距离并分清录音漏段。\n报告日期：12月22日。\n费用：上限64万元，参与补贴每人300元。\n测试文案版本：V6。\n执行要求：每次访谈结束后10分钟内上传原始记录并检查字段完整性，缺项要当天返回访谈人补齐。",
+        "elapsed_s": 6.302,
+        "tokens": 217,
+        "prompt_tokens": 833,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 309,
+          "output_chars": 316,
+          "length_ratio": 1.0227
+        }
+      }
+    },
+    "b-zh-06--general--app": {
+      "fingerprint": "e447c4ab1f1be694",
+      "recorded_at": "2026-11-20T15:57:07+00:00",
+      "result": {
+        "text": "会议室设备采购由采购的高峰和业务侧 Noah 负责，范围是北京总部 12 间、南京分部 3 间，共 15 间会议室。希望 2026 年 12 月 10 日到货，12 月 12 日安装。三家公司报价分别是 Orchid 420 万元、Maple 398 万元、Pine 455 万元。最终选择 Maple，原因是它价格最低，保修 36 个月，而且能在 48 小时内送达备件。需要采购 30 块显示器、15 个麦克风、15 台摄像头和 90 根线缆，采购单号 PO-731。合同约定预付 25％，余款验收后支付，延迟一天扣 0.2％，不允许改变网络接口规格。收货确认人是高峰，仓库地址是北京北路 88 号。设备验收清单要由高峰和 Noah 同时签字，副本保存在采购系统，异常项目必须在验收当天登记。",
+        "elapsed_s": 6.661,
+        "tokens": 228,
+        "prompt_tokens": 805,
+        "max_tokens": 1207,
+        "context_tokens": 2012,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 308,
+          "output_chars": 347,
+          "length_ratio": 1.1266
+        }
+      }
+    },
+    "b-zh-06--general--legacy": {
+      "fingerprint": "0d7ee42f2ed891d6",
+      "recorded_at": "2026-11-20T15:57:14+00:00",
+      "result": {
+        "text": "会议室设备采购由采购的高峰和业务侧 Noah 负责，范围是北京总部 12 间、南京分部 3 间，共 15 间会议室。希望 2026 年 12 月 10 日到货，12 月 12 日安装。三家公司报价分别是 Orchid 420 万元、Maple 398 万元、Pine 455 万元。最终选择 Maple，原因是它价格最低，保修 36 个月，而且能在 48 小时内送达备件。需要采购 30 块显示器、15 个麦克风、15 台摄像头和 90 根线缆，采购单号 PO-731。合同约定预付 25％，余款验收后支付，延迟一天扣 0.2％，不允许改变网络接口规格。收货确认人是高峰，仓库地址是北京北路 88 号。设备验收清单要由高峰和 Noah 同时签字，副本保存在采购系统，异常项目必须在验收当天登记。",
+        "elapsed_s": 6.591,
+        "tokens": 228,
+        "prompt_tokens": 805,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 308,
+          "output_chars": 347,
+          "length_ratio": 1.1266
+        }
+      }
+    },
+    "b-zh-06--herdr--app": {
+      "fingerprint": "08acdcfd688d62ab",
+      "recorded_at": "2026-11-20T15:57:23+00:00",
+      "result": {
+        "text": "会议室设备采购由采购部高峰和业务侧 Noah 负责，范围是北京总部 12 间、南京分部 3 间，共 15 间会议室。\n\n目标：\n• 2026 年 12 月 10 日到货\n• 2026 年 12 月 12 日安装\n\n供应商报价：\n• Orchid：420 万元\n• Maple：398 万元\n• Pine：455 万元\n\n最终选择 Maple，原因：\n• 价格最低\n• 保修 36 个月\n• 48 小时内送达备件\n\n采购清单：\n• 30 块显示器\n• 15 个麦克风\n• 15 台摄像头\n• 90 根线缆\n采购单号：PO-731\n\n合同条款：\n• 预付 25%，余款验收后支付\n• 延迟一天扣 0.2%\n• 不允许改变网络接口规格\n\n收货与验收：\n• 收货确认人：高峰\n• 仓库地址：北京北路 88 号\n• 设备验收清单需由高峰和 Noah 同时签字\n• 副本保存在采购系统\n• 异常项目必须在验收当天登记",
+        "elapsed_s": 8.189,
+        "tokens": 280,
+        "prompt_tokens": 882,
+        "max_tokens": 1323,
+        "context_tokens": 2205,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 308,
+          "output_chars": 402,
+          "length_ratio": 1.3052
+        }
+      }
+    },
+    "b-zh-06--herdr--legacy": {
+      "fingerprint": "c335c8a87ebe45cb",
+      "recorded_at": "2026-11-20T15:57:32+00:00",
+      "result": {
+        "text": "会议室设备采购由采购的高峰和业务侧 Noah 负责，范围是北京总部 12 间、南京分部 3 间，共 15 间会议室。\n\n目标：\n• 2026 年 12 月 10 日到货\n• 12 月 12 日安装\n\n三家公司报价分别是：\n• Orchid 420 万元\n• Maple 398 万元\n• Pine 455 万元\n\n最终选择 Maple，原因是：\n• 价格最低\n• 保修 36 个月\n• 能在 48 小时内送达备件\n\n采购清单：\n• 30 块显示器\n• 15 个麦克风\n• 15 台摄像头\n• 90 根线缆\n采购单号：PO-731\n\n合同条款：\n• 预付 25％，余款验收后支付\n• 延迟一天扣 0.2％\n• 不允许改变网络接口规格\n\n收货确认人：高峰\n仓库地址：北京北路 88 号\n\n验收要求：\n• 设备验收清单要由高峰和 Noah 同时签字\n• 副本保存在采购系统\n• 异常项目必须在验收当天登记",
+        "elapsed_s": 7.795,
+        "tokens": 272,
+        "prompt_tokens": 882,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 308,
+          "output_chars": 399,
+          "length_ratio": 1.2955
+        }
+      }
+    },
+    "b-zh-06--slack--app": {
+      "fingerprint": "eb329b6c46774f5b",
+      "recorded_at": "2026-11-20T15:57:40+00:00",
+      "result": {
+        "text": "会议室设备采购由采购部高峰和业务侧 Noah 负责，范围是北京总部 12 间、南京分部 3 间，共 15 间会议室。\n\n• 需求：2026 年 12 月 10 日到货，12 月 12 日安装。\n• 选型：最终选择 Maple（报价 398 万元），原因：价格最低、保修 36 个月、48 小时内送达备件。\n• 配置：30 块显示器、15 个麦克风、15 台摄像头、90 根线缆。\n• 单号：PO-731。\n• 合同条款：预付 25%，余款验收后支付；延迟一天扣 0.2%；不允许改变网络接口规格。\n• 收货确认：高峰，仓库地址北京北路 88 号。\n• 验收要求：清单需高峰和 Noah 同时签字，副本存采购系统，异常项目当日登记。",
+        "elapsed_s": 6.544,
+        "tokens": 223,
+        "prompt_tokens": 825,
+        "max_tokens": 1237,
+        "context_tokens": 2062,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 308,
+          "output_chars": 315,
+          "length_ratio": 1.0227
+        }
+      }
+    },
+    "b-zh-06--slack--legacy": {
+      "fingerprint": "593141eb743b2acc",
+      "recorded_at": "2026-11-20T15:57:48+00:00",
+      "result": {
+        "text": "会议室设备采购由采购部高峰和业务侧 Noah 负责，范围是北京总部 12 间、南京分部 3 间，共 15 间会议室。\n\n**结论**：最终选择 Maple 供应商。\n\n**关键信息**：\n• 价格最低（398 万元），保修 36 个月，48 小时内送达备件。\n• 预计 2026 年 12 月 10 日到货，12 月 12 日安装。\n• 采购单号 PO-731，包含 30 块显示器、15 个麦克风、15 台摄像头和 90 根线缆。\n• 付款条款：预付 25%，余款验收后支付；延迟一天扣 0.2%，不允许改变网络接口规格。\n• 收货确认人：高峰；仓库地址：北京北路 88 号。\n• 验收要求：清单需高峰和 Noah 同时签字，副本存采购系统，异常项目当日登记。\n\n**其他报价**：Orchid 420 万元、Pine 455 万元。",
+        "elapsed_s": 7.382,
+        "tokens": 254,
+        "prompt_tokens": 825,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 308,
+          "output_chars": 368,
+          "length_ratio": 1.1948
+        }
+      }
+    },
+    "b-zh-07--general--app": {
+      "fingerprint": "f8f496c1587bd679",
+      "recorded_at": "2026-11-20T15:57:56+00:00",
+      "result": {
+        "text": "终端证书更新由陈悦负责，管理员是 Sofia，发布时间是 2027 年 2 月 8 日早上 6 点，目标终端 1,450 台，地点覆盖广州、武汉和成都。\n步骤如下：\n1. 先用 50 台做试点并检查签名\n2. 再扩展 300 台\n3. 最后处理剩余 1,100 台\n证书编号 CERT-57，到期日是 2030 年 2 月 7 日，算法组合为 RSA 3072 和 ECDSA P-256。\n第一阶段失败率达到 1％就回滚，第二阶段单台耗时超过 8 秒也要停止。\n我们没有选周日一次性更新，而是决定分三批，理由是可把周六值班的 150 名销售人员的影响控制在 40 分钟以内。\n完成后持续监控 48 小时，记录保留 180 天，审批号 SEC-204。\n每批结束后要在 30 分钟内提交健康检查结果，并由 Sofia 确认没有异常告警。",
+        "elapsed_s": 7.348,
+        "tokens": 252,
+        "prompt_tokens": 810,
+        "max_tokens": 1215,
+        "context_tokens": 2025,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 308,
+          "output_chars": 368,
+          "length_ratio": 1.1948
+        }
+      }
+    },
+    "b-zh-07--general--legacy": {
+      "fingerprint": "854e2f05b1603469",
+      "recorded_at": "2026-11-20T15:58:04+00:00",
+      "result": {
+        "text": "终端证书更新由陈悦负责，管理员是 Sofia，发布时间是 2027 年 2 月 8 日早上 6 点，目标终端 1,450 台，地点覆盖广州、武汉和成都。步骤如下：\n1. 先用 50 台做试点并检查签名\n2. 再扩展 300 台\n3. 最后处理剩余 1,100 台\n\n证书编号 CERT-57，到期日是 2030 年 2 月 7 日，算法组合为 RSA 3072 和 ECDSA P-256。第一阶段失败率达到 1％就回滚，第二阶段单台耗时超过 8 秒也要停止。我们没有选周日一次性更新，而是决定分三批，理由是可把周六值班的 150 名销售人员的影响控制在 40 分钟以内。完成后持续监控 48 小时，记录保留 180 天，审批号 SEC-204。每批结束后要在 30 分钟内提交健康检查结果，并由 Sofia 确认没有异常告警。",
+        "elapsed_s": 7.17,
+        "tokens": 247,
+        "prompt_tokens": 810,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 308,
+          "output_chars": 364,
+          "length_ratio": 1.1818
+        }
+      }
+    },
+    "b-zh-07--herdr--app": {
+      "fingerprint": "8490ed5f1a60ac1c",
+      "recorded_at": "2026-11-20T15:58:14+00:00",
+      "result": {
+        "text": "终端证书更新由陈悦负责，管理员是 Sofia，发布时间是 2027 年 2 月 8 日早上 6 点，目标终端 1,450 台，地点覆盖广州、武汉和成都。\n\n1. 证书编号 CERT-57，到期日是 2030 年 2 月 7 日，算法组合为 RSA 3072 和 ECDSA P-256。\n2. 更新策略分三批进行，未选择周日一次性更新，而是决定分批执行，理由是可把周六值班的 150 名销售人员的影响控制在 40 分钟以内。\n   - 第一阶段：先用 50 台做试点并检查签名。\n   - 第二阶段：再扩展 300 台。\n   - 第三阶段：最后处理剩余 1,100 台。\n3. 失败处理机制：\n   - 第一阶段失败率达到 1% 就回滚。\n   - 第二阶段单台耗时超过 8 秒也要停止。\n4. 后续要求：\n   - 完成后持续监控 48 小时，记录保留 180 天，审批号 SEC-204。\n   - 每批结束后要在 30 分钟内提交健康检查结果，并由 Sofia 确认没有异常告警。",
+        "elapsed_s": 8.747,
+        "tokens": 299,
+        "prompt_tokens": 887,
+        "max_tokens": 1330,
+        "context_tokens": 2217,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 308,
+          "output_chars": 444,
+          "length_ratio": 1.4416
+        }
+      }
+    },
+    "b-zh-07--herdr--legacy": {
+      "fingerprint": "a53f847d55b44f3d",
+      "recorded_at": "2026-11-20T15:58:23+00:00",
+      "result": {
+        "text": "终端证书更新由陈悦负责，管理员是 Sofia，发布时间是 2027 年 2 月 8 日早上 6 点，目标终端 1,450 台，地点覆盖广州、武汉和成都。\n\n1. 证书编号 CERT-57，到期日是 2030 年 2 月 7 日，算法组合为 RSA 3072 和 ECDSA P-256。\n2. 更新策略分三批执行，未选择周日一次性更新，而是决定分三批，理由是可把周六值班的 150 名销售人员的影响控制在 40 分钟以内。\n3. 步骤如下：\n   • 先用 50 台做试点并检查签名。\n   • 再扩展 300 台。\n   • 最后处理剩余 1,100 台。\n4. 约束条件：\n   • 第一阶段失败率达到 1％就回滚。\n   • 第二阶段单台耗时超过 8 秒也要停止。\n5. 完成后持续监控 48 小时，记录保留 180 天，审批号 SEC-204。\n6. 每批结束后要在 30 分钟内提交健康检查结果，并由 Sofia 确认没有异常告警。",
+        "elapsed_s": 8.331,
+        "tokens": 291,
+        "prompt_tokens": 887,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 308,
+          "output_chars": 421,
+          "length_ratio": 1.3669
+        }
+      }
+    },
+    "b-zh-07--slack--app": {
+      "fingerprint": "691a327902fdf561",
+      "recorded_at": "2026-11-20T15:58:32+00:00",
+      "result": {
+        "text": "终端证书更新方案如下：\n• 负责人：陈悦；管理员：Sofia\n• 发布时间：2027年2月8日 06:00\n• 目标终端：1,450台（覆盖广州、武汉、成都）\n• 证书编号：CERT-57；到期日：2030年2月7日\n• 算法组合：RSA 3072 + ECDSA P-256\n• 分批策略：分三批执行，避免周日一次性更新，将周六值班150名销售人员的影响控制在40分钟内\n  1. 首批：50台（试点并检查签名）\n  2. 第二批：300台\n  3. 第三批：剩余1,100台\n• 熔断机制：第一阶段失败率≥1%即回滚；第二阶段单台耗时>8秒即停止\n• 后续工作：完成后持续监控48小时，记录保留180天，审批号SEC-204\n• 验收要求：每批结束后30分钟内提交健康检查结果，并由Sofia确认无异常告警",
+        "elapsed_s": 7.392,
+        "tokens": 252,
+        "prompt_tokens": 830,
+        "max_tokens": 1245,
+        "context_tokens": 2075,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 308,
+          "output_chars": 355,
+          "length_ratio": 1.1526
+        }
+      }
+    },
+    "b-zh-07--slack--legacy": {
+      "fingerprint": "2afa70036515ac3c",
+      "recorded_at": "2026-11-20T15:58:40+00:00",
+      "result": {
+        "text": "终端证书更新由陈悦负责，管理员是 Sofia，发布时间是 2027 年 2 月 8 日早上 6 点，目标终端 1,450 台，地点覆盖广州、武汉和成都。\n\n1. 证书编号 CERT-57，到期日 2030 年 2 月 7 日，算法组合为 RSA 3072 和 ECDSA P-256。\n2. 分三批执行，未选周日一次性更新，旨在将周六值班 150 名销售人员的影响控制在 40 分钟以内。\n3. 第一阶段：先用 50 台做试点并检查签名；若失败率达 1% 则回滚。\n4. 第二阶段：扩展 300 台；若单台耗时超过 8 秒则停止。\n5. 第三阶段：处理剩余 1,100 台。\n6. 每批结束后 30 分钟内提交健康检查结果，并由 Sofia 确认无异常告警。\n7. 完成后持续监控 48 小时，记录保留 180 天，审批号 SEC-204。",
+        "elapsed_s": 7.627,
+        "tokens": 264,
+        "prompt_tokens": 830,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 308,
+          "output_chars": 370,
+          "length_ratio": 1.2013
+        }
+      }
+    },
+    "b-zh-08--general--app": {
+      "fingerprint": "add2ee99902448cc",
+      "recorded_at": "2026-11-20T15:58:49+00:00",
+      "result": {
+        "text": "秋季内部活动由朱琳负责，讲师是 Elena Ruiz，定在 2026 年 10 月 30 日星期五举行，地点改为苏州会展中心的 Hall C。预计员工 260 人、嘉宾 40 人，共 300 人，9 点 30 分开始签到，主旨演讲 10 点 15 分开始，时长 60 分钟。下午分三个产品演示：\n1. 14 点介绍语音输入\n2. 14 点 35 分介绍翻译\n3. 15 点 10 分介绍摘要\n晚宴从 18 点到 20 点，人均餐饮上限 6,500 日元等值人民币。会场从 Hall B 换到 C，是因为 C 有 24 个轮椅席，B 只有 12 个，而且到接待处少走 35 米。备用金 72 万元，沟通代码 EV-610，演讲材料截至日期是 10 月 15 日。现场入口设两条动线，彩排时间是活动前一天下午 16 点，主会场灯光由技术组在下午 14 点测试。",
+        "elapsed_s": 8.174,
+        "tokens": 282,
+        "prompt_tokens": 827,
+        "max_tokens": 1240,
+        "context_tokens": 2067,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 309,
+          "output_chars": 378,
+          "length_ratio": 1.2233
+        }
+      }
+    },
+    "b-zh-08--general--legacy": {
+      "fingerprint": "31bed94791f38569",
+      "recorded_at": "2026-11-20T15:58:59+00:00",
+      "result": {
+        "text": "秋季内部活动由朱琳负责，讲师是 Elena Ruiz，定在 2026 年 10 月 30 日星期五举行，地点改为苏州会展中心的 Hall C。\n• 预计员工 260 人、嘉宾 40 人，共 300 人。\n• 9 点 30 分开始签到，主旨演讲 10 点 15 分开始，时长 60 分钟。\n• 下午分三个产品演示：14 点介绍语音输入，14 点 35 分介绍翻译，15 点 10 分介绍摘要。\n• 晚宴从 18 点到 20 点，人均餐饮上限 6,500 日元等值人民币。\n• 会场从 Hall B 换到 C，是因为 C 有 24 个轮椅席，B 只有 12 个，而且到接待处少走 35 米。\n• 备用金 72 万元，沟通代码 EV-610，演讲材料截至日期是 10 月 15 日。\n• 现场入口设两条动线，彩排时间是活动前一天下午 16 点，主会场灯光由技术组在下午 14 点测试。",
+        "elapsed_s": 8.377,
+        "tokens": 293,
+        "prompt_tokens": 827,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 309,
+          "output_chars": 389,
+          "length_ratio": 1.2589
+        }
+      }
+    },
+    "b-zh-08--herdr--app": {
+      "fingerprint": "80a0707ce493bcaf",
+      "recorded_at": "2026-11-20T15:59:11+00:00",
+      "result": {
+        "text": "秋季内部活动由朱琳负责，讲师是 Elena Ruiz，定在 2026 年 10 月 30 日星期五举行，地点改为苏州会展中心的 Hall C。\n\n目标：\n• 举办秋季内部活动\n\n人员安排：\n• 负责人：朱琳\n• 讲师：Elena Ruiz\n\n时间流程：\n• 2026 年 10 月 30 日星期五\n• 09:30 开始签到\n• 10:15 开始主旨演讲（时长 60 分钟）\n• 14:00 介绍语音输入\n• 14:35 介绍翻译\n• 15:10 介绍摘要\n• 18:00 - 20:00 晚宴\n\n参会人员：\n• 预计员工 260 人、嘉宾 40 人，共 300 人\n\n餐饮标准：\n• 人均餐饮上限 6,500 日元等值人民币\n\n会场变更：\n• 地点：苏州会展中心 Hall C（原 Hall B）\n• 变更原因：C 厅有 24 个轮椅席（B 厅只有 12 个），且到接待处少走 35 米\n\n预算与物料：\n• 备用金：72 万元\n• 沟通代码：EV-610\n• 演讲材料提交截止日期：10 月 15 日\n\n现场执行：\n• 入口设置两条动线\n• 彩排时间：活动前一天下午 16:00\n• 主会场灯光测试：技术组于下午 14:00 进行",
+        "elapsed_s": 10.731,
+        "tokens": 375,
+        "prompt_tokens": 904,
+        "max_tokens": 1356,
+        "context_tokens": 2260,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 309,
+          "output_chars": 515,
+          "length_ratio": 1.6667
+        }
+      }
+    },
+    "b-zh-08--herdr--legacy": {
+      "fingerprint": "35dddf0c3a3016b6",
+      "recorded_at": "2026-11-20T15:59:20+00:00",
+      "result": {
+        "text": "秋季内部活动由朱琳负责，讲师是 Elena Ruiz，定在 2026 年 10 月 30 日星期五举行，地点改为苏州会展中心的 Hall C。\n\n• 人员安排：预计员工 260 人、嘉宾 40 人，共 300 人。\n• 时间流程：\n  1. 9 点 30 分开始签到。\n  2. 10 点 15 分开始主旨演讲，时长 60 分钟。\n  3. 下午分三个产品演示：\n     • 14 点介绍语音输入。\n     • 14 点 35 分介绍翻译。\n     • 15 点 10 分介绍摘要。\n  4. 晚宴从 18 点到 20 点，人均餐饮上限 6,500 日元等值人民币。\n• 场地变更：会场从 Hall B 换到 C，是因为 C 有 24 个轮椅席，B 只有 12 个，而且到接待处少走 35 米。\n• 预算与代码：备用金 72 万元，沟通代码 EV-610。\n• 截止日期：演讲材料截至日期是 10 月 15",
+        "elapsed_s": 8.651,
+        "tokens": 300,
+        "prompt_tokens": 904,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 309,
+          "output_chars": 406,
+          "length_ratio": 1.3139
+        }
+      }
+    },
+    "b-zh-08--slack--app": {
+      "fingerprint": "c0da0a5de99ff6fe",
+      "recorded_at": "2026-11-20T15:59:31+00:00",
+      "result": {
+        "text": "秋季内部活动由朱琳负责，讲师是 Elena Ruiz，定于 2026 年 10 月 30 日星期五在苏州会展中心 Hall C 举行。\n\n• 参会人员：预计员工 260 人、嘉宾 40 人，共 300 人。\n• 流程安排：\n  1. 9:30 开始签到\n  2. 10:15 开始主旨演讲（时长 60 分钟）\n  3. 下午分三个产品演示：\n     - 14:00 介绍语音输入\n     - 14:35 介绍翻译\n     - 15:10 介绍摘要\n• 晚宴：18:00-20:00，人均餐饮上限 6,500 日元等值人民币。\n• 场地变更：会场从 Hall B 换到 C，因 C 有 24 个轮椅席（B 仅 12 个），且到接待处少走 35 米。\n• 预算与材料：备用金 72 万元，沟通代码 EV-610，演讲材料截至日期 10 月 15 日。\n• 现场执行：\n  1. 入口设两条动线\n  2. 彩排时间：活动前一天下午 16:00\n  3. 主会场灯光测试：技术组于下午 14:00 进行",
+        "elapsed_s": 9.642,
+        "tokens": 336,
+        "prompt_tokens": 847,
+        "max_tokens": 1270,
+        "context_tokens": 2117,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 309,
+          "output_chars": 450,
+          "length_ratio": 1.4563
+        }
+      }
+    },
+    "b-zh-08--slack--legacy": {
+      "fingerprint": "01e84dbee2310ade",
+      "recorded_at": "2026-11-20T15:59:40+00:00",
+      "result": {
+        "text": "秋季内部活动由朱琳负责，讲师是 Elena Ruiz，定于 2026 年 10 月 30 日星期五在苏州会展中心 Hall C 举行。\n\n• 规模与时间：预计 300 人（员工 260 人、嘉宾 40 人），9:30 签到，10:15 开始主旨演讲（60 分钟）。\n• 下午议程：14:00 语音输入、14:35 翻译、15:10 摘要演示。\n• 晚宴：18:00-20:00，人均餐饮上限 6,500 日元等值人民币。\n• 场地变更：由 Hall B 移至 Hall C，因 C 区有 24 个轮椅席（B 区仅 12 个）且距接待处更近（少走 35 米）。\n• 其他事项：备用金 72 万元，沟通代码 EV-610，演讲材料截止 10 月 15 日，现场设两条入口动线，彩排为活动前一日 16:00，主会场灯光于 14:00 测试。",
+        "elapsed_s": 8.005,
+        "tokens": 276,
+        "prompt_tokens": 847,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 309,
+          "output_chars": 367,
+          "length_ratio": 1.1877
+        }
+      }
+    },
+    "en-spoken": {
+      "fingerprint": "dc19b42dcf2834e0",
+      "recorded_at": "2026-11-20T15:44:54+00:00",
+      "result": {
+        "text": "So let's ship this tomorrow morning and sync the results with the QA team.",
+        "elapsed_s": 1.096,
+        "tokens": 16,
+        "prompt_tokens": 659,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 89,
+          "output_chars": 74,
+          "length_ratio": 0.8315
+        }
+      }
+    },
+    "ja-katakana-mixed": {
+      "fingerprint": "69b56d9d75dd5eb8",
+      "recorded_at": "2026-11-20T15:44:46+00:00",
+      "result": {
+        "text": "このイシューは次のスプリントでフィックスする予定なので、まずクイックなレビューをお願いします。",
+        "elapsed_s": 1.232,
+        "tokens": 22,
+        "prompt_tokens": 669,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 46,
+          "output_chars": 47,
+          "length_ratio": 1.0217
+        }
+      }
+    },
+    "ja-katakana-wordbook": {
+      "fingerprint": "9088b351ec14adab",
+      "recorded_at": "2026-11-20T15:44:48+00:00",
+      "result": {
+        "text": "この issue は次の sprint で fix する予定なので、まず quick な review をお願いします。",
+        "elapsed_s": 1.282,
+        "tokens": 19,
+        "prompt_tokens": 778,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 46,
+          "output_chars": 60,
+          "length_ratio": 1.3043
+        }
+      }
+    },
+    "ja-self-correction": {
+      "fingerprint": "4204d7b8a7d3efc9",
+      "recorded_at": "2026-11-20T15:44:44+00:00",
+      "result": {
+        "text": "明日の件ですが、三時半に会議室を予約しておいてください。お願いします。",
+        "elapsed_s": 1.146,
+        "tokens": 18,
+        "prompt_tokens": 678,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 54,
+          "output_chars": 35,
+          "length_ratio": 0.6481
+        }
+      }
+    },
+    "ja-spaced-asr": {
+      "fingerprint": "6917bb6009c0bec9",
+      "recorded_at": "2026-11-20T15:44:42+00:00",
+      "result": {
+        "text": "明日の午後3時に会議室で新機能について話し合います。",
+        "elapsed_s": 1.078,
+        "tokens": 15,
+        "prompt_tokens": 665,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 30,
+          "output_chars": 26,
+          "length_ratio": 0.8667
+        }
+      }
+    },
+    "zh-halfwidth-punctuation": {
+      "fingerprint": "df02de730126ed26",
+      "recorded_at": "2026-11-20T15:44:50+00:00",
+      "result": {
+        "text": "今天下午3点，我们在会议室讨论新版本的功能设计，然后把结果同步给测试团队。",
+        "elapsed_s": 1.043,
+        "tokens": 18,
+        "prompt_tokens": 625,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": true,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 37,
+          "output_chars": 37,
+          "length_ratio": 1.0
+        }
+      }
+    },
+    "zh-spoken-mixed": {
+      "fingerprint": "f41e9f4fd5402b82",
+      "recorded_at": "2026-11-20T15:44:52+00:00",
+      "result": {
+        "text": "这个需求先做一个 quick prototype，然后我们再 review 一下。对了，记得同步给测试组。",
+        "elapsed_s": 1.109,
+        "tokens": 21,
+        "prompt_tokens": 636,
+        "max_tokens": 300,
+        "context_tokens": 2048,
+        "quality": {
+          "unchanged": false,
+          "verbatim_unchanged": false,
+          "missing": [],
+          "forbidden": [],
+          "input_chars": 64,
+          "output_chars": 53,
+          "length_ratio": 0.8281
+        }
+      }
+    }
+  }
+}
