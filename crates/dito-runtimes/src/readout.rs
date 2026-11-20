@@ -18,7 +18,7 @@ use llama_cpp_2::model::LlamaModel;
 use llama_cpp_sys_2 as sys;
 
 // Declared in llama.cpp `src/llama-ext.h`, a C++ header the bindings skip: the symbols carry Itanium-mangled names.
-// They belong to the llama.cpp tree vendored by llama-cpp-sys-2 0.1.160, which `Cargo.toml` pins.
+// They belong to the llama.cpp tree vendored by llama-cpp-sys-2 0.1.161, which `Cargo.toml` pins.
 unsafe extern "C" {
     #[link_name = "_Z30llama_set_embeddings_layer_inpP13llama_contextjb"]
     fn set_embeddings_layer_inp(ctx: *mut sys::llama_context, layer: u32, value: bool);
@@ -37,7 +37,7 @@ const REQUEST_SEQUENCE: i32 = 1;
 const _: () = assert!(size_of::<LlamaModel>() == size_of::<*mut c_void>());
 
 fn raw_model(model: &LlamaModel) -> *mut sys::llama_model {
-    // SAFETY: in llama-cpp-2 0.1.160 `LlamaModel` is `#[repr(transparent)]` over `Ptr<llama_model>`, which is
+    // SAFETY: in llama-cpp-2 0.1.161 `LlamaModel` is `#[repr(transparent)]` over `Ptr<llama_model>`, which is
     // `#[repr(transparent)]` over `NonNull<llama_model>`, so it has exactly the layout of that pointer. The version is
     // pinned in `Cargo.toml` and the size is asserted above.
     unsafe { std::mem::transmute_copy::<LlamaModel, *mut sys::llama_model>(model) }
