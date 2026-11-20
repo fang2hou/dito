@@ -125,7 +125,7 @@ impl AppState {
         let local_api = LocalApi::spawn(
             local_api::Deps {
                 cfg: cfg.clone(),
-                secrets: secrets.clone(),
+                token_path: data_dir.join("local_api.token"),
                 backend: factory.clone(),
                 installed: Arc::new(InstalledCatalog(models.clone())),
             },

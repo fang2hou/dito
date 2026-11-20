@@ -13,6 +13,7 @@ mod server;
 mod token;
 mod wav;
 
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -32,7 +33,6 @@ use crate::config::{Config, ConfigStore};
 use crate::error::{ErrorKind, ProviderError, ProviderResult};
 use crate::factory::{EngineFactory, Engines};
 use crate::provider::{TextModel, Transcriber};
-use crate::secrets::{SecretError, SecretStore};
 
 const SHUTDOWN_GRACE: Duration = Duration::from_secs(2);
 
@@ -61,7 +61,7 @@ impl Backend for EngineFactory {
 
 pub struct Deps {
     pub cfg: Arc<ConfigStore>,
-    pub secrets: Arc<dyn SecretStore>,
+    pub token_path: PathBuf,
     pub backend: Arc<dyn Backend>,
     pub installed: Arc<dyn InstalledModels>,
 }
@@ -92,7 +92,7 @@ impl LocalApi {
             cfg: deps.cfg,
             backend: deps.backend,
             installed: deps.installed,
-            token: Token::new(deps.secrets),
+            token: Token::new(deps.token_path),
         });
         let (tx, status) = watch::channel(Status::Stopped);
         rt.spawn(supervise(shared.clone(), tx));
@@ -104,11 +104,11 @@ impl LocalApi {
     }
 
     /// An empty token is ignored: it would let anything in.
-    pub fn set_token(&self, token: &str) -> Result<(), SecretError> {
+    pub fn set_token(&self, token: &str) -> std::io::Result<()> {
         self.shared.token.set(token)
     }
 
-    pub fn regenerate_token(&self) -> Result<String, SecretError> {
+    pub fn regenerate_token(&self) -> std::io::Result<String> {
         self.shared.token.regenerate()
     }
 
