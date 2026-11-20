@@ -23,6 +23,12 @@ impl Opts {
         self.demo_run || self.screenshots.is_some()
     }
 
+    /// Only a run the user started may touch the login keychain. A build without a Team ID is asked for the keychain
+    /// password once per build, so a mock or automated run would raise that prompt on the user's screen.
+    pub fn uses_keychain(&self) -> bool {
+        !(self.mock || self.is_headless())
+    }
+
     pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Self> {
         let mut o = Opts::default();
         let mut it = args.into_iter();
@@ -94,6 +100,14 @@ mod tests {
     fn unknown_arguments_fail_with_usage() {
         let err = parse(&["--nope"]).unwrap_err().to_string();
         assert!(err.contains("unknown argument: --nope"), "{err}");
+    }
+
+    #[test]
+    fn only_a_run_the_user_started_uses_the_keychain() {
+        assert!(Opts::default().uses_keychain());
+        assert!(!Opts { mock: true, ..Opts::default() }.uses_keychain());
+        assert!(!Opts { demo_run: true, ..Opts::default() }.uses_keychain());
+        assert!(!Opts { screenshots: Some("out".into()), ..Opts::default() }.uses_keychain());
     }
 
     #[test]
