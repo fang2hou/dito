@@ -133,12 +133,67 @@ Those step-by-step variants still switched the system prompt language to match t
 - Recorded latencies do not reflect production app latency: the benchmark reuses the llama.cpp context across calls, whereas the app creates a fresh context per dictation. Prompt token count is the relevant cost metric.
 - This benchmark tests only the LLM polish side of the wordbook, not acoustic hotword boosting in the speech recognizer.
 
+## Reproduction baseline for unchanged and over-shortened outputs
+
+A synthetic benchmark was added to `data/polish_cases.json`: 36 inputs under 100 characters balance filler, repetition and self-correction cases against clean controls, and 24 inputs from 300 to 1,500 characters balance Japanese, Chinese and English facts against General, Herdr and Slack rules. Pattern B is checked for required facts; length is descriptive only. The 9B Q4_K_M weights are read from the permitted app model folder through the git-ignored bench symlink, so no additional download is needed.
+
+The regular polish bench now supports two named profiles. `app` uses the production local-polish recipe: temperature 0.2, seed 1234, no top-k or top-p cut, a fresh context, and `max_tokens = clamp(prompt_tokens * 3 / 2, 256, 4096)`. The context is exactly `prompt_tokens + max_tokens`, with a 1024-token floor. These values come from `Sampling::POLISH`, `POLISH_SEED` and `output_budget` in `crates/dito-local/src/catalog.rs` and `crates/dito-runtimes/src/llama.rs`; the app's `generate` path creates a fresh llama context for each request. `legacy` keeps the prior bench's temperature 0, 300-token cap and 2048-token context so old behavior remains measurable rather than being silently renamed. There were no earlier committed polish result files in this checkout; the new file is therefore a new series, and `legacy` preserves the old meaning for comparison rather than overwriting prior records.
+
+The prompt mirror now includes Slack, Teams and Herdr. Herdr asks for a structured agent instruction, but explicitly says to keep every example, background, reason, detail and condition and never reduce the transcript to its conclusion. It therefore does not permit fact loss as a stylistic compression.
+
+### Results
+
+Measurements used Qwen3.5 9B Q4_K_M through `llama-cpp-python` 0.3.36 on an Apple M5 Pro. The result store contains 187 fresh records: 36 Pattern A cases, 24 Pattern B cases across three targets and two profiles, and the prior 7 baseline cases. No model download was made.
+
+#### Pattern A
+
+| Language | Kind | Cases unchanged | Abandoned or filler text still present |
+| --- | --- | ---: | ---: |
+| Japanese | filler | 0 of 2 | 0 of 2 |
+| Japanese | repetition | 0 of 2 | 0 of 2 |
+| Japanese | self-correction | 0 of 2 | 1 of 2 |
+| Chinese | filler | 1 of 2 | 1 of 2 |
+| Chinese | repetition | 0 of 2 | 0 of 2 |
+| Chinese | self-correction | 0 of 2 | 0 of 2 |
+| English | filler | 1 of 2 | 1 of 2 |
+| English | repetition | 0 of 2 | 0 of 2 |
+| English | self-correction | 0 of 2 | 0 of 2 |
+
+The unchanged-input pattern reproduces narrowly: 2 of the 18 dirty short cases were returned verbatim, both filler cases (`那个，我周五提交最终版本。` and `You know, the review starts at three.`). The clean controls did better: all 18 of 18 returned unchanged apart from the normalization check's ignored punctuation and whitespace; in fact, all 18 were byte-for-byte unchanged after surrounding whitespace was stripped. One Japanese self-correction changed punctuation and grammar but still retained the abandoned amount in `三百万円ではなく、二百五十万円です`, which violates the explicit "replaced value must not appear" constraint even though the old version is negated.
+
+Three plausible causes are prompt attention, demonstration coverage, and deterministic sampling:
+
+1. The prompt explicitly says to remove fillers, but all three demonstrations combine filler removal with a longer instruction, correction, or question. A short one-clause filler may receive too little contrast against the rule to “add and drop nothing.” A measurable next experiment is a short filler-only demonstration in each language, with output containing only the cleaned clause.
+2. The constraint says self-correction is the final version and the abandoned value must disappear, while the preservation rule says not to drop information. The demonstrations cover a late date correction, not an amount correction phrased as `XではなくY`. A measurable next experiment is an amount/date replacement pair where the abandoned token must be absent, compared with the current shared correction demonstration.
+3. The fixed seed and low temperature preserve a stable no-op on these inputs, but this suite does not establish that sampling causes it because both failures use the app-equivalent profile only. A next comparison should run these two cases at temperature 0 and 0.2 with the same prompt before changing prompt text.
+
+#### Pattern B
+
+Length is shown for description only. No case met the original under-half ratio, and no listed fact was lost after treating ordinary formatting variants such as `9 点 30 分`/`9:30`, `45 minutes`/`45 mins`, and `$720,000`/`720 thousand dollars` as the same fact.
+
+| Profile | Target | Outputs losing a listed fact | Average missing facts | Mean ratio | Median ratio | Range |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| app | General | 0 of 24 | 0.000 | 1.083 | 1.044 | 0.982–1.241 |
+| app | Herdr | 0 of 24 | 0.000 | 1.160 | 1.081 | 0.965–1.667 |
+| app | Slack | 0 of 24 | 0.000 | 1.047 | 1.023 | 0.765–1.456 |
+| legacy | General | 0 of 24 | 0.000 | 1.091 | 1.079 | 0.982–1.267 |
+| legacy | Herdr | 0 of 24 | 0.000 | 1.138 | 1.091 | 0.982–1.399 |
+| legacy | Slack | 0 of 24 | 0.000 | 1.083 | 1.114 | 0.763–1.373 |
+
+There was no fact-loss association with length, list structure, or language. Across the six profile/target/language dimensions, Japanese, Chinese and English all had zero missing facts; list and narrative cases also had zero. Japanese mean ratios were 1.113 (`app`) and 1.155 (`legacy`), Chinese 1.212 and 1.183, and English 0.965 and 0.974. List cases averaged 1.088 and 1.096; narrative cases averaged 1.104 and 1.112. The larger CJK character ratios reflect list and spacing expansion, not dropped information.
+
+The reported under-half Pattern B does **not reproduce** in these synthetic inputs. General and Herdr do not shorten to half length, and Slack's strongest cases stop at 0.765 (`app`) or 0.763 (`legacy`) while keeping every listed fact. The legacy cap was reached by 1 of 72 Pattern B outputs, while none of 72 app-profile outputs reached its budget, so the observed result does not depend on the old 300-token ceiling. Herdr's compact structure is not a violation in this run: all 48 Herdr outputs under both profiles retained the listed facts, consistent with its rule not to reduce the input to its conclusion.
+
+#### Conclusion
+
+Pattern A reproduces as a small but real no-op problem (2 filler no-ops of 18 dirty cases) plus one retained abandoned amount. Pattern B does not reproduce as over-shortening or fact loss: the measured minimum ratio was 0.763 and all 144 target/profile outputs retained their mechanical fact list. No prompt, sampling, or app-code change is made by this benchmark.
+
+
 ## Rerun
 
 ```bash
-cd bench
-uv run python notebooks/prompt_escape.py run                    # only cells that have no record
-uv run python notebooks/prompt_escape.py report --failures shipped
+mise run bench polish run -m qwen3.5-9b --refresh
+mise run bench polish report -m qwen3.5-9b --json
 ```
 
-Models are loaded from Dito's default model directory unless overridden with `--models-dir`. In the JSON records, `current` refers to the old prompt and `shipped` refers to the builder in `polish/prompts.py`.
+The regular benchmark resolves weights through `bench/models/polish/<model-key>`; this run used a git-ignored symlink to the permitted Dito 9B file. The prompt-escape notebook separately uses Dito's default model directory unless overridden with `--models-dir`; in its JSON records, `current` refers to the old prompt and `shipped` to the builder in `polish/prompts.py`.
