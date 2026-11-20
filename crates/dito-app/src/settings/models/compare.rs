@@ -1,7 +1,7 @@
 //! The model comparison dialog (`design:settings/compare-models`). The user picks up to five speech models,
 //! local or cloud, records a sentence each round, rates the blind results, and ends on a ranking of their own.
 
-use std::cell::{Cell, RefCell};
+use std::cell::Cell;
 use std::collections::VecDeque;
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -32,10 +32,6 @@ const LEVEL_EVERY: Duration = Duration::from_millis(50);
 const CHIP_GAP: f32 = 6.;
 const SCROLL: &str = "models-compare-scroll";
 const FADE: f32 = 24.;
-/// How long the list of models that can take part is reused before the Keychain is read again; the header button is
-/// drawn on every frame and only needs to know whether two can.
-const CHOICES_FRESH: Duration = Duration::from_secs(2);
-
 /// A model that can take part, with the name the dialog shows for it.
 #[derive(Clone)]
 struct Choice {
@@ -120,7 +116,6 @@ pub(super) struct Compare {
     round: u32,
     shown: Vec<Shown>,
     error: Option<Tr>,
-    cached_choices: RefCell<Option<(Instant, Vec<Choice>)>>,
     scroll: ScrollHandle,
     /// The stage and round the scroll position belongs to; a new one starts from the top.
     scrolled_for: Cell<(&'static str, u32)>,
@@ -137,7 +132,6 @@ impl Compare {
             round: 1,
             shown: Vec::new(),
             error: None,
-            cached_choices: RefCell::new(None),
             scroll: ScrollHandle::new(),
             scrolled_for: Cell::new(("closed", 0)),
         }
@@ -146,11 +140,6 @@ impl Compare {
 
 impl ModelsPage {
     fn compare_choices(&self) -> Vec<Choice> {
-        if let Some((at, choices)) = &*self.compare.cached_choices.borrow()
-            && at.elapsed() < CHOICES_FRESH
-        {
-            return choices.clone();
-        }
         self.read_compare_choices()
     }
 
@@ -170,7 +159,7 @@ impl ModelsPage {
                 unavailable: None,
             });
         let cloud = cfg.asr.cloud_asr.iter().flat_map(|list| &list.items).map(|configuration| {
-            let has_key = self.st.secrets.get(&configuration.account()).is_some_and(|key| !key.trim().is_empty());
+            let has_key = self.secret_keys.get(&configuration.account()).is_some_and(|key| !key.trim().is_empty());
             Choice {
                 contender: Contender::Cloud(configuration.id.clone()),
                 name: configuration.name.clone(),
@@ -181,9 +170,7 @@ impl ModelsPage {
                 },
             }
         });
-        let choices: Vec<Choice> = local.chain(cloud).collect();
-        *self.compare.cached_choices.borrow_mut() = Some((Instant::now(), choices.clone()));
-        choices
+        local.chain(cloud).collect()
     }
 
     fn compare_name(&self, contender: &Contender) -> String {

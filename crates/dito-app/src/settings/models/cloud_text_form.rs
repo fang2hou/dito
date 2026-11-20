@@ -1,11 +1,11 @@
 //! The cloud polish form and its inputs (`design:settings/cloud-models/configurations`,
 //! `design:settings/cloud-models/failed-test`).
 
+use std::collections::HashMap;
 use std::ops::Index;
 
 use dito_core::config::{CloudTextConfiguration, CloudTextTarget, CloudTextTemplate};
 use dito_core::i18n::{Lang, Tr};
-use dito_core::secrets::SecretStore;
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
@@ -49,7 +49,7 @@ impl CloudTextForm {
         &mut self,
         active: Option<&CloudTextConfiguration>,
         lang: Lang,
-        secrets: &dyn SecretStore,
+        secret_keys: &HashMap<String, String>,
         window: &mut Window,
         cx: &mut Context<ModelsPage>,
     ) {
@@ -57,7 +57,9 @@ impl CloudTextForm {
         if self.shown.as_deref() != id {
             for field in CloudTextField::ALL {
                 let value = match (active, field) {
-                    (Some(config), CloudTextField::Key) => secrets.get(&config.account()).unwrap_or_default(),
+                    (Some(config), CloudTextField::Key) => {
+                        secret_keys.get(&config.account()).cloned().unwrap_or_default()
+                    }
                     (Some(config), _) => field.show(config),
                     (None, _) => String::new(),
                 };

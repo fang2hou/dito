@@ -1,3 +1,4 @@
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
@@ -101,6 +102,9 @@ pub struct ModelsPage {
     pub(super) save_failed: bool,
     pub(super) aws_profiles: Vec<String>,
     pub(super) last_status: String,
+    pub(super) secret_keys: HashMap<String, String>,
+    secret_requests: ui::Requests,
+    models_active: bool,
     #[cfg(feature = "screenshots")]
     pub(super) preview_snapshot: Option<Snapshot>,
     pub(super) motion: ui::MotionScope,
@@ -111,6 +115,7 @@ impl EventEmitter<ModalChanged> for ModelsPage {}
 impl ModelsPage {
     pub fn new(st: Arc<AppState>, window: &mut Window, cx: &mut Context<Self>) -> Self {
         services::watch_config(&st, cx);
+        ui::observe(st.cfg.subscribe(), cx, |this: &mut Self, _, cx| this.refresh_secret_keys(cx));
         ui::notify_on_change(st.models.subscribe(), cx);
         Self::poll_engine_state(cx);
 
@@ -149,9 +154,51 @@ impl ModelsPage {
             save_failed: false,
             aws_profiles,
             last_status: String::new(),
+            secret_keys: HashMap::new(),
+            secret_requests: ui::Requests::default(),
+            models_active: false,
             #[cfg(feature = "screenshots")]
             preview_snapshot: None,
         }
+    }
+
+    pub(super) fn refresh_secret_keys(&mut self, cx: &mut Context<Self>) {
+        if !self.models_active {
+            return;
+        }
+        let cfg = self.st.cfg.get();
+        let lang = cfg.general.lang();
+        let mut accounts = HashSet::new();
+        if let Some(list) = &cfg.asr.cloud_asr {
+            accounts.extend(list.items.iter().map(|configuration| configuration.account()));
+        }
+        accounts
+            .extend(cfg.text_model.text_configurations(lang).items.iter().map(|configuration| configuration.account()));
+        let accounts: Vec<String> = accounts.into_iter().collect();
+        let ticket = self.secret_requests.begin();
+        let rt = self.st.rt.clone();
+        let secrets = self.st.secrets.clone();
+        cx.spawn(async move |this, cx| {
+            let answer = rt
+                .spawn_blocking(move || {
+                    accounts
+                        .into_iter()
+                        .filter_map(|account| {
+                            let key = secrets.get(&account)?;
+                            (!key.trim().is_empty()).then_some((account, key))
+                        })
+                        .collect::<HashMap<_, _>>()
+                })
+                .await
+                .unwrap_or_default();
+            let _ = this.update(cx, |page, cx| {
+                if page.secret_requests.is_current(ticket) {
+                    page.secret_keys = answer;
+                    cx.notify();
+                }
+            });
+        })
+        .detach();
     }
 
     /// Engine status has no event stream; poll gently while the page exists.
@@ -193,6 +240,7 @@ impl ModelsPage {
         .detach();
         cx.subscribe(&editor, |this, _, outcome: &asr_editor::SaveOutcome, cx| {
             this.note_save(outcome.0);
+            this.refresh_secret_keys(cx);
             cx.notify();
         })
         .detach();
@@ -249,6 +297,9 @@ impl ModelsPage {
         };
         self.note_save(saved);
         self.cloud_text.test = TestState::Idle;
+        if field == CloudTextField::Key {
+            self.refresh_secret_keys(cx);
+        }
         cx.notify();
     }
 
@@ -286,10 +337,9 @@ impl ModelsPage {
     /// changes.
     pub(super) fn follow_text_model_settings(&mut self, lang: Lang, window: &mut Window, cx: &mut Context<Self>) {
         let cfg = self.st.cfg.get();
-        let secrets = self.st.secrets.clone();
         let configurations = cfg.text_model.text_configurations(lang);
         let before = self.cloud_text.form.shown().map(str::to_owned);
-        self.cloud_text.form.follow(configurations.active(), lang, &*secrets, window, cx);
+        self.cloud_text.form.follow(configurations.active(), lang, &self.secret_keys, window, cx);
         if let Some(shown) = self.cloud_text.form.shown().filter(|shown| before.as_deref() != Some(shown)) {
             self.cloud_text.tiles.reveal(shown);
         }
@@ -378,6 +428,10 @@ impl Render for ModelsPage {
 
 impl ModelsPage {
     fn view(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        if !self.models_active {
+            self.models_active = true;
+            self.refresh_secret_keys(cx);
+        }
         let c = Ctx::new(&self.st, cx);
         let p = c.p;
         self.follow_text_model_settings(c.lang, window, cx);
