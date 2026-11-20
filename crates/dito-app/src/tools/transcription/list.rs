@@ -10,7 +10,7 @@ use dito_core::transcription::SessionState;
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
-use super::{TranscriptionPage, clock, open_row};
+use super::{TranscriptionPage, open_row};
 use crate::assets::Ic;
 use crate::settings::Ctx;
 use crate::theme::Palette;
@@ -267,7 +267,7 @@ fn row_view(
             )),
         );
     } else if let Some(length) = row.length_ms.filter(|_| row.ended_ts.is_some()) {
-        head = head.child(badge(&p, clock(length)));
+        head = head.child(badge(&p, crate::timefmt::clock(length)));
     }
     let mut column = div().flex_1().min_w(px(0.)).flex().flex_col().gap(px(4.)).child(head);
     if !row.preview.is_empty() {

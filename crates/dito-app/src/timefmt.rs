@@ -1,7 +1,19 @@
 //! Local-time helpers working on unix seconds and a fixed UTC offset.
 
-pub fn now() -> i64 {
-    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0)
+pub use dito_core::unix_seconds as now;
+
+pub fn clock(ms: u64) -> String {
+    let secs = ms / 1000;
+    if secs >= 3600 {
+        format!("{}:{:02}:{:02}", secs / 3600, secs / 60 % 60, secs % 60)
+    } else {
+        format!("{:02}:{:02}", secs / 60, secs % 60)
+    }
+}
+
+/// `2026/11/13 14:02` in the user's time zone.
+pub fn date_time(ts: i64, off: i32) -> String {
+    format!("{} {}", ymd(local_day(ts, off)).replace('-', "/"), hhmm(ts, off))
 }
 
 /// Days since 1970-01-01 in local time.
@@ -32,6 +44,19 @@ pub fn day_start(day: i64, off: i32) -> i64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn clock_formats_durations() {
+        assert_eq!(clock(2_536_000), "42:16");
+        assert_eq!(clock(3_725_000), "1:02:05");
+    }
+
+    #[test]
+    fn date_time_uses_local_date_and_time() {
+        let jst = 9 * 3600;
+        let ts = 20 * 3600 + 14 * 60;
+        assert_eq!(date_time(ts, jst), "1970/01/02 05:14");
+    }
 
     #[test]
     fn local_day_and_clock_follow_the_offset() {

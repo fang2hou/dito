@@ -12,7 +12,7 @@ use std::collections::VecDeque;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc as std_mpsc;
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant};
 
 use tokio::sync::{mpsc, watch};
 use tokio_util::sync::CancellationToken;
@@ -65,7 +65,7 @@ impl SessionState {
     pub fn elapsed_ms(&self) -> u64 {
         match self {
             Self::Recording { recorded_ms, segment_start, .. } => {
-                recorded_ms + segment_start.map_or(0, |start| now_ts().saturating_sub(start) as u64 * 1000)
+                recorded_ms + segment_start.map_or(0, |start| crate::unix_seconds().saturating_sub(start) as u64 * 1000)
             }
             Self::Idle | Self::Starting | Self::Finishing { .. } => 0,
         }
@@ -151,7 +151,7 @@ impl TranscriptionHandle {
 
 /// Needs a Tokio runtime. Sessions cut short by an earlier quit are closed first.
 pub fn spawn(deps: TranscriptionDeps) -> TranscriptionHandle {
-    if let Err(e) = deps.store.recover_transcripts(now_ts()) {
+    if let Err(e) = deps.store.recover_transcripts(crate::unix_seconds()) {
         tracing::warn!("could not close unfinished transcripts: {e}");
     }
     let (tx, rx) = mpsc::unbounded_channel();
@@ -197,7 +197,7 @@ async fn actor(deps: Arc<TranscriptionDeps>, mut rx: mpsc::UnboundedReceiver<Cmd
             }
             Cmd::TogglePause => {
                 let Some(running) = running.as_ref() else { continue };
-                let now = now_ts();
+                let now = crate::unix_seconds();
                 // The pause closes the open stretch of recording into `recorded_ms`; the resume opens a new one.
                 let (pause, fold_ms) = {
                     let s = status.borrow();
@@ -249,10 +249,6 @@ async fn run(
             s.error = Some(e);
         }
     });
-}
-
-fn now_ts() -> i64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0)
 }
 
 struct Closed {
@@ -373,7 +369,7 @@ async fn record(
     // Kept open until the session stops: the threads alone would close `heard_rx` before the user is done.
     let mut heard = Some(heard_tx);
 
-    let session_ts = now_ts();
+    let session_ts = crate::unix_seconds();
     // A resumed transcript keeps its start, so the new paragraphs are timed from it and land after the old ones.
     let (id, started_ts, held, earlier) = match resume {
         Some(id) => {
@@ -541,7 +537,7 @@ async fn record(
     for source in taps {
         let _ = tokio::task::spawn_blocking(move || source.thread.join()).await;
     }
-    deps.store.end_transcript(id, session_ts, now_ts()).map_err(|e| e.to_string())?;
+    deps.store.end_transcript(id, session_ts, crate::unix_seconds()).map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -962,7 +958,7 @@ mod tests {
     #[tokio::test]
     async fn a_resumed_session_appends_to_the_same_transcript_on_its_clock() {
         let store = Arc::new(Store::open_in_memory().unwrap());
-        let started = now_ts() - 600;
+        let started = crate::unix_seconds() - 600;
         let id = store.create_transcript(started, Sources::default()).unwrap();
         let first = store.add_paragraph(id, Speaker::Others, 0, 1_000, "最初の会議です").unwrap();
         store.finish_paragraph(first, "最初の会議です。", None).unwrap();

@@ -29,15 +29,6 @@ pub(super) fn size_label(bytes: u64) -> String {
     }
 }
 
-pub(super) fn clock(ms: u64) -> String {
-    let secs = ms / 1000;
-    if secs >= 3600 {
-        format!("{}:{:02}:{:02}", secs / 3600, secs / 60 % 60, secs % 60)
-    } else {
-        format!("{:02}:{:02}", secs / 60, secs % 60)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -52,7 +43,5 @@ mod tests {
         assert_eq!(size_label(4096), "4 KB");
         assert_eq!(size_label(512 * 1024), "512 KB");
         assert_eq!(size_label(3 * 1024 * 1024 / 2), "1.5 MB");
-        assert_eq!(clock(2_536_000), "42:16");
-        assert_eq!(clock(3_725_000), "1:02:05");
     }
 }

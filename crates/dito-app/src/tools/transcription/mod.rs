@@ -25,7 +25,7 @@ use gpui_kit::*;
 use crate::services;
 use crate::settings::Ctx;
 use crate::state::AppState;
-use crate::timefmt::{hhmm, local_day, now, ymd};
+use crate::timefmt::now;
 use crate::ui::{self, InputEvent, InputState, TextareaState};
 
 /// The page gutters and rhythm, the same as every other page of the window.
@@ -677,21 +677,6 @@ fn speaker_label(speaker: Speaker) -> Tr {
         Speaker::Me => Tr::TranscriptionMe,
         Speaker::Others => Tr::TranscriptionOthers,
     }
-}
-
-fn clock(ms: u64) -> String {
-    let secs = ms / 1000;
-    if secs >= 3600 {
-        format!("{}:{:02}:{:02}", secs / 3600, secs / 60 % 60, secs % 60)
-    } else {
-        format!("{:02}:{:02}", secs / 60, secs % 60)
-    }
-}
-
-/// `2026/11/13 14:02` in the user's time zone.
-fn date_time(ts: i64) -> String {
-    let off = dito_platform::local_utc_offset_secs();
-    format!("{} {}", ymd(local_day(ts, off)).replace('-', "/"), hhmm(ts, off))
 }
 
 /// Opens a transcript from a list row or the folded panel.

@@ -6,7 +6,7 @@ use dito_core::transcription::{LiveText, SessionState};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
-use super::{TranscriptionPage, clock, speaker_label};
+use super::{TranscriptionPage, speaker_label};
 use crate::settings::{Ctx, Edge, edge_fade};
 use crate::theme::Palette;
 use crate::timefmt::hhmm;
@@ -130,7 +130,7 @@ fn lane_head(
                 )
                 .children(live.filter(|_| full).map(|live| {
                     let at = started_ts.map_or_else(
-                        || clock(live.start_ms),
+                        || crate::timefmt::clock(live.start_ms),
                         |started_ts| hhmm(started_ts + live.start_ms as i64 / 1000, off),
                     );
                     text(at, 11., FontWeight::NORMAL, p.muted).line_height(px(18.))
