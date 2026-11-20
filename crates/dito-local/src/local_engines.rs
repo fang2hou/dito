@@ -182,7 +182,7 @@ impl LocalEngines {
         if let Some(Slot::Asr(runtime)) = &existing
             && let Some(error) = runtime.failure()
         {
-            return Err(ProviderError::new(ErrorKind::Unavailable, error));
+            return Err(ProviderError::retryable(ErrorKind::Unavailable, error));
         }
         Ok(existing.filter(|slot| matches!(slot, Slot::Asr(_) | Slot::Llm(_))))
     }
@@ -208,7 +208,7 @@ impl LocalEngines {
         {
             let mut slots = self.slots.lock().expect("engine state mutex poisoned");
             if matches!(slots.get(id), Some(Slot::Stopping(_))) {
-                return Err(ProviderError::new(ErrorKind::Unavailable, "model is stopping"));
+                return Err(ProviderError::retryable(ErrorKind::Unavailable, "model is stopping"));
             }
             slots.insert(id.to_string(), Slot::Loading(stop.clone()));
         }
@@ -254,7 +254,7 @@ impl LocalEngines {
             if stopping {
                 self.slots.lock().expect("engine state mutex poisoned").remove(id);
             }
-            return Err(ProviderError::new(ErrorKind::Unavailable, "model loading was stopped"));
+            return Err(ProviderError::retryable(ErrorKind::Unavailable, "model loading was stopped"));
         }
         match loaded {
             Ok(slot) => {
@@ -270,7 +270,7 @@ impl LocalEngines {
                 let msg = error.to_string();
                 trace_log!(model = id, load_ms, error = %msg, "model load failed");
                 slots.insert(id.to_string(), Slot::Failed(msg.clone()));
-                Err(ProviderError::new(ErrorKind::Unavailable, msg))
+                Err(ProviderError::retryable(ErrorKind::Unavailable, msg))
             }
         }
     }
@@ -383,7 +383,9 @@ const CANCEL_POLL: Duration = Duration::from_millis(25);
 /// Output that used the whole token budget is cut off mid-text and would be typed as if it were complete.
 fn runtime_failure(error: RuntimeError) -> ProviderError {
     match error {
-        RuntimeError::Truncated => ProviderError::new(ErrorKind::BadResponse, "output was cut off at the token limit"),
+        RuntimeError::Truncated => {
+            ProviderError::retryable(ErrorKind::BadResponse, "output was cut off at the token limit")
+        }
         other => ProviderError::new(ErrorKind::Other, other.to_string()),
     }
 }
@@ -424,7 +426,7 @@ impl TextModel for LocalLlm {
             .map_err(runtime_failure)?;
         let text = text.trim().to_string();
         if text.is_empty() {
-            return Err(ProviderError::new(ErrorKind::BadResponse, "empty model output"));
+            return Err(ProviderError::retryable(ErrorKind::BadResponse, "empty model output"));
         }
         Ok(text)
     }
@@ -561,7 +563,18 @@ impl LocalBackend for LocalEngines {
 
 #[cfg(test)]
 mod tests {
-    use super::mapped_weights_bytes;
+    use super::{mapped_weights_bytes, runtime_failure};
+    use crate::runtime_error::RuntimeError;
+    use dito_core::error::ErrorKind;
+
+    #[test]
+    fn only_truncated_local_output_is_retryable() {
+        let truncated = runtime_failure(RuntimeError::Truncated);
+        assert_eq!(truncated.kind, ErrorKind::BadResponse);
+        assert!(truncated.is_retryable());
+        assert!(!runtime_failure(RuntimeError::Cancelled).is_retryable());
+        assert!(!runtime_failure(RuntimeError::Engine("failed".into())).is_retryable());
+    }
 
     #[test]
     fn mapped_weights_count_only_gguf_files() {
