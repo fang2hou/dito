@@ -19,7 +19,7 @@ pub fn history_tip(
     on: bool,
 ) -> AnyElement {
     let p = *p;
-    let reduced = dito_platform::system::reduce_motion();
+    let reduced = super::motion::reduce_motion();
     // Keep the disclosure clock alive even while its hint is hidden.
     let toggle_id = ElementId::from((id.clone(), "history-toggle"));
     let pop_id = ElementId::from((id, "history-tip"));

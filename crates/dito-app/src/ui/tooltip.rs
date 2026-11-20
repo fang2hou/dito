@@ -166,7 +166,7 @@ impl WindowTips {
             anchor.frame == frame && anchor.requested()
         });
         let now = Instant::now();
-        let reduced = dito_platform::system::reduce_motion();
+        let reduced = super::motion::reduce_motion();
         if let Some(target) = &target {
             let anchor = target.borrow();
             let width = (super::text_width(&anchor.label, 12., FontWeight::MEDIUM) + 21.)
@@ -280,7 +280,7 @@ pub fn tip_pop_with(p: &Palette, id: ElementId, label: SharedString, on: bool, b
 pub fn tip_pop(p: &Palette, id: ElementId, label: SharedString, on: bool) -> AnyElement {
     let scope = motion_scope();
     let p = *p;
-    let reduced = dito_platform::system::reduce_motion();
+    let reduced = super::motion::reduce_motion();
     let (bg, fg) = if p.dark { (p.side, white()) } else { (p.hud_bg, p.text) };
     tweened_at(scope, id, if on { 1. } else { 0. }, TIP_MS, move |v| {
         let v = 1. - (1. - v).powi(3);

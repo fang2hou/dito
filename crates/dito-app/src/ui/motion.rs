@@ -1,3 +1,15 @@
+use std::sync::OnceLock;
+
+static REDUCE_MOTION_SOURCE: OnceLock<fn() -> bool> = OnceLock::new();
+
+pub fn install_reduce_motion_source(source: fn() -> bool) {
+    let _ = REDUCE_MOTION_SOURCE.set(source);
+}
+
+pub(super) fn reduce_motion() -> bool {
+    REDUCE_MOTION_SOURCE.get().is_some_and(|source| source())
+}
+
 /// Follows the system's Reduce Motion setting.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Motion {
@@ -7,7 +19,7 @@ pub enum Motion {
 
 impl Motion {
     pub fn system() -> Self {
-        if dito_platform::system::reduce_motion() { Self::Reduced } else { Self::Full }
+        if reduce_motion() { Self::Reduced } else { Self::Full }
     }
 
     pub fn is_reduced(self) -> bool {
