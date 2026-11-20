@@ -49,6 +49,16 @@ What the app is for and what it does, from the user's side. How it looks and mov
 - Each session is one entry, like a memo: a title, the start time and length, and its paragraphs with time and speaker. Finished paragraphs are edited in place; an entry can be copied as text or deleted.
 - The voice activity model (Silero VAD, about 0.6 MB) is downloaded from the 発話検出 tab of the Models page, like every other model.
 
+## Chat
+
+- A chat page in the Tools window uses the selected text model and supports attaching files or completed meeting transcripts. It streams replies with Markdown, code and tables.
+- When the chat uses a separate local model, the conversation stays on the Mac. The README documents the chat as shipped (`README.md`, `Chat and Local API`).
+
+## Local API
+
+- An opt-in HTTP service listens only on the loopback address and exposes OpenAI-compatible chat and transcription endpoints for other apps on the Mac. It also exposes the MCP tools described in `docs/ARCHITECTURE.md`.
+- The Local API page shows an endpoint and connection token and requires the user to enable it explicitly. It is implemented under `crates/dito-core/src/local_api` and is traced to `design:tools/local-api` and `design:tools/mcp`.
+
 ## HUD
 
 - A small capsule above the Dock, or following the pointer. It never takes focus and stays above app windows. Only a command window with a text field takes the keyboard, and gives it back when it closes.
@@ -71,9 +81,11 @@ What the app is for and what it does, from the user's side. How it looks and mov
 
 The sidebar groups pages under 設定 (Settings) and 利用状況 (Activity). It shows a health dot (green when ready, red with the reason when a local model is stopped) and collapses to a rail in narrow windows.
 
+The Wordbook can find candidate terms in pasted text or in a Markdown, plain text, Word or PowerPoint file, and can generate a prompt for pasting into another AI that received a PDF or image Dito cannot read. It uses the selected text model and lets the user choose which candidates to add (`README.md`, `Wordbook`; `crates/dito-app/src/services/find_words.rs`).
+
 ## Models
 
-- Local speech recognition: Qwen3-ASR 1.7B (default, most accurate) and 0.6B, both with hotwords; SenseVoice Small (fastest). Optional downloads to compare: Confucius4-R2T2, Fun-ASR-MLT-Nano-2512, whisper-large-v3 and whisper-large-v3-turbo (all with hotwords), and Haas-ja v1.0.
+- Local speech recognition: Qwen3-ASR 1.7B (default, most accurate) and 0.6B, both with hotwords; SenseVoice Small (fastest); Nemotron 3.5 Transcribe 30B-A4B (Apple silicon only). Optional downloads to compare: Confucius4-R2T2, Fun-ASR-MLT-Nano-2512, whisper-large-v3 and whisper-large-v3-turbo (all with hotwords), and Haas-ja v1.0.
 - Local text processing: Qwen3.5 Instruct 2B, 4B, 9B (default), and Qwen3.8 27B.
 - Each local model lists from small to large and carries labels for its parameter count, quantization, language (speech models) and download size. Hovering a label explains it in everyday words (`design:settings/local-models/labels`).
 - 聞き比べる compares speech models on the user's own voice: the user picks up to five from downloaded local models and saved cloud configurations, each round records once and every chosen model transcribes it with its name hidden, the user marks results 良い or いまいち for as many rounds as they like, and ending shows a personal ranking with 使用する on the winner (`design:settings/compare-models`).
@@ -92,6 +104,8 @@ A waveform icon showing the engine status and today's character count, with shor
 ## Onboarding
 
 Shown on first launch and restartable from General, in seven steps: welcome, permissions (Microphone and Accessibility, plus System Audio Recording for transcription, which never blocks continuing), how to use (with a looping demo), recording shortcut, engine choice (local or provider), preparing the models or the connection, and trying a dictation. Steps slide forward and back; with Reduce Motion they cross-fade.
+
+The first-run onboarding can play an intro film over the welcome page. The film is skippable and does not move to the welcome page until it finishes or is skipped; its design and assets are traced to `22.10 Intro Film` (`design:onboarding`, `crates/dito-app/src/onboarding/intro.rs`).
 
 Local setup offers three model pairs (`design:onboarding`): Ultra fast uses SenseVoice Small and Qwen3.5-2B-Instruct; Balanced uses Qwen3-ASR-1.7B and Qwen3.5-9B-Instruct; High quality uses Qwen3-ASR-1.7B and Qwen3.8-27B. A new installation selects Balanced. Nothing downloads until requested. Once both models are downloaded, Continue starts the selected pair before the dictation trial. Existing saved model choices stay unchanged.
 
