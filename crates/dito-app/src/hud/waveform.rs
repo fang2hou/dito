@@ -5,7 +5,7 @@ use gpui_kit::*;
 use super::Scale;
 use super::buttons::BTN;
 use super::capsule::CAPSULE_PAD;
-use super::motion::EntryPose;
+use super::motion::{EntryPose, smooth};
 use crate::ui::{ease, lerp};
 
 #[derive(Clone, Copy)]
@@ -69,17 +69,55 @@ const PRESETS: [OceanPreset; 5] = [
 ];
 const SPARKLE_CURRENT: OceanPreset = PRESETS[4];
 
-#[derive(Clone, Copy)]
+/// The water's own gentle motion while the microphone level cannot be trusted yet: no buffer has arrived, or the noise
+/// floor is still being measured (`design:hud/listening-ocean`). It is drawn over the model and never read back by it.
+struct StartMotion {
+    /// The level the water is lifted to, well below quiet speech.
+    swell: f32,
+    /// How far a ripple pushes the water back and forth, in units of the ocean's phase.
+    sway: f32,
+    /// Ripple speed in radians per second.
+    speed: f32,
+    /// Columns of dots one ripple spans.
+    ripple_columns: f32,
+    /// How far the front row trails the back row, in radians.
+    row_lag: f32,
+    /// Seconds the motion takes to fade once the real level drives the water.
+    blend_out_s: f32,
+    /// It fades after this many seconds even without audio, so an input that stays silent does not look alive.
+    longest_s: f32,
+}
+
+const START_MOTION: StartMotion = StartMotion {
+    swell: 0.15,
+    sway: 1.4,
+    speed: 8.5,
+    ripple_columns: 28.,
+    row_lag: 1.6,
+    blend_out_s: 0.3,
+    longest_s: 1.2,
+};
+
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct OceanFrame {
     level: f32,
     cadence: f32,
     phase: f32,
+    /// How much of [`START_MOTION`] shows, from 1 down to 0, and the angle its ripple has reached.
+    start: f32,
+    start_turn: f32,
 }
 
 impl Default for OceanFrame {
     fn default() -> Self {
-        Self { level: 0., cadence: 0., phase: 3.5 }
+        Self { level: 0., cadence: 0., phase: 3.5, start: 0., start_turn: 0. }
     }
+}
+
+#[derive(Clone, Copy, Default)]
+struct StartClock {
+    age: f32,
+    fading: f32,
 }
 
 /// Between one and two 120 Hz frames, so the ceiling is 60 redraws a second and a late frame callback cannot push
@@ -98,10 +136,22 @@ pub(crate) struct Waveform {
     frame: OceanFrame,
     last_drawn: OceanFrame,
     since_drawn: f32,
+    /// `None` once the start motion has faded out.
+    start: Option<StartClock>,
 }
 
 impl Default for Waveform {
     fn default() -> Self {
+        Self {
+            frame: OceanFrame { start: 1., ..OceanFrame::default() },
+            start: Some(StartClock::default()),
+            ..Self::without_start_motion()
+        }
+    }
+}
+
+impl Waveform {
+    fn without_start_motion() -> Self {
         Self {
             calibration_left: 0.12,
             startup_min: f32::INFINITY,
@@ -112,17 +162,34 @@ impl Default for Waveform {
             frame: OceanFrame::default(),
             last_drawn: OceanFrame::default(),
             since_drawn: 0.,
+            start: None,
         }
     }
-}
 
-impl Waveform {
+    fn advance_start_motion(&mut self, dt: f32) {
+        let Some(clock) = &mut self.start else { return };
+        clock.age += dt;
+        if self.calibration_left <= 0. || clock.age >= START_MOTION.longest_s {
+            clock.fading += dt;
+        }
+        let strength = 1. - smooth(clock.fading / START_MOTION.blend_out_s);
+        if strength > 0. {
+            self.frame.start = strength;
+            self.frame.start_turn = clock.age * START_MOTION.speed;
+        } else {
+            self.frame.start = 0.;
+            self.frame.start_turn = 0.;
+            self.start = None;
+        }
+    }
+
     pub(crate) fn advance(&mut self, rms: f32, elapsed: f32) {
         let dt = elapsed.clamp(0., 0.05);
         if dt == 0. {
             return;
         }
         self.since_drawn += dt;
+        self.advance_start_motion(dt);
         let rms = if rms.is_finite() { rms.clamp(0., 1.) } else { 0. };
         if self.calibration_left > 0. {
             // Zero also means the recorder has yet to deliver its first buffer.
@@ -169,6 +236,10 @@ impl Waveform {
         self.frame
     }
 
+    pub(super) fn calibrated(&self) -> bool {
+        self.calibration_left <= 0.
+    }
+
     pub(super) fn needs_redraw(&mut self, reduced: bool) -> bool {
         // Speech moves the phase past the threshold on every display refresh, so high refresh rates need a ceiling.
         if self.since_drawn < MIN_REDRAW_S {
@@ -176,8 +247,9 @@ impl Waveform {
         }
         let frame = self.frame;
         let last = self.last_drawn;
+        let starting = frame.start > 0. || last.start > 0.;
         // Quiet drift needs about 30 frames per second. With reduced motion, redraw only for changes in ink.
-        if (!reduced && frame.phase - last.phase >= QUIET_PHASE_STEP)
+        if (!reduced && (starting || frame.phase - last.phase >= QUIET_PHASE_STEP))
             || (frame.level - last.level).abs() >= 0.02
             || (frame.level > 0.2 && (frame.cadence - last.cadence).abs() >= 0.08)
         {
@@ -189,7 +261,7 @@ impl Waveform {
     }
 
     pub(crate) fn demo(t: f32) -> OceanFrame {
-        let mut model = Self::default();
+        let mut model = Self::without_start_motion();
         let end = t.max(0.) % 4.;
         let mut time = 0.;
         while time < end {
@@ -257,7 +329,9 @@ pub(super) fn ocean(
         |_, _, _| (),
         move |bounds, _, window, _| {
             let p = SPARKLE_CURRENT;
-            let energy = frame.level.powf(0.72);
+            let start = if reduced { 0. } else { frame.start };
+            let sway = START_MOTION.sway * start;
+            let energy = frame.level.max(START_MOTION.swell * start).powf(0.72);
             let amplitude = 0.23 + 0.77 * energy;
             let fast = energy.powf(2.2) * (0.72 + 0.28 * frame.cadence);
             let travel = if reduced { 3.5 } else { frame.phase };
@@ -284,6 +358,14 @@ pub(super) fn ocean(
                     if u.abs() > col_limit {
                         continue;
                     }
+                    let travel = if sway > 0. {
+                        let ripple = frame.start_turn
+                            - u * std::f32::consts::TAU / START_MOTION.ripple_columns
+                            - depth * START_MOTION.row_lag;
+                        travel + sway * ripple.sin()
+                    } else {
+                        travel
+                    };
                     let slow = u - travel * 0.56;
                     let mid = u - travel * p.middle_speed;
                     let quick = u - travel * p.quick_speed;
@@ -393,7 +475,7 @@ pub(super) fn ocean(
 
 #[cfg(test)]
 mod tests {
-    use super::{Waveform, speech_sample};
+    use super::{START_MOTION, Waveform, speech_sample};
 
     #[test]
     fn delayed_microphone_start_keeps_room_noise_quiet() {
@@ -464,7 +546,7 @@ mod tests {
     #[test]
     fn late_frame_callbacks_do_not_skip_redraws() {
         for (rate, speech, expected) in [(60., true, 58..=60), (120., true, 58..=60), (60., false, 29..=30)] {
-            let mut ocean = Waveform::default();
+            let mut ocean = Waveform::without_start_motion();
             let ticks = rate as usize;
             for _ in 0..ticks {
                 ocean.advance(if speech { 0.025 } else { 0. }, 1. / rate);
@@ -482,9 +564,50 @@ mod tests {
     }
 
     #[test]
+    fn start_motion_shows_at_once_and_leaves_the_frames_of_real_audio_untouched() {
+        let ends_at = |input: fn(f32) -> f32| {
+            let (mut ocean, mut plain) = (Waveform::default(), Waveform::without_start_motion());
+            let (mut time, mut ended) = (0., None);
+            while time < 2. {
+                ocean.advance(input(time), 1. / 120.);
+                plain.advance(input(time), 1. / 120.);
+                time += 1. / 120.;
+                let (frame, reference) = (ocean.frame(), plain.frame());
+                assert_eq!(
+                    (frame.level, frame.cadence, frame.phase),
+                    (reference.level, reference.cadence, reference.phase)
+                );
+                if frame.start > 0. {
+                    assert!(ended.is_none(), "the start motion came back at {time} s");
+                } else {
+                    ended.get_or_insert(time);
+                    assert_eq!(frame, reference);
+                }
+            }
+            ended.expect("the start motion ends")
+        };
+        let after_calibration = 0.12 + START_MOTION.blend_out_s;
+        let without_audio = START_MOTION.longest_s + START_MOTION.blend_out_s;
+        assert!((ends_at(|_| 0.0015) - after_calibration).abs() < 0.02);
+        assert!((ends_at(|time| speech_sample(time + 0.35, 0.06)) - after_calibration).abs() < 0.02);
+        assert!((ends_at(|_| 0.) - without_audio).abs() < 0.02);
+        assert_eq!(Waveform::default().frame().start, 1.);
+        for (reduced, expected) in [(false, 30), (true, 0)] {
+            let mut ocean = Waveform::default();
+            let frames = (0..30)
+                .filter(|_| {
+                    ocean.advance(0., 1. / 60.);
+                    ocean.needs_redraw(reduced)
+                })
+                .count();
+            assert_eq!(frames, expected, "frames of the start motion with reduced motion {reduced}");
+        }
+    }
+
+    #[test]
     fn quiet_water_requests_fewer_frames_and_respects_reduced_motion() {
         for (reduced, expected) in [(false, 28..=31), (true, 0..=0)] {
-            let mut ocean = Waveform::default();
+            let mut ocean = Waveform::without_start_motion();
             let frames = (0..60)
                 .filter(|_| {
                     ocean.advance(0., 1. / 60.);

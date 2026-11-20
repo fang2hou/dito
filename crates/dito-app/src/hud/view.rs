@@ -28,6 +28,7 @@ pub(in crate::hud) use command::KeyStep;
 mod hit;
 mod language_chip;
 mod layout;
+mod opening;
 #[cfg(feature = "screenshots")]
 mod probe;
 #[cfg(feature = "screenshots")]
@@ -73,6 +74,8 @@ pub struct HudView {
     hover_btn: Option<&'static str>,
     /// Drives the pop-in; state changes do not replay it.
     opened: Instant,
+    /// The pop-in starts on the frame clock's first tick, just before the window's first presented frame is drawn.
+    entry_pending: bool,
     processing: Option<ProcessingMotion>,
     processing_pending: bool,
     displayed_fill: Fill,
@@ -86,6 +89,7 @@ pub struct HudView {
     motion: ui::MotionScope,
     waveform: Waveform,
     wave_tick: Instant,
+    opening: Option<opening::Opening>,
     /// A next-frame callback is pending, or a preview timer stands in for it. The clock parks once nothing moves and
     /// the next render arms it again, so whatever starts motion must notify the view.
     frame_clock_armed: bool,
@@ -135,6 +139,7 @@ impl HudView {
             leave: ui::Requests::default(),
             hover_btn: None,
             opened: Instant::now(),
+            entry_pending: true,
             processing: None,
             processing_pending: false,
             displayed_fill: Fill::default(),
@@ -144,6 +149,7 @@ impl HudView {
             motion: ui::MotionScope::new(),
             waveform: Waveform::default(),
             wave_tick: Instant::now(),
+            opening: opening::Opening::new(),
             frame_clock_armed: false,
             error_reason: super::motion::Spring::default(),
             error_tick: Instant::now(),
@@ -331,6 +337,12 @@ impl HudView {
     fn next_frame(window: &Window, view: WeakEntity<Self>) {
         window.on_next_frame(move |window, app| {
             let armed = view.update(app, |view, cx| {
+                if std::mem::take(&mut view.entry_pending) {
+                    // A window draws once while it opens and presents nothing until its first frame request, which
+                    // runs this callback and then draws again. Starting here keeps that wait out of the pop-in.
+                    tracing::debug!(waited = ?view.opened.elapsed(), "hud pop-in starts with the first shown frame");
+                    view.opened = Instant::now();
+                }
                 let advancing = view.advance_clock();
                 if advancing {
                     cx.notify();
