@@ -16,7 +16,7 @@ use dito_core::i18n::{Lang, Tr};
 use dito_core::secrets::{Role, text_account};
 use gpui_kit::*;
 
-use super::capture::{page_shot, resize_settings_window, theme_tag};
+use super::capture::{close_window, page_shot, resize_settings_window, theme_tag};
 use super::input::{click, drag_to, hover, on_settings_window, press, press_key, redraw, release};
 use crate::services;
 use crate::settings::{self, ModelsProbe, Page};
@@ -337,11 +337,20 @@ async fn scene(rig: &mut Rig<'_>, appearance: Appearance) {
 }
 
 async fn behavior(rig: &mut Rig<'_>, server: &str) {
+    // A new window builds a new page, which has read no key yet when it first shows a configuration.
+    if let Some((window, _)) = rig.cx.update(|cx| settings::handle(cx)) {
+        close_window(rig.cx, window);
+    }
     rig.start(Appearance::Light, DisplayLanguage::Ja, Some(staged(false)), (WIDTH, HEIGHT)).await;
     let st = rig.st.clone();
 
     let state = rig.probe();
     assert_eq!((state.shown.as_deref(), state.text("name").as_str()), (Some("compat"), "ふだん使い"));
+    assert_eq!(
+        state.text("key"),
+        "sk-demo-0123456789abcdef",
+        "the configuration shown on opening gets its key once the Keychain read lands"
+    );
     rig.click(tile(1, 0.));
     rig.wait(200).await;
     assert_eq!(saved(&st).selected, "azure");
