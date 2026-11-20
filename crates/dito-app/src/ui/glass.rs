@@ -138,22 +138,31 @@ pub fn prepare(title: &'static str, p: Palette) -> AnyElement {
     ).absolute().top_0().left_0().size_full().into_any_element()
 }
 
-pub fn surface() -> AnyElement {
+/// The glass of a card or card slice: rounded and inset by the border only on the edges the slice has.
+pub(super) fn surface(top: bool, bottom: bool) -> AnyElement {
+    let radius = |edge: bool| if edge { px(15.) } else { px(0.) };
+    let corners = Corners {
+        top_left: radius(top),
+        top_right: radius(top),
+        bottom_right: radius(bottom),
+        bottom_left: radius(bottom),
+    };
     canvas(
         |_, _, _| (),
-        |bounds, _, window, _| {
+        move |bounds, _, window, _| {
             BACKDROPS.with(|cache| {
                 if let Some(backdrop) = cache.borrow().get(&window.window_handle().window_id()) {
                     // The card hides the sharp backdrop; composite only its blurred sample here.
                     // The transparent texture edges avoid seams as the sampling region scrolls.
-                    window
-                        .paint_image(bounds, backdrop.bounds, Corners::all(px(15.)), backdrop.image.clone(), 0, false)
-                        .ok();
+                    window.paint_image(bounds, backdrop.bounds, corners, backdrop.image.clone(), 0, false).ok();
                 }
             })
         },
     )
     .absolute()
-    .inset(px(1.))
+    .left(px(1.))
+    .right(px(1.))
+    .top(if top { px(1.) } else { px(0.) })
+    .bottom(if bottom { px(1.) } else { px(0.) })
     .into_any_element()
 }

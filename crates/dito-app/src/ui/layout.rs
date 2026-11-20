@@ -8,16 +8,29 @@ use crate::assets::Ic;
 use crate::theme::{Palette, Tint};
 
 pub fn card(p: &Palette) -> Div {
+    card_segment(p, true, true)
+}
+
+/// One slice of a card cut into list items: only the first slice has the top edge and corners, only the last the
+/// bottom ones, and the glass follows the same edges so stacked slices composite as one card.
+pub fn card_segment(p: &Palette, first: bool, last: bool) -> Div {
+    let top = if first { px(16.) } else { px(0.) };
+    let bottom = if last { px(16.) } else { px(0.) };
     div()
         .w_full()
         .relative()
         .flex()
         .flex_col()
-        .rounded(px(16.))
+        .rounded_tl(top)
+        .rounded_tr(top)
+        .rounded_bl(bottom)
+        .rounded_br(bottom)
         .bg(p.card)
-        .border_1()
+        .border_x_1()
+        .border_t(if first { px(1.) } else { px(0.) })
+        .border_b(if last { px(1.) } else { px(0.) })
         .border_color(p.border)
-        .child(super::glass::surface())
+        .child(super::glass::surface(first, last))
 }
 
 pub fn row(p: &Palette, title: impl Into<SharedString>, control: impl IntoElement, last: bool) -> Div {

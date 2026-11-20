@@ -157,15 +157,7 @@ impl HistoryPage {
                 .into_any_element(),
             HistoryItem::Row { index, first, last } => {
                 let row = self.row(c, cx, &snapshot.rows[*index], *last, window);
-                let card = ui::card(&c.p)
-                    .rounded_tl(px(if *first { 16. } else { 0. }))
-                    .rounded_tr(px(if *first { 16. } else { 0. }))
-                    .rounded_bl(px(if *last { 16. } else { 0. }))
-                    .rounded_br(px(if *last { 16. } else { 0. }))
-                    .border_t(if *first { px(1.) } else { px(0.) })
-                    .border_b(if *last { px(1.) } else { px(0.) })
-                    .child(row);
-                card.into_any_element()
+                ui::card_segment(&c.p, *first, *last).child(row).into_any_element()
             }
         }
     }
