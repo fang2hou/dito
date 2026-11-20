@@ -1,10 +1,10 @@
-use std::cell::RefCell;
+use std::sync::Arc;
 
 use dito_core::i18n::Tr;
-use dito_core::store::HistoryEntry;
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
+use super::day_list::{HistoryRow, HistorySnapshot};
 use super::page::{HistoryPage, RowFocus};
 use super::row::expandable;
 use super::skeleton::skeleton_column;
@@ -22,11 +22,13 @@ impl HistoryPage {
             self.placeholder_lang = c.lang;
             self.search.update(cx, |s, cx| s.set_placeholder(c.t(Tr::HistorySearch), window, cx));
         }
-        // Handle clone (one Arc), not a copy of every row: the snapshot is swapped wholesale by
+        // Handle clone (one Arc), not a copy of every row: the render snapshot is swapped wholesale by
         // `loaded`; render never touches the database.
         let snapshot = self.list.data.clone();
-        let entries: &[HistoryEntry] = if self.skeleton { &[] } else { &snapshot };
-        self.track_row_focus(&snapshot, entries, window, cx);
+        if self.focus_listed.as_ref().is_none_or(|old| !Arc::ptr_eq(old, &snapshot)) {
+            self.track_row_focus(&snapshot.rows, window, cx);
+            self.focus_listed = Some(snapshot.clone());
+        }
 
         let toolbar = self.toolbar(&c, cx);
         let actions = ui::button(
@@ -47,8 +49,7 @@ impl HistoryPage {
                 div().w_full().flex().flex_col().gap(px(24.)).child(toolbar).child(skeleton_column(&p)),
             );
         }
-        let items = self.day_items(&c, cx, entries, window);
-        let list = self.virtual_list(items, entries);
+        let list = self.virtual_list(snapshot, &c, cx);
         page_fill(
             p,
             "history",
@@ -66,14 +67,8 @@ impl HistoryPage {
         )
     }
 
-    fn track_row_focus(
-        &mut self,
-        snapshot: &[HistoryEntry],
-        entries: &[HistoryEntry],
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        self.row_focus.retain(|id, _| snapshot.iter().any(|e| e.id == *id && expandable(e)));
+    fn track_row_focus(&mut self, entries: &[HistoryRow], window: &mut Window, cx: &mut Context<Self>) {
+        self.row_focus.retain(|id, _| entries.iter().any(|e| e.id == *id && expandable(e)));
         for e in entries.iter().filter(|e| expandable(e)) {
             self.row_focus.entry(e.id).or_insert_with(|| {
                 let handle = cx.focus_handle().tab_stop(true);
@@ -83,25 +78,58 @@ impl HistoryPage {
         }
     }
 
-    /// The virtualized list over `items`. The slot hands each element out exactly once per frame.
-    fn virtual_list(&mut self, items: Vec<Option<AnyElement>>, entries: &[HistoryEntry]) -> AnyElement {
-        if self.hovered_original.is_some_and(|id| !entries.iter().any(|e| e.id == id && expandable(e))) {
+    fn virtual_list(&mut self, snapshot: Arc<HistorySnapshot>, c: &Ctx, cx: &mut Context<Self>) -> AnyElement {
+        let changed = self.listed.as_ref().is_none_or(|old| !Arc::ptr_eq(old, &snapshot));
+        if changed && self.hovered_original.is_some_and(|id| !snapshot.rows.iter().any(|e| e.id == id && expandable(e)))
+        {
             self.hovered_original = None;
         }
-        let n = items.len();
-        if n != self.listed {
-            self.listed = n;
-            self.list_state.reset(n);
+        if changed {
+            self.sync_list_state(snapshot.as_ref());
+            self.listed = Some(snapshot.clone());
         }
-        let items = RefCell::new(items);
-        list(self.list_state.clone(), move |ix, _, _| {
-            items.borrow_mut().get_mut(ix).and_then(|slot| slot.take()).unwrap_or_else(|| {
-                div().h(px(80.)).into_any_element() // fallback: state counted an item we dropped
-            })
-        })
-        .flex_1()
-        .min_h(px(0.))
-        .into_any_element()
+        let p = c.p;
+        let lang = c.lang;
+        let build = cx.processor(move |this, index: usize, window, cx| {
+            this.day_item(&Ctx { p, lang }, cx, &snapshot, index, window)
+        });
+        list(self.list_state.clone(), build).flex_1().min_h(px(0.)).into_any_element()
+    }
+
+    fn sync_list_state(&mut self, next: &HistorySnapshot) {
+        let Some(previous) = self.listed.as_deref() else {
+            self.list_state.reset(next.items.len());
+            return;
+        };
+        let old_len = previous.items.len();
+        let new_len = next.items.len();
+        let prefix = (0..old_len.min(new_len))
+            .take_while(|&index| previous.item_identity(index) == next.item_identity(index))
+            .count();
+        let mut suffix = 0;
+        while suffix < old_len - prefix
+            && suffix < new_len - prefix
+            && previous.item_identity(old_len - suffix - 1) == next.item_identity(new_len - suffix - 1)
+        {
+            suffix += 1;
+        }
+        let old_end = old_len - suffix;
+        let new_end = new_len - suffix;
+        if prefix != old_end || prefix != new_end {
+            self.list_state.splice(prefix..old_end, new_end - prefix);
+        }
+        for index in 0..prefix {
+            if !previous.item_eq(index, next, index) {
+                self.list_state.remeasure_items(index..index + 1);
+            }
+        }
+        for offset in 0..suffix {
+            let old_index = old_end + offset;
+            let new_index = new_end + offset;
+            if !previous.item_eq(old_index, next, new_index) {
+                self.list_state.remeasure_items(new_index..new_index + 1);
+            }
+        }
     }
 
     /// Pure background (no id, no listeners), never hit-tested. The positioning context is the list viewport only, so

@@ -56,6 +56,9 @@ impl HistoryPage {
         if !self.expanded.remove(&id) {
             self.expanded.insert(id);
         }
+        if let Some(index) = self.list.data.item_index(id) {
+            self.list_state.remeasure_items(index..index + 1);
+        }
         cx.notify();
     }
 

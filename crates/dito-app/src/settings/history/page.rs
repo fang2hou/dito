@@ -8,6 +8,7 @@ use dito_core::store::{HistoryEntry, HistoryFilter};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
+use super::day_list::HistorySnapshot;
 use crate::services;
 use crate::settings::page_query::{PageQuery, QueryPage};
 use crate::settings::query_state::SkeletonGate;
@@ -39,11 +40,12 @@ pub struct HistoryPage {
     pub(super) menu: Option<i64>,
     pub(super) expanded: HashSet<i64>,
     pub(super) row_focus: HashMap<i64, RowFocus>,
+    pub(super) focus_listed: Option<Arc<HistorySnapshot>>,
     pub(super) hovered_original: Option<i64>,
     pub(super) busy: HashSet<i64>,
-    /// Owned list snapshot, never read from the database in render. Shared as a handle so a
+    /// Owned render snapshot, never read from the database in render. Shared as a handle so a
     /// render clones one Arc, not 500 rows of strings.
-    pub(super) list: PageQuery<Arc<Vec<HistoryEntry>>>,
+    pub(super) list: PageQuery<Arc<HistorySnapshot>>,
     /// Distinguishes the poll task of the current activation from earlier, exited ones.
     pub(super) poll_epoch: u64,
     /// Replacing it cancels the previous loop.
@@ -57,14 +59,14 @@ pub struct HistoryPage {
     /// swaps in once the plate has settled.
     pub(super) skeleton: bool,
     pub(super) gate: SkeletonGate,
-    /// Held here so scrolling survives re-renders. `listed` tracks the item count last given to the state.
+    /// Held here so scrolling survives re-renders. `listed` is the snapshot last synchronized with the state.
     pub(super) list_state: ListState,
-    pub(super) listed: usize,
+    pub(super) listed: Option<Arc<HistorySnapshot>>,
     pub(super) motion: ui::MotionScope,
 }
 
 impl QueryPage for HistoryPage {
-    type Data = Arc<Vec<HistoryEntry>>;
+    type Data = Arc<HistorySnapshot>;
 
     fn page_query(&mut self) -> &mut PageQuery<Self::Data> {
         &mut self.list
@@ -72,7 +74,12 @@ impl QueryPage for HistoryPage {
 
     fn fetch(&self) -> impl Future<Output = anyhow::Result<Self::Data>> + 'static {
         let list = services::history_list(self.st.clone(), self.filter());
-        async move { list.await.map(Arc::new) }
+        let cfg = self.st.cfg.get();
+        let lang = cfg.general.lang();
+        let prompts = cfg.prompts.clone();
+        let off = dito_platform::local_utc_offset_secs();
+        let today = local_day(now(), off);
+        async move { list.await.map(|entries| Arc::new(HistorySnapshot::new(entries, lang, &prompts, off, today))) }
     }
 
     fn applied(&mut self, cx: &mut Context<Self>) {
@@ -97,7 +104,10 @@ impl HistoryPage {
             this.changed(cx);
             cx.notify();
         });
-        let lang = st.cfg.get().general.lang();
+        let cfg = st.cfg.get();
+        let lang = cfg.general.lang();
+        let off = dito_platform::local_utc_offset_secs();
+        let empty = HistorySnapshot::new(Vec::new(), lang, &cfg.prompts, off, local_day(now(), off));
         let search = cx.new(|cx| InputState::new(window, cx).placeholder(lang.tr(Tr::HistorySearch)));
         ui::notify_on_focus(&search, window, cx);
         cx.subscribe_in(&search, window, |this: &mut Self, state, ev: &InputEvent, _, cx| {
@@ -119,9 +129,10 @@ impl HistoryPage {
             menu: None,
             expanded: HashSet::new(),
             row_focus: HashMap::new(),
+            focus_listed: None,
             hovered_original: None,
             busy: HashSet::new(),
-            list: PageQuery::new("history list", Arc::new(Vec::new())),
+            list: PageQuery::new("history list", Arc::new(empty)),
             poll_epoch: 0,
             _poll: None,
             last_seen_id: 0,
@@ -129,7 +140,7 @@ impl HistoryPage {
             skeleton: true,
             gate: SkeletonGate::new(),
             list_state: ListState::new(0, ListAlignment::Top, px(600.)),
-            listed: 0,
+            listed: None,
         };
         // The list scrolls inside its own element without re-running this view, so the edge
         // fade overlays would freeze at their first value. Nudge the entity on scroll — weakly:
@@ -232,7 +243,9 @@ impl HistoryPage {
         match probe {
             Ok(entries) => {
                 let newest = entries.first().map(|e| e.id).unwrap_or(0);
-                if newest != self.last_seen_id {
+                // Past midnight the headings and the Today period name the wrong day until the list is fetched again.
+                let today = local_day(now(), dito_platform::local_utc_offset_secs());
+                if newest != self.last_seen_id || today != self.list.data.today {
                     self.last_seen_id = newest;
                     self.load(cx);
                 }
