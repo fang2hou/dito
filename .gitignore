@@ -1,3 +1,10 @@
 /target
 .DS_Store
 *.log
+__pycache__/
+.venv/
+.env
+.env.*
+/undefined/
+film-work/
+film-out/

@@ -34,7 +34,7 @@ Releasing:
 1. Branch from `main` as `<type>/<kebab-name>`.
 2. Implement; the commit hooks run the checks, and `mise run lint` covers everything at once.
 3. Commit with Conventional Commits in English, for example `feat(hud): pop the language selector like a tooltip` or `fix(onboarding): put the caret before the placeholder`.
-4. Open a pull request into `main` with a Conventional Commit title. `main` is protected; a person reviews and merges.
+4. Open a pull request into `main` with a Conventional Commit title, using the repository pull request template. `main` is protected; a person reviews and merges.
 
 ## Checks
 
