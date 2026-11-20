@@ -5,7 +5,7 @@
 
 ## Context
 
-`crates/dito-app/src/ui` holds the controls, motion, typography and color tokens that every window is built from: about 6,800 lines in 48 files, used by 134 of the app's other source files. They follow the design file closely and took long to tune, and nothing in them is specific to dictation. The module still reaches into the app in four places (the palette, the icon set, the UI language for typefaces, and the Reduce Motion reading), and shared controls keep appearing inside single screens (the slider, the scroll edge fade, the loading skeleton, the Markdown renderer) because nothing marks where the kit ends.
+`crates/dito-ui/src` holds the controls, motion, typography and color tokens that every window is built from: about 6,800 lines in 48 files, used by 134 of the app's other source files. `crates/dito-app/src/ui` is the app-facing facade and contains the app-bound controls. They follow the design file closely and took long to tune, and nothing in them is specific to dictation. The module still reaches into the app in four places (the palette, the icon set, the UI language for typefaces, and the Reduce Motion reading), and shared controls keep appearing inside single screens (the slider, the scroll edge fade, the loading skeleton, the Markdown renderer) because nothing marks where the kit ends.
 
 ## Decision
 
@@ -53,4 +53,4 @@ A second program wants the kit; the kit's API has been stable for some weeks; Fi
 
 ## Code
 
-`crates/dito-app/src/ui/`, `crates/dito-app/src/theme.rs`, `crates/dito-app/src/assets.rs`.
+`crates/dito-ui/src/`, `crates/dito-app/src/ui/`, `crates/dito-app/src/theme.rs`, `crates/dito-app/src/assets.rs`.

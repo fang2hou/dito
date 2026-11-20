@@ -20,7 +20,7 @@ tempfile.workspace = true
 default = ["runtimes"]
 runtimes = ["dep:dito-runtimes"]
 mock = ["dep:dito-testkit"]
-screenshots = ["mock", "gpui-kit/test-support", "dep:image"]
+screenshots = ["mock", "gpui-kit/test-support", "dito-ui/screenshots", "dep:image"]
 
 [dependencies]
 serde_json.workspace = true
@@ -30,8 +30,8 @@ dito-local = { path = "../dito-local" }
 dito-platform = { path = "../dito-platform" }
 dito-runtimes = { path = "../dito-runtimes", optional = true }
 dito-testkit = { path = "../dito-testkit", optional = true }
-gpui-kit = "0.10"
-ttf-parser = "0.25"
+dito-ui = { path = "../dito-ui" }
+gpui-kit.workspace = true
 raw-window-handle = "0.6"
 pulldown-cmark = { version = "0.13", default-features = false }
 anyhow.workspace = true

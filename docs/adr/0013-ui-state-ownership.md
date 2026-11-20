@@ -54,4 +54,4 @@ GPUI provides element-owned animation state or async data primitives.
 
 ## Code
 
-`crates/dito-app/src/ui/scope.rs`, `crates/dito-app/src/settings/query_state.rs`, `crates/dito-app/src/settings/page_query.rs`, `crates/dito-app/src/services/`.
+`crates/dito-ui/src/scope.rs`, `crates/dito-app/src/settings/query_state.rs`, `crates/dito-app/src/settings/page_query.rs`, `crates/dito-app/src/services/`.

@@ -4,7 +4,7 @@ use gpui_kit::prelude::*;
 use gpui_kit::*;
 
 use super::format::error_line;
-use super::typography::text;
+use super::text;
 use crate::theme::Palette;
 
 #[derive(Clone, Debug, PartialEq)]

@@ -8,7 +8,7 @@ pub fn set_ui_language(lang: Lang) {
         Lang::Mn => ("M PLUS 1p", "Helvetica Neue"),
         Lang::Ja | Lang::En | Lang::Fr => ("M PLUS 1p", "M PLUS 1p"),
     };
-    super::typography::set_ui_families(cjk, primary);
+    super::set_ui_families(cjk, primary);
 }
 
 #[cfg(test)]

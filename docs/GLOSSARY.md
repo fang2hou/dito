@@ -99,4 +99,5 @@ Code, docs, and skills name a design section as `design:<id>` (for example `desi
 | History, wordbook, stats, transcripts, chats | `dito-core` (`store`) | [8](adr/0008-data-stays-local.md) |
 | Meeting transcription, chat, Local API | `dito-core` (`transcription`, `chat`, `local_api`), `dito-app` (`tools`) | [6](adr/0006-minimal-permissions.md), [8](adr/0008-data-stays-local.md), [13](adr/0013-ui-state-ownership.md) |
 | UI copy | `dito-core` (`i18n/messages.toml`) | [11](adr/0011-japanese-first.md) |
-| HUD, settings, Tools window, onboarding | `dito-app` | [4](adr/0004-hud-out-of-the-way.md), [13](adr/0013-ui-state-ownership.md), [14](adr/0014-silent-launch.md) |
+| Shared controls, motion, typography, color tokens | `dito-ui` (`crates/dito-ui/src`) | [13](adr/0013-ui-state-ownership.md), [16](adr/0016-ui-kit-crate.md) |
+| App-bound UI, HUD, settings, Tools window, onboarding | `dito-app` (`crates/dito-app/src/ui` for app-bound controls) | [4](adr/0004-hud-out-of-the-way.md), [13](adr/0013-ui-state-ownership.md), [14](adr/0014-silent-launch.md) |
