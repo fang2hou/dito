@@ -5,8 +5,6 @@ mod dock;
 mod hotkeys;
 mod hud;
 mod logbook;
-mod mac_focus_warmer;
-mod mac_selection;
 mod menubar;
 mod onboarding;
 mod opts;

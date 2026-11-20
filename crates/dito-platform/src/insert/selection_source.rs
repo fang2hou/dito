@@ -3,7 +3,8 @@ use std::sync::Arc;
 use dito_core::config::InsertMethod;
 use dito_core::controller::{CapturedSelection, Delivery, SelectionSource};
 use dito_core::surrounding::Surrounding;
-use dito_platform::Selection;
+
+use super::selection::{Selection, capture_selection};
 
 /// Reads the selection and the text of the focused field of the app in front through Accessibility when a command
 /// starts.
@@ -11,8 +12,7 @@ pub struct MacSelection;
 
 impl SelectionSource for MacSelection {
     fn capture(&self) -> Option<Arc<dyn CapturedSelection>> {
-        dito_platform::capture_selection()
-            .map(|selection| Arc::new(Captured::new(selection)) as Arc<dyn CapturedSelection>)
+        capture_selection().map(|selection| Arc::new(Captured::new(selection)) as Arc<dyn CapturedSelection>)
     }
 }
 

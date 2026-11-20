@@ -31,10 +31,9 @@ use crate::dev::synthetic_recorder::SyntheticRecorder;
 use crate::dev::wav_recorder::WavRecorder;
 use crate::hotkeys::Hotkeys;
 use crate::logbook::LogBook;
-use crate::mac_focus_warmer::MacFocusWarmer;
-use crate::mac_selection::MacSelection;
 use crate::opts::Opts;
 use crate::services::InstalledCatalog;
+use dito_platform::{MacFocusWarmer, MacSelection};
 
 pub struct AppState {
     pub opts: Opts,
