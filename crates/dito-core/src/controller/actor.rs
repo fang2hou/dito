@@ -153,7 +153,7 @@ fn now() -> i64 {
 }
 
 /// Wordbook words are a hint only: without them the dictation still runs.
-async fn load_wordbook(store: Arc<Store>) -> Vec<String> {
+pub(crate) async fn load_wordbook(store: Arc<Store>) -> Vec<String> {
     let loaded = tokio::task::spawn_blocking(move || store.words(None))
         .await
         .map_err(|e| e.to_string())
