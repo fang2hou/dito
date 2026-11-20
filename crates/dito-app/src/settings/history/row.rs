@@ -1,16 +1,16 @@
 use dito_core::i18n::{Lang, Tr};
 use dito_core::intent::Intent;
-use dito_core::store::{CommandOutcome, HistoryEntry, HistoryKind};
+use dito_core::store::{CommandOutcome, HistoryKind};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
+use super::day_list::HistoryRow;
 use super::disclosure::Disclosure;
 use super::page::HistoryPage;
 use crate::assets::Ic;
 use crate::services;
 use crate::settings::Ctx;
 use crate::theme::Tint;
-use crate::timefmt::hhmm;
 use crate::ui::{self, BtnKind, Cb, MenuItem, MenuTone, cbk, text};
 
 /// Width of the label column in a command's disclosure.
@@ -25,7 +25,7 @@ struct RowParts {
 }
 
 impl HistoryPage {
-    pub(super) fn menu_for(&self, c: &Ctx, cx: &mut Context<Self>, e: &HistoryEntry) -> Div {
+    pub(super) fn menu_for(&self, c: &Ctx, cx: &mut Context<Self>, e: &HistoryRow) -> Div {
         let id = e.id;
         let close: Cb = cbk(cx, |this: &mut Self, _, cx| {
             this.menu = None;
@@ -65,7 +65,7 @@ impl HistoryPage {
                 icon: Some(Ic::Play),
                 label: c.t(Tr::HistoryPlayAudio),
                 tone: MenuTone::Default,
-                on_click: wrap(cx, Box::new(move |t, _| t.st.player.play(std::path::Path::new(&path)))),
+                on_click: wrap(cx, Box::new(move |t, _| t.st.player.play(std::path::Path::new(path.as_str())))),
             });
         }
         items.push(MenuItem {
@@ -74,21 +74,13 @@ impl HistoryPage {
             tone: MenuTone::Danger,
             on_click: wrap(cx, Box::new(move |t, cx| t.delete(id, cx))),
         });
-        ui::popup_menu(SharedString::from(format!("hist-menu-{id}")), &c.p, items, close)
+        ui::popup_menu(ElementId::from(("hist-menu", id as u64)), &c.p, items, close)
     }
 
-    pub(super) fn row(
-        &self,
-        c: &Ctx,
-        cx: &mut Context<Self>,
-        e: &HistoryEntry,
-        off: i32,
-        last: bool,
-        window: &Window,
-    ) -> Div {
+    pub(super) fn row(&self, c: &Ctx, cx: &mut Context<Self>, e: &HistoryRow, last: bool, window: &Window) -> Div {
         let p = &c.p;
         let id = e.id;
-        let RowParts { meta, body, actions } = self.kind_parts(c, cx, e, off);
+        let RowParts { meta, body, actions } = self.kind_parts(c, cx, e);
         let actions = actions.child(self.more_control(c, cx, e));
 
         let body_id = ElementId::from(("hist-body", id as usize));
@@ -112,12 +104,12 @@ impl HistoryPage {
         row
     }
 
-    fn kind_parts(&self, c: &Ctx, cx: &mut Context<Self>, e: &HistoryEntry, off: i32) -> RowParts {
+    fn kind_parts(&self, c: &Ctx, cx: &mut Context<Self>, e: &HistoryRow) -> RowParts {
         let p = &c.p;
         let meta = div().flex().items_center().gap(px(10.)).child(
             // Fixed-width slot: times are always 00:00-shaped but the font is proportional, so
             // without this the tag after it starts at a different x on every row.
-            div().w(px(38.)).flex_none().child(text(hhmm(e.ts, off), 13., FontWeight::NORMAL, p.muted)),
+            div().w(px(38.)).flex_none().child(text(e.time.clone(), 13., FontWeight::NORMAL, p.muted)),
         );
         let body = div().w_full().flex().flex_col().gap(px(10.));
         let actions = div().flex().items_center().gap(px(8.)).flex_none();
@@ -132,43 +124,42 @@ impl HistoryPage {
 
     /// The result, with the instruction and the text it worked on in the same disclosure a dictation uses for its
     /// original text. A run that ended without a result shows its error, if it has one.
-    fn command_parts(&self, c: &Ctx, cx: &mut Context<Self>, e: &HistoryEntry, parts: RowParts) -> RowParts {
+    fn command_parts(&self, c: &Ctx, cx: &mut Context<Self>, e: &HistoryRow, parts: RowParts) -> RowParts {
         let p = &c.p;
         let id = e.id;
         let RowParts { mut meta, mut body, mut actions } = parts;
-        let details = e.command.as_ref();
         meta = meta.child(ui::tag(p, c.t(Tr::HistoryCommand), Tint::Command));
-        if let Some(tool) = details.and_then(|details| details.tool) {
+        if let Some(tool) = e.command_tool {
             meta = meta.child(ui::tag(p, intent_label(c.lang, tool), Tint::Neutral));
         }
-        match details.map(|details| details.outcome) {
+        match e.command_outcome {
             Some(CommandOutcome::Failed) => meta = meta.child(ui::tag(p, c.t(Tr::ModelsFailed), Tint::Danger)),
             Some(CommandOutcome::Cancelled) => meta = meta.child(ui::tag(p, c.t(Tr::ModelsCancel), Tint::Warning)),
             _ => {}
         }
-        match (&e.polished, &e.error) {
+        match (&e.result, &e.error) {
             (Some(result), _) => {
                 body = body.child(text(result.clone(), 14., FontWeight::NORMAL, p.text).line_height(relative(1.6)));
             }
             (None, Some(error)) => {
-                body = body.child(text(ui::error_line(c.lang, error), 14., FontWeight::NORMAL, p.muted));
+                body = body.child(text(error.clone(), 14., FontWeight::NORMAL, p.muted));
             }
             (None, None) => {}
         }
         if expandable(e) {
             let mut lines = Vec::new();
             if !e.raw.trim().is_empty() {
-                lines.push((c.t(Tr::HistoryInstruction), SharedString::from(e.raw.clone())));
+                lines.push((c.t(Tr::HistoryInstruction), e.raw.clone()));
             }
             if let Some(source) = e.source.as_ref().filter(|source| !source.trim().is_empty()) {
-                lines.push((c.t(Tr::HistoryOriginal), SharedString::from(source.clone())));
+                lines.push((c.t(Tr::HistoryOriginal), source.clone()));
             }
             let (open, p) = (self.expanded.contains(&id), *p);
             body = body.gap(px(0.)).child(Disclosure { id, lines, min_label_width: COMMAND_LABEL_WIDTH, p, open });
         }
-        if let Some(result) = e.polished.clone() {
+        if let Some(result) = e.result.clone() {
             actions = actions.child(ui::copy_button(
-                SharedString::from(format!("copy-{id}")),
+                ElementId::from(("copy", id as u64)),
                 p,
                 ui::cbk_copy(cx, move |this: &mut Self, _, _| this.copy(&result)),
             ));
@@ -176,32 +167,31 @@ impl HistoryPage {
         RowParts { meta, body, actions }
     }
 
-    fn dictation_parts(&self, c: &Ctx, cx: &mut Context<Self>, e: &HistoryEntry, parts: RowParts) -> RowParts {
+    fn dictation_parts(&self, c: &Ctx, cx: &mut Context<Self>, e: &HistoryRow, parts: RowParts) -> RowParts {
         let p = &c.p;
         let id = e.id;
         let RowParts { mut meta, mut body, mut actions } = parts;
-        let cfg = self.st.cfg.get();
-        meta = meta.child(ui::tag(p, ui::history_target_label(c.lang, &cfg.prompts, &e.style, &e.app), Tint::Blue));
-        body = body.child(text(e.final_text().to_string(), 14., FontWeight::NORMAL, p.text).line_height(relative(1.6)));
+        meta = meta.child(ui::tag(p, e.target.clone(), Tint::Blue));
+        body = body.child(text(e.final_text.clone(), 14., FontWeight::NORMAL, p.text).line_height(relative(1.6)));
         if expandable(e) {
-            let lines = vec![(c.t(Tr::HistoryOriginal), SharedString::from(e.raw.clone()))];
+            let lines = vec![(c.t(Tr::HistoryOriginal), e.raw.clone())];
             let (p, open) = (*p, self.expanded.contains(&id));
             body = body.gap(px(0.)).child(Disclosure { id, lines, min_label_width: 0., p, open });
         }
-        let t = e.final_text().to_string();
+        let t = e.final_text.clone();
         actions = actions.child(ui::copy_button(
-            SharedString::from(format!("copy-{id}")),
+            ElementId::from(("copy", id as u64)),
             p,
             ui::cbk_copy(cx, move |this: &mut Self, _, _| this.copy(&t)),
         ));
         RowParts { meta, body, actions }
     }
 
-    fn cancelled_parts(&self, c: &Ctx, cx: &mut Context<Self>, e: &HistoryEntry, parts: RowParts) -> RowParts {
+    fn cancelled_parts(&self, c: &Ctx, cx: &mut Context<Self>, e: &HistoryRow, parts: RowParts) -> RowParts {
         let p = &c.p;
         let RowParts { mut meta, mut body, mut actions } = parts;
         meta = meta.child(ui::tag(p, c.t(Tr::ModelsCancel), Tint::Warning)).child(text(
-            format!("{}:{:02}", e.duration_ms / 60_000, e.duration_ms / 1000 % 60),
+            e.duration.clone(),
             12.,
             FontWeight::NORMAL,
             p.muted,
@@ -211,16 +201,11 @@ impl HistoryPage {
         RowParts { meta, body, actions }
     }
 
-    fn failed_parts(&self, c: &Ctx, cx: &mut Context<Self>, e: &HistoryEntry, parts: RowParts) -> RowParts {
+    fn failed_parts(&self, c: &Ctx, cx: &mut Context<Self>, e: &HistoryRow, parts: RowParts) -> RowParts {
         let p = &c.p;
         let RowParts { mut meta, mut body, mut actions } = parts;
         meta = meta.child(ui::tag(p, c.t(Tr::ModelsFailed), Tint::Danger));
-        body = body.child(text(
-            ui::error_line(c.lang, e.error.as_deref().unwrap_or_default()),
-            14.,
-            FontWeight::NORMAL,
-            p.muted,
-        ));
+        body = body.child(text(e.error.clone().unwrap_or_default(), 14., FontWeight::NORMAL, p.muted));
         actions = actions.child(self.retry_button(c, cx, e.id, c.t(Tr::HistoryRetry), Ic::Refresh));
         RowParts { meta, body, actions }
     }
@@ -231,7 +216,7 @@ impl HistoryPage {
             return text(c.t(Tr::MenubarWorking), 13., FontWeight::NORMAL, p.muted).into_any_element();
         }
         ui::button(
-            SharedString::from(format!("retry-{id}")),
+            ElementId::from(("retry", id as u64)),
             p,
             &label,
             BtnKind::Secondary,
@@ -241,12 +226,12 @@ impl HistoryPage {
         .into_any_element()
     }
 
-    fn more_control(&self, c: &Ctx, cx: &mut Context<Self>, e: &HistoryEntry) -> Stateful<Div> {
+    fn more_control(&self, c: &Ctx, cx: &mut Context<Self>, e: &HistoryRow) -> Stateful<Div> {
         let p = &c.p;
         let id = e.id;
         let more_open = self.menu == Some(id);
         let btn = ui::menu_button(
-            SharedString::from(format!("more-{id}")),
+            ElementId::from(("more", id as u64)),
             p,
             Ic::MoreV,
             more_open,
@@ -259,7 +244,7 @@ impl HistoryPage {
         // second press never toggles the row underneath.
         let mut w = div()
             .relative()
-            .id(ElementId::from(SharedString::from(format!("more-wrap-{id}"))))
+            .id(ElementId::from(("more-wrap", id as u64)))
             .child(btn)
             .on_click(ui::click_cb(cbk(cx, |_: &mut Self, _, cx| cx.stop_propagation())));
         if more_open {
@@ -271,7 +256,7 @@ impl HistoryPage {
     fn trigger(
         &self,
         cx: &mut Context<Self>,
-        e: &HistoryEntry,
+        e: &HistoryRow,
         body_id: ElementId,
         meta: Div,
         body: Div,
@@ -349,9 +334,9 @@ pub(super) fn update_original_hover(current: &mut Option<i64>, id: i64, over: bo
     changed
 }
 
-pub(super) fn expandable(entry: &HistoryEntry) -> bool {
+pub(super) fn expandable(entry: &HistoryRow) -> bool {
     match entry.kind {
-        HistoryKind::Dictation => entry.polished.is_some() && !entry.raw.is_empty(),
+        HistoryKind::Dictation => entry.result.is_some() && !entry.raw.is_empty(),
         HistoryKind::Command => {
             !entry.raw.trim().is_empty() || entry.source.as_ref().is_some_and(|s| !s.trim().is_empty())
         }
