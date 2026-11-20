@@ -9,8 +9,8 @@ use super::hover::reset_hover_in;
 use super::modal::modal_layer;
 use super::scope::motion_scope;
 use super::typography::text;
-use crate::assets::Ic;
 use crate::theme::Palette;
+use crate::ui::Ic;
 
 pub struct DialogAnswer {
     pub label: SharedString,

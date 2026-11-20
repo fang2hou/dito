@@ -24,8 +24,8 @@ use super::menu_button::{press_mark, press_toggle};
 use super::motion::Motion;
 use super::primitives::hex_alpha;
 use super::scope::{ScopeHandle, motion_scope, with_motion_scope};
-use crate::assets::Ic;
 use crate::theme::Palette;
+use crate::ui::Ic;
 
 pub type IdCb = Rc<dyn Fn(&str, &mut Window, &mut App)>;
 /// Gets the id of the dropped tile and the index it now has.

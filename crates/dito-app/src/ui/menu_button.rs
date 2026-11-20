@@ -4,8 +4,8 @@ use gpui_kit::*;
 use super::button::{CircleAppearance, CircleSize, circle_control};
 use super::callbacks::Cb;
 use super::scope::{ScopeHandle, motion_scope};
-use crate::assets::Ic;
 use crate::theme::Palette;
+use crate::ui::Ic;
 
 /// A press on a button whose menu is open already closes that menu (it closes on any press outside itself,
 /// including this button's). Remember it under the scope the button was built in, so the click that follows

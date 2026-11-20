@@ -10,8 +10,8 @@ use super::primitives::{icon, mix, transparent};
 use super::scope::{ScopeHandle, motion_scope, with_motion_scope};
 use super::tween::{RING_MS, count_flips};
 use super::typography::text;
-use crate::assets::Ic;
 use crate::theme::Palette;
+use crate::ui::Ic;
 
 pub fn notify_on_focus<V: 'static>(state: &Entity<InputState>, window: &mut Window, cx: &mut Context<V>) {
     let handle = state.read(cx).focus_handle(cx);

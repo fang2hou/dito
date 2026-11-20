@@ -15,6 +15,7 @@ mod format;
 mod glass;
 mod history_tip;
 mod hover;
+mod icons;
 mod inputs;
 mod layout;
 mod menu_button;
@@ -73,6 +74,7 @@ pub use hover::{
     HOVER_MS, choice_label, hover_fill, hover_fill_edges, hover_fill_if, hover_pop, hover_pop_scaled, hover_tracker,
     is_hovered, is_hovered_in, reset_hover, reset_hover_in,
 };
+pub use icons::Ic;
 pub use inputs::{
     TextAreaStyle, blur_on_outside, field, focus_notifier, focus_on_click, form_field, new_input, notify_on_focus,
     ring_overlay, text_area, text_input, with_ring,

@@ -11,8 +11,8 @@ use super::hover::hover_fill;
 use super::motion::{Motion, ease};
 use super::primitives::{icon, mix_rgb};
 use super::scope::{self, ScopeHandle};
-use crate::assets::Ic;
 use crate::theme::Palette;
+use crate::ui::Ic;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum CopyPhase {

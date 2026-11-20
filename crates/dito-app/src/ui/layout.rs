@@ -4,8 +4,8 @@ use gpui_kit::*;
 use super::button::CONTROL_H;
 use super::primitives::{icon, white};
 use super::typography::text;
-use crate::assets::Ic;
 use crate::theme::{Palette, Tint};
+use crate::ui::Ic;
 
 pub fn card(p: &Palette) -> Div {
     card_segment(p, true, true)
