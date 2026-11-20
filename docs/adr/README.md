@@ -21,3 +21,4 @@ Before changing something an ADR covers, read it. When a request conflicts with 
 | [0013](0013-ui-state-ownership.md) | UI state belongs to its view and never blocks rendering |
 | [0014](0014-silent-launch.md) | Launching Dito opens no window |
 | [0015](0015-versioned-persistence.md) | Persisted formats are versioned and migrated before loading |
+| [0016](0016-ui-kit-crate.md) | The shared UI kit becomes its own crate, in stages |
