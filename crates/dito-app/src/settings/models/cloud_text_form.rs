@@ -1,7 +1,6 @@
 //! The cloud polish form and its inputs (`design:settings/cloud-models/configurations`,
 //! `design:settings/cloud-models/failed-test`).
 
-use std::collections::HashMap;
 use std::ops::Index;
 
 use dito_core::config::{CloudTextConfiguration, CloudTextTarget, CloudTextTemplate};
@@ -21,6 +20,7 @@ pub(super) struct CloudTextForm {
     inputs: [Entity<InputState>; 9],
     shown: Option<String>,
     placeholders: Option<(CloudTextTemplate, Lang)>,
+    key_reads: ui::Requests,
 }
 
 impl CloudTextForm {
@@ -29,6 +29,7 @@ impl CloudTextForm {
             inputs: CloudTextField::ALL.map(|field| ui::new_input(window, cx, field == CloudTextField::Key)),
             shown: None,
             placeholders: None,
+            key_reads: ui::Requests::default(),
         }
     }
 
@@ -44,28 +45,34 @@ impl CloudTextForm {
         field.invalid(&self.text(field, cx))
     }
 
-    /// Setting a value is not an edit, so nothing is saved by this.
+    /// Setting a value is not an edit, so nothing is saved by this. The key is not read here: when another
+    /// configuration is shown, its Key field starts empty and the returned ticket and Keychain account name the read
+    /// that may [fill](Self::fill_key) it.
     pub(super) fn follow(
         &mut self,
         active: Option<&CloudTextConfiguration>,
         lang: Lang,
-        secret_keys: &HashMap<String, String>,
         window: &mut Window,
         cx: &mut Context<ModelsPage>,
-    ) {
+    ) -> Option<(u64, String)> {
         let id = active.map(|config| config.id.as_str());
+        let mut key_read = None;
         if self.shown.as_deref() != id {
             for field in CloudTextField::ALL {
                 let value = match (active, field) {
-                    (Some(config), CloudTextField::Key) => {
-                        secret_keys.get(&config.account()).cloned().unwrap_or_default()
-                    }
                     (Some(config), _) => field.show(config),
                     (None, _) => String::new(),
                 };
                 self[field].update(cx, |input, cx| input.set_value(value, window, cx));
             }
             self.shown = id.map(str::to_owned);
+            key_read = match active {
+                Some(config) => Some((self.key_reads.begin(), config.account())),
+                None => {
+                    self.key_reads.bump();
+                    None
+                }
+            };
         }
         let wanted = active.map(|config| (config.target.template(), lang));
         if self.placeholders != wanted {
@@ -77,6 +84,20 @@ impl CloudTextForm {
             }
             self.placeholders = wanted;
         }
+        key_read
+    }
+
+    /// Puts a key read from the Keychain into the Key field, unless another configuration has been shown or the user
+    /// has typed a key since the read began.
+    pub(super) fn fill_key(&self, ticket: u64, key: String, window: &mut Window, cx: &mut Context<ModelsPage>) {
+        if self.key_reads.is_current(ticket) {
+            self[CloudTextField::Key].update(cx, |input, cx| input.set_value(key, window, cx));
+        }
+    }
+
+    /// Typing a key supersedes the read still on its way.
+    pub(super) fn key_edited(&mut self) {
+        self.key_reads.bump();
     }
 
     pub(super) fn set_name(&self, name: String, window: &mut Window, cx: &mut Context<ModelsPage>) {

@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
@@ -102,7 +102,7 @@ pub struct ModelsPage {
     pub(super) save_failed: bool,
     pub(super) aws_profiles: Vec<String>,
     pub(super) last_status: String,
-    pub(super) secret_keys: HashMap<String, String>,
+    pub(super) keyed_accounts: HashSet<String>,
     secret_requests: ui::Requests,
     models_active: bool,
     #[cfg(feature = "screenshots")]
@@ -115,7 +115,7 @@ impl EventEmitter<ModalChanged> for ModelsPage {}
 impl ModelsPage {
     pub fn new(st: Arc<AppState>, window: &mut Window, cx: &mut Context<Self>) -> Self {
         services::watch_config(&st, cx);
-        ui::observe(st.cfg.subscribe(), cx, |this: &mut Self, _, cx| this.refresh_secret_keys(cx));
+        ui::observe(st.cfg.subscribe(), cx, |this: &mut Self, _, cx| this.refresh_keyed_accounts(cx));
         ui::notify_on_change(st.models.subscribe(), cx);
         Self::poll_engine_state(cx);
 
@@ -154,7 +154,7 @@ impl ModelsPage {
             save_failed: false,
             aws_profiles,
             last_status: String::new(),
-            secret_keys: HashMap::new(),
+            keyed_accounts: HashSet::new(),
             secret_requests: ui::Requests::default(),
             models_active: false,
             #[cfg(feature = "screenshots")]
@@ -162,7 +162,8 @@ impl ModelsPage {
         }
     }
 
-    pub(super) fn refresh_secret_keys(&mut self, cx: &mut Context<Self>) {
+    /// Reads on the runtime which configurations have a key; only that fact is kept, never the keys themselves.
+    pub(super) fn refresh_keyed_accounts(&mut self, cx: &mut Context<Self>) {
         if !self.models_active {
             return;
         }
@@ -183,20 +184,29 @@ impl ModelsPage {
                 .spawn_blocking(move || {
                     accounts
                         .into_iter()
-                        .filter_map(|account| {
-                            let key = secrets.get(&account)?;
-                            (!key.trim().is_empty()).then_some((account, key))
-                        })
-                        .collect::<HashMap<_, _>>()
+                        .filter(|account| secrets.get(account).is_some_and(|key| !key.trim().is_empty()))
+                        .collect::<HashSet<_>>()
                 })
                 .await
                 .unwrap_or_default();
             let _ = this.update(cx, |page, cx| {
                 if page.secret_requests.is_current(ticket) {
-                    page.secret_keys = answer;
+                    page.keyed_accounts = answer;
                     cx.notify();
                 }
             });
+        })
+        .detach();
+    }
+
+    /// The Key field's value comes from the Keychain on the runtime; it goes straight into the field and is not kept
+    /// anywhere else on the page.
+    fn read_shown_key(&mut self, ticket: u64, account: String, window: &mut Window, cx: &mut Context<Self>) {
+        let rt = self.st.rt.clone();
+        let secrets = self.st.secrets.clone();
+        cx.spawn_in(window, async move |this, cx| {
+            let key = rt.spawn_blocking(move || secrets.get(&account)).await.ok().flatten().unwrap_or_default();
+            let _ = this.update_in(cx, |page, window, cx| page.cloud_text.form.fill_key(ticket, key, window, cx));
         })
         .detach();
     }
@@ -240,7 +250,7 @@ impl ModelsPage {
         .detach();
         cx.subscribe(&editor, |this, _, outcome: &asr_editor::SaveOutcome, cx| {
             this.note_save(outcome.0);
-            this.refresh_secret_keys(cx);
+            this.refresh_keyed_accounts(cx);
             cx.notify();
         })
         .detach();
@@ -270,6 +280,9 @@ impl ModelsPage {
     /// The key goes into the Keychain account of the configuration the form shows, the rest into the settings. Text the
     /// setting cannot take is not saved, so the last valid value stays in use.
     pub(super) fn cloud_text_edited(&mut self, field: CloudTextField, cx: &mut Context<Self>) {
+        if field == CloudTextField::Key {
+            self.cloud_text.form.key_edited();
+        }
         let Some(id) = self.cloud_text.form.shown().map(str::to_owned) else { return };
         let text = self.cloud_text.form.text(field, cx);
         if !field.accepts(&text) {
@@ -298,7 +311,7 @@ impl ModelsPage {
         self.note_save(saved);
         self.cloud_text.test = TestState::Idle;
         if field == CloudTextField::Key {
-            self.refresh_secret_keys(cx);
+            self.refresh_keyed_accounts(cx);
         }
         cx.notify();
     }
@@ -339,7 +352,9 @@ impl ModelsPage {
         let cfg = self.st.cfg.get();
         let configurations = cfg.text_model.text_configurations(lang);
         let before = self.cloud_text.form.shown().map(str::to_owned);
-        self.cloud_text.form.follow(configurations.active(), lang, &self.secret_keys, window, cx);
+        if let Some((ticket, account)) = self.cloud_text.form.follow(configurations.active(), lang, window, cx) {
+            self.read_shown_key(ticket, account, window, cx);
+        }
         if let Some(shown) = self.cloud_text.form.shown().filter(|shown| before.as_deref() != Some(shown)) {
             self.cloud_text.tiles.reveal(shown);
         }
@@ -430,7 +445,7 @@ impl ModelsPage {
     fn view(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         if !self.models_active {
             self.models_active = true;
-            self.refresh_secret_keys(cx);
+            self.refresh_keyed_accounts(cx);
         }
         let c = Ctx::new(&self.st, cx);
         let p = c.p;

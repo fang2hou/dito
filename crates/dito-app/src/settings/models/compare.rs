@@ -159,7 +159,7 @@ impl ModelsPage {
                 unavailable: None,
             });
         let cloud = cfg.asr.cloud_asr.iter().flat_map(|list| &list.items).map(|configuration| {
-            let has_key = self.secret_keys.get(&configuration.account()).is_some_and(|key| !key.trim().is_empty());
+            let has_key = self.keyed_accounts.contains(&configuration.account());
             Choice {
                 contender: Contender::Cloud(configuration.id.clone()),
                 name: configuration.name.clone(),

@@ -342,6 +342,11 @@ async fn behavior(rig: &mut Rig<'_>, server: &str) {
 
     let state = rig.probe();
     assert_eq!((state.shown.as_deref(), state.text("name").as_str()), (Some("compat"), "ふだん使い"));
+    assert_eq!(
+        state.text("key"),
+        "sk-demo-0123456789abcdef",
+        "the configuration shown on opening gets its key once the Keychain read lands"
+    );
     rig.click(tile(1, 0.));
     rig.wait(200).await;
     assert_eq!(saved(&st).selected, "azure");
