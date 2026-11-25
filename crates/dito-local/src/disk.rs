@@ -17,6 +17,19 @@ pub(crate) fn free_space(path: &Path) -> u64 {
     if status == 0 { stats.f_bavail as u64 * stats.f_frsize as u64 } else { 0 }
 }
 
+/// Bytes of every file under `path`; an unreadable entry counts as nothing.
+pub(crate) fn dir_size(path: &Path) -> u64 {
+    let Ok(entries) = std::fs::read_dir(path) else { return 0 };
+    entries
+        .flatten()
+        .map(|entry| match entry.file_type() {
+            Ok(kind) if kind.is_dir() => dir_size(&entry.path()),
+            Ok(_) => entry.metadata().map_or(0, |meta| meta.len()),
+            Err(_) => 0,
+        })
+        .sum()
+}
+
 pub(crate) fn copy_dir(from: &Path, to: &Path) -> std::io::Result<()> {
     std::fs::create_dir_all(to)?;
     for entry in std::fs::read_dir(from)? {
