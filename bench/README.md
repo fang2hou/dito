@@ -57,6 +57,8 @@ mise run bench:notebook                             # JupyterLab on notebooks/
 
 Add a runtime's Python package to the matching extra in `pyproject.toml` (`sherpa`, `mlx`, `llama`), then run `mise run bench:sync`.
 
+Packages come from `https://pypi.flatt.tech/simple/`, which `uv.toml` sets as the default index and `uv.lock` records. This index is required: keep it when adding dependencies or regenerating the lock file.
+
 ## Test data
 
 - `data/clips.json`: clips and their reference text. Clips with `hotwords` also run as a second case with those hotwords for models that support them.

@@ -35,15 +35,17 @@ def build_cases(spec: AsrSpec, clips: Sequence[Clip]) -> list[Case[AsrInput]]:
             cases.append(
                 Case(
                     case_id,
-                    _fingerprint(clip, hotwords),
+                    _fingerprint(clip, hotwords, spec),
                     AsrInput(clip, hotwords),
                 )
             )
     return cases
 
 
-def _fingerprint(clip: Clip, hotwords: tuple[str, ...]) -> str:
-    return fingerprint(sha256_file(clip.path), " ".join(hotwords))
+def _fingerprint(clip: Clip, hotwords: tuple[str, ...], spec: AsrSpec) -> str:
+    context = spec.hotword_context
+    sent = context(hotwords) if hotwords and context else " ".join(hotwords)
+    return fingerprint(sha256_file(clip.path), sent)
 
 
 def _execute(model: AsrModel, item: AsrInput) -> dict[str, Any]:
@@ -98,7 +100,7 @@ def report_rows(keys: Sequence[str], *, chip: str | None = None) -> tuple[list[d
     rows: list[dict] = []
     warnings: list[str] = []
     for key in keys:
-        get_asr_spec(key)  # fail early on an unknown key
+        spec = get_asr_spec(key)
         store = ResultStore.open(TASK, chip_slug, key)
         if not store.records:
             warnings.append(f"{key}: no results yet (run `dito-bench asr run -m {key}`)")
@@ -116,7 +118,7 @@ def report_rows(keys: Sequence[str], *, chip: str | None = None) -> tuple[list[d
             error = score(clip.text, transcription.text, clip.lang)
             hotwords = clip.hotwords if case_id.endswith("+hotwords") else ()
             is_stale = clip.path.exists() and not store.is_fresh(
-                case_id, _fingerprint(clip, hotwords)
+                case_id, _fingerprint(clip, hotwords, spec)
             )
             rows.append(
                 {

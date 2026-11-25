@@ -8,6 +8,7 @@ from typing import ClassVar
 from ..audio import duration_s
 from ..weights import Weights
 from .base import Transcription
+from .qwen3_context import qwen3_context
 
 
 class Qwen3AsrMlx:
@@ -21,9 +22,11 @@ class Qwen3AsrMlx:
     def transcribe(
         self, audio: Path, hotwords: Sequence[str] = (), language: str | None = None
     ) -> Transcription:
-        """Hotwords are injected as the system prompt context (decoding-level biasing)."""
+        """Hotwords go into the system turn the way the app sends them."""
         start = time.perf_counter()
-        result = self._session.transcribe(str(audio), language=language, context=" ".join(hotwords))
+        result = self._session.transcribe(
+            str(audio), language=language, context=qwen3_context(hotwords)
+        )
         elapsed = time.perf_counter() - start
         return Transcription(
             text=result.text.strip(),
