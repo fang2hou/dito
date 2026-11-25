@@ -206,7 +206,7 @@ fn file(name: &str, url: &str, size: u64, sha256: Option<&str>) -> FileSpec {
     FileSpec { name: name.into(), url: url.into(), size, sha256: sha256.map(str::to_string) }
 }
 
-/// A Hugging Face repository at a branch or a pinned commit.
+/// A Hugging Face repository at a pinned commit.
 #[derive(Clone, Copy)]
 struct HfRepo {
     path: &'static str,
@@ -293,7 +293,8 @@ fn qwen_chat(
 
 /// Fastest and smallest, but no hotword support.
 fn sensevoice_small() -> ModelSpec {
-    let repo = hf("csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17", "main");
+    let repo =
+        hf("csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17", "2365baeacb507f821a0c8120fcee3d484dba7a07");
     let model = "model.int8.onnx";
     let tokens = "tokens.txt";
     ModelSpec {
@@ -400,7 +401,7 @@ pub fn default_catalog() -> Vec<ModelSpec> {
         // the default; same hotword/context path as the 0.6B. Official repo ships Q8_0 only (no Q4).
         qwen_asr(
             Entry { id: "qwen3-asr-1.7b", name: "Qwen3-ASR-1.7B", parameters_m: 2349, memory_mb: 3100 },
-            hf("ggml-org/Qwen3-ASR-1.7B-GGUF", "main"),
+            hf("ggml-org/Qwen3-ASR-1.7B-GGUF", "36a678687ba7d07a74ca70ccb0e36902e005fb80"),
             (
                 "Qwen3-ASR-1.7B-Q8_0.gguf",
                 2_165_034_944,
@@ -417,7 +418,7 @@ pub fn default_catalog() -> Vec<ModelSpec> {
         // in the vendored llama.cpp: a 336.7 s clip transcribes in full (CER 0.003, 9.6 s).
         qwen_asr(
             Entry { id: "qwen3-asr-0.6b", name: "Qwen3-ASR-0.6B", parameters_m: 938, memory_mb: 1250 },
-            hf("ggml-org/Qwen3-ASR-0.6B-GGUF", "main"),
+            hf("ggml-org/Qwen3-ASR-0.6B-GGUF", "928ab958557df9aa2ef1c93e0e83c7ad0933fae2"),
             (
                 "Qwen3-ASR-0.6B-Q8_0.gguf",
                 804_749_248,
@@ -485,7 +486,7 @@ pub fn default_catalog() -> Vec<ModelSpec> {
             Entry { id: "qwen3.5-2b-instruct", name: "Qwen3.5-2B-Instruct", parameters_m: 2000, memory_mb: 1600 },
             QWEN35_TEXT_CAPABILITIES,
             Quantization::Q4_K_M,
-            hf("unsloth/Qwen3.5-2B-GGUF", "main"),
+            hf("unsloth/Qwen3.5-2B-GGUF", "f6d5376be1edb4d416d56da11e5397a961aca8ae"),
             (
                 "Qwen3.5-2B-Q4_K_M.gguf",
                 1_280_835_840,
@@ -496,7 +497,7 @@ pub fn default_catalog() -> Vec<ModelSpec> {
             Entry { id: "qwen3.5-4b-instruct", name: "Qwen3.5-4B-Instruct", parameters_m: 4000, memory_mb: 3400 },
             QWEN35_TEXT_CAPABILITIES,
             Quantization::Q4_K_M,
-            hf("unsloth/Qwen3.5-4B-GGUF", "main"),
+            hf("unsloth/Qwen3.5-4B-GGUF", "e87f176479d0855a907a41277aca2f8ee7a09523"),
             (
                 "Qwen3.5-4B-Q4_K_M.gguf",
                 2_740_937_888,
@@ -510,7 +511,7 @@ pub fn default_catalog() -> Vec<ModelSpec> {
             Entry { id: "qwen3.5-9b-instruct", name: "Qwen3.5-9B-Instruct", parameters_m: 9000, memory_mb: 7000 },
             QWEN35_TEXT_CAPABILITIES,
             Quantization::Q4_K_M,
-            hf("unsloth/Qwen3.5-9B-GGUF", "main"),
+            hf("unsloth/Qwen3.5-9B-GGUF", "3885219b6810b007914f3a7950a8d1b469d598a5"),
             (
                 "Qwen3.5-9B-Q4_K_M.gguf",
                 5_680_522_464,
@@ -567,6 +568,17 @@ mod tests {
             .map(|f| f.name.clone())
             .collect();
         assert!(unverified.is_empty(), "{unverified:?}");
+    }
+
+    #[test]
+    fn every_huggingface_url_is_pinned_to_a_commit() {
+        let unpinned: Vec<_> = default_catalog()
+            .iter()
+            .flat_map(|m| m.files.iter())
+            .filter(|f| !crate::manifest::is_pinned_hf_or_non_hf_url(&f.url))
+            .map(|f| f.url.clone())
+            .collect();
+        assert!(unpinned.is_empty(), "Hugging Face URLs must pin a 40-char commit SHA: {unpinned:?}");
     }
     #[test]
     fn user_parameters_replace_the_recommended_sampling_field_by_field() {

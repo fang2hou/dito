@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use dito_core::config::{ConfigStore, default_data_dir};
 use dito_core::trace_log;
@@ -15,6 +15,7 @@ use crate::catalog::{ModelSpec, default_catalog};
 use crate::disk::{copy_dir, free_space};
 use crate::download::{self, DlError};
 use crate::manager_error::ManagerError;
+use crate::manifest::{self, Manifest, ManifestError};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ModelState {
@@ -104,6 +105,8 @@ struct Inner {
     /// Set and checked only while `jobs` is locked, so a move and a download can never both start.
     moving: AtomicBool,
     client: reqwest::Client,
+    manifest_url: Option<String>,
+    manifest_cache: tokio::sync::Mutex<Option<(Instant, Manifest)>>,
     /// Captured when the manager is built inside a runtime (the app enters its runtime around
     /// construction). `start_download` is called from UI threads, where there is no ambient
     /// runtime, so it spawns on this handle instead of `tokio::spawn`.
@@ -116,6 +119,7 @@ pub struct ModelManager {
 }
 
 const FREE_MARGIN: u64 = 200 * 1024 * 1024;
+const MANIFEST_TTL: Duration = Duration::from_secs(5 * 60);
 
 /// Reports the percent, in steps of ten, each time a download first passes one after `start` bytes.
 fn milestone_reached(start: u64, total: u64) -> impl FnMut(u64) -> Option<u64> {
@@ -132,10 +136,15 @@ fn milestone_reached(start: u64, total: u64) -> impl FnMut(u64) -> Option<u64> {
 
 impl ModelManager {
     pub fn new(config: Arc<ConfigStore>) -> Self {
-        Self::with_catalog(default_catalog(), config)
+        Self::with_manifest_url(default_catalog(), config, manifest::default_manifest_url())
     }
 
+    /// Uses only the supplied catalog URLs, without fetching a remote manifest.
     pub fn with_catalog(catalog: Vec<ModelSpec>, config: Arc<ConfigStore>) -> Self {
+        Self::with_manifest_url(catalog, config, None)
+    }
+
+    pub fn with_manifest_url(catalog: Vec<ModelSpec>, config: Arc<ConfigStore>, manifest_url: Option<String>) -> Self {
         let client = reqwest::Client::builder()
             .user_agent("dito/0.1")
             .connect_timeout(std::time::Duration::from_secs(15))
@@ -151,6 +160,8 @@ impl ModelManager {
                 jobs: Mutex::default(),
                 moving: AtomicBool::new(false),
                 client,
+                manifest_url,
+                manifest_cache: tokio::sync::Mutex::new(None),
                 rt: tokio::runtime::Handle::try_current().ok(),
             }),
         };
@@ -327,6 +338,9 @@ impl ModelManager {
             return Err(DlError::InsufficientSpace);
         }
 
+        let manifest = self.resolve_manifest(cancel).await?;
+        let allow_loopback = self.inner.manifest_url.as_deref().is_some_and(manifest::is_loopback_http);
+
         let mut completed: u64 = 0;
         for f in &spec.files {
             let dest = dir.join(&f.name);
@@ -354,12 +368,92 @@ impl ModelManager {
                 }
             };
             self.set(&spec.id, ModelState::Downloading { done: completed, total, bytes_per_sec: 0.0 });
-            let target =
-                download::Target { url: &f.url, part: &part, dest: &dest, size: f.size, sha256: f.sha256.as_deref() };
-            download::fetch(&self.inner.client, &target, cancel, &mut report).await?;
+            let candidates = match &manifest {
+                Some(manifest) => manifest.candidate_urls(&spec.id, &f.name, &f.url, allow_loopback),
+                None => vec![f.url.clone()],
+            };
+            self.fetch_from_candidates(spec, f, &candidates, &part, &dest, cancel, &mut report).await?;
             completed += f.size;
         }
         Ok(())
+    }
+
+    /// Fetches the static URL manifest only when a download starts; network or parse failures fall
+    /// back silently to the compiled-in catalog URLs.
+    async fn resolve_manifest(&self, cancel: &CancellationToken) -> Result<Option<Manifest>, DlError> {
+        let Some(url) = self.inner.manifest_url.as_deref() else {
+            return Ok(None);
+        };
+        let mut cache = self.inner.manifest_cache.lock().await;
+        if let Some((fetched_at, manifest)) = cache.as_ref()
+            && fetched_at.elapsed() < MANIFEST_TTL
+        {
+            return Ok(Some(manifest.clone()));
+        }
+        match manifest::fetch(&self.inner.client, url, cancel).await {
+            Ok(manifest) => {
+                trace_log!(url, models = manifest.models.len(), "model URL manifest loaded");
+                *cache = Some((Instant::now(), manifest.clone()));
+                Ok(Some(manifest))
+            }
+            Err(ManifestError::Cancelled) => Err(DlError::Cancelled),
+            Err(error) => {
+                tracing::warn!("could not refresh model download URLs from {url}: {error}");
+                trace_log!(url, %error, "model URL manifest unavailable, using bundled URLs");
+                Ok(None)
+            }
+        }
+    }
+
+    async fn invalidate_manifest_cache(&self) {
+        *self.inner.manifest_cache.lock().await = None;
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn fetch_from_candidates(
+        &self,
+        spec: &ModelSpec,
+        file: &crate::catalog::FileSpec,
+        candidates: &[String],
+        part: &Path,
+        dest: &Path,
+        cancel: &CancellationToken,
+        report: &mut (dyn FnMut(download::Phase) + Send),
+    ) -> Result<(), DlError> {
+        let last_idx = candidates.len().saturating_sub(1);
+        let mut last_err = None;
+        for (idx, url) in candidates.iter().enumerate() {
+            let target = download::Target { url, part, dest, size: file.size, sha256: file.sha256.as_deref() };
+            match download::fetch(&self.inner.client, &target, cancel, report).await {
+                Ok(()) => return Ok(()),
+                Err(err @ (DlError::Cancelled | DlError::InsufficientSpace | DlError::Io(_))) => return Err(err),
+                Err(err) => {
+                    if idx < last_idx {
+                        tracing::warn!(
+                            "download of {}/{} failed from {url} ({err}), trying next URL",
+                            spec.id,
+                            file.name
+                        );
+                        trace_log!(
+                            model = %spec.id,
+                            file = %file.name,
+                            attempt = idx + 1,
+                            candidates = candidates.len(),
+                            error = %err,
+                            "model file URL failed, trying next URL"
+                        );
+                        // Drop mismatched partial bytes before trying a different mirror; single-URL
+                        // downloads keep `.part` so retries can resume.
+                        if matches!(err, DlError::SizeMismatch { .. }) {
+                            let _ = tokio::fs::remove_file(part).await;
+                        }
+                    }
+                    last_err = Some(err);
+                }
+            }
+        }
+        self.invalidate_manifest_cache().await;
+        Err(last_err.expect("candidate list always includes the bundled URL"))
     }
 
     fn remove_partials(&self, spec: &ModelSpec) {

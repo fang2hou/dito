@@ -59,6 +59,7 @@ Workflows live in `.github/workflows` and call `mise run` tasks.
 | --- | --- | --- |
 | Pull request rules | every pull request, including title edits | Conventional Commit title, branch flow |
 | Checks | pull requests into `main` and pushes to `main` | actionlint, shellcheck, design reference checks, fast Rust tests, CI clippy |
+| Pages | pushes to `main` touching `pages/**` or manual dispatch | publishes `pages/` (including `models/v1.json`) to GitHub Pages |
 | Release | tags `v*.*.*` | tag matches the workspace version and is on `main`, then a draft release with the zipped app |
 
 ## Pull Request Descriptions

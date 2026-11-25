@@ -8,6 +8,7 @@ pub mod local_engines;
 pub mod managed_process;
 pub mod manager;
 mod manager_error;
+pub mod manifest;
 mod process;
 pub mod runtime;
 mod runtime_error;
