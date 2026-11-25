@@ -10,6 +10,7 @@ mod locale;
 mod login_item;
 mod nap_guard;
 mod player;
+mod process;
 mod sysinfo;
 mod typography;
 
@@ -28,5 +29,6 @@ pub use locale::system_language;
 pub use login_item::{launch_at_login_enabled, set_launch_at_login};
 pub use nap_guard::NapGuard;
 pub use player::Player;
+pub use process::spawn_and_reap;
 pub use sysinfo::{local_utc_offset_secs, physical_memory_bytes};
 pub use typography::configure_text_rendering;
