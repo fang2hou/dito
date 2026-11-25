@@ -6,16 +6,19 @@
 //! A rule comes from the shape of its term, so it cannot tell the term from the same ordinary words: with `R&D` in the
 //! wordbook, `r and d` is always restored. Ordinary words stay as they are because a rule is derived only for:
 //!
-//! - a term with a digit or a symbol, unless it is only a symbol or only two characters (`2B`, `v2`). Each segment
-//!   matches as written or as said, with an optional space, hyphen or no-break space between neighbors: a number below
-//!   100 is also its number words, a symbol is also the word it is said as, and a slash between two segments is also
-//!   nothing at all (`ci cd`).
+//! - a term with a digit or a symbol, unless it is only a symbol, only two characters (`2B`, `v2`) or has a hyphen at
+//!   an edge. Each segment matches as written or as said, with an optional space, hyphen or no-break space between
+//!   neighbors: a number below 100 is also its number words, a symbol is also the word it is said as, and a slash
+//!   between two segments is also nothing at all (`ci cd`).
 //! - a mixed-case word (`macOS`, `OpenAI`), as one whole token in either case. A separator is never put in or taken
 //!   out for it, so `mac os` stays.
 //!
-//! A symbol said as a word keeps a separator on each side (`r and d`, never `rand`), a match starts and ends at the
-//! edge of a word, and text already written as the term is left alone, so restoring twice changes nothing the second
-//! time.
+//! A symbol said as a word keeps a separator on each side (`r and d`, never `rand`). A spelling starts and ends at
+//! the edge of a word, where the letters of every script count as part of the word except Japanese, Chinese and
+//! Korean characters, so a term still matches inside a sentence written without spaces around it; of several
+//! spellings at one place the longest that ends a word is written, and one already written as the term is kept over
+//! another of the same length. Text already written as the term is left alone, so restoring twice changes nothing the
+//! second time.
 
 use std::borrow::Cow;
 
@@ -59,14 +62,15 @@ impl SpokenForms {
         if self.rules.is_empty() {
             return Cow::Borrowed(text);
         }
-        let bytes = text.as_bytes();
         let mut out: Option<String> = None;
         let mut copied = 0;
-        let mut at = 0;
-        while at < bytes.len() {
-            let word_start = bytes[at].is_ascii() && (at == 0 || !bytes[at - 1].is_ascii_alphanumeric());
-            let Some((end, written)) = word_start.then(|| self.longest(bytes, at)).flatten() else {
-                at += 1;
+        // What was written is never read as a spelling again, so scanning resumes after it.
+        let mut resume = 0;
+        for (at, first) in text.char_indices() {
+            if at < resume || !first.is_ascii() || text[..at].chars().next_back().is_some_and(is_word_char) {
+                continue;
+            }
+            let Some((end, written)) = self.longest(text, at) else {
                 continue;
             };
             if &text[at..end] != written {
@@ -75,8 +79,7 @@ impl SpokenForms {
                 out.push_str(written);
                 copied = end;
             }
-            // What was written is never read as a spelling again.
-            at = end;
+            resume = end;
         }
         match out {
             Some(mut out) => {
@@ -87,12 +90,13 @@ impl SpokenForms {
         }
     }
 
-    /// The longest spelling of a term at `at`; between two of the same length, the longer term.
-    fn longest<'a>(&'a self, bytes: &[u8], at: usize) -> Option<(usize, &'a str)> {
+    /// The spelling to write at `at`: the longest, then one already written as its term, then the longer term.
+    fn longest<'a>(&'a self, text: &str, at: usize) -> Option<(usize, &'a str)> {
         self.rules
             .iter()
-            .filter_map(|rule| Some((rule.matching(bytes, at)?, rule.written.as_str())))
-            .max_by_key(|(end, written)| (*end - at, written.len()))
+            .rev()
+            .filter_map(|rule| Some((rule.matching(text, at)?, rule.written.as_str())))
+            .max_by_key(|&(end, written)| (end - at, &text[at..end] == written, written.len()))
     }
 }
 
@@ -104,6 +108,11 @@ pub fn normalize<'a>(text: &'a str, terms: &[String]) -> Cow<'a, str> {
 impl Rule {
     fn derive(term: &str) -> Option<Self> {
         let term = term.trim();
+        // A hyphen only separates inside a term. One at an edge is part of no spelling, so writing the term would
+        // add it again on every pass.
+        if term.starts_with('-') || term.ends_with('-') {
+            return None;
+        }
         if !term.is_ascii() {
             return None;
         }
@@ -126,19 +135,16 @@ impl Rule {
             .then(|| Self { written: term.to_owned(), pattern: Pattern::Token(term.to_ascii_lowercase()) })
     }
 
-    /// Where a spelling of the term that starts at `at` ends, when `at` is the start of a word and the spelling ends
-    /// at the end of one.
-    fn matching(&self, bytes: &[u8], at: usize) -> Option<usize> {
-        let end = match &self.pattern {
-            Pattern::Token(token) => word_end(bytes, at, token)?,
-            Pattern::Segments(segments) => spelled_end(bytes, at, segments)?,
-        };
-        let Some(&next) = bytes.get(end) else {
-            return Some(end);
-        };
-        // `c++x` is not `C++`, and neither is the start of a longer run of the same symbol (`c+++`).
-        let run = is_symbol(next) && bytes[end - 1] == next;
-        (!next.is_ascii_alphanumeric() && !run).then_some(end)
+    /// The farthest end of a spelling of the term that starts at `at` and ends a word, if there is one.
+    fn matching(&self, text: &str, at: usize) -> Option<usize> {
+        match &self.pattern {
+            Pattern::Token(token) => word_end(text.as_bytes(), at, token).filter(|&end| ends_word(text, end)),
+            Pattern::Segments(segments) => spelled_ends(text, at, segments)
+                .into_iter()
+                .map(|(end, _)| end)
+                .filter(|&end| ends_word(text, end))
+                .max(),
+        }
     }
 }
 
@@ -219,47 +225,60 @@ fn number_words(value: u8) -> Said {
     }
 }
 
-/// Where the spelling of `segments` that starts exactly at `at` ends.
-fn spelled_end(bytes: &[u8], at: usize, segments: &[Segment]) -> Option<usize> {
-    let (first, rest) = segments.split_first()?;
-    let (end, as_word) = match first {
-        Segment::Num { digits, said } => (number_end(bytes, at, digits, *said)?, false),
-        Segment::Word(word) => (word_end(bytes, at, word)?, false),
-        Segment::Sym(symbol) => symbol_end(bytes, at, *symbol, false, true)?,
+/// Every position where a spelling of `segments` from `at` can end, each with whether a symbol word ends there. A
+/// segment is matched from every position the ones before it reached, so a term with many slashes costs one pass per
+/// segment rather than a path per way of reading them.
+fn spelled_ends(text: &str, at: usize, segments: &[Segment]) -> Vec<(usize, bool)> {
+    let bytes = text.as_bytes();
+    let Some((first, rest)) = segments.split_first() else {
+        return Vec::new();
     };
-    segments_end(bytes, end, rest, as_word)
-}
-
-/// Where `segments`, each after a segment before it, end. `after_word` says a symbol word comes right before, which
-/// needs a separator after it.
-fn segments_end(bytes: &[u8], at: usize, segments: &[Segment], after_word: bool) -> Option<usize> {
-    let Some((segment, rest)) = segments.split_first() else {
-        return Some(at);
+    let Some(first) = (match first {
+        Segment::Num { digits, said } => number_end(bytes, at, digits, *said).map(|end| (end, false)),
+        Segment::Word(word) => word_end(bytes, at, word).map(|end| (end, false)),
+        Segment::Sym(symbol) => symbol_end(text, at, *symbol, false, true),
+    }) else {
+        return Vec::new();
     };
-    let rest_end = |end: usize, as_word: bool| segments_end(bytes, end, rest, as_word);
-    match segment {
-        Segment::Sym(symbol) => {
-            // Right after the previous segment only the symbol itself, or a slash left out: a symbol word always
-            // has a separator in front, so `rand` never spells `R&D`. What follows decides between this and the
-            // symbol after a separator: in `ci / cd` the slash is the one after the separator.
-            if !after_word
-                && let Some((end, as_word)) = symbol_end(bytes, at, *symbol, !rest.is_empty(), false)
-                && let Some(last) = rest_end(end, as_word)
-            {
-                return Some(last);
+    let mut states = vec![first];
+    let mut reached = Vec::new();
+    for (index, segment) in rest.iter().enumerate() {
+        reached.clear();
+        for &(pos, after_word) in &states {
+            match segment {
+                Segment::Num { digits, said } => {
+                    if let Some(start) = next_start(bytes, pos, after_word)
+                        && let Some(end) = number_end(bytes, start, digits, *said)
+                    {
+                        reached.push((end, false));
+                    }
+                }
+                Segment::Word(word) => {
+                    if let Some(start) = next_start(bytes, pos, after_word)
+                        && let Some(end) = word_end(bytes, start, word)
+                    {
+                        reached.push((end, false));
+                    }
+                }
+                Segment::Sym(symbol) => {
+                    // Right after the previous segment only the symbol itself, or a slash left out: a symbol word
+                    // always has a separator in front, so `rand` never spells `R&D`.
+                    if !after_word && let Some(found) = symbol_end(text, pos, *symbol, index + 1 < rest.len(), false) {
+                        reached.push(found);
+                    }
+                    if let Some(after) = separator_end(bytes, pos)
+                        && let Some(found) = symbol_end(text, after, *symbol, false, true)
+                    {
+                        reached.push(found);
+                    }
+                }
             }
-            let (end, as_word) = symbol_end(bytes, separator_end(bytes, at)?, *symbol, false, true)?;
-            rest_end(end, as_word)
         }
-        Segment::Num { digits, said } => {
-            let end = number_end(bytes, next_start(bytes, at, after_word)?, digits, *said)?;
-            rest_end(end, false)
-        }
-        Segment::Word(word) => {
-            let end = word_end(bytes, next_start(bytes, at, after_word)?, word)?;
-            rest_end(end, false)
-        }
+        reached.sort_unstable();
+        reached.dedup();
+        std::mem::swap(&mut states, &mut reached);
     }
+    states
 }
 
 /// Where the next segment starts: right after the previous one or after one separator, and only after one separator
@@ -294,7 +313,8 @@ fn word_end(bytes: &[u8], at: usize, word: &str) -> Option<usize> {
 
 /// The end of the symbol at `at` and whether it was said as a word: the symbol itself, a separator when `bare`, or
 /// the word it is said as when `word`.
-fn symbol_end(bytes: &[u8], at: usize, symbol: u8, bare: bool, word: bool) -> Option<(usize, bool)> {
+fn symbol_end(text: &str, at: usize, symbol: u8, bare: bool, word: bool) -> Option<(usize, bool)> {
+    let bytes = text.as_bytes();
     if bytes.get(at) == Some(&symbol) {
         return Some((at + 1, false));
     }
@@ -304,7 +324,7 @@ fn symbol_end(bytes: &[u8], at: usize, symbol: u8, bare: bool, word: bool) -> Op
     }
     let end = word_end(bytes, at, symbol_word(symbol)?)?;
     // The word is whole: `andy` does not say `&`.
-    let whole = word && bytes.get(end).is_none_or(|next| !next.is_ascii_alphanumeric());
+    let whole = word && text[end..].chars().next().is_none_or(|next| !is_word_char(next));
     whole.then_some((end, true))
 }
 
@@ -329,6 +349,34 @@ fn separator_end(bytes: &[u8], at: usize) -> Option<usize> {
     }
 }
 
+/// Whether a spelling that ends at `end` ends a word: no letter or digit follows, and a symbol is not the start of a
+/// longer run of itself (`c++x` and `c+++` are not `C++`).
+fn ends_word(text: &str, end: usize) -> bool {
+    let Some(next) = text[end..].chars().next() else {
+        return true;
+    };
+    let last = text.as_bytes()[end - 1];
+    !is_word_char(next) && !(next.is_ascii() && next as u8 == last && is_symbol(last))
+}
+
+/// Whether `c` is part of a word, so that a term is not matched inside one: any letter or digit, also one with an
+/// accent, and a combining mark. Japanese, Chinese and Korean characters are not, so a term still matches next to
+/// them without a space.
+fn is_word_char(c: char) -> bool {
+    let unspaced = matches!(
+        c,
+        '\u{3040}'..='\u{309F}'
+            | '\u{30A0}'..='\u{30FF}'
+            | '\u{31F0}'..='\u{31FF}'
+            | '\u{3400}'..='\u{4DBF}'
+            | '\u{4E00}'..='\u{9FFF}'
+            | '\u{F900}'..='\u{FAFF}'
+            | '\u{AC00}'..='\u{D7AF}'
+            | '\u{FF66}'..='\u{FF9F}'
+    );
+    !unspaced && (c.is_alphanumeric() || matches!(c, '\u{0300}'..='\u{036F}'))
+}
+
 fn is_symbol(byte: u8) -> bool {
     matches!(byte, b'+' | b'#' | b'/' | b'.' | b'&')
 }
@@ -343,9 +391,21 @@ mod tests {
         terms.iter().map(|term| term.to_string()).collect()
     }
 
+    fn stays(text: &str, term: &str) {
+        assert!(matches!(normalize(text, &terms(&[term])), Cow::Borrowed(_)), "{text} with {term}");
+    }
+
+    fn restores(term: &str, spelled: &str, written: &str) {
+        let wordbook = terms(&[term]);
+        let once = normalize(spelled, &wordbook);
+        assert_eq!(once, written, "{spelled} with {term}");
+        assert_eq!(normalize(&once, &wordbook), written, "{written} with {term}, restored again");
+        assert!(matches!(normalize(written, &wordbook), Cow::Borrowed(_)), "{written} with {term} is already written");
+    }
+
     #[test]
     fn a_term_is_written_as_itself_however_it_was_spelled() {
-        let cases = [
+        for (term, spelled, written) in [
             ("1on1", "one on one", "1on1"),
             ("1on1", "One-on-one", "1on1"),
             ("1on1", "1 on 1", "1on1"),
@@ -354,6 +414,7 @@ mod tests {
             ("1on1", "one\u{00a0}on\u{00a0}one", "1on1"),
             ("1on1", "今日は one on one です", "今日は 1on1 です"),
             ("1on1", "明天有个 one on one 会议", "明天有个 1on1 会议"),
+            ("1on1", "はone on oneです", "は1on1です"),
             ("1on1", "we did one on one and 1 on 1", "we did 1on1 and 1on1"),
             ("C++", "use c plus plus here", "use C++ here"),
             ("C++", "use c++ here", "use C++ here"),
@@ -362,8 +423,11 @@ mod tests {
             ("CI/CD", "ci-cd", "CI/CD"),
             ("CI/CD", "ci / cd", "CI/CD"),
             ("CI/CD", "ci slash cd", "CI/CD"),
+            ("A///B", "a / / / b", "A///B"),
+            ("A//", "a //", "A//"),
             ("N/A", "n a", "N/A"),
             ("24/7", "24 7", "24/7"),
+            ("24/7", "24 seven", "24/7"),
             ("24/7", "twenty four seven", "24/7"),
             ("24/7", "twenty-four seven", "24/7"),
             ("24/7", "twenty four slash seven", "24/7"),
@@ -378,22 +442,22 @@ mod tests {
             ("iPhone15", "iphone fifteen", "iPhone15"),
             ("G21", "g twenty-one", "G21"),
             ("G21", "g twenty one", "G21"),
-            ("24/7", "24 seven", "24/7"),
             ("MP3", "mp three", "MP3"),
             ("B2B", "b-two-b", "B2B"),
-        ];
-        for (term, spelled, written) in cases {
-            let wordbook = terms(&[term]);
-            let once = normalize(spelled, &wordbook);
-            assert_eq!(once, written, "{spelled}");
-            assert_eq!(normalize(&once, &wordbook), written, "{written} restored again");
-            assert!(matches!(normalize(written, &wordbook), Cow::Borrowed(_)), "{written} is already written");
+        ] {
+            restores(term, spelled, written);
         }
     }
 
     #[test]
+    fn a_term_with_many_slashes_is_matched_in_one_pass_per_segment() {
+        let slashes = "/".repeat(24);
+        restores(&format!("A{slashes}B"), &format!("a{} b", " /".repeat(24)), &format!("A{slashes}B"));
+    }
+
+    #[test]
     fn what_is_not_a_term_spelled_out_stays_as_it_is() {
-        let cases = [
+        for (term, text) in [
             ("1on1", "someone on one"),
             ("1on1", "one on ones"),
             ("1on1", "one on 11"),
@@ -413,16 +477,44 @@ mod tests {
             ("R&D", "the rand crate"),
             ("w/", "w you"),
             ("/tmp", "see tmp later"),
-        ];
-        for (term, text) in cases {
-            let wordbook = terms(&[term]);
-            assert!(matches!(normalize(text, &wordbook), Cow::Borrowed(_)), "{text} with {term}");
+        ] {
+            stays(text, term);
+        }
+    }
+
+    #[test]
+    fn a_term_is_not_matched_inside_a_word_of_any_script() {
+        for (term, text) in [
+            ("GitHub", "prégithub"),
+            ("GitHub", "cafe\u{0301}github"),
+            ("GitHub", "αgithub"),
+            ("CaF", "cafés"),
+            ("1on1", "éone on one"),
+            ("1on1", "one on oneé"),
+            ("R&D", "r and dé"),
+            ("R&D", "r andé d"),
+        ] {
+            stays(text, term);
+        }
+    }
+
+    #[test]
+    fn a_term_with_a_hyphen_at_an_edge_gets_no_rule() {
+        for (term, text) in [
+            ("-O2", "-O2"),
+            ("-O2", "use -O2 now"),
+            ("-O2", "O2"),
+            (" -O2 ", "-O2"),
+            ("1on1-", "one on one"),
+            ("1on1-", "1on1"),
+        ] {
+            stays(text, term);
         }
     }
 
     #[test]
     fn a_term_spelled_like_ordinary_words_gets_no_rule() {
-        let cases = [
+        for (term, text) in [
             ("plain", "plain word"),
             ("Visual Studio", "visual studio"),
             ("Visual Studio", "Visual-Studio"),
@@ -446,10 +538,8 @@ mod tests {
             ("/", "a b c"),
             (".", "dot"),
             ("#", "sharp"),
-        ];
-        for (term, text) in cases {
-            let wordbook = terms(&[term]);
-            assert!(matches!(normalize(text, &wordbook), Cow::Borrowed(_)), "{text} with {term}");
+        ] {
+            stays(text, term);
         }
         assert!(matches!(normalize("one on one", &[]), Cow::Borrowed(_)));
     }
@@ -467,10 +557,16 @@ mod tests {
     }
 
     #[test]
-    fn the_longest_spelling_wins_and_between_equal_ones_the_longer_term() {
+    fn the_longest_spelling_wins_and_one_already_written_is_kept() {
         assert_eq!(normalize("gpt four o", &terms(&["GPT4", "GPT4o"])), "GPT4o");
         assert_eq!(normalize("gpt four", &terms(&["GPT4", "GPT4o"])), "GPT4");
         assert_eq!(normalize("one on one", &terms(&["1on1", "1-on-1"])), "1-on-1");
         assert_eq!(normalize("one on one", &terms(&["1-on-1", "1on1"])), "1-on-1");
+        let wordbook = terms(&["GPT4", "gpt4"]);
+        for text in ["GPT4 and gpt4", "gpt4 and GPT4"] {
+            assert!(matches!(normalize(text, &wordbook), Cow::Borrowed(_)), "{text}");
+        }
+        let once = normalize("GPT four and gpt four", &wordbook);
+        assert_eq!(normalize(&once, &wordbook), once);
     }
 }

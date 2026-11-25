@@ -129,11 +129,12 @@ async fn transcribe(
     let asr_ms = started.elapsed().as_millis() as u64;
     trace_log!(asr_ms, detected = ?transcript.language, transcript = ?transcript.text, "asr transcript");
     let raw_before = std::mem::take(&mut transcript.text);
+    // The language is read from what ASR heard: a transcript of number words alone is English, and `24/7` is not.
+    let lang = transcript_lang(transcript.language.as_deref(), &raw_before);
     transcript.text = restore_written_forms(raw_before, wordbook, "asr");
     if transcript.text.trim().is_empty() {
         return Err(PipelineError::Failed(ProviderError::new(ErrorKind::NoSpeech, "nothing was transcribed")));
     }
-    let lang = transcript_lang(transcript.language.as_deref(), &transcript.text);
     Ok(Output { raw: transcript.text, polished: None, polish_error: None, lang, asr_ms, polish_ms: 0 })
 }
 
@@ -832,6 +833,37 @@ mod tests {
         let out = dictate(&e, &cfg, &dict).await;
         assert_eq!(crate::prompts::unfenced(&model.0.lock().unwrap()), "let's do a 1on1");
         assert_eq!(out.polished.as_deref(), Some("Let's do a 1on1."));
+    }
+
+    #[tokio::test]
+    async fn polish_rules_follow_the_language_of_what_asr_heard() {
+        struct Spy(std::sync::Mutex<String>);
+        #[async_trait::async_trait]
+        impl TextModel for Spy {
+            async fn polish(&self, r: &TextRequest<'_>) -> ProviderResult<String> {
+                *self.0.lock().unwrap() = r.system.to_string();
+                Ok("ok".into())
+            }
+        }
+        let spy = Arc::new(Spy(Default::default()));
+        let e = FixedEngines::new(Arc::new(MockTranscriber::new("twenty four seven")), spy.clone());
+        let cfg = Config::default();
+        let dict = vec!["24/7".to_string()];
+        let clip = tone();
+        let out = run(
+            &e,
+            &cfg,
+            &PipelineJob { clip: &clip, target: AppTarget::General, wordbook: &dict },
+            &|_| {},
+            &CancellationToken::new(),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(out.raw, "24/7");
+        assert_eq!(out.lang, Lang::En);
+        let system = spy.0.lock().unwrap();
+        assert!(system.contains(cfg.prompts.en.base.trim()) && !system.contains(cfg.prompts.ja.base.trim()));
     }
 
     #[tokio::test]
