@@ -26,6 +26,7 @@ pub fn demo(store: &Store, now: i64) -> Result<()> {
 
 /// The newest transcript's tail while it is shown as still recording: a paragraph waiting for polishing, then the
 /// settled and the unsettled words of the paragraph still being heard.
+#[cfg(feature = "screenshots")]
 pub const LIVE_TAIL: [&str; 3] = [
     "残りの二件は調査中ですが、こちらも木曜のリリースで直る見込みです。",
     "最後に来週の予定です。",
@@ -33,6 +34,7 @@ pub const LIVE_TAIL: [&str; 3] = [
 ];
 
 /// A meeting played to a transcription session in real time: each line, how long it is spoken and the pause after it.
+#[cfg(feature = "screenshots")]
 pub const FILM_SCRIPT: [(&str, f32, f32); 9] = [
     ("えーと、それでは定例を始めます。", 2.5, 0.7),
     ("今日は、あの、リリース計画と、問い合わせ対応の二点です。", 3.5, 0.7),

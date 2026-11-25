@@ -11,6 +11,8 @@ pub(super) struct Draft {
     pub source: Entity<EditorState>,
     pub key: String,
     pub saved_key: String,
+    /// True until the Keychain answers. A key typed before that wins, and the late answer is dropped.
+    pub key_loading: bool,
     pub error: Option<String>,
     pub pending: bool,
     /// Counts the edits: a check or a test result belongs to the edit it started from.
