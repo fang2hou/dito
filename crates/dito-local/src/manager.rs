@@ -138,22 +138,48 @@ fn rename_all(moving: &[(PathBuf, PathBuf)]) -> Result<(), ManagerError> {
     Ok(())
 }
 
-/// Copies every model folder after checking the space for all of them; on failure the copies are removed and the
-/// originals were never touched.
+/// Copies every model folder into a staging folder next to its target, after checking the space for all of them,
+/// then renames the copies into place. On failure only what this move created is removed: the staging folders and
+/// the targets, which did not exist before. The originals are never touched.
 fn copy_all(moving: &[(PathBuf, PathBuf)], new_dir: &Path) -> Result<(), ManagerError> {
     let needed = moving.iter().map(|(from, _)| dir_size(from)).sum::<u64>();
     let free = free_space(new_dir);
     if needed > free {
         return Err(ManagerError::InsufficientSpace { needed, free });
     }
-    for (done, (from, to)) in moving.iter().enumerate() {
-        if let Err(e) = copy_dir(from, to) {
-            let _ = std::fs::remove_dir_all(to);
-            undo_move(&moving[..done]);
+    let staging: Vec<PathBuf> = moving.iter().map(|(_, to)| staging_for(to)).collect();
+    if let Some(taken) = staging.iter().find(|path| path.symlink_metadata().is_ok()) {
+        return Err(ManagerError::TargetExists(taken.clone()));
+    }
+    let remove_all = |paths: &[PathBuf]| {
+        for path in paths {
+            if path.exists()
+                && let Err(e) = std::fs::remove_dir_all(path)
+            {
+                tracing::warn!("could not remove {} after a failed move: {e}", path.display());
+            }
+        }
+    };
+    for (done, ((from, _), stage)) in moving.iter().zip(&staging).enumerate() {
+        if let Err(e) = copy_dir(from, stage) {
+            remove_all(&staging[..=done]);
+            return Err(e.into());
+        }
+    }
+    for (done, ((_, to), stage)) in moving.iter().zip(&staging).enumerate() {
+        if let Err(e) = std::fs::rename(stage, to) {
+            let placed: Vec<PathBuf> = moving[..done].iter().map(|(_, to)| to.clone()).collect();
+            remove_all(&placed);
+            remove_all(&staging[done..]);
             return Err(e.into());
         }
     }
     Ok(())
+}
+
+fn staging_for(target: &Path) -> PathBuf {
+    let name = target.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_default();
+    target.with_file_name(format!(".{name}.moving-{}", std::process::id()))
 }
 
 /// Puts moved folders back where they were: a renamed one is renamed back, a copied one is removed, since its
@@ -568,6 +594,10 @@ impl ModelManager {
         if moving.iter().any(|(from, _)| new_dir.starts_with(from)) {
             return Err(ManagerError::TargetInsideModel);
         }
+        // Every target is then created by this move, so undoing it removes nothing that was there before.
+        if let Some((_, taken)) = moving.iter().find(|(_, to)| to.symlink_metadata().is_ok()) {
+            return Err(ManagerError::TargetExists(taken.clone()));
+        }
         std::fs::create_dir_all(new_dir)?;
         if same_volume(&old, new_dir) {
             rename_all(&moving)?;
@@ -644,6 +674,28 @@ mod tests {
         assert!(copy_all(&moving, &new).is_err());
         assert!(old.join("a").join("m.bin").exists() && !new.join("a").exists(), "the copy was removed");
         assert!(old.join("b").join("m.bin").exists());
+        assert_eq!(std::fs::read_to_string(new.join("b")).unwrap(), "a file where the model would go");
+        assert_eq!(std::fs::read_dir(&new).unwrap().count(), 1, "no staging folder is left behind");
+    }
+
+    #[test]
+    fn a_target_that_already_exists_is_refused_and_left_as_it_was() {
+        let dir = tempfile::tempdir().unwrap();
+        let config = Arc::new(ConfigStore::open(dir.path().join("config.toml")).unwrap());
+        let models = dir.path().join("models");
+        config.update(|c| c.models_dir = Some(models.clone())).unwrap();
+        let manager = ModelManager::new(config.clone());
+        let id = manager.catalog()[0].id.clone();
+        std::fs::create_dir_all(models.join(&id)).unwrap();
+        std::fs::write(models.join(&id).join("m.bin"), "model").unwrap();
+        let elsewhere = dir.path().join("elsewhere");
+        std::fs::create_dir_all(elsewhere.join(&id)).unwrap();
+        std::fs::write(elsewhere.join(&id).join("keep.txt"), "the user's file").unwrap();
+
+        assert!(matches!(manager.change_dir(&elsewhere), Err(ManagerError::TargetExists(_))));
+        assert_eq!(config.get().models_dir.as_deref(), Some(models.as_path()));
+        assert_eq!(std::fs::read_to_string(elsewhere.join(&id).join("keep.txt")).unwrap(), "the user's file");
+        assert!(models.join(&id).join("m.bin").exists());
     }
 
     #[test]

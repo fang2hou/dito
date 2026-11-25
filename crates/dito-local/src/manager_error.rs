@@ -14,6 +14,8 @@ pub enum ManagerError {
     Config(String),
     #[error("the new models folder is inside a model's folder")]
     TargetInsideModel,
+    #[error("{} already exists in the new models folder", .0.display())]
+    TargetExists(std::path::PathBuf),
     #[error("not enough free space for the models: {needed} bytes needed, {free} free")]
     InsufficientSpace { needed: u64, free: u64 },
 }
