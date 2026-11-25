@@ -18,7 +18,7 @@ How a change lands. Setup lives in [IMPLEMENTATION.md](IMPLEMENTATION.md); rules
 | `main` | Integration of finished work and the source of every release | none | none |
 | `<type>/<kebab-name>` | One feature or change, for example `feature/menu-bar-icon` or `fix/caret-position` | `main` | `main` |
 
-`<type>` is one of `feature`, `feat`, `fix`, `refactor`, `perf`, `docs`, `test`, `build`, `ci`, `chore`. A pull request into a topic branch is allowed, so work can be stacked.
+`<type>` is one of `feature`, `feat`, `fix`, `refactor`, `perf`, `docs`, `design`, `test`, `build`, `ci`, `chore`. A pull request into a topic branch is allowed, so work can be stacked.
 
 Every pull request is squash merged. The pull request title becomes the commit message, so it must be a Conventional Commit.
 

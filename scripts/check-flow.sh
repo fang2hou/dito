@@ -7,7 +7,7 @@ set -euo pipefail
 head=${HEAD_REF:?set HEAD_REF to the pull request source branch}
 base=${BASE_REF:?set BASE_REF to the pull request target branch}
 
-types='feature|feat|fix|refactor|perf|docs|test|build|ci|chore'
+types='feature|feat|fix|refactor|perf|docs|design|test|build|ci|chore'
 slug='[a-z0-9][a-z0-9._-]*'
 topic="^(${types})/${slug}$"
 
