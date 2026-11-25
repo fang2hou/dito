@@ -47,3 +47,7 @@ required-features = ["llama"]
 [[example]]
 name = "managed_asr_e2e"
 required-features = ["nemo"]
+
+[[example]]
+name = "transcription_e2e"
+required-features = ["sherpa"]

@@ -1,209 +1,79 @@
 //! Managed PrismML `llama-server` worker for ternary PQ2_0 checkpoints until stock `llama-cpp-sys-2`
 //! ships the Hadamard activation runtime (`b11556+`).
 
-use std::future::Future;
-use std::io::Read;
-use std::net::TcpListener;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
-use base64::Engine;
-use base64::engine::general_purpose::STANDARD;
 use dito_core::intent::{Reading, Request};
 use dito_core::provider::{ChatMessage, ChatRole};
-use dito_local::managed_process::ManagedProcess;
 use dito_local::{Example, LlmRuntime, RuntimeError, Sampling};
 use serde_json::{Number, Value, json};
 
 use crate::qwen_text::{ThinkFilter, strip_think};
+use crate::worker::{Runtime, Worker, block_on, cancelled, client};
 
-const ARCHIVE_SHA: &str = "94d791a4ad9d6ea0c9884929830352397af8274ca107afab497b1de0147bf99b";
-const PACKAGE: &str = "llama-prism-b12178-03ec600";
-const RUNTIME_DIR: &str = ".prism-llama-b12178-03ec600";
+const RUNTIME: Runtime = Runtime {
+    label: "Prism",
+    lock_file: ".prism-runtime.lock",
+    install_dir: ".prism-llama-b12178-03ec600",
+    executable: "llama-prism-b12178-03ec600/llama-server",
+    sha256: "94d791a4ad9d6ea0c9884929830352397af8274ca107afab497b1de0147bf99b",
+};
 const MODEL_ALIAS: &str = "bonsai";
 const POLISH_SEED: u32 = 1234;
 const CHAT_BUDGET: u32 = 4096;
 const CONTEXT_SIZE: &str = "32768";
 
 pub struct Chat {
-    process: ManagedProcess,
-    endpoint: String,
-    token: String,
-}
-
-fn cancelled(stop: &AtomicBool) -> Result<(), RuntimeError> {
-    if stop.load(Ordering::Relaxed) { Err(RuntimeError::Cancelled) } else { Ok(()) }
-}
-
-fn block_on<T>(future: impl Future<Output = Result<T, RuntimeError>>) -> Result<T, RuntimeError> {
-    tokio::runtime::Builder::new_current_thread().enable_all().build().map_err(RuntimeError::engine)?.block_on(future)
-}
-
-fn client(timeout: Duration) -> Result<reqwest::Client, RuntimeError> {
-    reqwest::Client::builder()
-        .no_proxy()
-        .redirect(reqwest::redirect::Policy::none())
-        .connect_timeout(Duration::from_secs(2))
-        .timeout(timeout)
-        .build()
-        .map_err(RuntimeError::engine)
+    worker: Worker,
 }
 
 fn json_number(value: f32) -> Option<Value> {
     value.to_string().parse::<f64>().ok().and_then(Number::from_f64).map(Value::Number)
 }
 
-fn install(dir: &Path, archive: &str, stop: &AtomicBool) -> Result<PathBuf, RuntimeError> {
-    let lock = std::fs::File::options()
-        .create(true)
-        .append(true)
-        .open(dir.join(".prism-runtime.lock"))
-        .map_err(RuntimeError::engine)?;
-    loop {
-        cancelled(stop)?;
-        match lock.try_lock() {
-            Ok(()) => break,
-            Err(std::fs::TryLockError::WouldBlock) => std::thread::sleep(Duration::from_millis(50)),
-            Err(error) => return Err(RuntimeError::engine(error)),
-        }
-    }
-    let destination = dir.join(RUNTIME_DIR);
-    let binary = destination.join(PACKAGE).join("llama-server");
-    if binary.is_file() {
-        return Ok(binary);
-    }
-    let archive = super::model_file(dir, archive)?;
-    let digest = block_on(async { dito_local::download::sha256_file(&archive).await.map_err(RuntimeError::engine) })?;
-    if digest != ARCHIVE_SHA {
-        return Err(RuntimeError::engine("Prism runtime archive checksum mismatch"));
-    }
-    cancelled(stop)?;
-    let temporary = dir.join(format!("{RUNTIME_DIR}.installing"));
-    if temporary.exists() {
-        std::fs::remove_dir_all(&temporary).map_err(RuntimeError::engine)?;
-    }
-    std::fs::create_dir(&temporary).map_err(RuntimeError::engine)?;
-    let output = std::process::Command::new("/usr/bin/tar")
-        .arg("-xzf")
-        .arg(&archive)
-        .arg("-C")
-        .arg(&temporary)
-        .output()
-        .map_err(RuntimeError::engine)?;
-    if !output.status.success() {
-        return Err(RuntimeError::engine("could not unpack Prism runtime"));
-    }
-    if !temporary.join(PACKAGE).join("llama-server").is_file() {
-        return Err(RuntimeError::engine("Prism runtime package has no llama-server executable"));
-    }
-    if destination.exists() {
-        std::fs::remove_dir_all(&destination).map_err(RuntimeError::engine)?;
-    }
-    std::fs::rename(&temporary, &destination).map_err(RuntimeError::engine)?;
-    Ok(binary)
-}
-
 impl Chat {
     pub fn load(dir: &Path, model: &str, archive: &str, stop: &AtomicBool) -> Result<Self, RuntimeError> {
         cancelled(stop)?;
         let model = super::model_file(dir, model)?;
-        let binary = install(dir, archive, stop)?;
+        let binary = RUNTIME.install(dir, archive, stop)?;
         cancelled(stop)?;
-        let listener = TcpListener::bind("127.0.0.1:0").map_err(RuntimeError::engine)?;
-        let port = listener.local_addr().map_err(RuntimeError::engine)?.port();
-        let mut secret = [0u8; 32];
-        std::fs::File::open("/dev/urandom")
-            .and_then(|mut file| file.read_exact(&mut secret))
-            .map_err(RuntimeError::engine)?;
-        let token = STANDARD.encode(secret);
-        let args: Vec<String> = [
-            "-m",
-            &model.to_string_lossy(),
-            "--host",
-            "127.0.0.1",
-            "--port",
-            &port.to_string(),
-            "--api-key",
-            &token,
-            "--alias",
-            MODEL_ALIAS,
-            "-ngl",
-            "99",
-            "-fa",
-            "on",
-            "-c",
-            CONTEXT_SIZE,
-            "-np",
-            "1",
-            "--no-webui",
-            "--no-warmup",
-            "--jinja",
-            "--min-p",
-            "0",
-        ]
-        .into_iter()
-        .map(str::to_owned)
-        .collect();
-        drop(listener);
-        let log = std::fs::File::create(dir.join("prism-llama.log")).map_err(RuntimeError::engine)?;
-        let process = ManagedProcess::spawn(&binary, &args, log)?;
-        let engine = Self { process, endpoint: format!("http://127.0.0.1:{port}"), token };
-        block_on(async {
-            let client = client(Duration::from_secs(2))?;
-            let deadline = Instant::now() + Duration::from_secs(180);
-            loop {
-                cancelled(stop)?;
-                if let Some(error) = engine.failure() {
-                    return Err(RuntimeError::engine(format!("{error}; see prism-llama.log")));
-                }
-                if Instant::now() >= deadline {
-                    return Err(RuntimeError::engine("Prism model startup timed out; see prism-llama.log"));
-                }
-                let probe = client.get(format!("{}/health", engine.endpoint)).bearer_auth(&engine.token).send();
-                tokio::select! {
-                    response = probe => {
-                        if let Ok(response) = response && response.status().is_success() {
-                            return Ok(());
-                        }
-                    }
-                    _ = tokio::time::sleep(Duration::from_millis(100)) => {}
-                }
-                tokio::time::sleep(Duration::from_millis(100)).await;
-            }
+        let worker = Worker::spawn(&binary, &dir.join("prism-llama.log"), |port, token| {
+            let port = port.to_string();
+            [
+                "-m",
+                &model.to_string_lossy(),
+                "--host",
+                "127.0.0.1",
+                "--port",
+                &port,
+                "--api-key",
+                token,
+                "--alias",
+                MODEL_ALIAS,
+                "-ngl",
+                "99",
+                "-fa",
+                "on",
+                "-c",
+                CONTEXT_SIZE,
+                "-np",
+                "1",
+                "--no-webui",
+                "--no-warmup",
+                "--jinja",
+                "--min-p",
+                "0",
+            ]
+            .into_iter()
+            .map(str::to_owned)
+            .collect()
         })?;
+        let engine = Self { worker };
+        engine.worker.wait_ready("Prism", "prism-llama.log", "/health", stop, |_| true)?;
         cancelled(stop)?;
         Ok(engine)
-    }
-
-    async fn post_json(
-        &self,
-        client: &reqwest::Client,
-        body: &Value,
-        stop: &AtomicBool,
-    ) -> Result<Value, RuntimeError> {
-        let request = async {
-            let response = client
-                .post(format!("{}/v1/chat/completions", self.endpoint))
-                .bearer_auth(&self.token)
-                .json(body)
-                .send()
-                .await
-                .and_then(reqwest::Response::error_for_status)
-                .map_err(RuntimeError::engine)?;
-            response.json::<Value>().await.map_err(RuntimeError::engine)
-        };
-        tokio::pin!(request);
-        loop {
-            cancelled(stop)?;
-            if let Some(error) = self.failure() {
-                return Err(RuntimeError::engine(error));
-            }
-            tokio::select! {
-                value = &mut request => return value,
-                _ = tokio::time::sleep(Duration::from_millis(50)) => {}
-            }
-        }
     }
 }
 
@@ -328,15 +198,15 @@ fn parse_option_logprobs(value: &Value, options: &[&str]) -> Result<Vec<f32>, Ru
 
 impl LlmRuntime for Chat {
     fn shutdown(&self) {
-        self.process.shutdown();
+        self.worker.shutdown();
     }
 
     fn failure(&self) -> Option<String> {
-        self.process.failure()
+        self.worker.failure()
     }
 
     fn process_id(&self) -> Option<u32> {
-        Some(self.process.pid())
+        Some(self.worker.pid())
     }
 
     fn generate(
@@ -368,7 +238,7 @@ impl LlmRuntime for Chat {
         apply_sampling(&mut body, sampling, polish_budget(system, examples, user, sampling.max_tokens));
         let value = block_on(async {
             let client = client(Duration::from_secs(300))?;
-            self.post_json(&client, &body, stop).await
+            self.worker.post_chat(&client, &body, stop).await
         })?;
         cancelled(stop)?;
         if value.pointer("/choices/0/finish_reason").and_then(Value::as_str) == Some("length") {
@@ -427,9 +297,8 @@ impl LlmRuntime for Chat {
         let cancelled_during_stream = block_on(async {
             let client = client(Duration::from_secs(600))?;
             let open = async {
-                client
-                    .post(format!("{}/v1/chat/completions", self.endpoint))
-                    .bearer_auth(&self.token)
+                self.worker
+                    .chat_request(&client)
                     .json(&body)
                     .send()
                     .await
@@ -522,7 +391,7 @@ impl LlmRuntime for Chat {
         });
         let value = block_on(async {
             let client = client(Duration::from_secs(60))?;
-            self.post_json(&client, &body, stop).await
+            self.worker.post_chat(&client, &body, stop).await
         })?;
         cancelled(stop)?;
         let option_logits = parse_option_logprobs(&value, request.options)?;

@@ -24,6 +24,8 @@ mod readout;
 mod sherpa;
 #[cfg(feature = "transcribe")]
 mod transcribe;
+#[cfg(any(feature = "nemo", feature = "prism"))]
+mod worker;
 
 #[cfg(feature = "sherpa")]
 mod vad;

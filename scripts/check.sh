@@ -78,6 +78,8 @@ step "tests" cargo test "${test_args[@]}" --lib --bin dito \
   --test engines --test downloads --test providers --test configured_asr --test i18n_coverage --test demo_run
 # bedrock.rs sets AWS_* environment variables from every test, which is only sound on one thread.
 step "bedrock tests (single thread)" cargo test "${test_args[@]}" --test bedrock -- --test-threads=1
+# The managed workers are plain Rust; the other runtimes need native toolchains the fast check does not build.
+step "runtime tests (managed workers)" cargo test --locked -p dito-runtimes --no-default-features --features nemo,prism --lib
 
 if [[ $mode == full ]]; then
   step "app minimal compile check (no features)" cargo check --locked -p dito-app --no-default-features --all-targets
