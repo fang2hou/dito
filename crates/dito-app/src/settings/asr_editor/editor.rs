@@ -199,14 +199,13 @@ impl AsrEditor {
             }
         })
         .detach();
-        let key = self.st.secrets.get(&configuration.account()).unwrap_or_default();
         let error = check(&text, self.st.cfg.get().general.lang()).err();
         self.drafts.insert(
             configuration.id.clone(),
             Draft {
                 source,
-                saved_key: key.clone(),
-                key,
+                saved_key: String::new(),
+                key: String::new(),
                 error,
                 pending: false,
                 revision: 0,
@@ -216,6 +215,32 @@ impl AsrEditor {
                 check: None,
             },
         );
+        self.load_key(configuration.id.clone(), configuration.account(), window, cx);
+    }
+
+    /// The Keychain can block, or ask to be unlocked, so the key is read on the runtime and never during a render
+    /// (ADR-0013). A key the user has started typing in the meantime stays.
+    fn load_key(&mut self, id: String, account: String, window: &mut Window, cx: &mut Context<Self>) {
+        let (rt, secrets) = (self.st.rt.clone(), self.st.secrets.clone());
+        cx.spawn_in(window, async move |this, cx| {
+            let key = rt.spawn_blocking(move || secrets.get(&account)).await.ok().flatten().unwrap_or_default();
+            let _ = this.update_in(cx, |editor, window, cx| editor.key_loaded(&id, key, window, cx));
+        })
+        .detach();
+    }
+
+    fn key_loaded(&mut self, id: &str, key: String, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(draft) = self.drafts.get_mut(id) else { return };
+        let untouched = draft.key == draft.saved_key;
+        draft.saved_key = key.clone();
+        if !untouched {
+            return;
+        }
+        draft.key = key.clone();
+        if self.shown == id {
+            self.key.update(cx, |input, cx| input.set_value(key, window, cx));
+        }
+        cx.notify();
     }
 
     /// A blank name is not saved; the field goes back to the saved one when it loses focus.
