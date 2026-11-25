@@ -46,6 +46,17 @@ pub trait AsrRuntime: Send + Sync {
 }
 
 pub trait LlmRuntime: Send + Sync {
+    /// Process-backed engines release their worker even when a caller still holds an engine handle.
+    fn shutdown(&self) {}
+
+    fn failure(&self) -> Option<String> {
+        None
+    }
+
+    fn process_id(&self) -> Option<u32> {
+        None
+    }
+
     /// A runtime must not run past `sampling.max_tokens`, which caps the budget it computes from the input. `stop`
     /// works as in [`AsrRuntime::transcribe`]. When the token budget runs out before the model ends its turn, return
     /// [`RuntimeError::Truncated`], never the cut-off text. `examples` are earlier turns of the conversation, sent
@@ -110,6 +121,15 @@ pub trait RuntimeLoader: Send + Sync {
         _stop: &AtomicBool,
     ) -> Result<Arc<dyn AsrRuntime>, RuntimeError> {
         self.load_asr(spec, dir)
+    }
+
+    fn load_llm_cancellable(
+        &self,
+        spec: &ModelSpec,
+        dir: &Path,
+        _stop: &AtomicBool,
+    ) -> Result<Arc<dyn LlmRuntime>, RuntimeError> {
+        self.load_llm(spec, dir)
     }
 }
 

@@ -159,6 +159,20 @@
         }
       }
     },
+    "ternary-bonsai-2.5-27b": {
+      "files": {
+        "Ternary-Bonsai-2.5-27B-PQ2_0.gguf": {
+          "urls": [
+            "https://huggingface.co/prism-ml/Ternary-Bonsai-2.5-27B-GGUF/resolve/28a7093cc25bc151cc2b284c5570f12ce343fdcf/Ternary-Bonsai-2.5-27B-PQ2_0.gguf"
+          ]
+        },
+        "llama-prism-b12178-03ec600-bin-macos-arm64.tar.gz": {
+          "urls": [
+            "https://github.com/PrismML-Eng/llama.cpp/releases/download/prism-b12178-03ec600/llama-prism-b12178-03ec600-bin-macos-arm64.tar.gz"
+          ]
+        }
+      }
+    },
     "whisper-large-v3": {
       "files": {
         "whisper-large-v3-Q5_K_M.gguf": {

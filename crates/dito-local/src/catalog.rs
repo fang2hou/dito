@@ -21,10 +21,23 @@ pub const QWEN38_TEXT_CAPABILITIES: TextModelCapabilities = TextModelCapabilitie
     }),
 };
 
+/// Ternary Bonsai 2.5 27B shares Qwen 3.8's chat template, but its card states `low` is unsupported
+/// and behaves like `xhigh`.
+pub const BONSAI25_TEXT_CAPABILITIES: TextModelCapabilities = TextModelCapabilities {
+    context_window_tokens: 262_144,
+    max_output_tokens: None,
+    recommended_output_tokens: None,
+    thinking: Some(ThinkingCapabilities {
+        can_disable: true,
+        levels: &[ThinkingLevel::MEDIUM, ThinkingLevel::XHIGH],
+        default_level: Some("xhigh"),
+    }),
+};
+
 /// What the model's chat template writes at the top of the system turn for a thinking level. The Qwen 3.8 template
 /// has a line for `xhigh` and `low`, and none for `medium`.
 pub fn reasoning_instruction(model_id: &str, level: &str) -> Option<&'static str> {
-    if !model_id.starts_with("qwen3.8-") {
+    if !model_id.starts_with("qwen3.8-") && model_id != TERNARY_BONSAI_2_5_27B {
         return None;
     }
     match level {
@@ -148,6 +161,12 @@ pub enum ModelFormat {
         disable_thinking: bool,
         sampling: Sampling,
     },
+    /// Process-backed PrismML llama.cpp worker for ternary PQ2_0/PTQ1_0 models until stock llama.cpp catches up.
+    PrismChat {
+        model: &'static str,
+        archive: &'static str,
+        sampling: Sampling,
+    },
     /// Not loaded by `LocalEngines`: each audio source creates its own detector from the file.
     SileroVad {
         model: &'static str,
@@ -161,6 +180,7 @@ impl ModelFormat {
             Self::QwenAsr { .. } | Self::Chat { .. } => Runtime::LlamaCpp,
             Self::TranscribeCpp { .. } => Runtime::TranscribeCpp,
             Self::NemoSpeech { .. } => Runtime::NemoSpeech,
+            Self::PrismChat { .. } => Runtime::PrismLlama,
         }
     }
 
@@ -171,7 +191,7 @@ impl ModelFormat {
     /// Speech models decode greedily and have none.
     pub fn sampling(self) -> Option<Sampling> {
         match self {
-            Self::Chat { sampling, .. } => Some(sampling),
+            Self::Chat { sampling, .. } | Self::PrismChat { sampling, .. } => Some(sampling),
             _ => None,
         }
     }
@@ -183,6 +203,7 @@ impl ModelFormat {
             Self::NemoTdt { encoder, decoder, joiner, tokens, .. } => vec![encoder, decoder, joiner, tokens],
             Self::QwenAsr { model, projector } => vec![model, projector],
             Self::NemoSpeech { model, encoder, archive } => vec![model, encoder, archive],
+            Self::PrismChat { model, archive, .. } => vec![model, archive],
             Self::Chat { model, .. } | Self::TranscribeCpp { model, .. } => vec![model],
         }
     }
@@ -194,6 +215,7 @@ pub enum Runtime {
     LlamaCpp,
     TranscribeCpp,
     NemoSpeech,
+    PrismLlama,
 }
 
 impl ModelSpec {
@@ -395,6 +417,34 @@ fn nemotron_transcribe() -> ModelSpec {
     }
 }
 
+/// Ternary (g128 + Hadamard) Qwen3.8-27B derivative in PQ2_0 packing, Apple Silicon's fastest ternary format.
+/// Runs behind a managed PrismML llama-server worker until stock llama-cpp-sys-2 ships b11556+.
+fn ternary_bonsai_2_5_27b() -> ModelSpec {
+    let repo = hf("prism-ml/Ternary-Bonsai-2.5-27B-GGUF", "28a7093cc25bc151cc2b284c5570f12ce343fdcf");
+    let model = "Ternary-Bonsai-2.5-27B-PQ2_0.gguf";
+    let archive = "llama-prism-b12178-03ec600-bin-macos-arm64.tar.gz";
+    ModelSpec {
+        id: TERNARY_BONSAI_2_5_27B.into(),
+        name: "Ternary Bonsai 2.5 27B".into(),
+        kind: ModelKind::Text,
+        text_capabilities: Some(BONSAI25_TEXT_CAPABILITIES),
+        parameters_m: 27000,
+        quantization: Quantization { label: "PQ2_0", source_bits: 16, bits: (2, 2) },
+        files: vec![
+            repo.file(model, 7_253_354_848, Some("103a11c94324029d8bae3f8152f30bba414730064cfb77438f8589db72e1aa85")),
+            file(
+                archive,
+                &format!("https://github.com/PrismML-Eng/llama.cpp/releases/download/prism-b12178-03ec600/{archive}"),
+                13_209_869,
+                Some("94d791a4ad9d6ea0c9884929830352397af8274ca107afab497b1de0147bf99b"),
+            ),
+        ],
+        memory_mb: 10000,
+        format: ModelFormat::PrismChat { model, archive, sampling: Sampling::POLISH },
+        language_focus: None,
+    }
+}
+
 pub fn default_catalog() -> Vec<ModelSpec> {
     let mut catalog = vec![
         // Measured on M4 Pro (bench, 2026-11): 0.4-0.6 s per clip, the most accurate tier and
@@ -533,6 +583,7 @@ pub fn default_catalog() -> Vec<ModelSpec> {
     ];
     if cfg!(target_arch = "aarch64") {
         catalog.push(nemotron_transcribe());
+        catalog.push(ternary_bonsai_2_5_27b());
     }
     // The Models page lists each kind in this order.
     catalog.sort_by_key(|model| model.parameters_m);
@@ -543,6 +594,8 @@ pub fn default_catalog() -> Vec<ModelSpec> {
 pub const SILERO_VAD: &str = "silero-vad";
 
 pub const NEMOTRON_TRANSCRIBE: &str = "nemotron-3.5-transcribe";
+
+pub const TERNARY_BONSAI_2_5_27B: &str = "ternary-bonsai-2.5-27b";
 
 #[cfg(test)]
 mod tests {
@@ -596,7 +649,10 @@ mod tests {
             for name in spec.format.files() {
                 assert!(spec.files.iter().any(|f| f.name == name), "{}: missing {name}", spec.id);
             }
-            assert_eq!(spec.kind == ModelKind::Text, matches!(spec.format, ModelFormat::Chat { .. }));
+            assert_eq!(
+                spec.kind == ModelKind::Text,
+                matches!(spec.format, ModelFormat::Chat { .. } | ModelFormat::PrismChat { .. })
+            );
             assert_eq!(spec.format.sampling().is_some(), spec.kind == ModelKind::Text, "{}", spec.id);
             assert_eq!(spec.kind == ModelKind::Vad, matches!(spec.format, ModelFormat::SileroVad { .. }));
         }

@@ -13,7 +13,9 @@ mod chunking;
 mod llama;
 #[cfg(feature = "nemo")]
 mod nemo;
-#[cfg(any(feature = "llama", test))]
+#[cfg(feature = "prism")]
+mod prism;
+#[cfg(any(feature = "llama", feature = "prism", test))]
 #[cfg_attr(not(feature = "llama"), allow(dead_code))]
 mod qwen_text;
 #[cfg(feature = "llama")]
@@ -69,7 +71,9 @@ impl RuntimeLoader for Runtimes {
             ModelFormat::QwenAsr { model, projector } => {
                 Ok(Arc::new(llama::Asr::load(&model_file(dir, model)?, &model_file(dir, projector)?)?))
             }
-            ModelFormat::Chat { .. } => Err(RuntimeError::engine("not a speech recognition model")),
+            ModelFormat::Chat { .. } | ModelFormat::PrismChat { .. } => {
+                Err(RuntimeError::engine("not a speech recognition model"))
+            }
             #[allow(unreachable_patterns)]
             other => Err(unavailable(other.runtime(), &spec.name)),
         }
@@ -89,8 +93,18 @@ impl RuntimeLoader for Runtimes {
         self.load_asr(spec, dir)
     }
 
-    #[cfg_attr(not(feature = "llama"), allow(unused_variables))]
+    #[cfg_attr(not(any(feature = "llama", feature = "prism")), allow(unused_variables))]
     fn load_llm(&self, spec: &ModelSpec, dir: &Path) -> Result<Arc<dyn LlmRuntime>, RuntimeError> {
+        self.load_llm_cancellable(spec, dir, &std::sync::atomic::AtomicBool::new(false))
+    }
+
+    #[cfg_attr(not(any(feature = "llama", feature = "prism")), allow(unused_variables))]
+    fn load_llm_cancellable(
+        &self,
+        spec: &ModelSpec,
+        dir: &Path,
+        stop: &std::sync::atomic::AtomicBool,
+    ) -> Result<Arc<dyn LlmRuntime>, RuntimeError> {
         match spec.format {
             #[cfg(feature = "llama")]
             ModelFormat::Chat { model, disable_thinking, .. } => {
@@ -98,6 +112,12 @@ impl RuntimeLoader for Runtimes {
             }
             #[cfg(not(feature = "llama"))]
             ModelFormat::Chat { .. } => Err(unavailable(spec.format.runtime(), &spec.name)),
+            #[cfg(feature = "prism")]
+            ModelFormat::PrismChat { model, archive, .. } => {
+                Ok(Arc::new(prism::Chat::load(dir, model, archive, stop)?))
+            }
+            #[cfg(not(feature = "prism"))]
+            ModelFormat::PrismChat { .. } => Err(unavailable(spec.format.runtime(), &spec.name)),
             _ => Err(RuntimeError::engine("not a text generation model")),
         }
     }
@@ -108,7 +128,7 @@ fn unavailable(runtime: Runtime, name: &str) -> RuntimeError {
 }
 
 /// Never an arbitrary matching file in the directory: the catalog names the exact file.
-#[cfg(any(feature = "llama", feature = "sherpa", feature = "nemo", feature = "transcribe", test))]
+#[cfg(any(feature = "llama", feature = "sherpa", feature = "nemo", feature = "prism", feature = "transcribe", test))]
 fn model_file(dir: &Path, name: &str) -> Result<std::path::PathBuf, RuntimeError> {
     let path = dir.join(name);
     if path.is_file() { Ok(path) } else { Err(RuntimeError::MissingFile(path)) }
