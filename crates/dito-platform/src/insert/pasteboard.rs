@@ -21,8 +21,11 @@ fn snapshot_pasteboard() -> Option<PasteboardItems> {
     for item in items.iter() {
         let mut types = Vec::new();
         for ty in item.types().iter() {
-            let bytes = item.dataForType(&ty).map(|d| d.to_vec()).unwrap_or_default();
-            types.push((ty.to_string(), bytes));
+            // A type whose data cannot be read (a promise the owner no longer keeps) is left out rather than written
+            // back empty.
+            if let Some(data) = item.dataForType(&ty) {
+                types.push((ty.to_string(), data.to_vec()));
+            }
         }
         out.push(types);
     }
@@ -49,22 +52,22 @@ fn restore_pasteboard(items: &PasteboardItems) -> bool {
     pb.writeObjects(&NSArray::from_slice(&writing))
 }
 
-/// `pasted_at` plus the floor keeps the restore from racing the target app's asynchronous pasteboard read; the
-/// change-count guard keeps it from clobbering a clipboard the user (or a clipboard manager) has rewritten since. In
-/// that case their content wins and the dictated text stays where it is.
+/// Text written over the clipboard for a paste, with what it replaced. The restore puts every type back, unless the
+/// user (or a clipboard manager) has written to the clipboard since: their content then wins and the text stays.
 #[derive(Debug)]
-pub(super) struct PasteGuard {
-    pasted_at: Instant,
+pub struct ClipboardSwap {
     prev: Option<PasteboardItems>,
     count_after_write: isize,
 }
 
-impl PasteGuard {
-    fn remaining(&self, floor: Duration) -> Duration {
-        floor.saturating_sub(self.pasted_at.elapsed())
+impl ClipboardSwap {
+    pub fn begin(text: &str) -> Result<Self, InsertError> {
+        let prev = snapshot_pasteboard();
+        copy_to_clipboard(text)?;
+        Ok(Self { prev, count_after_write: NSPasteboard::generalPasteboard().changeCount() })
     }
 
-    fn restore(&self) {
+    pub fn restore(&self) {
         let Some(prev) = &self.prev else { return };
         if NSPasteboard::generalPasteboard().changeCount() != self.count_after_write {
             tracing::info!("insert: clipboard changed since the paste; keeping the newer content");
@@ -72,12 +75,25 @@ impl PasteGuard {
         }
         restore_pasteboard(prev);
     }
+}
+
+/// `pasted_at` plus the floor keeps the restore from racing the target app's asynchronous pasteboard read.
+#[derive(Debug)]
+pub(super) struct PasteGuard {
+    pasted_at: Instant,
+    swap: ClipboardSwap,
+}
+
+impl PasteGuard {
+    fn remaining(&self, floor: Duration) -> Duration {
+        floor.saturating_sub(self.pasted_at.elapsed())
+    }
 
     pub(super) fn restore_after(self, floor: Duration) {
         let wait = self.remaining(floor);
         std::thread::spawn(move || {
             std::thread::sleep(wait);
-            self.restore();
+            self.swap.restore();
         });
     }
 
@@ -85,23 +101,19 @@ impl PasteGuard {
     /// right after.
     pub(super) fn restore_blocking(self, floor: Duration) {
         std::thread::sleep(self.remaining(floor));
-        self.restore();
+        self.swap.restore();
     }
 }
 
 /// On failure the previous clipboard is restored before returning; on success that is the returned guard's job.
 pub(super) fn begin_paste(text: &str) -> Result<PasteGuard, InsertError> {
-    let prev = snapshot_pasteboard();
-    copy_to_clipboard(text)?;
-    let count_after_write = NSPasteboard::generalPasteboard().changeCount();
+    let swap = ClipboardSwap::begin(text)?;
     if !keyboard::post_paste() {
         tracing::warn!("insert: could not send Cmd+V; restoring the clipboard");
-        if let Some(prev) = &prev {
-            restore_pasteboard(prev);
-        }
+        swap.restore();
         return Err(InsertError::PasteKeystroke);
     }
-    Ok(PasteGuard { pasted_at: Instant::now(), prev, count_after_write })
+    Ok(PasteGuard { pasted_at: Instant::now(), swap })
 }
 
 const PLAIN_TEXT: &str = "public.utf8-plain-text";

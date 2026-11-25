@@ -7,6 +7,7 @@ use std::time::Duration;
 
 use dito_core::config::InsertMethod;
 use dito_core::controller::{Delivery, Sink};
+use dito_platform::insert::ClipboardSwap;
 use gpui_kit::base::input::Paste;
 use gpui_kit::*;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
@@ -88,14 +89,18 @@ fn paste_into_focused_field(request: &Request, cx: &mut App) -> bool {
             {
                 return false;
             }
-            let saved = cx.read_from_clipboard();
-            cx.write_to_clipboard(ClipboardItem::new_string(request.text.clone()));
+            let swap = match ClipboardSwap::begin(&request.text) {
+                Ok(swap) => swap,
+                Err(e) => {
+                    tracing::warn!("insert: could not put the text on the clipboard for Dito's own field: {e}");
+                    request.claimed.store(false, Ordering::SeqCst);
+                    return false;
+                }
+            };
             window.dispatch_action(Box::new(Paste), cx);
             cx.spawn(async move |cx| {
                 cx.background_executor().timer(CLIPBOARD_BACK).await;
-                if let Some(saved) = saved {
-                    cx.update(|cx| cx.write_to_clipboard(saved));
-                }
+                swap.restore();
             })
             .detach();
             true
