@@ -86,9 +86,10 @@ impl LocalEngines {
     }
 
     pub fn usage(&self, id: &str) -> EngineUsage {
+        // An exited worker's PID may already belong to another process, so it is never read.
         let pid = match self.slots.lock().expect("engine state mutex poisoned").get(id) {
-            Some(Slot::Asr(runtime)) => runtime.process_id(),
-            Some(Slot::Llm(runtime)) => runtime.process_id(),
+            Some(Slot::Asr(runtime)) if runtime.failure().is_none() => runtime.process_id(),
+            Some(Slot::Llm(runtime)) if runtime.failure().is_none() => runtime.process_id(),
             _ => None,
         };
         if let Some(pid) = pid {
@@ -184,17 +185,19 @@ impl LocalEngines {
         let _ = self.ensure_loaded(id).await;
     }
 
-    fn loaded(&self, id: &str) -> ProviderResult<Option<Slot>> {
-        let existing = self.slots.lock().expect("engine state mutex poisoned").get(id).cloned();
-        let failure = match &existing {
-            Some(Slot::Asr(runtime)) => runtime.failure(),
-            Some(Slot::Llm(runtime)) => runtime.failure(),
+    /// The slot while it holds a runtime whose worker is alive. A worker that has exited keeps its slot, so the
+    /// status shows the failure, until the next load replaces it.
+    fn loaded(existing: Option<Slot>) -> Option<Slot> {
+        existing.filter(|slot| matches!(slot, Slot::Asr(_) | Slot::Llm(_)) && Self::worker_failure(slot).is_none())
+    }
+
+    /// Why a slot's worker can no longer run its model.
+    fn worker_failure(slot: &Slot) -> Option<String> {
+        match slot {
+            Slot::Asr(runtime) => runtime.failure(),
+            Slot::Llm(runtime) => runtime.failure(),
             _ => None,
-        };
-        if let Some(error) = failure {
-            return Err(ProviderError::retryable(ErrorKind::Unavailable, error));
         }
-        Ok(existing.filter(|slot| matches!(slot, Slot::Asr(_) | Slot::Llm(_))))
     }
 
     async fn ensure_loaded(&self, id: &str) -> ProviderResult<Slot> {
@@ -206,21 +209,36 @@ impl LocalEngines {
             return Err(ProviderError::new(ErrorKind::Unavailable, format!("{} is not downloaded", spec.name)));
         }
         // The load lock is held for a whole load, so a loaded model must not wait behind another model's load.
-        if let Some(slot) = self.loaded(id)? {
+        if let Some(slot) = Self::loaded(self.slots.lock().expect("engine state mutex poisoned").get(id).cloned()) {
             return Ok(slot);
         }
         let _guard = self.load_lock.lock().await;
-        if let Some(slot) = self.loaded(id)? {
-            return Ok(slot);
-        }
         let spec = spec.clone();
         let stop = Arc::new(AtomicBool::new(false));
-        {
+        // The dead worker leaves in the step that marks the model as loading, so a stop requested while it is
+        // released below reaches this load.
+        let dead = {
             let mut slots = self.slots.lock().expect("engine state mutex poisoned");
             if matches!(slots.get(id), Some(Slot::Stopping(_))) {
                 return Err(ProviderError::retryable(ErrorKind::Unavailable, "model is stopping"));
             }
-            slots.insert(id.to_string(), Slot::Loading(stop.clone()));
+            if let Some(slot) = Self::loaded(slots.get(id).cloned()) {
+                return Ok(slot);
+            }
+            slots
+                .insert(id.to_string(), Slot::Loading(stop.clone()))
+                .filter(|slot| matches!(slot, Slot::Asr(_) | Slot::Llm(_)))
+        };
+        if let Some(dead) = dead {
+            let error = Self::worker_failure(&dead).unwrap_or_default();
+            trace_log!(model = id, error = %error, "model worker exited, the model is loaded again");
+            // Releasing a worker can wait for seconds, so it runs outside the slot lock.
+            match &dead {
+                Slot::Asr(runtime) => runtime.shutdown(),
+                Slot::Llm(runtime) => runtime.shutdown(),
+                _ => {}
+            }
+            drop(dead);
         }
         let (loader, dir) = (self.loader.clone(), self.manager.model_dir(id));
         let mapped = mapped_weights_bytes(&dir);
@@ -392,12 +410,11 @@ impl Drop for StopOnDrop {
 
 const CANCEL_POLL: Duration = Duration::from_millis(25);
 
-/// Output that used the whole token budget is cut off mid-text and would be typed as if it were complete.
+/// Output that used the whole token budget is cut off mid-text and would be typed as if it were complete. The error
+/// is final: a retry spends the same budget on the same request and is cut at the same place.
 fn runtime_failure(error: RuntimeError) -> ProviderError {
     match error {
-        RuntimeError::Truncated => {
-            ProviderError::retryable(ErrorKind::BadResponse, "output was cut off at the token limit")
-        }
+        RuntimeError::Truncated => ProviderError::new(ErrorKind::BadResponse, "output was cut off at the token limit"),
         other => ProviderError::new(ErrorKind::Other, other.to_string()),
     }
 }
@@ -580,10 +597,11 @@ mod tests {
     use dito_core::error::ErrorKind;
 
     #[test]
-    fn only_truncated_local_output_is_retryable() {
+    fn a_cut_off_output_is_a_final_bad_response() {
         let truncated = runtime_failure(RuntimeError::Truncated);
         assert_eq!(truncated.kind, ErrorKind::BadResponse);
-        assert!(truncated.is_retryable());
+        assert_eq!(truncated.message, "output was cut off at the token limit");
+        assert!(!truncated.is_retryable(), "the same budget would cut a retry at the same place");
         assert!(!runtime_failure(RuntimeError::Cancelled).is_retryable());
         assert!(!runtime_failure(RuntimeError::Engine("failed".into())).is_retryable());
     }

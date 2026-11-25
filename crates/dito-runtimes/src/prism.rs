@@ -11,7 +11,7 @@ use dito_local::{Example, LlmRuntime, RuntimeError, Sampling};
 use serde_json::{Number, Value, json};
 
 use crate::qwen_text::{ThinkFilter, strip_think};
-use crate::worker::{Runtime, Worker, block_on, cancelled, client};
+use crate::worker::{Runtime, Worker, block_on, cancelled, client, ensure_success};
 
 const RUNTIME: Runtime = Runtime {
     label: "Prism",
@@ -297,13 +297,9 @@ impl LlmRuntime for Chat {
         let cancelled_during_stream = block_on(async {
             let client = client(Duration::from_secs(600))?;
             let open = async {
-                self.worker
-                    .chat_request(&client)
-                    .json(&body)
-                    .send()
-                    .await
-                    .and_then(reqwest::Response::error_for_status)
-                    .map_err(RuntimeError::engine)
+                let response =
+                    self.worker.chat_request(&client).json(&body).send().await.map_err(RuntimeError::engine)?;
+                ensure_success(response).await
             };
             tokio::pin!(open);
             let mut response = loop {

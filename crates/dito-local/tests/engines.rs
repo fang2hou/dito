@@ -13,6 +13,7 @@ use dito_core::health::EngineStatus;
 use dito_core::intent::{Intent, Reading, Request};
 use dito_core::provider::{AsrRequest, ChatCancel, ChatMessage, ChatRequest, ChatRole, Example, TextRequest};
 use dito_local::catalog::{FileSpec, ModelFormat, ModelKind, ModelSpec, Sampling};
+use dito_local::managed_process::ManagedProcess;
 use dito_local::{
     AsrOutput, AsrRuntime, LlmRuntime, LocalEngines, ModelManager, NoRuntime, RuntimeError, RuntimeLoader,
 };
@@ -470,7 +471,10 @@ async fn a_worker_that_exits_is_failed_instead_of_still_running() {
     engine.warm("asr").await;
     runtime.0.store(true, Ordering::Relaxed);
     assert_eq!(engine.status("asr"), EngineStatus::Failed("worker exited".into()));
-    assert!(engine.transcriber("asr").await.is_err());
+    // The next use replaces the worker. This loader hands back the same exited one, so no result comes from it.
+    let transcriber = engine.transcriber("asr").await.unwrap();
+    let clip = AudioClip::silence(0.1);
+    assert!(transcriber.transcribe(&AsrRequest { clip: &clip, language: None, hotwords: &[] }).await.is_err());
 }
 
 #[tokio::test]
@@ -494,7 +498,8 @@ async fn a_llm_worker_that_exits_is_failed_instead_of_still_running() {
     engine.warm("llm").await;
     runtime.0.store(true, Ordering::Relaxed);
     assert_eq!(engine.status("llm"), EngineStatus::Failed("worker exited".into()));
-    assert!(engine.text_model("llm", &Default::default()).await.is_err());
+    let model = engine.text_model("llm", &Default::default()).await.unwrap();
+    assert!(model.polish(&TextRequest { system: "sys", examples: &[], text: "hi" }).await.is_err());
 }
 
 /// One runtime serving as both the speech and the language model, so a test decides how every inference call ends.
@@ -679,4 +684,153 @@ async fn a_local_chat_streams_its_pieces_with_the_request_sampling_and_stops_on_
         (0.9, Some(0.5), Some(7)),
         "the request replaces the configuration field by field and the rest is kept"
     );
+}
+
+/// A runtime whose worker is a real process, so the engine observes a genuine exit.
+struct ProcessRuntime(ManagedProcess);
+
+impl AsrRuntime for ProcessRuntime {
+    fn shutdown(&self) {
+        self.0.shutdown();
+    }
+
+    fn failure(&self) -> Option<String> {
+        self.0.failure()
+    }
+
+    fn process_id(&self) -> Option<u32> {
+        Some(self.0.pid())
+    }
+
+    fn transcribe(&self, _: &[f32], _: Option<&str>, _: &[String], _: &AtomicBool) -> Result<AsrOutput, RuntimeError> {
+        match self.0.failure() {
+            Some(error) => Err(RuntimeError::engine(error)),
+            None => Ok(AsrOutput { text: "speech".into(), language: None }),
+        }
+    }
+}
+
+impl LlmRuntime for ProcessRuntime {
+    fn shutdown(&self) {
+        self.0.shutdown();
+    }
+
+    fn failure(&self) -> Option<String> {
+        self.0.failure()
+    }
+
+    fn process_id(&self) -> Option<u32> {
+        Some(self.0.pid())
+    }
+
+    fn generate(&self, _: &str, _: &[Example], _: &str, _: &Sampling, _: &AtomicBool) -> Result<String, RuntimeError> {
+        match self.0.failure() {
+            Some(error) => Err(RuntimeError::engine(error)),
+            None => Ok("polished".into()),
+        }
+    }
+}
+
+/// The first worker it hands out exits at once; every later one stays up.
+struct ProcessLoader {
+    loads: AtomicUsize,
+    first: std::sync::Mutex<Option<Arc<ProcessRuntime>>>,
+}
+
+impl ProcessLoader {
+    fn load(&self) -> Result<Arc<ProcessRuntime>, RuntimeError> {
+        let mut first = self.first.lock().unwrap();
+        let initial = first.is_none();
+        let (program, args): (&str, &[&str]) = if initial { ("/usr/bin/false", &[]) } else { ("/bin/sleep", &["60"]) };
+        let runtime = Arc::new(ProcessRuntime(ManagedProcess::spawn(
+            Path::new(program),
+            &args.iter().map(|arg| (*arg).to_owned()).collect::<Vec<String>>(),
+            tempfile::tempfile().unwrap(),
+        )?));
+        if initial {
+            *first = Some(Arc::clone(&runtime));
+        }
+        self.loads.fetch_add(1, Ordering::SeqCst);
+        Ok(runtime)
+    }
+}
+
+impl RuntimeLoader for ProcessLoader {
+    fn load_asr(&self, _: &ModelSpec, _: &Path) -> Result<Arc<dyn AsrRuntime>, RuntimeError> {
+        let runtime: Arc<dyn AsrRuntime> = self.load()?;
+        Ok(runtime)
+    }
+
+    fn load_llm(&self, _: &ModelSpec, _: &Path) -> Result<Arc<dyn LlmRuntime>, RuntimeError> {
+        let runtime: Arc<dyn LlmRuntime> = self.load()?;
+        Ok(runtime)
+    }
+}
+
+/// `usage` of a process-backed model reports no mapped bytes, so a weights file tells the engine's own accounting
+/// apart from a read of the worker's PID.
+const MAPPED: u64 = 64 * 1024;
+
+struct DeadWorker {
+    id: &'static str,
+    engine: Arc<LocalEngines>,
+    loader: Arc<ProcessLoader>,
+    dead: Arc<ProcessRuntime>,
+    _dir: tempfile::TempDir,
+}
+
+/// An engine whose worker for `id` has exited, and whose status reports it while nothing asks for the model.
+async fn engine_with_dead_worker(id: &'static str) -> DeadWorker {
+    let (manager, dir) = installed_manager();
+    std::fs::write(manager.model_dir(id).join("weights.gguf"), vec![0; MAPPED as usize]).unwrap();
+    let loader = Arc::new(ProcessLoader { loads: AtomicUsize::new(0), first: std::sync::Mutex::new(None) });
+    let engine = LocalEngines::new(manager, loader.clone());
+    engine.warm(id).await;
+    let dead = loader.first.lock().unwrap().clone().expect("the first worker was loaded");
+    tokio::time::timeout(WAIT, async {
+        while !matches!(engine.status(id), EngineStatus::Failed(reason) if reason.starts_with("model worker exited")) {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .expect("the worker's exit was never reported");
+    assert_eq!(loader.loads.load(Ordering::SeqCst), 1);
+    // An exited worker's PID may belong to another process by now, so no usage is read from it.
+    assert_eq!(engine.usage(id).mapped_bytes, MAPPED);
+    DeadWorker { id, engine, loader, dead, _dir: dir }
+}
+
+fn assert_replaced(test: &DeadWorker) {
+    assert_eq!(test.loader.loads.load(Ordering::SeqCst), 2, "the waiting caller loaded the fresh worker again");
+    assert_eq!(test.engine.status(test.id), EngineStatus::Running);
+    let failure = test.dead.0.failure();
+    assert_eq!(failure.as_deref(), Some("model worker is stopped"), "the dead worker was not released");
+    // A live worker answers from its PID, which never reports mapped bytes.
+    assert_eq!(test.engine.usage(test.id).mapped_bytes, 0);
+    test.engine.unload_all();
+}
+
+#[tokio::test]
+async fn a_dead_speech_worker_is_replaced_by_the_next_load() {
+    let test = engine_with_dead_worker("asr").await;
+    // The second caller waits for the first one's load and must find the fresh worker.
+    let (first, second) = tokio::join!(test.engine.transcriber("asr"), test.engine.transcriber("asr"));
+    let clip = AudioClip::silence(0.1);
+    let request = AsrRequest { clip: &clip, language: None, hotwords: &[] };
+    for transcriber in [first.unwrap(), second.unwrap()] {
+        assert_eq!(transcriber.transcribe(&request).await.unwrap().text, "speech");
+    }
+    assert_replaced(&test);
+}
+
+#[tokio::test]
+async fn a_dead_text_worker_is_replaced_by_the_next_load() {
+    let test = engine_with_dead_worker("llm").await;
+    let (first, second) =
+        tokio::join!(test.engine.text_model("llm", &NO_PARAMS), test.engine.text_model("llm", &NO_PARAMS));
+    let request = TextRequest { system: "s", examples: &[], text: "hi" };
+    for model in [first.unwrap(), second.unwrap()] {
+        assert_eq!(model.polish(&request).await.unwrap(), "polished");
+    }
+    assert_replaced(&test);
 }

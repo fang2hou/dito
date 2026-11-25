@@ -36,6 +36,32 @@ pub(crate) fn client(timeout: Duration) -> Result<reqwest::Client, RuntimeError>
         .map_err(RuntimeError::engine)
 }
 
+/// The most characters of a rejected answer that an error keeps.
+const ERROR_CHARS: usize = 400;
+
+/// Passes an accepted answer through. A rejected one becomes an error that keeps the server's own reason, which says
+/// for example that a prompt is longer than the context.
+pub(crate) async fn ensure_success(response: reqwest::Response) -> Result<reqwest::Response, RuntimeError> {
+    let status = response.status();
+    if status.is_success() {
+        return Ok(response);
+    }
+    Err(rejected(status.as_u16(), &response.text().await.unwrap_or_default()))
+}
+
+fn rejected(status: u16, body: &str) -> RuntimeError {
+    let body = body.trim();
+    let mut reason: String = body.chars().take(ERROR_CHARS).collect();
+    if reason.len() < body.len() {
+        reason.push('…');
+    }
+    if reason.is_empty() {
+        RuntimeError::engine(format!("HTTP {status} with an empty body"))
+    } else {
+        RuntimeError::engine(format!("HTTP {status}: {reason}"))
+    }
+}
+
 /// A runtime archive pinned by its SHA-256, and where its executable lands once unpacked.
 pub(crate) struct Runtime {
     /// Names the runtime in errors.
@@ -187,14 +213,8 @@ impl Worker {
         stop: &AtomicBool,
     ) -> Result<Value, RuntimeError> {
         let request = async {
-            let response = self
-                .chat_request(client)
-                .json(body)
-                .send()
-                .await
-                .and_then(reqwest::Response::error_for_status)
-                .map_err(RuntimeError::engine)?;
-            response.json::<Value>().await.map_err(RuntimeError::engine)
+            let response = self.chat_request(client).json(body).send().await.map_err(RuntimeError::engine)?;
+            ensure_success(response).await?.json::<Value>().await.map_err(RuntimeError::engine)
         };
         tokio::select! {
             value = request => value,
@@ -232,5 +252,30 @@ fn with_log(error: RuntimeError, log_name: &str) -> RuntimeError {
     match error {
         RuntimeError::Cancelled => RuntimeError::Cancelled,
         error => RuntimeError::engine(format!("{error}; see {log_name}")),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn reason(status: u16, body: &str) -> String {
+        match rejected(status, body) {
+            RuntimeError::Engine(reason) => reason,
+            other => panic!("unexpected error: {other}"),
+        }
+    }
+
+    #[test]
+    fn a_rejected_answer_keeps_its_status_and_the_servers_reason() {
+        let body = r#"{"error":{"message":"the request exceeds the available context size, try increasing it","type":"exceed_context_size_error"}}"#;
+        assert_eq!(reason(400, &format!(" \n{body}\n ")), format!("HTTP 400: {body}"));
+        assert_eq!(reason(503, " \n"), "HTTP 503 with an empty body");
+    }
+
+    #[test]
+    fn a_long_reason_is_cut_at_a_character_boundary_and_marked() {
+        let long = "é".repeat(1_000);
+        assert_eq!(reason(500, &long), format!("HTTP 500: {}…", "é".repeat(ERROR_CHARS)));
     }
 }

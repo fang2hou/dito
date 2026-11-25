@@ -22,9 +22,10 @@ pub const QWEN38_TEXT_CAPABILITIES: TextModelCapabilities = TextModelCapabilitie
 };
 
 /// Ternary Bonsai 2.5 27B shares Qwen 3.8's chat template, but its card states `low` is unsupported
-/// and behaves like `xhigh`.
+/// and behaves like `xhigh`. Its window is the one its Prism worker is started with: a prompt beyond it is rejected,
+/// although the model's own window is larger.
 pub const BONSAI25_TEXT_CAPABILITIES: TextModelCapabilities = TextModelCapabilities {
-    context_window_tokens: 262_144,
+    context_window_tokens: 32_768,
     max_output_tokens: None,
     recommended_output_tokens: None,
     thinking: Some(ThinkingCapabilities {

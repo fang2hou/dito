@@ -62,7 +62,7 @@ impl Speech {
                 "--asr.salm.max_context",
                 "73728",
                 "--asr.salm.max_new_tokens",
-                "512",
+                "2048",
                 "--asr.salm.n_batch",
                 "512",
                 "--asr.salm.encoder_max_batch",
