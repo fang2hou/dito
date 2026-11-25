@@ -139,7 +139,10 @@ impl Recognizer {
         let clip = AudioClip::new(samples);
         let request = AsrRequest { clip: &clip, language: self.language.as_deref(), hotwords: &self.words };
         match self.asr.transcribe(&request).await {
-            Ok(t) => Ok(Some(t.text.trim().to_string()).filter(|t| !t.is_empty())),
+            Ok(t) => {
+                let text = crate::spoken_forms::normalize(t.text.trim(), &self.words).into_owned();
+                Ok(Some(text).filter(|text| !text.is_empty()))
+            }
             Err(e) if e.kind == ErrorKind::NoSpeech => Ok(None),
             Err(e) => Err(e.to_string()),
         }

@@ -1,5 +1,6 @@
 //! Transcribe, then polish, for one recorded clip; recording and delivery belong to the controller.
 
+use std::borrow::Cow;
 use std::time::Instant;
 
 pub use tokio_util::sync::CancellationToken;
@@ -12,6 +13,7 @@ use crate::health::EngineStatus;
 use crate::i18n::Lang;
 use crate::prompts::{AppTarget, PromptInput, Prompts, SCAFFOLD_MARKERS, build_prompt, detect_lang};
 use crate::provider::{AsrRequest, TextModel, TextRequest};
+use crate::spoken_forms;
 use crate::trace_log;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -116,16 +118,18 @@ async fn transcribe(
         hotwords = wordbook.len(),
         "asr request"
     );
-    let transcript = match or_cancel(cancel, asr.transcribe(&AsrRequest { clip, language, hotwords: wordbook })).await?
-    {
-        Ok(transcript) => transcript,
-        Err(error) => {
-            trace_log!(elapsed_ms = started.elapsed().as_millis() as u64, %error, "asr failed");
-            return Err(PipelineError::Failed(error));
-        }
-    };
+    let mut transcript =
+        match or_cancel(cancel, asr.transcribe(&AsrRequest { clip, language, hotwords: wordbook })).await? {
+            Ok(transcript) => transcript,
+            Err(error) => {
+                trace_log!(elapsed_ms = started.elapsed().as_millis() as u64, %error, "asr failed");
+                return Err(PipelineError::Failed(error));
+            }
+        };
     let asr_ms = started.elapsed().as_millis() as u64;
     trace_log!(asr_ms, detected = ?transcript.language, transcript = ?transcript.text, "asr transcript");
+    let raw_before = std::mem::take(&mut transcript.text);
+    transcript.text = restore_written_forms(raw_before, wordbook, "asr");
     if transcript.text.trim().is_empty() {
         return Err(PipelineError::Failed(ProviderError::new(ErrorKind::NoSpeech, "nothing was transcribed")));
     }
@@ -160,12 +164,29 @@ async fn polish(
     let request = TextRequest { system: &prompt.system, examples: prompt.examples, text: &prompt.user };
     let result = attempt_polish(engines, cfg, cancel, resolved, &request).await?;
     match result {
-        Ok(Some(text)) => out.polished = Some(text),
+        Ok(Some(text)) => out.polished = Some(restore_written_forms(text, job.wordbook, "polish")),
         Ok(None) => {}
         Err(error) => out.polish_error = Some(error),
     }
     out.polish_ms = started.elapsed().as_millis() as u64;
     Ok(())
+}
+
+/// Writes each wordbook term as the term where the text spells it as it sounds. A hotword is only a hint to ASR and a
+/// style rule may spell `1on1` out again, so the transcript and the polished text both go through here, whether or not
+/// the wordbook is given to polish.
+fn restore_written_forms(text: String, wordbook: &[String], stage: &'static str) -> String {
+    let restored = match spoken_forms::normalize(&text, wordbook) {
+        Cow::Borrowed(_) => None,
+        Cow::Owned(restored) => Some(restored),
+    };
+    match restored {
+        None => text,
+        Some(restored) => {
+            trace_log!(stage, before = ?text, after = ?restored, "spoken forms restored");
+            restored
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -772,6 +793,45 @@ mod tests {
 
         assert!(matches!(result, Err(PipelineError::Cancelled)));
         assert_eq!(model.calls.load(Ordering::SeqCst), 2);
+    }
+
+    #[tokio::test]
+    async fn wordbook_terms_are_written_as_themselves_before_and_after_polish() {
+        // Spells the term out again, and remembers the text the model was given.
+        struct SpellsOut(std::sync::Mutex<String>);
+        #[async_trait::async_trait]
+        impl TextModel for SpellsOut {
+            async fn polish(&self, r: &TextRequest<'_>) -> ProviderResult<String> {
+                *self.0.lock().unwrap() = r.text.to_string();
+                Ok("Let's do a one-on-one.".into())
+            }
+        }
+        async fn dictate(e: &dyn Engines, cfg: &Config, wordbook: &[String]) -> Output {
+            run(
+                e,
+                cfg,
+                &PipelineJob { clip: &tone(), target: AppTarget::General, wordbook },
+                &|_| {},
+                &CancellationToken::new(),
+            )
+            .await
+            .unwrap()
+        }
+        let said = || Arc::new(MockTranscriber::new("let's do a one on one"));
+        let dict = vec!["1on1".to_string()];
+        let mut cfg = Config::default();
+        cfg.polish.enabled = false;
+
+        let e = FixedEngines::new(said(), Arc::new(MockTextModel::default()));
+        let out = dictate(&e, &cfg, &dict).await;
+        assert_eq!((out.raw.as_str(), out.polished.as_deref()), ("let's do a 1on1", None));
+
+        cfg.polish.enabled = true;
+        let model = Arc::new(SpellsOut(std::sync::Mutex::new(String::new())));
+        let e = FixedEngines::new(said(), model.clone());
+        let out = dictate(&e, &cfg, &dict).await;
+        assert_eq!(crate::prompts::unfenced(&model.0.lock().unwrap()), "let's do a 1on1");
+        assert_eq!(out.polished.as_deref(), Some("Let's do a 1on1."));
     }
 
     #[tokio::test]

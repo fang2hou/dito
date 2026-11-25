@@ -53,7 +53,7 @@ pub async fn test_asr_draft(
         .unwrap_or_else(|error| TestOutcome::Failed { kind: ErrorKind::Other, message: error.to_string() })
 }
 
-/// Uses the given prompts rather than the saved ones.
+/// Uses the given prompts rather than the saved ones, and the saved wordbook when polishing takes it.
 pub async fn try_polish(
     st: Arc<AppState>,
     prompts: dito_core::prompts::Prompts,
@@ -66,7 +66,24 @@ pub async fn try_polish(
         .spawn(async move {
             let cfg = st2.cfg.get();
             let text_model = st2.factory.text_model_for(&cfg.text_model).await.map_err(|e| e.to_string())?;
-            let polish_job = PolishJob { prompts: &prompts, target, text: &text, wordbook: &[], lang };
+            let store = st2.store.clone();
+            let loaded = st2
+                .rt
+                .spawn_blocking(move || store.words(None))
+                .await
+                .map_err(|e| e.to_string())
+                .and_then(|words| words.map_err(|e| e.to_string()));
+            let words = loaded.unwrap_or_else(|error| {
+                tracing::warn!(operation = "load wordbook", %error, "the polish preview runs without wordbook words");
+                Vec::new()
+            });
+            let polish_job = PolishJob {
+                prompts: &prompts,
+                target,
+                text: &text,
+                wordbook: pipeline::polish_wordbook(&cfg, &words),
+                lang,
+            };
             let started = std::time::Instant::now();
             let out = pipeline::polish_text(text_model.as_ref(), polish_job).await.map_err(|e| e.to_string())?;
             Ok((out, started.elapsed().as_millis() as u64))
