@@ -12,4 +12,8 @@ pub enum ManagerError {
     Io(#[from] std::io::Error),
     #[error("could not save the models folder: {0}")]
     Config(String),
+    #[error("the new models folder is inside a model's folder")]
+    TargetInsideModel,
+    #[error("not enough free space for the models: {needed} bytes needed, {free} free")]
+    InsufficientSpace { needed: u64, free: u64 },
 }

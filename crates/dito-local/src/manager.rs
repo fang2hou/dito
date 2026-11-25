@@ -12,7 +12,7 @@ use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
 
 use crate::catalog::{ModelSpec, default_catalog};
-use crate::disk::{copy_dir, free_space};
+use crate::disk::{copy_dir, dir_size, free_space};
 use crate::download::{self, DlError};
 use crate::manager_error::ManagerError;
 use crate::manifest::{self, Manifest, ManifestError};
@@ -122,6 +122,51 @@ const FREE_MARGIN: u64 = 200 * 1024 * 1024;
 const MANIFEST_TTL: Duration = Duration::from_secs(5 * 60);
 
 /// Reports the percent, in steps of ten, each time a download first passes one after `start` bytes.
+fn same_volume(a: &Path, b: &Path) -> bool {
+    use std::os::unix::fs::MetadataExt;
+    matches!((std::fs::metadata(a), std::fs::metadata(b)), (Ok(a), Ok(b)) if a.dev() == b.dev())
+}
+
+/// Renames each model folder, and on the first failure renames the ones already moved back.
+fn rename_all(moving: &[(PathBuf, PathBuf)]) -> Result<(), ManagerError> {
+    for (done, (from, to)) in moving.iter().enumerate() {
+        if let Err(e) = std::fs::rename(from, to) {
+            undo_move(&moving[..done]);
+            return Err(e.into());
+        }
+    }
+    Ok(())
+}
+
+/// Copies every model folder after checking the space for all of them; on failure the copies are removed and the
+/// originals were never touched.
+fn copy_all(moving: &[(PathBuf, PathBuf)], new_dir: &Path) -> Result<(), ManagerError> {
+    let needed = moving.iter().map(|(from, _)| dir_size(from)).sum::<u64>();
+    let free = free_space(new_dir);
+    if needed > free {
+        return Err(ManagerError::InsufficientSpace { needed, free });
+    }
+    for (done, (from, to)) in moving.iter().enumerate() {
+        if let Err(e) = copy_dir(from, to) {
+            let _ = std::fs::remove_dir_all(to);
+            undo_move(&moving[..done]);
+            return Err(e.into());
+        }
+    }
+    Ok(())
+}
+
+/// Puts moved folders back where they were: a renamed one is renamed back, a copied one is removed, since its
+/// original is still in place.
+fn undo_move(moved: &[(PathBuf, PathBuf)]) {
+    for (from, to) in moved {
+        let undone = if from.exists() { std::fs::remove_dir_all(to) } else { std::fs::rename(to, from) };
+        if let Err(e) = undone {
+            tracing::warn!("could not undo the move of {}: {e}", to.display());
+        }
+    }
+}
+
 fn milestone_reached(start: u64, total: u64) -> impl FnMut(u64) -> Option<u64> {
     let step = move |done: u64| (done * 100).checked_div(total).map_or(0, |percent| percent / 10 * 10);
     let mut last = step(start);
@@ -504,30 +549,43 @@ impl ModelManager {
         Ok(())
     }
 
-    /// Move every installed (and partial) model to `new_dir` and make it the models folder.
+    /// Move every installed (and partial) model to `new_dir` and make it the models folder. All or nothing: a move
+    /// that fails part way leaves every model in the old folder, which stays the models folder, because a model left
+    /// behind in a folder the settings do not name would read as not installed.
     pub fn change_dir(&self, new_dir: &Path) -> Result<(), ManagerError> {
         let _moving = self.begin_move()?;
         let old = self.dir();
         if old == new_dir {
             return Ok(());
         }
+        let moving: Vec<(PathBuf, PathBuf)> = self
+            .inner
+            .catalog
+            .iter()
+            .map(|spec| (old.join(&spec.id), new_dir.join(&spec.id)))
+            .filter(|(from, _)| from.exists())
+            .collect();
+        if moving.iter().any(|(from, _)| new_dir.starts_with(from)) {
+            return Err(ManagerError::TargetInsideModel);
+        }
         std::fs::create_dir_all(new_dir)?;
-        for spec in &self.inner.catalog {
-            let from = old.join(&spec.id);
-            if !from.exists() {
-                continue;
-            }
-            let to = new_dir.join(&spec.id);
-            if std::fs::rename(&from, &to).is_err() {
-                copy_dir(&from, &to)?;
-                std::fs::remove_dir_all(&from)?;
+        if same_volume(&old, new_dir) {
+            rename_all(&moving)?;
+        } else {
+            copy_all(&moving, new_dir)?;
+        }
+        let saved = self.inner.config.update(|c| c.models_dir = Some(new_dir.to_path_buf()));
+        if let Err(e) = saved {
+            undo_move(&moving);
+            return Err(ManagerError::Config(format!("{e:#}")));
+        }
+        for (from, _) in &moving {
+            if from.exists()
+                && let Err(e) = std::fs::remove_dir_all(from)
+            {
+                tracing::warn!("models moved, but the old copy at {} stays: {e}", from.display());
             }
         }
-        let new_dir = new_dir.to_path_buf();
-        self.inner
-            .config
-            .update(|c| c.models_dir = Some(new_dir))
-            .map_err(|e| ManagerError::Config(format!("{e:#}")))?;
         self.refresh();
         Ok(())
     }
@@ -567,6 +625,41 @@ mod tests {
 
         manager.change_dir(&elsewhere).unwrap();
         assert!(manager.begin_move().is_ok(), "a finished move releases the folder");
+    }
+
+    #[test]
+    fn a_move_that_fails_part_way_puts_every_model_back() {
+        let dir = tempfile::tempdir().unwrap();
+        let (old, new) = (dir.path().join("old"), dir.path().join("new"));
+        for id in ["a", "b"] {
+            std::fs::create_dir_all(old.join(id)).unwrap();
+            std::fs::write(old.join(id).join("m.bin"), id).unwrap();
+        }
+        std::fs::create_dir_all(&new).unwrap();
+        std::fs::write(new.join("b"), "a file where the model would go").unwrap();
+        let moving = [(old.join("a"), new.join("a")), (old.join("b"), new.join("b"))];
+        assert!(rename_all(&moving).is_err());
+        assert!(old.join("a").join("m.bin").exists() && !new.join("a").exists(), "the renamed model came back");
+
+        assert!(copy_all(&moving, &new).is_err());
+        assert!(old.join("a").join("m.bin").exists() && !new.join("a").exists(), "the copy was removed");
+        assert!(old.join("b").join("m.bin").exists());
+    }
+
+    #[test]
+    fn a_folder_inside_a_model_is_refused_and_nothing_moves() {
+        let dir = tempfile::tempdir().unwrap();
+        let config = Arc::new(ConfigStore::open(dir.path().join("config.toml")).unwrap());
+        let models = dir.path().join("models");
+        config.update(|c| c.models_dir = Some(models.clone())).unwrap();
+        let manager = ModelManager::new(config.clone());
+        let id = manager.catalog()[0].id.clone();
+        std::fs::create_dir_all(models.join(&id)).unwrap();
+
+        let inside = models.join(&id).join("Dito Models");
+        assert!(matches!(manager.change_dir(&inside), Err(ManagerError::TargetInsideModel)));
+        assert_eq!(config.get().models_dir.as_deref(), Some(models.as_path()));
+        assert!(!inside.exists());
     }
 
     #[test]
