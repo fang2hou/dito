@@ -1,13 +1,15 @@
 //! Azure OpenAI and OpenAI-compatible chat engines for polishing (one wire format, two URL/auth schemes).
 
+use std::borrow::Cow;
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use async_trait::async_trait;
+use futures_util::{Stream, StreamExt, stream};
 use serde_json::{Number, Value, json};
 
 use super::{
-    ChatCancel, ChatDelta, ChatRequest, ChatRole, TextModel, TextRequest, Thinking, default_timeout, next_stream_item,
-    preconnect, redirects_except_for_preconnect,
+    ChatCancel, ChatDelta, ChatMessage, ChatRequest, ChatRole, TextModel, TextRequest, Thinking, default_timeout,
+    next_stream_item, preconnect, redirects_except_for_preconnect,
 };
 use crate::config::CloudTextParams;
 use crate::error::{ErrorKind, ProviderError, ProviderResult};
@@ -102,19 +104,7 @@ impl OpenAiEngine {
     }
 
     fn chat_body(&self, req: &ChatRequest) -> Value {
-        let messages = req
-            .messages
-            .iter()
-            .map(|m| {
-                let role = match m.role {
-                    ChatRole::System => "system",
-                    ChatRole::User => "user",
-                    ChatRole::Assistant => "assistant",
-                };
-                json!({ "role": role, "content": m.content })
-            })
-            .collect();
-        let mut body = self.finish_body(messages, Some(req));
+        let mut body = self.finish_body(merged_messages(&req.messages), Some(req));
         body["stream"] = true.into();
         body
     }
@@ -206,10 +196,36 @@ impl OpenAiEngine {
     }
 }
 
+/// Consecutive turns of one role share a message, since servers that want the roles to alternate refuse them.
+fn merged_messages(messages: &[ChatMessage]) -> Vec<Value> {
+    let mut turns: Vec<(ChatRole, Vec<&str>)> = Vec::new();
+    for m in messages {
+        match turns.last_mut() {
+            Some((role, texts)) if *role == m.role => texts.push(&m.content),
+            _ => turns.push((m.role, vec![&m.content])),
+        }
+    }
+    turns
+        .into_iter()
+        .map(|(role, texts)| {
+            let role = match role {
+                ChatRole::System => "system",
+                ChatRole::User => "user",
+                ChatRole::Assistant => "assistant",
+            };
+            json!({ "role": role, "content": texts.join("\n\n") })
+        })
+        .collect()
+}
+
 /// What one `data:` payload of a streamed chat completion says.
 #[derive(Debug, PartialEq, Eq)]
 enum Frame {
-    Text(String),
+    /// A piece of the reply; `cut_off` when the frame's `finish_reason` is `length`, the token limit.
+    Delta {
+        text: String,
+        cut_off: bool,
+    },
     Done,
     Skip,
 }
@@ -225,11 +241,13 @@ fn parse_frame(data: &str) -> ProviderResult<Frame> {
         let message = error.get("message").and_then(Value::as_str).unwrap_or("stream error");
         return Err(ProviderError::new(ErrorKind::Other, message));
     }
+    let text = v.pointer("/choices/0/delta/content").and_then(Value::as_str).unwrap_or_default();
+    let cut_off = v.pointer("/choices/0/finish_reason").and_then(Value::as_str) == Some("length");
     // Azure opens with a frame that has no choices; role and finish frames carry no content.
-    Ok(match v.pointer("/choices/0/delta/content").and_then(Value::as_str) {
-        Some(text) if !text.is_empty() => Frame::Text(text.to_string()),
-        _ => Frame::Skip,
-    })
+    if text.is_empty() && !cut_off {
+        return Ok(Frame::Skip);
+    }
+    Ok(Frame::Delta { text: text.to_string(), cut_off })
 }
 
 /// Splits a server-sent event stream into `data:` payloads. Bytes are decoded only once their line is complete, so a
@@ -254,16 +272,121 @@ impl SseLines {
     }
 }
 
+const THINK_OPEN: &str = "<think>";
+const THINK_CLOSE: &str = "</think>";
+
+/// The content after a leading `<think>...</think>` block, the reasoning that servers of reasoning models put into
+/// the content. `None` while the block is still open: what it holds is never the text.
+fn after_leading_think(content: &str) -> Option<&str> {
+    match content.trim_start().strip_prefix(THINK_OPEN) {
+        Some(reasoning) => reasoning.split_once(THINK_CLOSE).map(|(_, after)| after),
+        None => Some(content),
+    }
+}
+
+/// Retrying would spend the same budget on the same cutoff.
 fn polish_response(v: Value) -> ProviderResult<String> {
     if v.pointer("/choices/0/finish_reason").and_then(Value::as_str) == Some("length") {
-        return Err(ProviderError::retryable(ErrorKind::BadResponse, "output was cut off at the token limit"));
+        return Err(ProviderError::new(ErrorKind::BadResponse, "output was cut off at the token limit"));
     }
-    v.pointer("/choices/0/message/content")
-        .and_then(Value::as_str)
-        .map(str::trim)
-        .filter(|text| !text.is_empty())
-        .map(str::to_string)
-        .ok_or_else(|| ProviderError::retryable(ErrorKind::BadResponse, "no content in response"))
+    let content = v.pointer("/choices/0/message/content").and_then(Value::as_str).unwrap_or_default();
+    let Some(text) = after_leading_think(content) else {
+        return Err(ProviderError::retryable(ErrorKind::BadResponse, "the <think> block is never closed"));
+    };
+    if text.trim().is_empty() {
+        return Err(ProviderError::retryable(ErrorKind::BadResponse, "no content in response"));
+    }
+    Ok(text.trim().to_string())
+}
+
+/// How far a reply has got past a leading `<think>` block.
+#[derive(Debug, Default, PartialEq, Eq)]
+enum ThinkStage {
+    /// Nothing has shown yet whether the reply opens with the block.
+    #[default]
+    Opening,
+    /// Inside the block, which is never the reply.
+    Reasoning,
+    /// Right after `</think>`: whitespace before the reply is dropped.
+    After,
+    /// The reply itself.
+    Reply,
+}
+
+/// Drops a leading `<think>...</think>` block from a reply that arrives in pieces, with its tags split across
+/// them. A piece is held back only while it may still start a tag, so a reply without the block streams as it
+/// arrives.
+#[derive(Debug, Default)]
+struct ThinkFilter {
+    stage: ThinkStage,
+    held: String,
+}
+
+impl ThinkFilter {
+    /// The part of `piece` that belongs to the reply.
+    fn push<'a>(&mut self, piece: &'a str) -> Cow<'a, str> {
+        if self.stage == ThinkStage::Reply {
+            return Cow::Borrowed(piece);
+        }
+        self.held.push_str(piece);
+        let mut out = String::new();
+        loop {
+            match self.stage {
+                ThinkStage::Opening => {
+                    let text = self.held.trim_start();
+                    if text.is_empty() || THINK_OPEN.starts_with(text) {
+                        break;
+                    }
+                    if text.starts_with(THINK_OPEN) {
+                        let after = self.held.len() - text.len() + THINK_OPEN.len();
+                        self.held.drain(..after);
+                        self.stage = ThinkStage::Reasoning;
+                    } else {
+                        out.push_str(&self.held);
+                        self.held.clear();
+                        self.stage = ThinkStage::Reply;
+                    }
+                }
+                ThinkStage::Reasoning => match self.held.find(THINK_CLOSE) {
+                    Some(at) => {
+                        self.held.drain(..at + THINK_CLOSE.len());
+                        self.stage = ThinkStage::After;
+                    }
+                    None => {
+                        self.held.drain(..self.held.len() - partial_tag(&self.held, THINK_CLOSE));
+                        break;
+                    }
+                },
+                ThinkStage::After => {
+                    let text = self.held.trim_start();
+                    if text.is_empty() {
+                        self.held.clear();
+                        break;
+                    }
+                    out.push_str(text);
+                    self.held.clear();
+                    self.stage = ThinkStage::Reply;
+                }
+                ThinkStage::Reply => break,
+            }
+        }
+        Cow::Owned(out)
+    }
+
+    /// What a held piece turned out to be once the stream is over: the start of a reply that does not open with
+    /// the block, never reasoning.
+    fn finish(&mut self) -> &str {
+        if self.stage != ThinkStage::Opening {
+            self.held.clear();
+        }
+        self.stage = ThinkStage::Reply;
+        &self.held
+    }
+}
+
+/// The length of the longest start of `tag` that ends `text`, which the next piece may complete.
+fn partial_tag(text: &str, tag: &str) -> usize {
+    (1..tag.len()).rev().find(|&len| text.ends_with(&tag[..len])).unwrap_or(0)
 }
 
 #[async_trait]
@@ -287,14 +410,14 @@ impl TextModel for OpenAiEngine {
         preconnect(&self.client, &self.url("chat/completions")).await;
     }
 
-    /// The reply is the exact concatenation of the deltas. A reply that ends at the token limit is returned as it
-    /// stands, since its text is already on screen; one with no text at all is an error.
+    /// The reply is the concatenation of the deltas, without a leading `<think>` block. A reply that ends at the
+    /// token limit is returned as it stands, since its text is already on screen; one with no text at all is an error.
     async fn chat(&self, req: &ChatRequest, on_delta: ChatDelta<'_>, cancel: &ChatCancel) -> ProviderResult<String> {
         if cancel.is_cancelled() {
             return Ok(String::new());
         }
         let mut body = self.chat_body(req);
-        let mut resp = match self.open_stream(&body).await {
+        let resp = match self.open_stream(&body).await {
             Err(e) if e.kind == ErrorKind::Other && e.message.contains("reasoning_effort") => {
                 let effort = take_effort(&mut body);
                 let resp = self.open_stream(&body).await?;
@@ -303,31 +426,60 @@ impl TextModel for OpenAiEngine {
             }
             other => other?,
         };
-        let (mut lines, mut reply) = (SseLines::default(), String::new());
-        'stream: while !cancel.is_cancelled() {
-            let next = async {
-                resp.chunk().await.map(|bytes| bytes.map(|b| b.to_vec())).map_err(|e| ProviderError::from_reqwest(&e))
-            };
-            let Some(chunk) = next_stream_item(next, cancel).await? else { break };
-            for data in lines.push(&chunk) {
-                match parse_frame(&data)? {
-                    Frame::Text(piece) => {
-                        on_delta(&piece);
-                        reply.push_str(&piece);
-                    }
-                    Frame::Done => break 'stream,
-                    Frame::Skip => {}
+        read_stream(chunks(resp), on_delta, cancel).await
+    }
+}
+
+/// The body of a streamed chat completion as its chunks arrive; a chunk of `None` ends it.
+fn chunks(resp: reqwest::Response) -> impl Stream<Item = ProviderResult<Option<Vec<u8>>>> {
+    stream::unfold(resp, |mut resp| async move {
+        let next =
+            resp.chunk().await.map(|bytes| bytes.map(|b| b.to_vec())).map_err(|e| ProviderError::from_reqwest(&e));
+        Some((next, resp))
+    })
+}
+
+/// Reads a streamed chat completion into its reply.
+async fn read_stream(
+    chunks: impl Stream<Item = ProviderResult<Option<Vec<u8>>>>,
+    on_delta: ChatDelta<'_>,
+    cancel: &ChatCancel,
+) -> ProviderResult<String> {
+    let mut chunks = std::pin::pin!(chunks);
+    let (mut lines, mut think, mut reply) = (SseLines::default(), ThinkFilter::default(), String::new());
+    let mut cut_off = false;
+    let mut emit = |text: &str| {
+        if !text.is_empty() {
+            on_delta(text);
+            reply.push_str(text);
+        }
+    };
+    'stream: while !cancel.is_cancelled() {
+        let next = async { chunks.next().await.unwrap_or(Ok(None)) };
+        let Some(chunk) = next_stream_item(next, cancel).await? else { break };
+        for data in lines.push(&chunk) {
+            match parse_frame(&data)? {
+                Frame::Delta { text, cut_off: at_limit } => {
+                    cut_off |= at_limit;
+                    emit(&think.push(&text));
                 }
-                if cancel.is_cancelled() {
-                    break 'stream;
-                }
+                Frame::Done => break 'stream,
+                Frame::Skip => {}
+            }
+            if cancel.is_cancelled() {
+                break 'stream;
             }
         }
-        if reply.is_empty() && !cancel.is_cancelled() {
-            return Err(ProviderError::new(ErrorKind::BadResponse, "no content in response"));
-        }
-        Ok(reply)
     }
+    emit(think.finish());
+    if reply.is_empty() && !cancel.is_cancelled() {
+        return Err(if cut_off {
+            ProviderError::new(ErrorKind::BadResponse, "output was cut off at the token limit")
+        } else {
+            ProviderError::new(ErrorKind::BadResponse, "no content in response")
+        });
+    }
+    Ok(reply)
 }
 
 #[cfg(test)]
@@ -339,14 +491,17 @@ mod tests {
             .unwrap()
     }
 
+    fn response(finish_reason: &str, content: &str) -> Value {
+        json!({"choices": [{"finish_reason": finish_reason, "message": {"content": content}}]})
+    }
+
     #[test]
-    fn only_incomplete_polish_responses_are_retryable() {
-        let length = json!({"choices": [{"finish_reason": "length", "message": {"content": "partial"}}]});
-        let empty = json!({"choices": [{"finish_reason": "stop", "message": {"content": "  "}}]});
-        let complete = json!({"choices": [{"finish_reason": "stop", "message": {"content": "done"}}]});
-        assert!(polish_response(length).unwrap_err().is_retryable());
-        assert!(polish_response(empty).unwrap_err().is_retryable());
-        assert_eq!(polish_response(complete), Ok("done".into()));
+    fn only_an_empty_polish_response_is_retryable() {
+        let cut_off = polish_response(response("length", "partial")).unwrap_err();
+        assert_eq!((cut_off.kind, cut_off.is_retryable()), (ErrorKind::BadResponse, false));
+        assert_eq!(cut_off.message, "output was cut off at the token limit");
+        assert!(polish_response(response("stop", "  ")).unwrap_err().is_retryable());
+        assert_eq!(polish_response(response("stop", "done")), Ok("done".into()));
         assert!(!ProviderError::from_status(429, "slow").is_retryable());
         assert!(!ProviderError::from_status(401, "no").is_retryable());
         assert!(!ProviderError::from_status(404, "gone").is_retryable());
@@ -404,7 +559,7 @@ mod tests {
         assert!(sse.push(&event[..cut]).is_empty());
         let payloads = sse.push(&event[cut..]);
         assert_eq!(payloads.len(), 1);
-        assert_eq!(parse_frame(&payloads[0]).unwrap(), Frame::Text("明日".into()));
+        assert_eq!(parse_frame(&payloads[0]).unwrap(), Frame::Delta { text: "明日".into(), cut_off: false });
         assert_eq!(sse.push(b": keep-alive\ndata:[DONE]\n"), ["[DONE]"]);
     }
 
@@ -422,5 +577,144 @@ mod tests {
         let error = parse_frame(r#"{"error":{"message":"overloaded"}}"#).unwrap_err();
         assert_eq!((error.kind, error.message.as_str()), (ErrorKind::Other, "overloaded"));
         assert_eq!(parse_frame("not json").unwrap_err().kind, ErrorKind::BadResponse);
+    }
+
+    #[test]
+    fn a_leading_think_block_is_dropped_from_a_polish_response() {
+        let polish = |content: &str| polish_response(response("stop", content));
+        assert_eq!(polish("<think>reasoning</think>clean text"), Ok("clean text".into()));
+        assert_eq!(polish(" <think>\nfirst\nsecond\n</think>\nclean"), Ok("clean".into()));
+        assert_eq!(polish("<think>reasoning</think>").unwrap_err().message, "no content in response");
+        let unclosed = polish("<think>the block never closes").unwrap_err();
+        assert!(unclosed.is_retryable());
+        assert_eq!(unclosed.message, "the <think> block is never closed");
+    }
+
+    #[test]
+    fn a_frame_that_ends_the_reply_at_the_token_limit_is_not_skipped() {
+        let delta = |text: &str, cut_off: bool| Frame::Delta { text: text.into(), cut_off };
+        let length = r#"{"choices":[{"delta":{},"finish_reason":"length"}]}"#;
+        assert_eq!(parse_frame(length).unwrap(), delta("", true));
+        let last_word = r#"{"choices":[{"delta":{"content":"last"},"finish_reason":"length"}]}"#;
+        assert_eq!(parse_frame(last_word).unwrap(), delta("last", true));
+    }
+
+    #[test]
+    fn consecutive_turns_of_one_role_share_a_message() {
+        let message = |role, content: &str| ChatMessage::new(role, content);
+        let messages = vec![
+            message(ChatRole::System, "s"),
+            message(ChatRole::User, "a"),
+            message(ChatRole::User, "b"),
+            message(ChatRole::Assistant, "c"),
+            message(ChatRole::Assistant, "d"),
+            message(ChatRole::User, "e"),
+        ];
+        let body = compat("http://h/v1").chat_body(&ChatRequest { messages, ..ChatRequest::default() });
+        assert_eq!(
+            body["messages"],
+            json!([
+                {"role": "system", "content": "s"},
+                {"role": "user", "content": "a\n\nb"},
+                {"role": "assistant", "content": "c\n\nd"},
+                {"role": "user", "content": "e"},
+            ])
+        );
+        // A system message never joins a turn, only another system message.
+        let messages = vec![
+            message(ChatRole::User, "a"),
+            message(ChatRole::System, "s1"),
+            message(ChatRole::System, "s2"),
+            message(ChatRole::Assistant, "c"),
+        ];
+        assert_eq!(
+            merged_messages(&messages),
+            [
+                json!({"role": "user", "content": "a"}),
+                json!({"role": "system", "content": "s1\n\ns2"}),
+                json!({"role": "assistant", "content": "c"}),
+            ]
+        );
+    }
+
+    /// The events of a reply that arrives as `pieces` and ends with `finish_reason`.
+    fn sse(pieces: &[&str], finish_reason: &str) -> Vec<u8> {
+        let frame = |delta: Value, finish: Value| {
+            let event = json!({"choices": [{"index": 0, "delta": delta, "finish_reason": finish}]});
+            format!("data: {event}\n\n")
+        };
+        let mut events = frame(json!({"role": "assistant", "content": ""}), Value::Null);
+        for piece in pieces {
+            events.push_str(&frame(json!({"content": piece}), Value::Null));
+        }
+        events.push_str(&frame(json!({}), finish_reason.into()));
+        events.push_str("data: [DONE]\n\n");
+        events.into_bytes()
+    }
+
+    /// Reads the events in chunks of `size` bytes: the deltas shown, then the reply returned.
+    async fn read(events: &[u8], size: usize) -> (Vec<String>, ProviderResult<String>) {
+        let mut deltas = Vec::new();
+        let chunks = stream::iter(events.chunks(size)).map(|chunk| Ok(Some(chunk.to_vec())));
+        let reply = read_stream(chunks, &mut |piece| deltas.push(piece.to_string()), &ChatCancel::default()).await;
+        (deltas, reply)
+    }
+
+    #[test]
+    fn a_reply_without_a_think_block_streams_as_it_arrives() {
+        let mut think = ThinkFilter::default();
+        assert_eq!(think.push("hello "), "hello ");
+        assert_eq!(think.push("there"), "there");
+        // Only what may still be the start of the tag waits for the next piece.
+        let mut think = ThinkFilter::default();
+        assert_eq!(think.push("\n\n<"), "");
+        assert_eq!(think.push("b>bold</b>"), "\n\n<b>bold</b>");
+        let mut think = ThinkFilter::default();
+        assert_eq!(think.push("<thi"), "");
+        assert_eq!(think.finish(), "<thi");
+    }
+
+    #[tokio::test]
+    async fn a_leading_think_block_is_dropped_from_a_streamed_reply_however_the_pieces_are_cut() {
+        let events = sse(&[" \n<th", "ink>\nlet me think\n</th", "ink>\n\nhello ", "there"], "stop");
+        for size in 1..=events.len() {
+            let (deltas, reply) = read(&events, size).await;
+            assert_eq!(reply, Ok("hello there".into()), "chunks of {size} bytes");
+            assert_eq!(deltas.concat(), "hello there", "chunks of {size} bytes");
+        }
+        let events = sse(&["<think>考", "える</think>\n\n答", "え"], "stop");
+        for size in 1..=events.len() {
+            assert_eq!(read(&events, size).await.1, Ok("答え".into()), "chunks of {size} bytes");
+        }
+    }
+
+    #[tokio::test]
+    async fn a_streamed_reply_of_reasoning_alone_is_an_error_that_names_the_token_limit() {
+        let events = sse(&["<think>all ", "reasoning</think>"], "length");
+        let (deltas, reply) = read(&events, 5).await;
+        assert!(deltas.is_empty());
+        let error = reply.unwrap_err();
+        assert_eq!((error.kind, error.is_retryable()), (ErrorKind::BadResponse, false));
+        assert_eq!(error.message, "output was cut off at the token limit");
+
+        let events = sse(&["<think>all ", "reasoning</think>"], "stop");
+        assert_eq!(read(&events, 5).await.1.unwrap_err().message, "no content in response");
+        // Text already on screen is kept when the limit ends the reply.
+        assert_eq!(read(&sse(&["hel", "lo the"], "length"), 5).await.1, Ok("hello the".into()));
+    }
+
+    #[tokio::test]
+    async fn a_stopped_stream_returns_what_was_shown_and_shows_nothing_more() {
+        let events = sse(&["hello ", "there"], "stop");
+        let chunks = stream::iter([events]).map(|event| Ok(Some(event)));
+        let cancel = ChatCancel::default();
+        let mut deltas = Vec::new();
+        let mut on_delta = |piece: &str| {
+            deltas.push(piece.to_string());
+            cancel.cancel();
+        };
+        let reply = read_stream(chunks, &mut on_delta, &cancel).await;
+        assert_eq!(deltas, ["hello "]);
+        assert_eq!(reply, Ok("hello ".into()));
     }
 }

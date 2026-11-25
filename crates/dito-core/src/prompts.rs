@@ -482,16 +482,28 @@ pub struct PolishPrompt {
 /// A line of its own before and after the transcript. The sections of the system prompt are named `#Section#`, and
 /// reference lists sit in escaped XML tags, so the three kinds of block cannot be taken for one another.
 pub(crate) const FENCE: &str = "===";
-pub(crate) const SCAFFOLD_MARKERS: [&str; 9] = [
+/// Every section header and every tag that opens or closes a reference block, in the dictation scaffold and in the
+/// command tools (`command/prompt.rs`). A line of a reply that starts with one of them repeats the prompt.
+pub(crate) const SCAFFOLD_MARKERS: [&str; 19] = [
     "#Background#",
     "#Purpose#",
     "#Constraints#",
     "#Style#",
     "#Vocabulary#",
+    "#Context#",
     "#Outputs#",
+    "<style_examples>",
+    "</style_examples>",
     "<reference_vocabulary>",
     "</reference_vocabulary>",
-    FENCE,
+    "<surrounding_text>",
+    "</surrounding_text>",
+    "<before>",
+    "</before>",
+    "<after>",
+    "</after>",
+    "<instruction>",
+    "</instruction>",
 ];
 
 /// A demonstration turn written out as [`fence`] builds the real one. The text must hold no `===`.

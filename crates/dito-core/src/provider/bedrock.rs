@@ -9,9 +9,10 @@ use aws_sdk_bedrockruntime::Client;
 use aws_sdk_bedrockruntime::error::{ProvideErrorMetadata, SdkError};
 use aws_sdk_bedrockruntime::types::{
     ContentBlock, ContentBlockDelta, ConversationRole, ConverseStreamOutput, InferenceConfiguration, Message,
-    SystemContentBlock,
+    StopReason, SystemContentBlock,
 };
 use aws_smithy_types::{Document, Number};
+use futures_util::{Stream, StreamExt, stream};
 use serde_json::Value;
 
 use super::{
@@ -87,9 +88,10 @@ fn inference_config(model_id: &str, params: &CloudTextParams) -> Option<Inferenc
     )
 }
 
+/// Retrying would spend the same budget on the same cutoff.
 fn polish_response(truncated: bool, text: String) -> ProviderResult<String> {
     if truncated {
-        return Err(ProviderError::retryable(ErrorKind::BadResponse, "output was cut off at the token limit"));
+        return Err(ProviderError::new(ErrorKind::BadResponse, "output was cut off at the token limit"));
     }
     let text = text.trim().to_string();
     if text.is_empty() {
@@ -178,10 +180,10 @@ impl BedrockEngine {
                 m.content().iter().filter_map(|c| c.as_text().ok().map(String::as_str)).collect::<Vec<_>>().join("")
             })
             .unwrap_or_default();
-        polish_response(matches!(out.stop_reason(), aws_sdk_bedrockruntime::types::StopReason::MaxTokens), text)
+        polish_response(matches!(out.stop_reason(), StopReason::MaxTokens), text)
     }
 
-    /// Consecutive turns of one role share a message, since Converse wants the roles to alternate.
+    /// The system messages go in apart from the turns.
     async fn converse_stream(
         &self,
         req: &ChatRequest,
@@ -209,10 +211,7 @@ impl BedrockEngine {
                 ChatRole::User => ConversationRole::User,
                 ChatRole::Assistant => ConversationRole::Assistant,
             };
-            match turns.last_mut() {
-                Some((last, texts)) if *last == role => texts.push(&m.content),
-                _ => turns.push((role, vec![&m.content])),
-            }
+            merge_turn(&mut turns, role, &m.content);
         }
         for (role, texts) in turns {
             let message = texts
@@ -228,25 +227,61 @@ impl BedrockEngine {
         if let Some(fields) = additional_fields(&self.model_id, &params) {
             call = call.additional_model_request_fields(fields);
         }
-        let mut out = call.send().await.map_err(classify)?;
-        let mut reply = String::new();
-        while !cancel.is_cancelled() {
-            let next = async { out.stream.recv().await.map_err(classify) };
-            let Some(event) = next_stream_item(next, cancel).await? else { break };
-            // Reasoning deltas of adaptive thinking are not part of the reply.
-            if let ConverseStreamOutput::ContentBlockDelta(delta) = event
-                && let Some(ContentBlockDelta::Text(piece)) = delta.delta()
-                && !piece.is_empty()
-            {
-                on_delta(piece);
-                reply.push_str(piece);
-            }
-        }
-        if reply.is_empty() && !cancel.is_cancelled() {
-            return Err(ProviderError::new(ErrorKind::BadResponse, "no text in Converse output"));
-        }
-        Ok(reply)
+        let out = call.send().await.map_err(classify)?;
+        read_reply(events(out), on_delta, cancel).await
     }
+}
+
+/// Consecutive turns of one role share a message, since Converse wants the roles to alternate.
+fn merge_turn<'a>(turns: &mut Vec<(ConversationRole, Vec<&'a str>)>, role: ConversationRole, text: &'a str) {
+    match turns.last_mut() {
+        Some((last, texts)) if *last == role => texts.push(text),
+        _ => turns.push((role, vec![text])),
+    }
+}
+
+/// The events of a Converse stream as they arrive; an event of `None` ends it.
+fn events(
+    out: aws_sdk_bedrockruntime::operation::converse_stream::ConverseStreamOutput,
+) -> impl Stream<Item = ProviderResult<Option<ConverseStreamOutput>>> {
+    stream::unfold(out.stream, |mut stream| async move { Some((stream.recv().await.map_err(classify), stream)) })
+}
+
+/// Reads a Converse stream into its reply. A reply that ends at the token limit is returned as it stands, since its
+/// text is already on screen; one with no text at all is an error that names the limit when the model spent its
+/// whole budget there.
+async fn read_reply(
+    events: impl Stream<Item = ProviderResult<Option<ConverseStreamOutput>>>,
+    on_delta: ChatDelta<'_>,
+    cancel: &ChatCancel,
+) -> ProviderResult<String> {
+    let mut events = std::pin::pin!(events);
+    let (mut reply, mut cut_off) = (String::new(), false);
+    while !cancel.is_cancelled() {
+        let next = async { events.next().await.unwrap_or(Ok(None)) };
+        let Some(event) = next_stream_item(next, cancel).await? else { break };
+        match event {
+            // Reasoning deltas of adaptive thinking are not part of the reply.
+            ConverseStreamOutput::ContentBlockDelta(delta) => {
+                if let Some(ContentBlockDelta::Text(piece)) = delta.delta()
+                    && !piece.is_empty()
+                {
+                    on_delta(piece);
+                    reply.push_str(piece);
+                }
+            }
+            ConverseStreamOutput::MessageStop(stop) => cut_off = stop.stop_reason() == &StopReason::MaxTokens,
+            _ => {}
+        }
+    }
+    if reply.is_empty() && !cancel.is_cancelled() {
+        return Err(if cut_off {
+            ProviderError::new(ErrorKind::BadResponse, "output was cut off at the token limit")
+        } else {
+            ProviderError::new(ErrorKind::BadResponse, "no text in Converse output")
+        });
+    }
+    Ok(reply)
 }
 
 #[async_trait]
@@ -275,6 +310,7 @@ impl TextModel for BedrockEngine {
 mod tests {
     use super::*;
     use crate::config::ReasoningEffort;
+    use aws_sdk_bedrockruntime::types::{ContentBlockDeltaEvent, MessageStopEvent};
 
     const CLAUDE: &str = "apac.anthropic.claude-sonnet-4-20250514-v1:0";
     const OTHER: &str = "openai.gpt-oss-120b-1:0";
@@ -290,10 +326,73 @@ mod tests {
     }
 
     #[test]
-    fn only_empty_or_truncated_polish_output_is_retryable() {
-        assert!(polish_response(true, "partial".into()).unwrap_err().is_retryable());
+    fn only_empty_polish_output_is_retryable() {
+        // The same prompt and the same budget are cut at the same place again.
+        let cut_off = polish_response(true, "partial".into()).unwrap_err();
+        assert_eq!((cut_off.kind, cut_off.is_retryable()), (ErrorKind::BadResponse, false));
+        assert_eq!(cut_off.message, "output was cut off at the token limit");
         assert!(polish_response(false, "  ".into()).unwrap_err().is_retryable());
         assert_eq!(polish_response(false, "done".into()), Ok("done".into()));
+    }
+
+    #[test]
+    fn consecutive_turns_of_one_role_share_a_message() {
+        let mut turns = Vec::new();
+        for (role, text) in [
+            (ConversationRole::User, "a"),
+            (ConversationRole::User, "b"),
+            (ConversationRole::Assistant, "c"),
+            (ConversationRole::Assistant, "d"),
+            (ConversationRole::User, "e"),
+        ] {
+            merge_turn(&mut turns, role, text);
+        }
+        assert_eq!(
+            turns,
+            [
+                (ConversationRole::User, vec!["a", "b"]),
+                (ConversationRole::Assistant, vec!["c", "d"]),
+                (ConversationRole::User, vec!["e"]),
+            ]
+        );
+    }
+
+    /// Feeds the events of one stream to the reader: the deltas shown, then the reply returned.
+    async fn read(events: Vec<ConverseStreamOutput>) -> (Vec<String>, ProviderResult<String>) {
+        let mut deltas = Vec::new();
+        let events = stream::iter(events).map(|event| Ok(Some(event)));
+        let reply = read_reply(events, &mut |piece| deltas.push(piece.to_string()), &ChatCancel::default()).await;
+        (deltas, reply)
+    }
+
+    #[tokio::test]
+    async fn a_reply_cut_off_before_its_first_word_is_an_error_that_names_the_token_limit() {
+        let text = |piece: &str| {
+            ConverseStreamOutput::ContentBlockDelta(
+                ContentBlockDeltaEvent::builder()
+                    .content_block_index(0)
+                    .delta(ContentBlockDelta::Text(piece.into()))
+                    .build()
+                    .unwrap(),
+            )
+        };
+        let stop = |reason: StopReason| {
+            ConverseStreamOutput::MessageStop(MessageStopEvent::builder().stop_reason(reason).build().unwrap())
+        };
+
+        // Text already on screen is kept when the limit ends the reply.
+        let (deltas, reply) = read(vec![text("hel"), text("lo"), stop(StopReason::MaxTokens)]).await;
+        assert_eq!(deltas.concat(), "hello");
+        assert_eq!(reply, Ok("hello".into()));
+
+        let (deltas, reply) = read(vec![stop(StopReason::MaxTokens)]).await;
+        assert!(deltas.is_empty());
+        let error = reply.unwrap_err();
+        assert_eq!((error.kind, error.is_retryable()), (ErrorKind::BadResponse, false));
+        assert_eq!(error.message, "output was cut off at the token limit");
+
+        let (_, reply) = read(vec![stop(StopReason::EndTurn)]).await;
+        assert_eq!(reply.unwrap_err().message, "no text in Converse output");
     }
 
     #[test]
