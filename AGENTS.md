@@ -35,6 +35,7 @@ Project-specific overrides:
 
 - Tool versions and common tasks live in `mise.toml`, commit hooks in `prek.toml`; Rust code runs through `cargo` and `scripts/check.sh`, the Python bench project through uv.
 - `bench/` pins Python 3.15, newer than the guideline default of 3.12, at the owner's request; every dependency it uses ships 3.15 wheels or builds from source.
+- `bench/uv.toml` makes `https://pypi.flatt.tech/simple/` the default package index at the owner's request, and `bench/uv.lock` resolves through it. Keep it; never switch the bench back to `pypi.org`.
 - Tests stay light (see Project Conventions); this narrows the testing guideline for a fast-moving personal app.
 - Architecture, development (`IMPLEMENTATION.md`) and contributing docs live in `docs/` instead of the repository root, at the owner's request.
 

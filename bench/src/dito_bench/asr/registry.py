@@ -1,11 +1,12 @@
 """The ASR models the bench knows about. To add one, write an adapter and add a spec."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 from ..paths import MODELS_DIR
 from ..weights import Weights
 from .base import AsrModel
+from .qwen3_context import qwen3_context
 
 
 def _sensevoice(weights: Weights) -> AsrModel:
@@ -43,6 +44,8 @@ class AsrSpec:
     supports_hotwords: bool = True
     in_default_set: bool = True
     note: str = ""
+    # The hotwords as the model receives them, part of the fingerprint: a new format reruns them.
+    hotword_context: Callable[[Sequence[str]], str] | None = None
 
 
 _SHERPA = ("sherpa-onnx",)
@@ -113,6 +116,7 @@ ASR_MODELS: dict[str, AsrSpec] = {
             Weights("Qwen/Qwen3-ASR-0.6B"),
             _qwen3,
             _QWEN3,
+            hotword_context=qwen3_context,
             note="Fast tier. 30 languages and 22 Chinese dialects.",
         ),
         AsrSpec(
@@ -122,6 +126,7 @@ ASR_MODELS: dict[str, AsrSpec] = {
             Weights("Qwen/Qwen3-ASR-1.7B"),
             _qwen3,
             _QWEN3,
+            hotword_context=qwen3_context,
             note="Accuracy tier.",
         ),
         AsrSpec(
@@ -131,6 +136,7 @@ ASR_MODELS: dict[str, AsrSpec] = {
             Weights("netease-youdao/Confucius4-R2T2", MODELS_DIR / "r2t2"),
             _qwen3,
             _QWEN3,
+            hotword_context=qwen3_context,
             in_default_set=False,
             note=(
                 "Streaming fine-tune of Qwen3-ASR-1.7B under the NetEase Youdao model license. "
