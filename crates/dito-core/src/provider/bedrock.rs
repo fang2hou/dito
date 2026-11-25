@@ -274,7 +274,7 @@ async fn read_reply(
             _ => {}
         }
     }
-    if reply.is_empty() && !cancel.is_cancelled() {
+    if reply.trim().is_empty() && !cancel.is_cancelled() {
         return Err(if cut_off {
             ProviderError::new(ErrorKind::BadResponse, "output was cut off at the token limit")
         } else {
@@ -391,6 +391,11 @@ mod tests {
         assert_eq!((error.kind, error.is_retryable()), (ErrorKind::BadResponse, false));
         assert_eq!(error.message, "output was cut off at the token limit");
 
+        // Whitespace alone is no text, at the token limit or not.
+        let (_, reply) = read(vec![text(" \n "), stop(StopReason::MaxTokens)]).await;
+        assert_eq!(reply.unwrap_err().message, "output was cut off at the token limit");
+        let (_, reply) = read(vec![text(" \n "), stop(StopReason::EndTurn)]).await;
+        assert_eq!(reply.unwrap_err().message, "no text in Converse output");
         let (_, reply) = read(vec![stop(StopReason::EndTurn)]).await;
         assert_eq!(reply.unwrap_err().message, "no text in Converse output");
     }

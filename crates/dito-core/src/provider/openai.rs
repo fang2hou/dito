@@ -196,7 +196,8 @@ impl OpenAiEngine {
     }
 }
 
-/// Consecutive turns of one role share a message, since servers that want the roles to alternate refuse them.
+/// Consecutive turns of one role share a message, since servers that want the roles to alternate refuse them. An
+/// empty turn adds nothing to the message it joins.
 fn merged_messages(messages: &[ChatMessage]) -> Vec<Value> {
     let mut turns: Vec<(ChatRole, Vec<&str>)> = Vec::new();
     for m in messages {
@@ -213,6 +214,7 @@ fn merged_messages(messages: &[ChatMessage]) -> Vec<Value> {
                 ChatRole::User => "user",
                 ChatRole::Assistant => "assistant",
             };
+            let texts = texts.iter().filter(|text| !text.is_empty()).copied().collect::<Vec<_>>();
             json!({ "role": role, "content": texts.join("\n\n") })
         })
         .collect()
@@ -275,13 +277,14 @@ impl SseLines {
 const THINK_OPEN: &str = "<think>";
 const THINK_CLOSE: &str = "</think>";
 
-/// The content after a leading `<think>...</think>` block, the reasoning that servers of reasoning models put into
-/// the content. `None` while the block is still open: what it holds is never the text.
+/// The content after the leading `<think>...</think>` blocks, the reasoning that servers of reasoning models put
+/// into the content. `None` while one of them is still open: what they hold is never the text.
 fn after_leading_think(content: &str) -> Option<&str> {
-    match content.trim_start().strip_prefix(THINK_OPEN) {
-        Some(reasoning) => reasoning.split_once(THINK_CLOSE).map(|(_, after)| after),
-        None => Some(content),
+    let mut rest = content;
+    while let Some(reasoning) = rest.trim_start().strip_prefix(THINK_OPEN) {
+        rest = reasoning.split_once(THINK_CLOSE)?.1;
     }
+    Some(rest)
 }
 
 /// Retrying would spend the same budget on the same cutoff.
@@ -313,9 +316,9 @@ enum ThinkStage {
     Reply,
 }
 
-/// Drops a leading `<think>...</think>` block from a reply that arrives in pieces, with its tags split across
-/// them. A piece is held back only while it may still start a tag, so a reply without the block streams as it
-/// arrives.
+/// Drops the leading `<think>...</think>` blocks from a reply that arrives in pieces, with their tags split
+/// across them. A piece is held back only while it may still start a tag, so a reply without the blocks streams
+/// as it arrives.
 #[derive(Debug, Default)]
 struct ThinkFilter {
     stage: ThinkStage,
@@ -334,13 +337,12 @@ impl ThinkFilter {
             match self.stage {
                 ThinkStage::Opening => {
                     let text = self.held.trim_start();
-                    if text.is_empty() || THINK_OPEN.starts_with(text) {
-                        break;
-                    }
                     if text.starts_with(THINK_OPEN) {
                         let after = self.held.len() - text.len() + THINK_OPEN.len();
                         self.held.drain(..after);
                         self.stage = ThinkStage::Reasoning;
+                    } else if text.is_empty() || THINK_OPEN.starts_with(text) {
+                        break;
                     } else {
                         out.push_str(&self.held);
                         self.held.clear();
@@ -358,14 +360,9 @@ impl ThinkFilter {
                     }
                 },
                 ThinkStage::After => {
-                    let text = self.held.trim_start();
-                    if text.is_empty() {
-                        self.held.clear();
-                        break;
-                    }
-                    out.push_str(text);
-                    self.held.clear();
-                    self.stage = ThinkStage::Reply;
+                    let leading = self.held.len() - self.held.trim_start().len();
+                    self.held.drain(..leading);
+                    self.stage = ThinkStage::Opening;
                 }
                 ThinkStage::Reply => break,
             }
@@ -471,8 +468,12 @@ async fn read_stream(
             }
         }
     }
+    // A stopped reply is what was shown: what was still held never was.
+    if cancel.is_cancelled() {
+        return Ok(reply);
+    }
     emit(think.finish());
-    if reply.is_empty() && !cancel.is_cancelled() {
+    if reply.trim().is_empty() {
         return Err(if cut_off {
             ProviderError::new(ErrorKind::BadResponse, "output was cut off at the token limit")
         } else {
@@ -585,7 +586,8 @@ mod tests {
         assert_eq!(polish("<think>reasoning</think>clean text"), Ok("clean text".into()));
         assert_eq!(polish(" <think>\nfirst\nsecond\n</think>\nclean"), Ok("clean".into()));
         assert_eq!(polish("<think>reasoning</think>").unwrap_err().message, "no content in response");
-        let unclosed = polish("<think>the block never closes").unwrap_err();
+        assert_eq!(polish("<think>a</think>\n<think>b</think>\nhello"), Ok("hello".into()));
+        let unclosed = polish("<think>a</think>\n<think>the block never closes").unwrap_err();
         assert!(unclosed.is_retryable());
         assert_eq!(unclosed.message, "the <think> block is never closed");
     }
@@ -635,14 +637,27 @@ mod tests {
                 json!({"role": "assistant", "content": "c"}),
             ]
         );
+        // An empty turn adds nothing to the message it joins.
+        let messages = vec![
+            message(ChatRole::User, ""),
+            message(ChatRole::User, "hi"),
+            message(ChatRole::Assistant, ""),
+            message(ChatRole::Assistant, ""),
+        ];
+        assert_eq!(
+            merged_messages(&messages),
+            [json!({"role": "user", "content": "hi"}), json!({"role": "assistant", "content": ""})]
+        );
+    }
+
+    /// One `data:` event of a streamed reply.
+    fn frame(delta: Value, finish: Value) -> String {
+        let event = json!({"choices": [{"index": 0, "delta": delta, "finish_reason": finish}]});
+        format!("data: {event}\n\n")
     }
 
     /// The events of a reply that arrives as `pieces` and ends with `finish_reason`.
     fn sse(pieces: &[&str], finish_reason: &str) -> Vec<u8> {
-        let frame = |delta: Value, finish: Value| {
-            let event = json!({"choices": [{"index": 0, "delta": delta, "finish_reason": finish}]});
-            format!("data: {event}\n\n")
-        };
         let mut events = frame(json!({"role": "assistant", "content": ""}), Value::Null);
         for piece in pieces {
             events.push_str(&frame(json!({"content": piece}), Value::Null));
@@ -686,6 +701,17 @@ mod tests {
         for size in 1..=events.len() {
             assert_eq!(read(&events, size).await.1, Ok("答え".into()), "chunks of {size} bytes");
         }
+        // A second block goes the way of the first, and text that only starts like the tag streams at once.
+        for (pieces, reply) in [
+            (&["<think>a</think>\n<th", "ink>b</think>\n", "hello"][..], "hello"),
+            (&["<think>a</think>", "<b>bold</b>"][..], "<b>bold</b>"),
+            (&["<think>a</think>\n", "<think>b</think>\n\nhello"][..], "hello"),
+        ] {
+            let events = sse(pieces, "stop");
+            for size in 1..=events.len() {
+                assert_eq!(read(&events, size).await.1, Ok(reply.into()), "{reply} in chunks of {size} bytes");
+            }
+        }
     }
 
     #[tokio::test]
@@ -716,5 +742,49 @@ mod tests {
         let reply = read_stream(chunks, &mut on_delta, &cancel).await;
         assert_eq!(deltas, ["hello "]);
         assert_eq!(reply, Ok("hello ".into()));
+    }
+
+    #[tokio::test]
+    async fn a_bare_think_tag_is_never_the_reply() {
+        for pieces in [&["<think>"][..], &["<th", "ink>"][..], &[" \n", "<think>"][..]] {
+            for (finish, message) in
+                [("length", "output was cut off at the token limit"), ("stop", "no content in response")]
+            {
+                let events = sse(pieces, finish);
+                for size in 1..=events.len() {
+                    let (deltas, reply) = read(&events, size).await;
+                    assert!(deltas.is_empty(), "{pieces:?} in chunks of {size} bytes");
+                    assert_eq!(reply.unwrap_err().message, message, "{pieces:?} in chunks of {size} bytes");
+                }
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn a_streamed_reply_of_whitespace_alone_is_an_error() {
+        for (finish, message) in
+            [("length", "output was cut off at the token limit"), ("stop", "no content in response")]
+        {
+            let events = sse(&[" ", "\n "], finish);
+            for size in 1..=events.len() {
+                assert_eq!(read(&events, size).await.1.unwrap_err().message, message, "chunks of {size} bytes");
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn a_stopped_stream_drops_what_it_was_still_holding() {
+        let mut events = frame(json!({"role": "assistant", "content": ""}), Value::Null);
+        events.push_str(&frame(json!({"content": "<thi"}), Value::Null));
+        let cancel = ChatCancel::default();
+        let stop = cancel.clone();
+        let chunks = stream::once(async move { Ok(Some(events.into_bytes())) }).chain(stream::once(async move {
+            stop.cancel();
+            Ok(None)
+        }));
+        let mut deltas = Vec::new();
+        let reply = read_stream(chunks, &mut |piece| deltas.push(piece.to_string()), &cancel).await;
+        assert!(deltas.is_empty(), "{deltas:?}");
+        assert_eq!(reply, Ok(String::new()));
     }
 }

@@ -351,12 +351,21 @@ pub(crate) fn validate_polish_output(text: String) -> ProviderResult<String> {
         || trimmed.contains("</think>")
         || trimmed.lines().any(|line| {
             let line = line.trim();
-            line == FENCE || SCAFFOLD_MARKERS.iter().any(|marker| line.starts_with(marker))
+            line == FENCE || SCAFFOLD_MARKERS.iter().any(|marker| leaks(marker, line))
         });
     if leaked {
         return Err(ProviderError::retryable(ErrorKind::BadResponse, "polish output leaked its scaffold"));
     }
     Ok(if trimmed.len() == text.len() { text } else { trimmed.to_string() })
+}
+
+/// Whether a line repeats a piece of the prompt: a tag opens or closes a block wherever the line starts with it,
+/// while a section header (`#Section#`) stands alone or takes a colon, so prose that merely begins like one is kept.
+fn leaks(marker: &str, line: &str) -> bool {
+    let Some(rest) = line.strip_prefix(marker) else {
+        return false;
+    };
+    !marker.starts_with('#') || rest.is_empty() || rest.starts_with([':', '\u{ff1a}'])
 }
 
 async fn checked_attempt(
@@ -684,11 +693,18 @@ mod tests {
     #[test]
     fn polish_output_check_rejects_only_known_broken_shapes() {
         for marker in SCAFFOLD_MARKERS {
-            // A whole line of the prompt, or one with the model's own text on the same line.
-            for leaked in [format!("before\n{marker}\nafter"), format!("before\n  {marker} and more\nafter")] {
+            // A whole line of the prompt, or one with a note after it.
+            for leaked in [format!("before\n{marker}\nafter"), format!("before\n{marker}: note\nafter")] {
                 let error = validate_polish_output(leaked).unwrap_err();
                 assert!(error.is_retryable(), "{marker}");
             }
+        }
+        // A tag opens a block wherever the line starts with it; a section header must stand alone or take a colon,
+        // so prose that merely begins like one stays.
+        assert!(validate_polish_output("<instruction>text</instruction>".into()).unwrap_err().is_retryable());
+        assert!(validate_polish_output("#Outputs#\u{ff1a} note".into()).unwrap_err().is_retryable());
+        for text in ["#Style# and more", "#Purpose#ful"] {
+            assert_eq!(validate_polish_output(text.to_string()).unwrap(), text, "{text}");
         }
         for leaked in ["===\ntext\n===", " #Outputs# ", "#Outputs#: text", "<think>hmm</think>hi", "hi</think>"] {
             let error = validate_polish_output(leaked.to_string()).unwrap_err();
