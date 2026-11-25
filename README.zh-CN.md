@@ -68,7 +68,7 @@ Dito 内置了针对本地小模型拟合的意图分路器，无需联网即可
 
 ### 4. 快速聊天与本地 API
 
-聊天默认共用你选定的文本模型，支持附上文件或已结束的会议记录直接提问，流式输出 Markdown、代码和表格。使用本地模型时，对话全程留在你的 Mac 上。你还可以开启“本地 API”，通过兼容 OpenAI 的接口和 MCP 将本地模型共享给本机的其他应用。
+聊天默认共用你选定的文本模型，支持附上文件或已结束的会议记录直接提问，流式输出 Markdown、代码和表格。使用本地模型时，对话全程留在你的 Mac 上。你还可以开启“本地 API”，通过兼容 OpenAI 的接口和 MCP，让本机的其他应用使用 Dito 当前设置的语音识别模型和文本模型。选择云端模型时，这些请求会发送到对应的云端服务。
 
 <p align="center"><img src="assets/readme/chat-zh.webp" alt="询问下次会议前要做的事，本地模型以列表形式流式回答" width="720"></p>
 
@@ -110,6 +110,7 @@ Dito 内置了针对本地小模型拟合的意图分路器，无需联网即可
     - Qwen3.5 Instruct 4B
     - Qwen3.5 Instruct 9B（默认）
     - Qwen3.8 27B
+    - Ternary Bonsai 2.5 27B
   - 云端服务
     - Azure OpenAI
     - Amazon Bedrock

@@ -8,7 +8,7 @@ What the app is for and what it does, from the user's side. How it looks and mov
 - **Never lose what was said.** If polishing fails, the raw text is inserted. If there is nowhere to type, the text goes to the clipboard. Every result stays in History.
 - **Stay out of the way.** The HUD never takes focus, never covers menus, and disappears when done. Starting Dito opens no window. Settings change in one place each.
 - **Local first, cloud when wanted.** Speech recognition and polishing each run on the Mac or through a provider, chosen separately.
-- **Japanese first.** The UI is designed in Japanese; English and Simplified Chinese are available. The speech language is a separate setting.
+- **Japanese first.** The UI is designed in Japanese; English, Simplified Chinese, Traditional Chinese, Korean, Mongolian and French are available. The speech language is a separate setting.
 - **Calm and precise.** Short, purposeful motion; no flashing; Reduce Motion respected everywhere.
 
 ## Dictation

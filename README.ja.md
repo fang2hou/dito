@@ -68,7 +68,7 @@ bash scripts/install-local.sh
 
 ### 4. チャットとローカル API
 
-選択中のテキストモデルを使ってチャットできます。ファイルや書き起こし済みの会議を添付して質問でき、回答は Markdown、コード、表でストリーミング表示されます。ローカルモデル選択時はやり取りがすべて Mac 内で完結します。また、「ローカル API」を有効にすると、OpenAI 互換 API と MCP 経由で同じ Mac 上の別アプリからローカルモデルを利用できます。
+選択中のテキストモデルを使ってチャットできます。ファイルや書き起こし済みの会議を添付して質問でき、回答は Markdown、コード、表でストリーミング表示されます。ローカルモデル選択時はやり取りがすべて Mac 内で完結します。また、「ローカル API」を有効にすると、OpenAI 互換 API と MCP 経由で、Dito に設定中の音声認識モデルとテキストモデルを同じ Mac 上の別アプリから利用できます。クラウドのモデルを選んでいる場合、そのリクエストはクラウドのサービスに送られます。
 
 <p align="center"><img src="assets/readme/chat-ja.webp" alt="次の会議までにやることを尋ねると、ローカルのモデルが箇条書きでストリーミング回答する" width="720"></p>
 
@@ -110,6 +110,7 @@ bash scripts/install-local.sh
     - Qwen3.5 Instruct 4B
     - Qwen3.5 Instruct 9B（デフォルト）
     - Qwen3.8 27B
+    - Ternary Bonsai 2.5 27B
   - クラウド
     - Azure OpenAI
     - Amazon Bedrock

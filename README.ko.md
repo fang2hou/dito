@@ -68,7 +68,7 @@ bash scripts/install-local.sh
 
 ### 4. 채팅과 로컬 API
 
-선택한 텍스트 모델로 채팅하고, 파일이나 녹음이 끝난 회의의 받아쓰기 내용을 첨부해 질문할 수 있습니다. 답변은 Markdown, 코드, 표를 포함해 스트리밍으로 표시됩니다. 로컬 모델을 선택하면 대화는 Mac 안에서 처리됩니다. 로컬 API를 켜면 OpenAI 호환 API와 MCP를 통해 같은 Mac의 다른 앱에서도 로컬 모델을 사용할 수 있습니다.
+선택한 텍스트 모델로 채팅하고, 파일이나 녹음이 끝난 회의의 받아쓰기 내용을 첨부해 질문할 수 있습니다. 답변은 Markdown, 코드, 표를 포함해 스트리밍으로 표시됩니다. 로컬 모델을 선택하면 대화는 Mac 안에서 처리됩니다. 로컬 API를 켜면 OpenAI 호환 API와 MCP를 통해 같은 Mac의 다른 앱에서도 Dito에 설정된 음성 인식 모델과 텍스트 모델을 사용할 수 있습니다. 클라우드 모델을 선택한 경우 해당 요청은 클라우드 서비스로 전송됩니다.
 
 <p align="center"><img src="assets/readme/chat-ko.webp" alt="다음 회의 전까지 할 일을 질문하고 로컬 모델의 답변을 목록으로 받는 모습" width="720"></p>
 
@@ -110,6 +110,7 @@ bash scripts/install-local.sh
     - Qwen3.5 Instruct 4B
     - Qwen3.5 Instruct 9B (기본값)
     - Qwen3.8 27B
+    - Ternary Bonsai 2.5 27B
   - 클라우드 서비스
     - Azure OpenAI
     - Amazon Bedrock
