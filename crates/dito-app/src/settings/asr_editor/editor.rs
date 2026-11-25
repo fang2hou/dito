@@ -206,6 +206,7 @@ impl AsrEditor {
                 source,
                 saved_key: String::new(),
                 key: String::new(),
+                key_loading: true,
                 error,
                 pending: false,
                 revision: 0,
@@ -230,12 +231,9 @@ impl AsrEditor {
     }
 
     fn key_loaded(&mut self, id: &str, key: String, window: &mut Window, cx: &mut Context<Self>) {
-        let Some(draft) = self.drafts.get_mut(id) else { return };
-        let untouched = draft.key == draft.saved_key;
+        let Some(draft) = self.drafts.get_mut(id).filter(|draft| draft.key_loading) else { return };
+        draft.key_loading = false;
         draft.saved_key = key.clone();
-        if !untouched {
-            return;
-        }
         draft.key = key.clone();
         if self.shown == id {
             self.key.update(cx, |input, cx| input.set_value(key, window, cx));
@@ -269,6 +267,7 @@ impl AsrEditor {
         let id = self.shown.clone();
         if let Some(draft) = self.drafts.get_mut(&id) {
             draft.key = key;
+            draft.key_loading = false;
         }
         self.edited(&id, cx);
     }
