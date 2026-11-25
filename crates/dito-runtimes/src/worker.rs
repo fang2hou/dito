@@ -46,7 +46,11 @@ pub(crate) async fn ensure_success(response: reqwest::Response) -> Result<reqwes
     if status.is_success() {
         return Ok(response);
     }
-    Err(rejected(status.as_u16(), &response.text().await.unwrap_or_default()))
+    let status = status.as_u16();
+    Err(match response.text().await {
+        Ok(body) => rejected(status, &body),
+        Err(error) => RuntimeError::engine(format!("HTTP {status}: could not read body: {error}")),
+    })
 }
 
 fn rejected(status: u16, body: &str) -> RuntimeError {

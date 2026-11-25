@@ -86,23 +86,29 @@ impl LocalEngines {
     }
 
     pub fn usage(&self, id: &str) -> EngineUsage {
-        // An exited worker's PID may already belong to another process, so it is never read.
-        let pid = match self.slots.lock().expect("engine state mutex poisoned").get(id) {
-            Some(Slot::Asr(runtime)) if runtime.failure().is_none() => runtime.process_id(),
-            Some(Slot::Llm(runtime)) if runtime.failure().is_none() => runtime.process_id(),
-            _ => None,
+        let (pid, running) = match self.slots.lock().expect("engine state mutex poisoned").get(id) {
+            Some(Slot::Asr(runtime)) => (runtime.process_id(), runtime.failure().is_none()),
+            Some(Slot::Llm(runtime)) => (runtime.process_id(), runtime.failure().is_none()),
+            _ => (None, false),
         };
-        if let Some(pid) = pid {
-            let usage = crate::process_usage_for(pid);
-            return EngineUsage { cpu: usage.cpu, memory_bytes: usage.memory_bytes, mapped_bytes: 0 };
-        }
-        let usage = self.usage_for(id);
-        let since = usage.working_since_ns.load(Ordering::Relaxed);
-        let in_flight = if since == 0 { 0 } else { cpu_now_ns().saturating_sub(since) };
-        EngineUsage {
-            cpu: Duration::from_nanos(usage.cpu_ns.load(Ordering::Relaxed) + in_flight),
-            memory_bytes: usage.memory_bytes.load(Ordering::Relaxed),
-            mapped_bytes: usage.mapped_bytes.load(Ordering::Relaxed),
+        // A worker that has exited reports nothing: its PID may already belong to another process, and the engine's
+        // own accounting measures the app, not a worker.
+        match (pid, running) {
+            (Some(pid), true) => {
+                let usage = crate::process_usage_for(pid);
+                EngineUsage { cpu: usage.cpu, memory_bytes: usage.memory_bytes, mapped_bytes: 0 }
+            }
+            (Some(_), false) => EngineUsage::default(),
+            _ => {
+                let usage = self.usage_for(id);
+                let since = usage.working_since_ns.load(Ordering::Relaxed);
+                let in_flight = if since == 0 { 0 } else { cpu_now_ns().saturating_sub(since) };
+                EngineUsage {
+                    cpu: Duration::from_nanos(usage.cpu_ns.load(Ordering::Relaxed) + in_flight),
+                    memory_bytes: usage.memory_bytes.load(Ordering::Relaxed),
+                    mapped_bytes: usage.mapped_bytes.load(Ordering::Relaxed),
+                }
+            }
         }
     }
 
@@ -229,22 +235,6 @@ impl LocalEngines {
                 .insert(id.to_string(), Slot::Loading(stop.clone()))
                 .filter(|slot| matches!(slot, Slot::Asr(_) | Slot::Llm(_)))
         };
-        if let Some(dead) = dead {
-            let error = Self::worker_failure(&dead).unwrap_or_default();
-            trace_log!(model = id, error = %error, "model worker exited, the model is loaded again");
-            // Releasing a worker can wait for seconds, so it runs outside the slot lock.
-            match &dead {
-                Slot::Asr(runtime) => runtime.shutdown(),
-                Slot::Llm(runtime) => runtime.shutdown(),
-                _ => {}
-            }
-            drop(dead);
-        }
-        let (loader, dir) = (self.loader.clone(), self.manager.model_dir(id));
-        let mapped = mapped_weights_bytes(&dir);
-        let memory_before = footprint_bytes();
-        let started = Instant::now();
-        trace_log!(model = id, kind = ?spec.kind, "model load started");
         let finished = Arc::new(AtomicBool::new(false));
         let mut cancellation = LoadCancellation {
             slots: self.slots.clone(),
@@ -254,7 +244,29 @@ impl LocalEngines {
             armed: true,
         };
         let completion = LoadCompletion { slots: self.slots.clone(), id: id.to_owned(), stop: stop.clone(), finished };
+        if let Some(dead) = &dead {
+            let error = Self::worker_failure(dead).unwrap_or_default();
+            trace_log!(model = id, error = %error, "model worker exited, the model is loaded again");
+        }
+        let (loader, dir) = (self.loader.clone(), self.manager.model_dir(id));
+        let mapped = mapped_weights_bytes(&dir);
+        let memory_before = footprint_bytes();
+        let started = Instant::now();
+        trace_log!(model = id, kind = ?spec.kind, "model load started");
         let (loaded, _completion) = tokio::task::spawn_blocking(move || {
+            // Releasing a worker can wait for seconds, so it runs here, off the async thread and the slot lock.
+            if let Some(dead) = dead {
+                match &dead {
+                    Slot::Asr(runtime) => runtime.shutdown(),
+                    Slot::Llm(runtime) => runtime.shutdown(),
+                    _ => {}
+                }
+                drop(dead);
+            }
+            // A stop or a dropped caller that arrived while the worker was released must not load a replacement.
+            if stop.load(Ordering::Relaxed) {
+                return (Err(RuntimeError::Cancelled), completion);
+            }
             let loaded = match spec.kind {
                 ModelKind::Asr => loader.load_asr_cancellable(&spec, &dir, &stop).map(Slot::Asr),
                 ModelKind::Text => loader.load_llm_cancellable(&spec, &dir, &stop).map(Slot::Llm),

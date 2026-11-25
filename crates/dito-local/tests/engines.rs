@@ -15,7 +15,7 @@ use dito_core::provider::{AsrRequest, ChatCancel, ChatMessage, ChatRequest, Chat
 use dito_local::catalog::{FileSpec, ModelFormat, ModelKind, ModelSpec, Sampling};
 use dito_local::managed_process::ManagedProcess;
 use dito_local::{
-    AsrOutput, AsrRuntime, LlmRuntime, LocalEngines, ModelManager, NoRuntime, RuntimeError, RuntimeLoader,
+    AsrOutput, AsrRuntime, EngineUsage, LlmRuntime, LocalEngines, ModelManager, NoRuntime, RuntimeError, RuntimeLoader,
 };
 
 const RECOMMENDED: Sampling = Sampling { temperature: 0.2, top_p: Some(0.9), top_k: None, max_tokens: None };
@@ -767,10 +767,6 @@ impl RuntimeLoader for ProcessLoader {
     }
 }
 
-/// `usage` of a process-backed model reports no mapped bytes, so a weights file tells the engine's own accounting
-/// apart from a read of the worker's PID.
-const MAPPED: u64 = 64 * 1024;
-
 struct DeadWorker {
     id: &'static str,
     engine: Arc<LocalEngines>,
@@ -782,7 +778,6 @@ struct DeadWorker {
 /// An engine whose worker for `id` has exited, and whose status reports it while nothing asks for the model.
 async fn engine_with_dead_worker(id: &'static str) -> DeadWorker {
     let (manager, dir) = installed_manager();
-    std::fs::write(manager.model_dir(id).join("weights.gguf"), vec![0; MAPPED as usize]).unwrap();
     let loader = Arc::new(ProcessLoader { loads: AtomicUsize::new(0), first: std::sync::Mutex::new(None) });
     let engine = LocalEngines::new(manager, loader.clone());
     engine.warm(id).await;
@@ -795,8 +790,6 @@ async fn engine_with_dead_worker(id: &'static str) -> DeadWorker {
     .await
     .expect("the worker's exit was never reported");
     assert_eq!(loader.loads.load(Ordering::SeqCst), 1);
-    // An exited worker's PID may belong to another process by now, so no usage is read from it.
-    assert_eq!(engine.usage(id).mapped_bytes, MAPPED);
     DeadWorker { id, engine, loader, dead, _dir: dir }
 }
 
@@ -805,8 +798,6 @@ fn assert_replaced(test: &DeadWorker) {
     assert_eq!(test.engine.status(test.id), EngineStatus::Running);
     let failure = test.dead.0.failure();
     assert_eq!(failure.as_deref(), Some("model worker is stopped"), "the dead worker was not released");
-    // A live worker answers from its PID, which never reports mapped bytes.
-    assert_eq!(test.engine.usage(test.id).mapped_bytes, 0);
     test.engine.unload_all();
 }
 
@@ -833,4 +824,161 @@ async fn a_dead_text_worker_is_replaced_by_the_next_load() {
         assert_eq!(model.polish(&request).await.unwrap(), "polished");
     }
     assert_replaced(&test);
+}
+
+/// A worker that has exited. The PID it left behind is this test's own, as it would be once the system reuses it.
+struct ExitedWorker;
+
+impl AsrRuntime for ExitedWorker {
+    fn failure(&self) -> Option<String> {
+        Some("worker exited".into())
+    }
+
+    fn process_id(&self) -> Option<u32> {
+        Some(std::process::id())
+    }
+
+    fn transcribe(&self, _: &[f32], _: Option<&str>, _: &[String], _: &AtomicBool) -> Result<AsrOutput, RuntimeError> {
+        unreachable!("this worker has exited")
+    }
+}
+
+impl LlmRuntime for ExitedWorker {
+    fn failure(&self) -> Option<String> {
+        Some("worker exited".into())
+    }
+
+    fn process_id(&self) -> Option<u32> {
+        Some(std::process::id())
+    }
+
+    fn generate(&self, _: &str, _: &[Example], _: &str, _: &Sampling, _: &AtomicBool) -> Result<String, RuntimeError> {
+        unreachable!("this worker has exited")
+    }
+}
+
+#[tokio::test]
+async fn the_usage_of_an_exited_worker_is_zero_whatever_its_pid_belongs_to_now() {
+    let (engine, _dir) = engine_with(ExitedWorker);
+    engine.warm("asr").await;
+    assert_eq!(engine.status("asr"), EngineStatus::Failed("worker exited".into()));
+    // The PID is live, so a read of it would answer with this process's figures.
+    assert!(dito_local::process_usage_for(std::process::id()).memory_bytes > 0);
+    assert_eq!(engine.usage("asr"), EngineUsage::default());
+}
+
+/// A worker that has exited, whose release waits for the test as a slow reap would.
+struct SlowRelease {
+    entered: std::sync::mpsc::Sender<()>,
+    release: Arc<std::sync::Mutex<std::sync::mpsc::Receiver<()>>>,
+}
+
+impl SlowRelease {
+    fn wait_for_release(&self) {
+        let _ = self.entered.send(());
+        self.release.lock().unwrap().recv_timeout(WAIT).expect("the release was never allowed");
+    }
+}
+
+impl AsrRuntime for SlowRelease {
+    fn shutdown(&self) {
+        self.wait_for_release();
+    }
+
+    fn failure(&self) -> Option<String> {
+        Some("worker exited".into())
+    }
+
+    fn transcribe(&self, _: &[f32], _: Option<&str>, _: &[String], _: &AtomicBool) -> Result<AsrOutput, RuntimeError> {
+        unreachable!("this worker has exited")
+    }
+}
+
+impl LlmRuntime for SlowRelease {
+    fn shutdown(&self) {
+        self.wait_for_release();
+    }
+
+    fn failure(&self) -> Option<String> {
+        Some("worker exited".into())
+    }
+
+    fn generate(&self, _: &str, _: &[Example], _: &str, _: &Sampling, _: &AtomicBool) -> Result<String, RuntimeError> {
+        unreachable!("this worker has exited")
+    }
+}
+
+/// Hands out an exited worker and counts every load it is asked for.
+struct SlowReleaseLoader {
+    runtime: Arc<SlowRelease>,
+    loads: Arc<AtomicUsize>,
+}
+
+impl RuntimeLoader for SlowReleaseLoader {
+    fn load_asr(&self, _: &ModelSpec, _: &Path) -> Result<Arc<dyn AsrRuntime>, RuntimeError> {
+        self.loads.fetch_add(1, Ordering::SeqCst);
+        let runtime: Arc<dyn AsrRuntime> = self.runtime.clone();
+        Ok(runtime)
+    }
+
+    fn load_llm(&self, _: &ModelSpec, _: &Path) -> Result<Arc<dyn LlmRuntime>, RuntimeError> {
+        self.loads.fetch_add(1, Ordering::SeqCst);
+        let runtime: Arc<dyn LlmRuntime> = self.runtime.clone();
+        Ok(runtime)
+    }
+}
+
+struct Releasing {
+    engine: Arc<LocalEngines>,
+    loads: Arc<AtomicUsize>,
+    release: std::sync::mpsc::Sender<()>,
+    _dir: tempfile::TempDir,
+}
+
+/// An engine whose replacement of an exited worker is under way, and is now releasing it.
+async fn engine_releasing_its_dead_worker() -> (Releasing, tokio::task::JoinHandle<()>) {
+    let (entered, observe) = std::sync::mpsc::channel();
+    let (release, gate) = std::sync::mpsc::channel();
+    let loads = Arc::new(AtomicUsize::new(0));
+    let loader = Arc::new(SlowReleaseLoader {
+        runtime: Arc::new(SlowRelease { entered, release: Arc::new(std::sync::Mutex::new(gate)) }),
+        loads: loads.clone(),
+    });
+    let (manager, dir) = installed_manager();
+    let engine = LocalEngines::new(manager, loader);
+    engine.warm("asr").await;
+    assert_eq!(engine.status("asr"), EngineStatus::Failed("worker exited".into()));
+    let replacing = engine.clone();
+    let task = tokio::spawn(async move { replacing.warm("asr").await });
+    // Let the task reach the blocking release before waiting on its signal.
+    tokio::task::yield_now().await;
+    observe.recv_timeout(WAIT).unwrap();
+    assert_eq!(engine.status("asr"), EngineStatus::Loading);
+    (Releasing { engine, loads, release, _dir: dir }, task)
+}
+
+#[tokio::test]
+async fn unloading_while_an_exited_worker_is_released_starts_no_replacement_load() {
+    let (test, task) = engine_releasing_its_dead_worker().await;
+    test.engine.unload("asr");
+    test.release.send(()).unwrap();
+    task.await.unwrap();
+    assert_eq!(test.loads.load(Ordering::SeqCst), 1, "a replacement was loaded although the model was stopped");
+    assert_eq!(test.engine.status("asr"), EngineStatus::Stopped);
+}
+
+#[tokio::test]
+async fn dropping_the_load_while_an_exited_worker_is_released_leaves_no_model_loading() {
+    let (test, task) = engine_releasing_its_dead_worker().await;
+    task.abort();
+    assert!(task.await.is_err_and(|error| error.is_cancelled()), "the load finished instead of being dropped");
+    test.release.send(()).unwrap();
+    tokio::time::timeout(WAIT, async {
+        while test.engine.status("asr") != EngineStatus::Stopped {
+            tokio::time::sleep(Duration::from_millis(1)).await;
+        }
+    })
+    .await
+    .expect("the model stayed loading");
+    assert_eq!(test.loads.load(Ordering::SeqCst), 1, "a replacement was loaded although the load was dropped");
 }

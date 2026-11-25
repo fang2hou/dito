@@ -117,25 +117,29 @@ mod tests {
         assert_eq!(unsafe { libc::kill(process.pid() as i32, 0) }, -1);
     }
 
-    const IGNORE_TERM: &str = "DITO_WORKER_TEST_IGNORE_TERM";
+    const RELEASE: &str = "DITO_WORKER_TEST_RELEASE";
 
     #[test]
     fn a_worker_is_reported_stopped_while_its_shutdown_still_waits_for_it() {
-        if std::env::var_os(IGNORE_TERM).is_some() {
-            // The worker: it reports once TERM is ignored, then exits on its own.
+        if let Some(release) = std::env::var_os(RELEASE) {
+            // The worker: it reports once TERM is ignored and exits when the owner writes the file, or after a while.
             // SAFETY: signal changes a process-wide disposition before anything else in this process depends on it.
             unsafe { libc::signal(libc::SIGTERM, libc::SIG_IGN) };
             eprintln!("ready");
-            std::thread::sleep(Duration::from_secs(2));
+            let deadline = Instant::now() + Duration::from_secs(30);
+            while !std::path::Path::new(&release).exists() && Instant::now() < deadline {
+                std::thread::sleep(Duration::from_millis(10));
+            }
             return;
         }
-        // The worker is this test run again with `IGNORE_TERM`, so the shutdown has to wait for it.
+        // The worker is this test run again with `RELEASE` set, so the shutdown has to wait for it.
         let dir = tempfile::tempdir().unwrap();
         let log = dir.path().join("worker.log");
+        let release = dir.path().join("release");
         let process = ManagedProcess::spawn(
             std::path::Path::new("/usr/bin/env"),
             &[
-                format!("{IGNORE_TERM}=1"),
+                format!("{RELEASE}={}", release.display()),
                 std::env::current_exe().unwrap().display().to_string(),
                 "--exact".into(),
                 "managed_process::tests::a_worker_is_reported_stopped_while_its_shutdown_still_waits_for_it".into(),
@@ -153,15 +157,22 @@ mod tests {
         let shutting_down = Arc::clone(&owner);
         let shutdown = std::thread::spawn(move || shutting_down.shutdown());
         let deadline = Instant::now() + Duration::from_secs(3);
-        while owner.failure().is_none() {
-            assert!(Instant::now() < deadline, "the shutdown never took the worker");
+        let reported = loop {
+            if let Some(failure) = owner.failure() {
+                // SAFETY: signal 0 checks for existence without changing the target process.
+                break Some((failure, unsafe { libc::kill(owner.pid() as i32, 0) }));
+            }
+            if Instant::now() >= deadline {
+                break None;
+            }
             std::thread::sleep(Duration::from_millis(10));
-        }
-        assert_eq!(owner.failure().as_deref(), Some("model worker is stopped"));
-        // SAFETY: signal 0 checks for existence without changing the target process.
-        let alive = unsafe { libc::kill(owner.pid() as i32, 0) };
-        assert_eq!(alive, 0, "the stop was reported only after the worker was reaped");
+        };
+        // The worker is released before anything can fail, so the shutdown always ends and is joined.
+        std::fs::write(&release, b"").unwrap();
         shutdown.join().unwrap();
+        let (failure, alive) = reported.expect("the shutdown never reported the stopped worker");
+        assert_eq!(failure, "model worker is stopped");
+        assert_eq!(alive, 0, "the stop was reported only after the worker was reaped");
     }
 
     #[test]
