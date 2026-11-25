@@ -13,7 +13,7 @@ A launch opens a window by itself in three cases only: Onboarding on first run; 
 
 The third window exists because the alternative is worse than a window: the process used to exit with no UI, so a login item died unseen and left a Dito that was silently not running. Like the other two it blocks dictation, so showing it does not break the rule against reporting states that do not. It starts nothing else (no hotkeys, HUD, menu bar item or dictation), follows the system appearance and language because the saved ones cannot be read, and never changes a file by itself. The person ends it with Quit or, for unreadable settings only, with the restore button, which keeps the file as a backup beside it, writes the default settings and carries on into Onboarding in the same process (ADR-0015 forbids a silent reset, not one the person asks for). Data from a newer Dito offers no reset: resetting would hide it, so the only fix on offer is updating Dito.
 
-"Show icon in Dock" (General, on by default) controls the Dock icon. Off, the app runs without one and the icon returns only while a window is open.
+"Show icon in Dock" (General, off by default) controls the Dock icon. Off, the app runs without one and the icon returns only while a window is open.
 
 ## Alternatives Considered
 

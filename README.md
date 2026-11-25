@@ -68,7 +68,7 @@ From the Tools window, record system audio, your microphone, or both and get a l
 
 ### 4. Chat and Local API
 
-Chat uses your selected text model, supports attaching files or completed meeting transcripts, and streams replies with Markdown, code, and tables. With a local model selected, conversations never leave your Mac. Enable the Local API to expose local models to other apps on your Mac via an OpenAI-compatible HTTP endpoint and MCP.
+Chat uses your selected text model, supports attaching files or completed meeting transcripts, and streams replies with Markdown, code, and tables. With a local model selected, conversations never leave your Mac. Enable the Local API to let other apps on your Mac use the models Dito is set to: the OpenAI-compatible HTTP endpoint offers text generation and speech transcription, and MCP offers text generation and the model list. With a cloud model selected, those requests go to that provider.
 
 <p align="center"><img src="assets/readme/chat-en.webp" alt="A question about the next meeting is answered by a local model, streaming as a list" width="720"></p>
 
@@ -110,6 +110,7 @@ Chat uses your selected text model, supports attaching files or completed meetin
     - Qwen3.5 Instruct 4B
     - Qwen3.5 Instruct 9B (default)
     - Qwen3.8 27B
+    - Ternary Bonsai 2.5 27B
   - Cloud
     - Azure OpenAI
     - Amazon Bedrock

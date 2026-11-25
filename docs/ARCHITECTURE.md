@@ -11,10 +11,11 @@ Dito is a macOS dictation app. A global shortcut starts a recording; the audio i
 - `dito-core`: config, i18n, prompts, the dictation controller and pipeline, meeting transcription, chat, the loopback Local API and MCP server, the audio clip and its WAV encoding, cloud providers, the SQLite store (history, wordbook, stats, transcripts, chats), the secrets trait, the text insertion policy, and intent routing for voice commands (router prompt, fitted heads, decision; see [INTENT_ROUTING.md](INTENT_ROUTING.md)).
 - `dito-audio`: microphone and system audio capture, resampling to 16 kHz mono, device transport detection.
 - `dito-local`: local model catalog, downloads, model state and the local engines; runtimes plug in through `RuntimeLoader`.
-- `dito-runtimes`: llama.cpp (Metal), sherpa-onnx and transcribe.cpp bindings, plus a managed NeMo-Speech.cpp worker, behind `dito-local`'s traits. Process-backed models use the same catalog and lifecycle; the app owns and stops their workers.
+- `dito-runtimes`: llama.cpp (Metal), sherpa-onnx and transcribe.cpp bindings, plus managed NeMo-Speech.cpp and Prism llama-server workers, behind `dito-local`'s traits. Process-backed models use the same catalog and lifecycle; the app owns and stops their workers.
 - `dito-platform`: macOS integration: event tap and shortcut machine, permissions, text insertion, Keychain, music mute, window helpers, login item.
 - `dito-testkit`: an in-process mock server for cloud APIs and downloads.
-- `dito-app`: the GPUI app: HUD, settings pages, the Tools window, onboarding, menu bar, shared `ui` controls, theme and motion.
+- `dito-ui`: generic GPUI controls, motion, typography and color tokens, with no dependency on another workspace crate.
+- `dito-app`: the GPUI app: HUD, settings pages, the Tools window, onboarding, menu bar, theme, and the app-bound `ui` facade over `dito-ui`.
 
 ## Dictation Flow
 
@@ -45,10 +46,13 @@ A second shortcut starts a command instead of a dictation. The same controller a
 
 ```mermaid
 flowchart LR
-    Shortcut[command shortcut] --> Capture[SelectionSource: selected text and field text of the app in front]
-    Capture --> Record[Recorder] --> Recapture[SelectionSource again when the recording ends] --> Transcribe[Transcriber: the instruction]
+    Shortcut[command shortcut] --> Record[Recorder]
+    Shortcut --> Capture[SelectionSource: selected text and field text of the app in front]
+    Record --> Transcribe[Transcriber: the instruction]
+    Record --> Recapture[SelectionSource again when the recording ends]
     Typed[instruction field] --> Route
     Transcribe --> Route[Router: intent decision]
+    Recapture --> Route
     Route -- confident --> Tool[command tool: TextModel with the tool's prompt]
     Route -- unsure --> Choose[HUD: choice window] --> Tool
     Tool --> Replace[CapturedSelection::replace]
@@ -75,7 +79,7 @@ The shortcut machine reports a press and the core decides what it means. When th
 
 The router decides on the local chat model without generating ([INTENT_ROUTING.md](INTENT_ROUTING.md)); the tool then generates with the same model. When the tool needs text and nothing is selected, the HUD asks for it and the result is inserted at the cursor through `Sink`.
 
-The selection is read when the capsule opens (the buttons and the trace need it at once) and again when the recording ends, by Finish, the shortcut, the polish button or the keyboard button; Cancel and a silent clip skip the second reading. The second reading replaces the first, its surrounding text included, and a reading that finds nothing selected replaces it too (the user deselected). It is dropped only when it fails (`SelectionSource::capture` returns `None`: Accessibility is not allowed, nothing is readable, or the copy found nothing), and then the first stays. The trace logs the second reading like the first, with a `replaced` field.
+The recorder starts before the first reading, so a slow reading never clips the first words. The selection is read when the capsule opens (the buttons and the trace need it at once) and again when the recording ends, by Finish, the shortcut, the polish button or the keyboard button; Cancel and a silent clip skip the second reading. The second reading replaces the first, its surrounding text included, and a reading that finds nothing selected replaces it too (the user deselected). It is dropped only when it fails (`SelectionSource::capture` returns `None`: Accessibility is not allowed, nothing is readable, or the copy found nothing), and then the first stays. The second reading runs off the actor while the instruction is transcribed, and routing waits for both, so a command never routes with a stale selection; a reading that arrives after its run ended is dropped by the epoch guard. The trace logs the second reading like the first, with a `replaced` field.
 
 The capture reads the whole text of the focused input (`AXValue`, with `AXSelectedTextRange` to place the selection; password fields are skipped) next to the selected text, so the tools know what surrounds the selection. `CapturedSelection::text` stays the selection alone, empty when only the field's text was read, and only a selection can be replaced. The surrounding text (`surrounding` module) is split into the part before and the part after the selection, or kept as one block when the selection cannot be placed. When a tool is about to run it is cut to a budget derived from the prompt size the local runtime can read quickly (about 1 500 tokens, less as the selection grows, none for a very long selection): the text nearest the selection is kept on both sides, cut at a line or sentence end where one is near and marked with `…`. Rewrite, translate, summarize, reply and answer get it as `<surrounding_text>` in their final user turn, a reference their prompt names in a `#Context#` section (ADR-0012); polish does not, because the shared dictation polish prompt has no place for reference text. The router reads the instruction only. The trace log (`dito_trace`) shows the length before and after the cut; the context is not stored in the history row.
 
@@ -88,7 +92,7 @@ A command that got past its recording writes one history row of its own kind, wh
 ## Invariants
 
 - **Layer responsibilities**: dictation logic lives in `dito-core`. The app renders and forwards user intent; it never runs dictation logic itself.
-- **Dependency direction**: `dito-app` depends on core, audio, local and platform (runtimes and testkit through features). `dito-core` depends on no GPUI, AppKit or platform crate. Only `dito-app` depends on GPUI. Runtimes plug into `dito-local`, not the other way round.
+- **Dependency direction**: `dito-app` depends on core, audio, local and platform (runtimes and testkit through features). `dito-core` depends on no GPUI, AppKit or platform crate. Only `dito-app` and `dito-ui` depend on GPUI. Runtimes plug into `dito-local`, not the other way round.
 - **Platform boundary**: macOS capabilities reach core only through traits (`Recorder`, `Sink`, `Frontmost`, `FocusWarmer`, `MusicMute`, `SelectionSource`, `SecretStore`, `LocalBackend`, `Engines`).
 - **External API access**: only `dito-core` providers and `dito-local` downloads make network calls. Keys come from the Keychain and never appear in config, logs or copied text. A request of a cloud speech or text engine that loses its connection before the answer begins is sent once more, at once and inside the same timeout (`provider/dropped_connection.rs`): that is how a request ends when it picks a pooled connection the server or the network has just closed. A timeout, a failure to connect, an HTTP status and an answer that has begun are never sent again, and a second loss is the error the user sees. The provider may therefore receive such a request twice. Bedrock requests follow the AWS SDK's own retry rules.
 - **State management boundary**:

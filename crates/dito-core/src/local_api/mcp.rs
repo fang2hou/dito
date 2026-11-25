@@ -90,7 +90,7 @@ impl ServerHandler for DitoMcp {
         Ok(ListToolsResult::with_all_items(vec![
             Tool::new(
                 generate_name,
-                "Generates text with the local text model Dito is set to.",
+                "Generates text with the text model Dito is set to, which may be a cloud model.",
                 object(generate_schema),
             ),
             Tool::new(
