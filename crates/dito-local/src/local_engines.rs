@@ -86,9 +86,12 @@ impl LocalEngines {
     }
 
     pub fn usage(&self, id: &str) -> EngineUsage {
-        if let Some(Slot::Asr(runtime)) = self.slots.lock().expect("engine state mutex poisoned").get(id)
-            && let Some(pid) = runtime.process_id()
-        {
+        let pid = match self.slots.lock().expect("engine state mutex poisoned").get(id) {
+            Some(Slot::Asr(runtime)) => runtime.process_id(),
+            Some(Slot::Llm(runtime)) => runtime.process_id(),
+            _ => None,
+        };
+        if let Some(pid) = pid {
             let usage = crate::process_usage_for(pid);
             return EngineUsage { cpu: usage.cpu, memory_bytes: usage.memory_bytes, mapped_bytes: 0 };
         }
@@ -110,6 +113,7 @@ impl LocalEngines {
             .values()
             .filter_map(|slot| match slot {
                 Slot::Asr(runtime) if runtime.failure().is_none() => runtime.process_id(),
+                Slot::Llm(runtime) if runtime.failure().is_none() => runtime.process_id(),
                 _ => None,
             })
             .collect();
@@ -142,8 +146,10 @@ impl LocalEngines {
         }
         // Runtime destruction may wait for Metal. Keep status reads and the UI responsive.
         let started = Instant::now();
-        if let Some(Slot::Asr(runtime)) = &old {
-            runtime.shutdown();
+        match &old {
+            Some(Slot::Asr(runtime)) => runtime.shutdown(),
+            Some(Slot::Llm(runtime)) => runtime.shutdown(),
+            _ => {}
         }
         drop(old);
         let mut slots = self.slots.lock().expect("engine state mutex poisoned");
@@ -161,6 +167,7 @@ impl LocalEngines {
             match slot {
                 Slot::Loading(stop) => stop.store(true, Ordering::Relaxed),
                 Slot::Asr(runtime) => runtime.shutdown(),
+                Slot::Llm(runtime) => runtime.shutdown(),
                 _ => {}
             }
         }
@@ -179,9 +186,12 @@ impl LocalEngines {
 
     fn loaded(&self, id: &str) -> ProviderResult<Option<Slot>> {
         let existing = self.slots.lock().expect("engine state mutex poisoned").get(id).cloned();
-        if let Some(Slot::Asr(runtime)) = &existing
-            && let Some(error) = runtime.failure()
-        {
+        let failure = match &existing {
+            Some(Slot::Asr(runtime)) => runtime.failure(),
+            Some(Slot::Llm(runtime)) => runtime.failure(),
+            _ => None,
+        };
+        if let Some(error) = failure {
             return Err(ProviderError::retryable(ErrorKind::Unavailable, error));
         }
         Ok(existing.filter(|slot| matches!(slot, Slot::Asr(_) | Slot::Llm(_))))
@@ -229,12 +239,14 @@ impl LocalEngines {
         let (loaded, _completion) = tokio::task::spawn_blocking(move || {
             let loaded = match spec.kind {
                 ModelKind::Asr => loader.load_asr_cancellable(&spec, &dir, &stop).map(Slot::Asr),
-                ModelKind::Text => loader.load_llm(&spec, &dir).map(Slot::Llm),
+                ModelKind::Text => loader.load_llm_cancellable(&spec, &dir, &stop).map(Slot::Llm),
                 ModelKind::Vad => Err(RuntimeError::engine("a voice activity detector is not an engine")),
             };
             if stop.load(Ordering::Relaxed) {
-                if let Ok(Slot::Asr(runtime)) = &loaded {
-                    runtime.shutdown();
+                match &loaded {
+                    Ok(Slot::Asr(runtime)) => runtime.shutdown(),
+                    Ok(Slot::Llm(runtime)) => runtime.shutdown(),
+                    _ => {}
                 }
                 drop(loaded);
                 return (Err(RuntimeError::Cancelled), completion);
@@ -555,7 +567,7 @@ impl LocalBackend for LocalEngines {
             Some(Slot::Loading(_)) => EngineStatus::Loading,
             Some(Slot::Stopping(_)) => EngineStatus::Stopping,
             Some(Slot::Asr(runtime)) => runtime.failure().map_or(EngineStatus::Running, EngineStatus::Failed),
-            Some(Slot::Llm(_)) => EngineStatus::Running,
+            Some(Slot::Llm(runtime)) => runtime.failure().map_or(EngineStatus::Running, EngineStatus::Failed),
             Some(Slot::Failed(e)) => EngineStatus::Failed(e.clone()),
         }
     }

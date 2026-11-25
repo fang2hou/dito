@@ -9,11 +9,12 @@ publish.workspace = true
 workspace = true
 
 [features]
-default = ["llama", "sherpa", "transcribe", "nemo"]
+default = ["llama", "sherpa", "transcribe", "nemo", "prism"]
 llama = ["dep:llama-cpp-2", "dep:llama-cpp-sys-2", "dep:encoding_rs"]
 sherpa = ["dep:sherpa-onnx-sys", "dep:serde_json"]
 transcribe = ["dep:transcribe-cpp"]
 nemo = ["dep:reqwest", "dep:tokio", "dep:base64", "dep:serde_json"]
+prism = ["dep:reqwest", "dep:tokio", "dep:base64", "dep:serde_json"]
 
 [dependencies]
 dito-core = { path = "../dito-core" }

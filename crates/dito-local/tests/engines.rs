@@ -413,9 +413,26 @@ impl AsrRuntime for ManagedFake {
     }
 
     fn transcribe(&self, _: &[f32], _: Option<&str>, _: &[String], _: &AtomicBool) -> Result<AsrOutput, RuntimeError> {
-        match self.failure() {
+        match AsrRuntime::failure(self) {
             Some(error) => Err(RuntimeError::engine(error)),
             None => Ok(AsrOutput { text: "speech".into(), language: None }),
+        }
+    }
+}
+
+impl LlmRuntime for ManagedFake {
+    fn shutdown(&self) {
+        self.0.store(true, Ordering::Relaxed);
+    }
+
+    fn failure(&self) -> Option<String> {
+        self.0.load(Ordering::Relaxed).then(|| "worker exited".into())
+    }
+
+    fn generate(&self, _: &str, _: &[Example], _: &str, _: &Sampling, _: &AtomicBool) -> Result<String, RuntimeError> {
+        match LlmRuntime::failure(self) {
+            Some(error) => Err(RuntimeError::engine(error)),
+            None => Ok("polished".into()),
         }
     }
 }
@@ -428,7 +445,7 @@ impl RuntimeLoader for ManagedLoader {
     }
 
     fn load_llm(&self, _: &ModelSpec, _: &Path) -> Result<Arc<dyn LlmRuntime>, RuntimeError> {
-        Err(RuntimeError::engine("speech only"))
+        Ok(self.0.clone())
     }
 }
 
@@ -454,6 +471,30 @@ async fn a_worker_that_exits_is_failed_instead_of_still_running() {
     runtime.0.store(true, Ordering::Relaxed);
     assert_eq!(engine.status("asr"), EngineStatus::Failed("worker exited".into()));
     assert!(engine.transcriber("asr").await.is_err());
+}
+
+#[tokio::test]
+async fn stop_releases_a_llm_worker_while_a_text_model_is_retained() {
+    let (manager, _dir) = installed_manager();
+    let runtime = Arc::new(ManagedFake(AtomicBool::new(false)));
+    let engine = LocalEngines::new(manager, Arc::new(ManagedLoader(runtime.clone())));
+    let retained = engine.text_model("llm", &Default::default()).await.unwrap();
+    engine.unload("llm");
+    assert!(runtime.0.load(Ordering::Relaxed));
+    let req = TextRequest { system: "sys", examples: &[], text: "hi" };
+    assert!(retained.polish(&req).await.is_err());
+    assert_eq!(engine.status("llm"), EngineStatus::Stopped);
+}
+
+#[tokio::test]
+async fn a_llm_worker_that_exits_is_failed_instead_of_still_running() {
+    let (manager, _dir) = installed_manager();
+    let runtime = Arc::new(ManagedFake(AtomicBool::new(false)));
+    let engine = LocalEngines::new(manager, Arc::new(ManagedLoader(runtime.clone())));
+    engine.warm("llm").await;
+    runtime.0.store(true, Ordering::Relaxed);
+    assert_eq!(engine.status("llm"), EngineStatus::Failed("worker exited".into()));
+    assert!(engine.text_model("llm", &Default::default()).await.is_err());
 }
 
 /// One runtime serving as both the speech and the language model, so a test decides how every inference call ends.
