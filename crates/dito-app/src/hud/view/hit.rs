@@ -41,7 +41,8 @@ pub(super) fn pointer_hit(
     let processing = matches!(state, HudState::Transcribing | HudState::Polishing);
     let inside_circle = |cx: f32| (x - cx).powi(2) + (y - (top + CAPSULE_H / 2.)).powi(2) <= (BTN / 2.).powi(2);
     let left_button = (toggle || error) && inside_circle(center - CAPSULE_W / 2. + CAPSULE_PAD + BTN / 2.);
-    let right_button = (toggle || error) && inside_circle(center + CAPSULE_W / 2. - CAPSULE_PAD - BTN / 2.);
+    let error_action = matches!(state, HudState::Error { action: ErrorAction::Retry | ErrorAction::OpenSettings, .. });
+    let right_button = (toggle || error_action) && inside_circle(center + CAPSULE_W / 2. - CAPSULE_PAD - BTN / 2.);
     let in_upper = x >= center - UPPER_HALF_W && x <= center + UPPER_HALF_W && y >= top - UPPER_H && y < top;
     let in_error_note = error
         && x >= center - ERROR_NOTE_HALF_W
@@ -104,6 +105,21 @@ mod tests {
         assert!(hit.button.is_none());
         assert!(!hit.interactive);
         assert!(!pointer_hit(&error, CAPSULE_W, 143.5, 64.5, true, center, CAPSULE_TOP + 80.).in_zone);
+    }
+
+    #[test]
+    fn a_close_only_error_has_no_button_on_the_right() {
+        let error =
+            |action| HudState::Error { kind: dito_core::error::ErrorKind::Other, detail: String::new(), action };
+        let center = (WIN_W + 2. * WIN_PAD) / 2.;
+        let y = CAPSULE_TOP + 16.5;
+        let right_x = center + CAPSULE_W / 2. - CAPSULE_PAD - BTN / 2.;
+        let left_x = center - CAPSULE_W / 2. + CAPSULE_PAD + BTN / 2.;
+        let hit = |action, x| pointer_hit(&error(action), CAPSULE_W, 143.5, 64.5, true, x, y);
+        assert_eq!(hit(ErrorAction::Retry, right_x).button, Some("hud-retry"));
+        let right = hit(ErrorAction::CloseOnly, right_x);
+        assert!(right.button.is_none() && !right.interactive && right.in_zone);
+        assert_eq!(hit(ErrorAction::CloseOnly, left_x).button, Some("hud-dismiss"));
     }
 
     #[test]

@@ -316,6 +316,7 @@ struct RigOptions {
     selection_reads: Option<Vec<Option<&'static str>>>,
     selection_gate: Option<SelectionGate>,
     router: MockRouter,
+    polish_off: bool,
 }
 
 impl Default for RigOptions {
@@ -335,6 +336,7 @@ impl Default for RigOptions {
             selection_reads: None,
             selection_gate: None,
             router: MockRouter::default(),
+            polish_off: false,
         }
     }
 }
@@ -378,6 +380,7 @@ fn rig(asr: MockTranscriber, polish: impl TextModel + 'static, options: RigOptio
         .update(|c| {
             c.general.record_mode = options.mode;
             c.general.music_mute = options.music_mute;
+            c.polish.enabled = !options.polish_off;
         })
         .unwrap();
     let store = Arc::new(Store::open_in_memory().unwrap());
@@ -1003,6 +1006,23 @@ async fn a_confident_intent_replaces_the_selection_and_records_the_command() {
     assert_eq!(details.outcome, CommandOutcome::Replaced);
     assert!(details.route_ms.is_some());
     assert_eq!(details.router_engine, Some(format!("local:{DEFAULT_TEXT_LOCAL}")));
+}
+
+#[tokio::test]
+async fn a_command_uses_the_text_model_while_dictation_polishing_is_off() {
+    let r = rig(
+        MockTranscriber::new("make it shorter"),
+        MockTextModel::default().script([Ok("the text".to_string())]),
+        RigOptions {
+            selection: Some("teh text"),
+            router: routes_to(Intent::Polish, 0.97),
+            polish_off: true,
+            ..Default::default()
+        },
+    );
+    speak_command(&r).await;
+    wait_for(&r.h, |s| *s == HudState::Replaced).await;
+    assert_eq!(*r.replaced.lock().unwrap(), ["the text"]);
 }
 
 #[tokio::test]

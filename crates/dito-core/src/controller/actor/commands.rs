@@ -196,11 +196,7 @@ async fn tool_step(
     trace_log!(tool = tool.name(), "tool started");
     let started = Instant::now();
     let run = async {
-        let text_model = env
-            .engines
-            .text_model(&env.cfg)
-            .await?
-            .ok_or_else(|| ProviderError::new(ErrorKind::Unavailable, "polishing is switched off"))?;
+        let text_model = env.engines.configured_text_model(&env.cfg).await?;
         let words =
             if matches!(tool, Tool::Polish { .. }) { load_wordbook(env.store.clone()).await } else { Vec::new() };
         let ctx = ToolContext {
@@ -622,7 +618,7 @@ impl Actor {
         self.epoch += 1;
         let action = match e.kind {
             ErrorKind::Mic | ErrorKind::Auth | ErrorKind::Unavailable => ErrorAction::OpenSettings,
-            _ => ErrorAction::Retry,
+            _ => ErrorAction::CloseOnly,
         };
         self.show_error(e.kind, e.message, action, None);
     }

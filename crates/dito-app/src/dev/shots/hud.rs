@@ -101,6 +101,9 @@ fn hud_cases() -> Vec<HudCase> {
             .hovering(PreviewHover::Action),
         HudCase::new("error-close-hover", error(ErrorKind::Mic, ErrorAction::OpenSettings), 0.0)
             .hovering(PreviewHover::Dismiss),
+        HudCase::new("error-close-only", error(ErrorKind::Network, ErrorAction::CloseOnly), 0.0),
+        HudCase::new("error-close-only-hover", error(ErrorKind::Network, ErrorAction::CloseOnly), 0.0)
+            .hovering(PreviewHover::Dismiss),
         HudCase::new("copy-flow", HudState::Copied, 0.47),
         HudCase::new("copy-overshoot", HudState::Copied, 0.56),
         HudCase::new("copy-settled", HudState::Copied, 0.90),
