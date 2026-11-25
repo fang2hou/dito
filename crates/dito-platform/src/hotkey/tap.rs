@@ -93,7 +93,7 @@ fn run_tap(
     ready: Sender<Result<(), HotkeyError>>,
 ) {
     let reenable = Arc::new(AtomicBool::new(false));
-    let callback = tap_callback(machine, tx, reenable.clone());
+    let callback = tap_callback(machine.clone(), tx.clone(), reenable.clone());
     let tap = match CGEventTap::new(
         CGEventTapLocation::Session,
         CGEventTapPlacement::HeadInsertEventTap,
@@ -117,7 +117,7 @@ fn run_tap(
     tap.enable();
     let _ = ready.send(Ok(()));
 
-    pump_run_loop(&tap, &stop, &reenable);
+    pump_run_loop(&tap, &stop, &reenable, &machine, &tx);
 }
 
 fn tap_callback(
@@ -153,13 +153,45 @@ fn tap_callback(
     }
 }
 
-fn pump_run_loop(tap: &CGEventTap, stop: &AtomicBool, reenable: &AtomicBool) {
+fn pump_run_loop(
+    tap: &CGEventTap,
+    stop: &AtomicBool,
+    reenable: &AtomicBool,
+    machine: &Mutex<Machine>,
+    tx: &Sender<Action>,
+) {
     while !stop.load(Ordering::SeqCst) {
+        // Returns as soon as the tap's source has run, so a disabled tap comes back at once rather than after the
+        // timeout.
         // SAFETY: the mode constant is a CoreFoundation global valid for the process lifetime.
-        unsafe { CFRunLoop::run_in_mode(kCFRunLoopDefaultMode, Duration::from_millis(500), false) };
+        unsafe { CFRunLoop::run_in_mode(kCFRunLoopDefaultMode, Duration::from_millis(500), true) };
         // The system disables a slow tap; turn it back on.
         if reenable.swap(false, Ordering::SeqCst) {
             tap.enable();
+            tracing::info!("hotkey: the event tap was disabled by the system; enabled it again");
+            let flags = hid_flags();
+            for action in machine.lock().expect("hotkey machine lock").resync(flags, hid_key_down) {
+                let _ = tx.send(action);
+            }
         }
     }
+}
+
+const HID_SYSTEM_STATE: i32 = 1;
+
+unsafe extern "C" {
+    fn CGEventSourceKeyState(state: i32, key: u16) -> bool;
+    fn CGEventSourceFlagsState(state: i32) -> u64;
+}
+
+/// Whether the key is down on the hardware right now, for keys whose events the disabled tap missed.
+fn hid_key_down(key: u16) -> bool {
+    // SAFETY: reads the global key state for a valid state ID; any key code is accepted.
+    unsafe { CGEventSourceKeyState(HID_SYSTEM_STATE, key) }
+}
+
+/// The modifier flags of the hardware right now.
+fn hid_flags() -> u64 {
+    // SAFETY: reads the global modifier state for a valid state ID.
+    unsafe { CGEventSourceFlagsState(HID_SYSTEM_STATE) }
 }

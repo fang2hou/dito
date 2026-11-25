@@ -235,6 +235,35 @@ impl Machine {
         }
     }
 
+    /// After the tap was off, releases every held trigger that no longer lasts by the rule key events use (its key
+    /// down with its co-modifiers): the key up it missed would otherwise leave a hold running until the next press.
+    /// The trigger's own key is asked by key code, since `flags` lacks the device bits that tell right ⌘ from left;
+    /// its co-modifiers come from the device-independent bits of `flags`. Nothing starts here, and an armed Tools
+    /// tap is dropped unfired.
+    pub fn resync(&mut self, flags: u64, key_down: impl Fn(u16) -> bool) -> Vec<Action> {
+        let held = Mods::from_flags(flags);
+        let down = |shortcut: Shortcut| match shortcut {
+            Shortcut::Modifier { m, mods } => key_down(m.keycode()) && held.without(m).contains(mods),
+            Shortcut::Combo { key, .. } => key_down(key),
+        };
+        let mut actions = Vec::new();
+        for slot in SLOTS {
+            if let Some(t) = self.trigger_mut(slot)
+                && t.held
+                && !down(t.shortcut)
+            {
+                t.release();
+                actions.push(slot.up());
+            }
+        }
+        if let Some(t) = self.tools_mut()
+            && !down(t.shortcut)
+        {
+            t.release();
+        }
+        actions
+    }
+
     pub fn feed(&mut self, ev: RawEvent, now: Instant) -> Output {
         if self.capturing {
             return self.feed_capture(ev);
@@ -473,6 +502,38 @@ mod tests {
         assert_eq!(m.feed(flags_change(Modifier::RightOption, true), now).actions, [Action::ShortcutDown]);
         assert_eq!(m.feed(flags_change(Modifier::RightOption, true), now).actions, [], "no duplicate down");
         assert_eq!(m.feed(flags_change(Modifier::RightOption, false), now).actions, [Action::ShortcutUp]);
+    }
+
+    #[test]
+    fn a_key_up_missed_while_the_tap_was_off_is_recovered_on_resync() {
+        let mut m = Machine::new(lone(Modifier::RightCommand));
+        let now = t0();
+        assert_eq!(m.feed(flags_change(Modifier::RightCommand, true), now).actions, [Action::ShortcutDown]);
+        let right_cmd = Modifier::RightCommand.keycode();
+        assert_eq!(m.resync(F_CMD, |key| key == right_cmd), [], "still down");
+        assert_eq!(m.resync(0, |_| false), [Action::ShortcutUp]);
+        assert_eq!(m.resync(0, |_| false), [], "released once");
+
+        let mut m = Machine::new(Shortcut::parse("Control+Option+Space").unwrap());
+        m.feed(RawEvent::KeyDown { keycode: 49, flags: F_CTRL | F_ALT, repeat: false }, now);
+        assert_eq!(m.resync(F_CTRL | F_ALT, |key| key == 49), []);
+        assert_eq!(m.resync(F_CTRL | F_ALT, |_| false), [Action::ShortcutUp]);
+    }
+
+    #[test]
+    fn a_co_modifier_released_while_the_tap_was_off_ends_the_hold_on_resync() {
+        let shift_right_cmd =
+            Shortcut::Modifier { m: Modifier::RightCommand, mods: Mods { shift: true, ..Mods::default() } };
+        let mut m = Machine::new(shift_right_cmd);
+        let now = t0();
+        let down = RawEvent::FlagsChanged {
+            keycode: Modifier::RightCommand.keycode(),
+            flags: R_CMD | F_CMD | L_SHIFT | F_SHIFT,
+        };
+        assert_eq!(m.feed(down, now).actions, [Action::ShortcutDown]);
+        let right_cmd = Modifier::RightCommand.keycode();
+        assert_eq!(m.resync(F_CMD | F_SHIFT, |key| key == right_cmd), [], "both still down");
+        assert_eq!(m.resync(F_CMD, |key| key == right_cmd), [Action::ShortcutUp], "only Shift came up");
     }
 
     #[test]
