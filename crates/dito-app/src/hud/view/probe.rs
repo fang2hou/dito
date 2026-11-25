@@ -48,7 +48,8 @@ impl HudView {
         let hover_btn = match (&state, hover) {
             (HudState::Error { .. }, PreviewHover::Dismiss) => Some("hud-dismiss"),
             (HudState::Error { action: ErrorAction::Retry, .. }, PreviewHover::Action) => Some("hud-retry"),
-            (HudState::Error { .. }, PreviewHover::Action) => Some("hud-settings"),
+            (HudState::Error { action: ErrorAction::OpenSettings, .. }, PreviewHover::Action) => Some("hud-settings"),
+            (HudState::Error { .. }, PreviewHover::Action) => None,
             (_, PreviewHover::Dismiss) => Some("hud-cancel"),
             (_, PreviewHover::Action) => Some("hud-finish"),
             _ => None,

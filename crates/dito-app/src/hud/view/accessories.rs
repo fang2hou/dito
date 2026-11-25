@@ -64,13 +64,16 @@ impl HudView {
                     && self.hover_btn == Some(btn)
                     && (self.error_reason.position > 0.18 || self.freeze.is_some())
             };
-            let (right_id, right_btn, right_text) = match action {
-                ErrorAction::Retry => ("hud-tip-retry", "hud-retry", lang.tr(Tr::HudRetry)),
-                ErrorAction::OpenSettings => ("hud-tip-settings", "hud-settings", lang.tr(Tr::HudOpenSettings)),
+            let right_tip = match action {
+                ErrorAction::Retry => Some(("hud-tip-retry", "hud-retry", lang.tr(Tr::HudRetry))),
+                ErrorAction::OpenSettings => Some(("hud-tip-settings", "hud-settings", lang.tr(Tr::HudOpenSettings))),
+                ErrorAction::CloseOnly => None,
             };
-            above = above
-                .child(self.button_tip("hud-tip-close", left, lang.tr(Tr::HudClose), tip_on("hud-dismiss"), p))
-                .child(self.button_tip(right_id, right, right_text, tip_on(right_btn), p));
+            above =
+                above.child(self.button_tip("hud-tip-close", left, lang.tr(Tr::HudClose), tip_on("hud-dismiss"), p));
+            if let Some((right_id, right_btn, right_text)) = right_tip {
+                above = above.child(self.button_tip(right_id, right, right_text, tip_on(right_btn), p));
+            }
         }
         above
     }

@@ -34,6 +34,15 @@ pub trait Engines: Send + Sync {
     async fn transcriber(&self, cfg: &Config) -> ProviderResult<Arc<dyn Transcriber>>;
     /// `None` when polishing is switched off.
     async fn text_model(&self, cfg: &Config) -> ProviderResult<Option<Arc<dyn TextModel>>>;
+    /// The text model Dito is set to, whether or not dictation polishes with it: commands and the Local API use it
+    /// with the polish switch off.
+    async fn configured_text_model(&self, cfg: &Config) -> ProviderResult<Arc<dyn TextModel>> {
+        let mut cfg = cfg.clone();
+        cfg.polish.enabled = true;
+        self.text_model(&cfg)
+            .await?
+            .ok_or_else(|| ProviderError::new(ErrorKind::Unavailable, "no text model is available"))
+    }
     /// Command mode routes with a local chat model whatever the polish source is: the instruction never leaves the Mac.
     async fn router(&self, cfg: &Config) -> ProviderResult<Arc<dyn Router>>;
     /// The configured text model's local status. `None` means the implementation has no local status to inspect.

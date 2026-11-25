@@ -6,6 +6,9 @@ use crate::intent::Intent;
 pub enum ErrorAction {
     Retry,
     OpenSettings,
+    /// The failure left nothing to run again (a command, or a text that could be neither inserted nor copied): the
+    /// capsule keeps only its close button (`design:hud`, 21.03.3).
+    CloseOnly,
 }
 
 /// Palette selector for the HUD: gold for dictation, ocean blue for command mode.

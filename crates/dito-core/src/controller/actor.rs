@@ -609,7 +609,7 @@ impl Actor {
             Delivery::Inserted if replaced => self.show_outcome(HudState::Replaced, SUCCESS_FLASH),
             Delivery::Inserted => self.show_outcome(HudState::Inserted, SUCCESS_FLASH),
             Delivery::Copied => self.show_outcome(HudState::Copied, COPIED_FLASH),
-            Delivery::Failed(detail) => self.show_error(ErrorKind::Other, detail, ErrorAction::Retry, None),
+            Delivery::Failed(detail) => self.show_error(ErrorKind::Other, detail, ErrorAction::CloseOnly, None),
         }
         if key_down {
             let mode = self.deps.config.get().general.record_mode;

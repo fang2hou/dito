@@ -185,6 +185,10 @@ impl Capsule {
                 let right = match action {
                     ErrorAction::Retry => buttons(Btn::Retry, button_scale),
                     ErrorAction::OpenSettings => buttons(Btn::Settings, button_scale),
+                    // An empty slot of the button's size keeps the label where it sits beside one.
+                    ErrorAction::CloseOnly => {
+                        div().w(button_scale.px(super::buttons::BTN)).flex_none().into_any_element()
+                    }
                 };
                 cap.child(buttons(Btn::Dismiss, button_scale))
                     .child(scaled_label(

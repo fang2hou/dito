@@ -30,7 +30,7 @@ use server::Shared;
 use token::Token;
 
 use crate::config::{Config, ConfigStore};
-use crate::error::{ErrorKind, ProviderError, ProviderResult};
+use crate::error::ProviderResult;
 use crate::factory::{EngineFactory, Engines};
 use crate::provider::{TextModel, Transcriber};
 
@@ -45,13 +45,8 @@ pub trait Backend: Send + Sync {
 
 #[async_trait]
 impl Backend for EngineFactory {
-    /// The text model is the one Dito is set to whether or not dictation polishes with it.
     async fn text_model(&self, cfg: &Config) -> ProviderResult<Arc<dyn TextModel>> {
-        let mut cfg = cfg.clone();
-        cfg.polish.enabled = true;
-        Engines::text_model(self, &cfg)
-            .await?
-            .ok_or_else(|| ProviderError::new(ErrorKind::Unavailable, "no text model is available"))
+        Engines::configured_text_model(self, cfg).await
     }
 
     async fn transcriber(&self, cfg: &Config) -> ProviderResult<Arc<dyn Transcriber>> {
