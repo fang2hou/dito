@@ -37,7 +37,13 @@ pub trait LiveAudio: Send + Sync {
     fn open(&self, source: AudioSource, on_chunk: ChunkSink) -> Result<Box<dyn LiveInput>, RecorderError>;
 }
 
-pub trait LiveInput: Send {}
+pub trait LiveInput: Send {
+    /// Why the stream stopped on its own (its device unplugged or changed), once it has. The session then turns the
+    /// source off (`design:tools/recording`, 23.02.5).
+    fn lost(&self) -> Option<String> {
+        None
+    }
+}
 
 /// One detected utterance. `start_sample` counts 16 kHz samples from the first sample the detector accepted.
 #[derive(Debug, Clone, PartialEq)]

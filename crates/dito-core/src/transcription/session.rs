@@ -25,7 +25,7 @@ use super::source::{SourceEvent, detect};
 use super::{AudioSource, LiveAudio, LiveInput, Sources, Speaker, VoiceDetectors};
 use crate::config::ConfigStore;
 use crate::factory::Engines;
-use crate::i18n::Lang;
+use crate::i18n::{Lang, Tr};
 use crate::pipeline::polish_wordbook;
 use crate::prompts::fence;
 use crate::provider::{TextModel, TextRequest};
@@ -197,27 +197,8 @@ async fn actor(deps: Arc<TranscriptionDeps>, mut rx: mpsc::UnboundedReceiver<Cmd
             }
             Cmd::TogglePause => {
                 let Some(running) = running.as_ref() else { continue };
-                let now = crate::unix_seconds();
-                // The pause closes the open stretch of recording into `recorded_ms`; the resume opens a new one.
-                let (pause, fold_ms) = {
-                    let s = status.borrow();
-                    let SessionState::Recording { segment_start, .. } = &s.state else { continue };
-                    match *segment_start {
-                        Some(start) => (true, now.saturating_sub(start) as u64 * 1000),
-                        None => (false, 0),
-                    }
-                };
-                // Set before the status tells the world: once a view sees the pause, no stream delivers audio.
-                running.paused.store(pause, Ordering::Relaxed);
-                status.send_modify(|s| {
-                    let SessionState::Recording { recorded_ms, segment_start, .. } = &mut s.state else { return };
-                    if pause {
-                        *recorded_ms += fold_ms;
-                        *segment_start = None;
-                    } else {
-                        *segment_start = Some(now);
-                    }
-                });
+                let recording = matches!(status.borrow().state, SessionState::Recording { segment_start: Some(_), .. });
+                set_paused(&status, &running.paused, recording);
             }
             Cmd::Stop => {
                 if let Some(running) = running.take() {
@@ -225,6 +206,39 @@ async fn actor(deps: Arc<TranscriptionDeps>, mut rx: mpsc::UnboundedReceiver<Cmd
                 }
             }
         }
+    }
+}
+
+/// The pause closes the open stretch of recording into `recorded_ms`; the resume opens a new one. Nothing happens
+/// when the session is not recording or is already in that state.
+fn set_paused(status: &Status, paused: &AtomicBool, pause: bool) {
+    let now = crate::unix_seconds();
+    let fold_ms = {
+        let s = status.borrow();
+        let SessionState::Recording { segment_start, .. } = &s.state else { return };
+        match (*segment_start, pause) {
+            (Some(start), true) => now.saturating_sub(start) as u64 * 1000,
+            (None, false) => 0,
+            _ => return,
+        }
+    };
+    // Set before the status tells the world: once a view sees the pause, no stream delivers audio.
+    paused.store(pause, Ordering::Relaxed);
+    status.send_modify(|s| {
+        let SessionState::Recording { recorded_ms, segment_start, .. } = &mut s.state else { return };
+        if pause {
+            *recorded_ms += fold_ms;
+            *segment_start = None;
+        } else {
+            *segment_start = Some(now);
+        }
+    });
+}
+
+fn open_sources(open: &[(AudioSource, Box<dyn LiveInput>)]) -> Sources {
+    Sources {
+        system: open.iter().any(|(s, _)| *s == AudioSource::System),
+        microphone: open.iter().any(|(s, _)| *s == AudioSource::Microphone),
     }
 }
 
@@ -419,6 +433,9 @@ async fn record(
     let mut jobs = Some(job_tx);
     let mut sources_open = true;
     let mut tick = tokio::time::interval(IDLE_TICK);
+    let mut stopped = None;
+    // Set when the last source was lost and the session paused: the resume opens the sources again.
+    let mut reopen = false;
     loop {
         tokio::select! {
             _ = stop.cancelled(), if inputs.is_some() => {
@@ -426,6 +443,8 @@ async fn record(
                 // sender here is what lets `heard_rx` close once every one of them has ended.
                 inputs = None;
                 heard = None;
+                // Taken before Finishing zeroes it: the recognition, polishing and naming that follow are not recording.
+                stopped = Some((status.borrow().state.elapsed_ms(), crate::unix_seconds()));
                 status.send_modify(|s| s.state = SessionState::Finishing { id });
             }
             changed = source_rx.changed(), if inputs.is_some() => {
@@ -455,10 +474,7 @@ async fn record(
                         Err(e) => status.send_modify(|s| s.error = Some(e)),
                     }
                 }
-                let now = Sources {
-                    system: open.iter().any(|(s, _)| *s == AudioSource::System),
-                    microphone: open.iter().any(|(s, _)| *s == AudioSource::Microphone),
-                };
+                let now = open_sources(open);
                 if now != current {
                     current = now;
                     status.send_modify(|s| {
@@ -510,6 +526,52 @@ async fn record(
                 session.publish(stored);
             }
             _ = tick.tick() => {
+                if let Some(open) = inputs.as_mut() {
+                    let lost: Vec<(AudioSource, String)> =
+                        open.iter().filter_map(|(source, input)| input.lost().map(|why| (*source, why))).collect();
+                    for (source, why) in lost {
+                        tracing::warn!("transcription: the {source:?} stream stopped: {why}");
+                        // Like a toggle turned off: the stream's thread flushes the speech in progress and ends.
+                        open.retain(|(s, _)| *s != source);
+                        let message = match source {
+                            AudioSource::Microphone => Tr::TranscriptionMicrophoneLost,
+                            AudioSource::System => Tr::TranscriptionSystemAudioLost,
+                        };
+                        status.send_modify(|s| s.error = Some(cfg.general.lang().tr(message).to_owned()));
+                        if open.is_empty() {
+                            // The last source keeps its toggle on and the session pauses rather than record nothing;
+                            // the resume opens it again.
+                            set_paused(status, paused, true);
+                            reopen = true;
+                        } else {
+                            current = open_sources(open);
+                            status.send_modify(|s| {
+                                if let SessionState::Recording { sources, .. } = &mut s.state {
+                                    *sources = current;
+                                }
+                            });
+                        }
+                    }
+                    if reopen && !paused.load(Ordering::Relaxed) && let Some(heard) = heard.as_ref() {
+                        reopen = false;
+                        for (source, speaker) in SOURCES {
+                            if !on(current, source) {
+                                continue;
+                            }
+                            match open_source(deps, source, speaker, session_start, heard, generations.next(source), paused) {
+                                Ok((input, tap)) => {
+                                    open.push((source, input));
+                                    taps.push(tap);
+                                }
+                                Err(e) => status.send_modify(|s| s.error = Some(e)),
+                            }
+                        }
+                        if open.is_empty() {
+                            set_paused(status, paused, true);
+                            reopen = true;
+                        }
+                    }
+                }
                 let now_ms = session_start.elapsed().as_millis() as u64;
                 let quiet = |speaker: Speaker| {
                     !session.hearing.busy(speaker)
@@ -537,7 +599,9 @@ async fn record(
     for source in taps {
         let _ = tokio::task::spawn_blocking(move || source.thread.join()).await;
     }
-    deps.store.end_transcript(id, session_ts, crate::unix_seconds()).map_err(|e| e.to_string())?;
+    let (recorded_ms, ended_ts) =
+        stopped.unwrap_or_else(|| (status.borrow().state.elapsed_ms(), crate::unix_seconds()));
+    deps.store.end_transcript(id, recorded_ms, ended_ts).map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -847,6 +911,8 @@ mod tests {
         streams: Mutex<Vec<(AudioSource, ChunkSink)>>,
         /// This instance behind its `Arc`, so an open stream can leave `streams` when it is dropped.
         weak: OnceLock<Weak<ScriptedAudio>>,
+        /// Sources whose open stream reports itself lost, as an unplugged device would.
+        lost: Mutex<Vec<AudioSource>>,
     }
 
     impl ScriptedAudio {
@@ -856,9 +922,19 @@ mod tests {
                 opened: Mutex::new(Vec::new()),
                 streams: Mutex::new(Vec::new()),
                 weak: OnceLock::new(),
+                lost: Mutex::new(Vec::new()),
             });
             audio.weak.set(Arc::downgrade(&audio)).ok();
             audio
+        }
+
+        /// Unplugs the device of `source`: its open stream reports itself lost. Plugged in again, it opens fine.
+        fn unplug(&self, source: AudioSource, unplugged: bool) {
+            let mut lost = self.lost.lock().unwrap();
+            lost.retain(|s| *s != source);
+            if unplugged {
+                lost.push(source);
+            }
         }
 
         /// Feeds audio into an open source's stream, as its device would.
@@ -877,7 +953,12 @@ mod tests {
         source: AudioSource,
     }
 
-    impl LiveInput for Open {}
+    impl LiveInput for Open {
+        fn lost(&self) -> Option<String> {
+            let audio = self.audio.upgrade()?;
+            audio.lost.lock().unwrap().contains(&self.source).then(|| "device unplugged".to_owned())
+        }
+    }
 
     impl Drop for Open {
         fn drop(&mut self) {
@@ -962,7 +1043,7 @@ mod tests {
         let id = store.create_transcript(started, Sources::default()).unwrap();
         let first = store.add_paragraph(id, Speaker::Others, 0, 1_000, "最初の会議です").unwrap();
         store.finish_paragraph(first, "最初の会議です。", None).unwrap();
-        store.end_transcript(id, started, started + 300).unwrap();
+        store.end_transcript(id, 300_000, started + 300).unwrap();
         let handle = spawn(TranscriptionDeps {
             audio: ScriptedAudio::new(vec![(AudioSource::Microphone, speech(0.8))]),
             detectors: Arc::new(EnergyDetectors),
@@ -1139,6 +1220,70 @@ mod tests {
         assert_eq!(t.summary.sources, both);
         let opened = audio.opened.lock().unwrap();
         assert_eq!(opened.iter().filter(|s| **s == AudioSource::Microphone).count(), 2, "{opened:?}");
+    }
+
+    fn demo_deps(audio: Arc<ScriptedAudio>, store: Arc<Store>) -> TranscriptionDeps {
+        TranscriptionDeps {
+            audio,
+            detectors: Arc::new(EnergyDetectors),
+            engines: Arc::new(FixedEngines::new(
+                Arc::new(MockTranscriber::new("えーと決済の件です")),
+                Arc::new(MockTextModel::default()),
+            )),
+            config: config(),
+            store,
+        }
+    }
+
+    #[tokio::test]
+    async fn a_lost_source_turns_off_and_the_other_keeps_recording() {
+        let store = Arc::new(Store::open_in_memory().unwrap());
+        let audio =
+            ScriptedAudio::new(vec![(AudioSource::System, speech(1.0)), (AudioSource::Microphone, speech(0.8))]);
+        let handle = spawn(demo_deps(audio.clone(), store));
+        let both = Sources { system: true, microphone: true };
+        let system_only = Sources { system: true, microphone: false };
+        handle.start(both);
+        wait_until(&handle, |s| matches!(s.state, SessionState::Recording { .. })).await;
+
+        audio.unplug(AudioSource::Microphone, true);
+        let lost = wait_until(&handle, |s| {
+            matches!(&s.state, SessionState::Recording { sources, segment_start: Some(_), .. } if *sources == system_only)
+        })
+        .await;
+        assert_eq!(lost.error.as_deref(), Some(config().get().general.lang().tr(Tr::TranscriptionMicrophoneLost)));
+        handle.stop();
+        wait_until(&handle, |s| s.state == SessionState::Idle).await;
+    }
+
+    #[tokio::test]
+    async fn losing_the_last_source_pauses_and_the_resume_opens_it_again() {
+        let store = Arc::new(Store::open_in_memory().unwrap());
+        let audio = ScriptedAudio::new(vec![(AudioSource::Microphone, speech(0.8))]);
+        let handle = spawn(demo_deps(audio.clone(), store));
+        let mic_only = Sources { system: false, microphone: true };
+        handle.start(mic_only);
+        wait_until(&handle, |s| matches!(s.state, SessionState::Recording { .. })).await;
+
+        audio.unplug(AudioSource::Microphone, true);
+        let paused = wait_until(&handle, |s| {
+            matches!(&s.state, SessionState::Recording { sources, segment_start: None, .. } if *sources == mic_only)
+        })
+        .await;
+        assert_eq!(paused.error.as_deref(), Some(config().get().general.lang().tr(Tr::TranscriptionMicrophoneLost)));
+
+        audio.unplug(AudioSource::Microphone, false);
+        handle.toggle_pause();
+        wait_until(&handle, |s| matches!(&s.state, SessionState::Recording { segment_start: Some(_), .. })).await;
+        tokio::time::sleep(Duration::from_millis(600)).await;
+        assert!(
+            matches!(handle.status().state, SessionState::Recording { segment_start: Some(_), .. }),
+            "the reopened stream keeps recording"
+        );
+        let opened = audio.opened.lock().unwrap().clone();
+        assert_eq!(opened, vec![AudioSource::Microphone, AudioSource::Microphone]);
+        handle.stop();
+        wait_until(&handle, |s| s.state == SessionState::Idle).await;
     }
 
     /// The elapsed time a view computes from the status alone: ticking while recording, frozen while paused,

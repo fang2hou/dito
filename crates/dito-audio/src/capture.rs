@@ -220,7 +220,8 @@ where
     open_mono_stream_with(device, config, on_mono)
 }
 
-/// An input stream in `config`. For an output device, Core Audio records what it plays through a process tap.
+/// An input stream in `config`. For an output device, Core Audio records what it plays through a process tap. Stream
+/// errors are only logged; [`open_mono_stream_reporting`] also hands them over.
 pub(crate) fn open_mono_stream_with<F>(
     device: &Device,
     config: cpal::SupportedStreamConfig,
@@ -229,23 +230,47 @@ pub(crate) fn open_mono_stream_with<F>(
 where
     F: FnMut(&[f32]) + Send + 'static,
 {
+    open_mono_stream_reporting(device, config, on_mono, |_| {})
+}
+
+pub(crate) fn open_mono_stream_reporting<F, E>(
+    device: &Device,
+    config: cpal::SupportedStreamConfig,
+    on_mono: F,
+    on_error: E,
+) -> Result<cpal::Stream, RecorderError>
+where
+    F: FnMut(&[f32]) + Send + 'static,
+    E: FnMut(cpal::Error) + Send + 'static,
+{
     match config.sample_format() {
-        SampleFormat::F32 => build_stream::<f32, F>(device, config, on_mono),
-        SampleFormat::I16 => build_stream::<i16, F>(device, config, on_mono),
-        SampleFormat::I32 => build_stream::<i32, F>(device, config, on_mono),
+        SampleFormat::F32 => build_stream::<f32, F, E>(device, config, on_mono, on_error),
+        SampleFormat::I16 => build_stream::<i16, F, E>(device, config, on_mono, on_error),
+        SampleFormat::I32 => build_stream::<i32, F, E>(device, config, on_mono, on_error),
         other => Err(RecorderError::UnsupportedSampleFormat(other.to_string())),
     }
 }
 
-fn build_stream<T, F>(
+/// Whether the error ended the stream: Core Audio pauses it when its device goes away or changes, while an overload
+/// only drops a buffer.
+pub(crate) fn ends_stream(error: &cpal::Error) -> bool {
+    matches!(
+        error.kind(),
+        cpal::ErrorKind::DeviceNotAvailable | cpal::ErrorKind::DeviceChanged | cpal::ErrorKind::StreamInvalidated
+    )
+}
+
+fn build_stream<T, F, E>(
     device: &Device,
     config: cpal::SupportedStreamConfig,
     mut on_mono: F,
+    mut on_error: E,
 ) -> Result<cpal::Stream, RecorderError>
 where
     T: cpal::SizedSample + 'static,
     f32: cpal::FromSample<T>,
     F: FnMut(&[f32]) + Send + 'static,
+    E: FnMut(cpal::Error) + Send + 'static,
 {
     let channels = config.channels() as usize;
     let mut mono = Vec::new();
@@ -256,7 +281,10 @@ where
                 downmix_into(data, channels, &mut mono);
                 on_mono(&mono);
             },
-            |e: cpal::Error| tracing::warn!("audio stream error: {e}"),
+            move |e: cpal::Error| {
+                tracing::warn!("audio stream error: {e}");
+                on_error(e);
+            },
             None,
         )
         .map_err(device_error)
