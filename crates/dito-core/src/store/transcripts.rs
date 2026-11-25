@@ -134,11 +134,11 @@ impl Store {
         Ok(c.last_insert_rowid())
     }
 
-    /// Ends a session that began at `session_ts`, adding its span to the time the transcript has recorded.
-    pub fn end_transcript(&self, id: i64, session_ts: i64, ended_ts: i64) -> Result<()> {
+    /// Ends a session that recorded `recorded_ms`, pauses excluded, adding it to the time the transcript has recorded.
+    pub fn end_transcript(&self, id: i64, recorded_ms: u64, ended_ts: i64) -> Result<()> {
         self.conn().execute(
             "UPDATE transcripts SET ended_ts = ?2, recorded_ms = COALESCE(recorded_ms, 0) + ?3 WHERE id = ?1",
-            params![id, ended_ts, (ended_ts - session_ts).max(0) * 1000],
+            params![id, ended_ts, recorded_ms as i64],
         )?;
         Ok(())
     }
@@ -175,10 +175,21 @@ impl Store {
     }
 
     /// A session cut short by a crash or quit is closed, and its unfinished paragraphs keep their recognized words.
+    /// It ends where its last paragraph ends, never later than `now_ts`: the next launch can be days after the crash.
+    /// The interrupted session's pauses are unknown, so a first session's length counts them, and a resumed one adds
+    /// nothing to what its earlier sessions recorded.
     pub fn recover_transcripts(&self, now_ts: i64) -> Result<()> {
-        let c = self.conn();
-        c.execute("UPDATE transcripts SET ended_ts = ?1 WHERE ended_ts IS NULL", [now_ts])?;
-        c.execute("UPDATE transcript_paragraphs SET state = ?1 WHERE state != ?1", [encode(ParagraphState::Done)])?;
+        let mut c = self.conn();
+        let tx = c.transaction()?;
+        tx.execute(
+            "UPDATE transcripts SET ended_ts = MAX(started_ts, MIN(?1, started_ts + COALESCE(
+                 (SELECT (MAX(p.end_ms) + 999) / 1000 FROM transcript_paragraphs p WHERE p.transcript_id = transcripts.id),
+                 0)))
+             WHERE ended_ts IS NULL",
+            [now_ts],
+        )?;
+        tx.execute("UPDATE transcript_paragraphs SET state = ?1 WHERE state != ?1", [encode(ParagraphState::Done)])?;
+        tx.commit()?;
         Ok(())
     }
 
@@ -324,9 +335,10 @@ mod tests {
 
         s.edit_paragraph(late, "editing a listening paragraph is ignored").unwrap();
         assert_eq!(t.summary.length_ms, None, "a recording transcript has no length yet");
-        s.recover_transcripts(9_000).unwrap();
+        s.recover_transcripts(90_000).unwrap();
         let t = s.get_transcript(id).unwrap().unwrap();
-        assert_eq!(t.summary.ended_ts, Some(9_000));
+        assert_eq!(t.summary.ended_ts, Some(1_006), "a crashed session ends with its last paragraph, not at relaunch");
+        assert_eq!(t.summary.length_ms, Some(6_000));
         assert_eq!(t.paragraphs[1].text, "あとの段落");
         assert_eq!(t.paragraphs[1].state, ParagraphState::Done);
 
@@ -339,7 +351,7 @@ mod tests {
     fn a_resumed_transcript_counts_only_the_time_its_sessions_ran() {
         let s = Store::open_in_memory().unwrap();
         let id = s.create_transcript(1_000, Sources::default()).unwrap();
-        s.end_transcript(id, 1_000, 1_600).unwrap();
+        s.end_transcript(id, 600_000, 1_600).unwrap();
         assert_eq!(s.get_transcript(id).unwrap().unwrap().summary.length_ms, Some(600_000));
 
         let mic = Sources { system: false, microphone: true };
@@ -353,9 +365,9 @@ mod tests {
         assert_eq!(summary.ended_ts, None);
         assert_eq!(summary.length_ms, Some(600_000), "the earlier session keeps its length while recording");
 
-        s.end_transcript(id, 5_000, 5_300).unwrap();
+        s.end_transcript(id, 240_000, 5_300).unwrap();
         let summary = s.get_transcript(id).unwrap().unwrap().summary;
-        assert_eq!(summary.length_ms, Some(900_000), "the hour between the sessions is not counted");
+        assert_eq!(summary.length_ms, Some(840_000), "the hour between the sessions and the pauses are not counted");
         assert!(summary.resumable(5_300 + RESUME_WINDOW_SECS - 1));
         assert!(!summary.resumable(5_300 + RESUME_WINDOW_SECS));
     }

@@ -74,7 +74,7 @@ fn transcript(store: &Store, now: i64) -> Result<()> {
         let p = store.add_paragraph(id, speaker, start_ms, end_ms, text)?;
         store.finish_paragraph(p, text, None)?;
     }
-    store.end_transcript(id, started, started + 52 * 60)?;
+    store.end_transcript(id, 52 * 60 * 1000, started + 52 * 60)?;
     Ok(())
 }
 
