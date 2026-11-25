@@ -16,22 +16,16 @@ scripts/icon.sh compile "$app/Contents/Resources"
 mkdir -p "$app/Contents/Resources/intro"
 cp assets/intro/*.mp4 "$app/Contents/Resources/intro/"
 
-# Localize the system permission prompt (it reads InfoPlist.strings, not our UI code).
-for lproj in en zh; do
-  text=$([ "$lproj" = en ] \
-    && printf '%s\n' 'NSMicrophoneUsageDescription = "Dito uses the microphone for voice input.";' \
-      'NSAudioCaptureUsageDescription = "Dito records system audio to transcribe meetings.";' \
-    || printf '%s\n' 'NSMicrophoneUsageDescription = "Dito 使用麦克风进行语音输入。";' \
-      'NSAudioCaptureUsageDescription = "Dito 录制系统音频以转写会议。";')
-  mkdir -p "$app/Contents/Resources/$lproj.lproj"
-  printf '%s\n' "$text" > "$app/Contents/Resources/$lproj.lproj/InfoPlist.strings"
-done
+# shellcheck source=scripts/permission-strings.sh
+source scripts/permission-strings.sh
+write_permission_strings "$app/Contents/Resources"
 
 cat > "$app/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+  <key>CFBundleDevelopmentRegion</key><string>ja</string>
   <key>CFBundleName</key><string>Dito</string>
   <key>CFBundleDisplayName</key><string>Dito</string>
   <key>CFBundleIdentifier</key><string>com.fang2hou.dito</string>

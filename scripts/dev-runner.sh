@@ -37,21 +37,15 @@ if [[ "$(basename "$bin")" == dito ]]; then
   # With CFBundleIconName present the system draws the icon from Assets.car in every
   # appearance, and system.rs::set_app_icon keeps out of the way.
   "$(dirname "$0")/icon.sh" compile-cached "$app/Contents/Resources"
-  # Localize the system permission prompt (it reads InfoPlist.strings, not our UI code).
-  for lproj in en zh; do
-    text=$([ "$lproj" = en ] \
-      && printf '%s\n' 'NSMicrophoneUsageDescription = "Dito uses the microphone for voice input.";' \
-      'NSAudioCaptureUsageDescription = "Dito records system audio to transcribe meetings.";' \
-      || printf '%s\n' 'NSMicrophoneUsageDescription = "Dito 使用麦克风进行语音输入。";' \
-      'NSAudioCaptureUsageDescription = "Dito 录制系统音频以转写会议。";')
-    mkdir -p "$app/Contents/Resources/$lproj.lproj"
-    printf '%s\n' "$text" > "$app/Contents/Resources/$lproj.lproj/InfoPlist.strings"
-  done
+  # shellcheck source=scripts/permission-strings.sh
+  source "$(dirname "$0")/permission-strings.sh"
+  write_permission_strings "$app/Contents/Resources"
   cat > "$app/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+  <key>CFBundleDevelopmentRegion</key><string>ja</string>
   <key>CFBundleName</key><string>Dito Dev</string>
   <key>CFBundleDisplayName</key><string>Dito Dev</string>
   <key>CFBundleIdentifier</key><string>com.fang2hou.dito-dev</string>
@@ -82,7 +76,9 @@ PLIST
   fi
 
   log="$(mktemp -t dito-dev)"
-  tail -F "$log" 2>/dev/null &
+  # A file of its own: two descriptors on one file would write over each other. Panics arrive here.
+  errors="$(mktemp -t dito-dev-stderr)"
+  tail -q -F "$log" "$errors" 2>/dev/null &
   tail_pid=$!
   # Stops the instance this run started and no other: besides `tail`, it is the one process that holds this run's
   # log open (as its stdout). Matching by name would also stop the instances of other runs and other worktrees.
@@ -91,7 +87,7 @@ PLIST
       [[ "$pid" == "$tail_pid" ]] || kill "$pid" 2>/dev/null || true
     done
     kill "$tail_pid" 2>/dev/null || true
-    rm -rf "$(dirname "$app")" "$log"
+    rm -rf "$(dirname "$app")" "$log" "$errors"
   }
   trap cleanup TERM INT EXIT
   # LaunchServices starts the app with a clean environment, so the log filter is handed over explicitly.
@@ -100,7 +96,7 @@ PLIST
   # The wrapper has no film files of its own: the app plays them from the checkout.
   env_args+=(--env "DITO_INTRO_DIR=$(cd "$(dirname "$0")/.." && pwd)/assets/intro")
   if [[ -n "${DITO_INTRO:-}" ]]; then env_args+=(--env "DITO_INTRO=$DITO_INTRO"); fi
-  open -W -n "$app" --stdout "$log" ${env_args[@]+"${env_args[@]}"} --args "$@"
+  open -W -n "$app" --stdout "$log" --stderr "$errors" ${env_args[@]+"${env_args[@]}"} --args "$@"
   rc=$?
   cleanup
   trap - EXIT
