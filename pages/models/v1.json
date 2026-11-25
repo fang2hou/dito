@@ -1,0 +1,181 @@
+{
+  "version": 1,
+  "models": {
+    "confucius4-r2t2": {
+      "files": {
+        "Confucius4-R2T2-Q8_0.gguf": {
+          "urls": [
+            "https://huggingface.co/netease-youdao/Confucius4-R2T2-GGUF/resolve/86ff0251cb9f456b63aeef5f80137f104e22869a/Confucius4-R2T2-Q8_0.gguf"
+          ]
+        },
+        "mmproj-Confucius4-R2T2-Q8_0.gguf": {
+          "urls": [
+            "https://huggingface.co/netease-youdao/Confucius4-R2T2-GGUF/resolve/86ff0251cb9f456b63aeef5f80137f104e22869a/mmproj-Confucius4-R2T2-Q8_0.gguf"
+          ]
+        }
+      }
+    },
+    "fun-asr-mlt-nano-2512": {
+      "files": {
+        "Fun-ASR-MLT-Nano-2512-Q8_0.gguf": {
+          "urls": [
+            "https://huggingface.co/xix3r/voxix-Fun-ASR-MLT-Nano-2512-gguf/resolve/38f895a0884f6e2ceb037277d22bc003a5a67f87/Fun-ASR-MLT-Nano-2512-Q8_0.gguf"
+          ]
+        }
+      }
+    },
+    "haas-ja": {
+      "files": {
+        "decoder.onnx": {
+          "urls": [
+            "https://huggingface.co/oboroge0/Haas-ja-v1.0-onnx-quantized/resolve/7f5ab0a4b1bf39db78afd6691eeecbc4f9d42e39/decoder.onnx"
+          ]
+        },
+        "encoder.data": {
+          "urls": [
+            "https://huggingface.co/oboroge0/Haas-ja-v1.0-onnx-quantized/resolve/7f5ab0a4b1bf39db78afd6691eeecbc4f9d42e39/encoder.data"
+          ]
+        },
+        "encoder.quantized.onnx": {
+          "urls": [
+            "https://huggingface.co/oboroge0/Haas-ja-v1.0-onnx-quantized/resolve/7f5ab0a4b1bf39db78afd6691eeecbc4f9d42e39/encoder.quantized.onnx"
+          ]
+        },
+        "joiner.onnx": {
+          "urls": [
+            "https://huggingface.co/oboroge0/Haas-ja-v1.0-onnx-quantized/resolve/7f5ab0a4b1bf39db78afd6691eeecbc4f9d42e39/joiner.onnx"
+          ]
+        },
+        "tokens.txt": {
+          "urls": [
+            "https://huggingface.co/oboroge0/Haas-ja-v1.0-onnx-quantized/resolve/7f5ab0a4b1bf39db78afd6691eeecbc4f9d42e39/tokens.txt"
+          ]
+        }
+      }
+    },
+    "nemotron-3.5-transcribe": {
+      "files": {
+        "NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-AD-IQ4_NL.gguf": {
+          "urls": [
+            "https://huggingface.co/AtomicChat/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-GGUF/resolve/dbd06c5cad7a2f33c8e06be2fb3ef814dbd9aa59/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-AD-IQ4_NL.gguf"
+          ]
+        },
+        "NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-Encoder-F16.gguf": {
+          "urls": [
+            "https://huggingface.co/AtomicChat/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-GGUF/resolve/dbd06c5cad7a2f33c8e06be2fb3ef814dbd9aa59/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-Encoder-F16.gguf"
+          ]
+        },
+        "nemo-speech-0.3.0-macos-aarch64-metal.tar.gz": {
+          "urls": [
+            "https://github.com/NVIDIA/NeMo-Speech.cpp/releases/download/v0.3.0/nemo-speech-0.3.0-macos-aarch64-metal.tar.gz"
+          ]
+        }
+      }
+    },
+    "qwen3-asr-0.6b": {
+      "files": {
+        "Qwen3-ASR-0.6B-Q8_0.gguf": {
+          "urls": [
+            "https://huggingface.co/ggml-org/Qwen3-ASR-0.6B-GGUF/resolve/928ab958557df9aa2ef1c93e0e83c7ad0933fae2/Qwen3-ASR-0.6B-Q8_0.gguf"
+          ]
+        },
+        "mmproj-Qwen3-ASR-0.6B-Q8_0.gguf": {
+          "urls": [
+            "https://huggingface.co/ggml-org/Qwen3-ASR-0.6B-GGUF/resolve/928ab958557df9aa2ef1c93e0e83c7ad0933fae2/mmproj-Qwen3-ASR-0.6B-Q8_0.gguf"
+          ]
+        }
+      }
+    },
+    "qwen3-asr-1.7b": {
+      "files": {
+        "Qwen3-ASR-1.7B-Q8_0.gguf": {
+          "urls": [
+            "https://huggingface.co/ggml-org/Qwen3-ASR-1.7B-GGUF/resolve/36a678687ba7d07a74ca70ccb0e36902e005fb80/Qwen3-ASR-1.7B-Q8_0.gguf"
+          ]
+        },
+        "mmproj-Qwen3-ASR-1.7B-Q8_0.gguf": {
+          "urls": [
+            "https://huggingface.co/ggml-org/Qwen3-ASR-1.7B-GGUF/resolve/36a678687ba7d07a74ca70ccb0e36902e005fb80/mmproj-Qwen3-ASR-1.7B-Q8_0.gguf"
+          ]
+        }
+      }
+    },
+    "qwen3.5-2b-instruct": {
+      "files": {
+        "Qwen3.5-2B-Q4_K_M.gguf": {
+          "urls": [
+            "https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/resolve/f6d5376be1edb4d416d56da11e5397a961aca8ae/Qwen3.5-2B-Q4_K_M.gguf"
+          ]
+        }
+      }
+    },
+    "qwen3.5-4b-instruct": {
+      "files": {
+        "Qwen3.5-4B-Q4_K_M.gguf": {
+          "urls": [
+            "https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/e87f176479d0855a907a41277aca2f8ee7a09523/Qwen3.5-4B-Q4_K_M.gguf"
+          ]
+        }
+      }
+    },
+    "qwen3.5-9b-instruct": {
+      "files": {
+        "Qwen3.5-9B-Q4_K_M.gguf": {
+          "urls": [
+            "https://huggingface.co/unsloth/Qwen3.5-9B-GGUF/resolve/3885219b6810b007914f3a7950a8d1b469d598a5/Qwen3.5-9B-Q4_K_M.gguf"
+          ]
+        }
+      }
+    },
+    "qwen3.8-27b-instruct": {
+      "files": {
+        "Qwen3.8-27B-UD-Q4_K_M.gguf": {
+          "urls": [
+            "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/4af51b3542f775b0a8e4b310bfb3f17e01c306c9/Qwen3.8-27B-UD-Q4_K_M.gguf"
+          ]
+        }
+      }
+    },
+    "sensevoice-small": {
+      "files": {
+        "model.int8.onnx": {
+          "urls": [
+            "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/resolve/2365baeacb507f821a0c8120fcee3d484dba7a07/model.int8.onnx"
+          ]
+        },
+        "tokens.txt": {
+          "urls": [
+            "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/resolve/2365baeacb507f821a0c8120fcee3d484dba7a07/tokens.txt"
+          ]
+        }
+      }
+    },
+    "silero-vad": {
+      "files": {
+        "silero_vad.onnx": {
+          "urls": [
+            "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad.onnx"
+          ]
+        }
+      }
+    },
+    "whisper-large-v3": {
+      "files": {
+        "whisper-large-v3-Q5_K_M.gguf": {
+          "urls": [
+            "https://huggingface.co/handy-computer/whisper-large-v3-gguf/resolve/274ad1d1cf680b7ee53cc70f78461394cd3a344b/whisper-large-v3-Q5_K_M.gguf"
+          ]
+        }
+      }
+    },
+    "whisper-large-v3-turbo": {
+      "files": {
+        "whisper-large-v3-turbo-Q5_K_M.gguf": {
+          "urls": [
+            "https://huggingface.co/handy-computer/whisper-large-v3-turbo-gguf/resolve/18ada752005f5fddef499256f9a458d0b37a203a/whisper-large-v3-turbo-Q5_K_M.gguf"
+          ]
+        }
+      }
+    }
+  }
+}

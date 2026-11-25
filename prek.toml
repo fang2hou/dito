@@ -67,7 +67,7 @@ id = "rust-check"
 name = "Rust format and tests"
 language = "system"
 entry = "mise run check"
-files = '^(crates/|design/asr-templates/|assets/icon/|Cargo\.(toml|lock)$|rustfmt\.toml$|\.cargo/|scripts/check\.sh$|mise\.toml$)'
+files = '^(crates/|pages/|design/asr-templates/|assets/icon/|Cargo\.(toml|lock)$|rustfmt\.toml$|\.cargo/|scripts/check\.sh$|mise\.toml$)'
 pass_filenames = false
 priority = "rust"
 

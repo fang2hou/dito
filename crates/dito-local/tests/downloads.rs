@@ -281,3 +281,104 @@ async fn cancelling_during_verification_keeps_the_completed_bytes() {
     assert_eq!(std::fs::metadata(&fx.part).unwrap().len(), 100_000);
     assert!(!fx.dest.exists());
 }
+
+#[tokio::test]
+async fn remote_manifest_redirects_a_broken_bundled_url() {
+    let r = rig(&[("a", 40_000, true)]).await;
+    let manifest = serde_json::json!({
+        "version": 1,
+        "models": {
+            "a": {
+                "files": {
+                    "m.bin": {
+                        "urls": [format!("{}/files/a", r.srv.url)]
+                    }
+                }
+            }
+        }
+    });
+    r.srv.add_file("manifest.json", serde_json::to_vec(&manifest).unwrap());
+
+    let mut cat = r.mgr.catalog().to_vec();
+    cat[0].files[0].url = format!("{}/files/broken", r.srv.url);
+    let mgr = ModelManager::with_manifest_url(cat, r.cfg.clone(), Some(format!("{}/files/manifest.json", r.srv.url)));
+
+    mgr.start_download("a").unwrap();
+    until(&mgr, "a", |s| *s == ModelState::Installed).await;
+    assert_eq!(std::fs::read(mgr.model_dir("a").join("m.bin")).unwrap(), payload(40_000));
+}
+
+#[tokio::test]
+async fn remote_manifest_falls_back_across_mirrors_and_recovers_from_size_mismatch() {
+    let r = rig(&[("good", 50_000, true)]).await;
+    r.srv.add_file("drifted", payload(50_288));
+    let manifest = serde_json::json!({
+        "version": 1,
+        "models": {
+            "good": {
+                "files": {
+                    "m.bin": {
+                        "urls": [
+                            format!("{}/files/missing", r.srv.url),
+                            format!("{}/files/drifted", r.srv.url),
+                            format!("{}/files/good", r.srv.url)
+                        ]
+                    }
+                }
+            }
+        }
+    });
+    r.srv.add_file("manifest.json", serde_json::to_vec(&manifest).unwrap());
+
+    let mut cat = r.mgr.catalog().to_vec();
+    cat[0].files[0].url = format!("{}/files/also-missing", r.srv.url);
+    let mgr = ModelManager::with_manifest_url(cat, r.cfg.clone(), Some(format!("{}/files/manifest.json", r.srv.url)));
+
+    mgr.start_download("good").unwrap();
+    until(&mgr, "good", |s| *s == ModelState::Installed).await;
+    assert_eq!(std::fs::read(mgr.model_dir("good").join("m.bin")).unwrap(), payload(50_000));
+}
+
+#[tokio::test]
+async fn unavailable_manifest_falls_back_to_the_bundled_url() {
+    let r = rig(&[("a", 30_000, true)]).await;
+    let mgr = ModelManager::with_manifest_url(
+        r.mgr.catalog().to_vec(),
+        r.cfg.clone(),
+        Some(format!("{}/files/no-such-manifest", r.srv.url)),
+    );
+
+    mgr.start_download("a").unwrap();
+    until(&mgr, "a", |s| *s == ModelState::Installed).await;
+    assert_eq!(std::fs::read(mgr.model_dir("a").join("m.bin")).unwrap(), payload(30_000));
+}
+
+#[tokio::test]
+async fn remote_manifest_cannot_bypass_compiled_checksum() {
+    let r = rig(&[("a", 20_000, true)]).await;
+    let tampered: Vec<u8> = payload(20_000).into_iter().map(|b| b ^ 0x55).collect();
+    r.srv.add_file("tampered", tampered);
+    let manifest = serde_json::json!({
+        "version": 1,
+        "models": {
+            "a": {
+                "files": {
+                    "m.bin": {
+                        "urls": [format!("{}/files/tampered", r.srv.url)]
+                    }
+                }
+            }
+        }
+    });
+    r.srv.add_file("manifest.json", serde_json::to_vec(&manifest).unwrap());
+
+    let mut cat = r.mgr.catalog().to_vec();
+    cat[0].files[0].url = format!("{}/files/tampered", r.srv.url);
+    let mgr = ModelManager::with_manifest_url(cat, r.cfg.clone(), Some(format!("{}/files/manifest.json", r.srv.url)));
+
+    mgr.start_download("a").unwrap();
+    let state = until(&mgr, "a", |s| matches!(s, ModelState::Failed { .. })).await;
+    let ModelState::Failed { message, .. } = state else { unreachable!() };
+    assert!(message.contains("checksum"), "{message}");
+    assert!(!mgr.model_dir("a").join("m.bin").exists());
+}
