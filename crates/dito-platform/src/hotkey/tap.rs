@@ -169,19 +169,29 @@ fn pump_run_loop(
         if reenable.swap(false, Ordering::SeqCst) {
             tap.enable();
             tracing::info!("hotkey: the event tap was disabled by the system; enabled it again");
-            for action in machine.lock().expect("hotkey machine lock").resync(hid_key_down) {
+            let flags = hid_flags();
+            for action in machine.lock().expect("hotkey machine lock").resync(flags, hid_key_down) {
                 let _ = tx.send(action);
             }
         }
     }
 }
 
+const HID_SYSTEM_STATE: i32 = 1;
+
+unsafe extern "C" {
+    fn CGEventSourceKeyState(state: i32, key: u16) -> bool;
+    fn CGEventSourceFlagsState(state: i32) -> u64;
+}
+
 /// Whether the key is down on the hardware right now, for keys whose events the disabled tap missed.
 fn hid_key_down(key: u16) -> bool {
-    const HID_SYSTEM_STATE: i32 = 1;
-    unsafe extern "C" {
-        fn CGEventSourceKeyState(state: i32, key: u16) -> bool;
-    }
     // SAFETY: reads the global key state for a valid state ID; any key code is accepted.
     unsafe { CGEventSourceKeyState(HID_SYSTEM_STATE, key) }
+}
+
+/// The modifier flags of the hardware right now.
+fn hid_flags() -> u64 {
+    // SAFETY: reads the global modifier state for a valid state ID.
+    unsafe { CGEventSourceFlagsState(HID_SYSTEM_STATE) }
 }
