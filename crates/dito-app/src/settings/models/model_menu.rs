@@ -5,6 +5,7 @@ use dito_core::health::EngineStatus;
 use dito_core::i18n::Tr;
 use dito_core::secrets::Role;
 use dito_local::catalog::ModelSpec;
+use dito_platform::system::spawn_and_reap;
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
@@ -110,7 +111,7 @@ impl ModelsPage {
                 label: c.t(Tr::MenubarShowInFinder),
                 tone: MenuTone::Default,
                 on_click: Rc::new(move |_, _| {
-                    let _ = std::process::Command::new("open").arg(&dir).spawn();
+                    let _ = spawn_and_reap(std::process::Command::new("open").arg(&dir));
                 }),
             },
             MenuItem {

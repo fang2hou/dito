@@ -2,6 +2,7 @@ use std::rc::Rc;
 
 use dito_core::i18n::Tr;
 use dito_local::Storage;
+use dito_platform::system::spawn_and_reap;
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
@@ -53,7 +54,7 @@ impl ModelsPage {
                             Some(Ic::External),
                             Rc::new(move |_, _| {
                                 let _ = std::fs::create_dir_all(&dir);
-                                let _ = std::process::Command::new("open").arg(&dir).spawn();
+                                let _ = spawn_and_reap(std::process::Command::new("open").arg(&dir));
                             }),
                         ))
                         .child(ui::button(

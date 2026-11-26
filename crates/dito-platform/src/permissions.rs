@@ -6,6 +6,8 @@ use block2::RcBlock;
 use objc2::runtime::Bool;
 use objc2_av_foundation::{AVAuthorizationStatus, AVCaptureDevice, AVMediaTypeAudio};
 
+use crate::system::spawn_and_reap;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Permission {
     Microphone,
@@ -109,7 +111,8 @@ pub fn open_settings(p: Permission) {
         Permission::Accessibility => "Privacy_Accessibility",
         Permission::SystemAudio => "Privacy_AudioCapture",
     };
-    let _ = Command::new("open").arg(format!("x-apple.systempreferences:com.apple.preference.security?{pane}")).spawn();
+    let url = format!("x-apple.systempreferences:com.apple.preference.security?{pane}");
+    let _ = spawn_and_reap(Command::new("open").arg(url));
 }
 
 /// System Audio Recording has no public API, so it is read and requested through TCC's private SPI (the approach

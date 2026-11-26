@@ -1023,6 +1023,9 @@ async fn a_command_uses_the_text_model_while_dictation_polishing_is_off() {
     speak_command(&r).await;
     wait_for(&r.h, |s| *s == HudState::Replaced).await;
     assert_eq!(*r.replaced.lock().unwrap(), ["the text"]);
+
+    let row = history_of(&r.store, 1).await.remove(0);
+    assert_eq!(row.engines, default_labels(), "the row names the text model that ran the tool");
 }
 
 #[tokio::test]

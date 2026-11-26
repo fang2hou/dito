@@ -566,7 +566,7 @@ impl Actor {
         let surrounding = if tool.takes_surrounding() { run.fitted_surrounding(text.as_deref()) } else { None };
         let cfg = self.deps.config.get();
         run.record.tool = Some(intent);
-        run.record.polish_engine = cfg.polish.enabled.then(|| cfg.text_model.label());
+        run.record.polish_engine = Some(cfg.text_model.label());
         run.record.source =
             text.map(|text| (if from_selection { SourceKind::Selection } else { SourceKind::Entered }, text));
         trace_log!(engine = ?run.record.polish_engine, rewrite_hint = ?hint, "tool runs");
