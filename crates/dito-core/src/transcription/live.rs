@@ -142,8 +142,13 @@ mod tests {
     #[test]
     fn heard_words_stay_until_their_final_text_replaces_them() {
         let mut h = Hearing::default();
-        let open =
-            Paragraph { speaker: Speaker::Others, start_ms: 0, end_ms: 3_000, text: "Shipping is Thursday.".into() };
+        let open = Paragraph {
+            speaker: Speaker::Others,
+            start_ms: 0,
+            end_ms: 3_000,
+            text: "Shipping is Thursday.".into(),
+            lang: None,
+        };
         assert!(h.partial(Speaker::Others, 1, 3_000, "Tests are".into()));
         assert!(!h.partial(Speaker::Others, 1, 3_000, "Tests are".into()), "the same text changes nothing");
         h.ended(Speaker::Others, 1, 3_000);

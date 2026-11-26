@@ -74,7 +74,8 @@ pub async fn polish_again(
         .text_model(&engine_cfg)
         .await?
         .ok_or_else(|| ProviderError::new(ErrorKind::Unavailable, "no text model is available"))?;
-    let words = wordbook_terms(&super::actor::load_wordbook(store.clone()).await);
+    let entries = super::actor::load_wordbook(store.clone()).await;
+    let words = wordbook_terms(&entries);
     let polish_job = PolishJob {
         prompts: &cfg.prompts,
         target: entry.style,
@@ -83,7 +84,10 @@ pub async fn polish_again(
         lang: pipeline::transcript_lang(Some(&entry.lang), &entry.raw),
     };
     let started = std::time::Instant::now();
-    let text = pipeline::polish_text(text_model.as_ref(), polish_job).await?;
+    let polished = pipeline::polish_text(text_model.as_ref(), polish_job).await?;
+    // The model may spell a spoken form out again, as it may in a dictation.
+    let spoken_lang = pipeline::spoken_forms_lang(Some(&entry.lang), &entry.raw);
+    let text = crate::spoken_forms::normalize_entries(&polished, &entries, spoken_lang).into_owned();
     let polish_ms = started.elapsed().as_millis() as u64;
     let (id, polish_engine) = (entry.id, cfg.text_model.label());
     tokio::task::spawn_blocking(move || store.set_polished(id, &text, &polish_engine, polish_ms)).await??;
@@ -148,6 +152,7 @@ mod tests {
     use crate::config::EngineLabels;
     use crate::error::ProviderResult;
     use crate::factory::FixedEngines;
+    use crate::i18n::Lang;
     use crate::prompts::AppTarget;
     use crate::provider::mock::{MockTextModel, MockTranscriber};
     use crate::provider::{AsrRequest, TextModel, TextRequest, Transcriber, Transcript};
@@ -216,6 +221,25 @@ mod tests {
         assert_eq!(after.polished.as_deref(), Some("new polished"));
         assert_eq!(after.engines.asr, before.engines.asr);
         assert_eq!(after.timings.asr, before.timings.asr);
+    }
+
+    #[tokio::test]
+    async fn polish_again_writes_the_spoken_forms_again() {
+        let store = Arc::new(Store::open_in_memory().unwrap());
+        store.add_word_entry("MTG", &["meeting".to_string()], Some(Lang::En), 1).unwrap();
+        store.add_word_entry("PR", &["pull request".to_string()], None, 1).unwrap();
+        let before = entry(&store, None, "the MTG and the PR are at three", Some("old polished"));
+        // The model spells both forms out again.
+        let spelled_out = Ok("The meeting and the pull request are at three.".into());
+        let engines = FixedEngines::new(
+            Arc::new(MockTranscriber::new("unused")),
+            Arc::new(MockTextModel::default().script([spelled_out])),
+        );
+
+        polish_again(&engines, store.clone(), &Config::default(), before.clone()).await.unwrap();
+
+        let after = store.get_history(before.id).unwrap().unwrap();
+        assert_eq!(after.polished.as_deref(), Some("The MTG and the PR are at three."));
     }
 
     #[tokio::test]

@@ -74,8 +74,8 @@ pub async fn run(
 ) -> Result<Output, PipelineError> {
     reject_silent(job.clip)?;
     on_phase(PipelinePhase::Transcribing);
-    let mut out = transcribe(engines, cfg, job.clip, job.wordbook, cancel).await?;
-    polish(engines, cfg, job, on_phase, cancel, &mut out).await?;
+    let (mut out, spoken_lang) = transcribe(engines, cfg, job.clip, job.wordbook, cancel).await?;
+    polish(engines, cfg, job, spoken_lang, on_phase, cancel, &mut out).await?;
     Ok(out)
 }
 
@@ -88,7 +88,7 @@ pub async fn transcribe_clip(
     cancel: &CancellationToken,
 ) -> Result<Output, PipelineError> {
     reject_silent(clip)?;
-    transcribe(engines, cfg, clip, wordbook, cancel).await
+    Ok(transcribe(engines, cfg, clip, wordbook, cancel).await?.0)
 }
 
 fn reject_silent(clip: &AudioClip) -> Result<(), PipelineError> {
@@ -104,13 +104,15 @@ fn reject_silent(clip: &AudioClip) -> Result<(), PipelineError> {
     Err(PipelineError::Failed(ProviderError::new(ErrorKind::NoSpeech, "silent or too short")))
 }
 
+/// The ASR stage, returning its output with the language its spoken forms are matched in for the rest of the run
+/// ([`spoken_forms_lang`]).
 async fn transcribe(
     engines: &dyn Engines,
     cfg: &Config,
     clip: &AudioClip,
     wordbook: &[WordbookEntry],
     cancel: &CancellationToken,
-) -> Result<Output, PipelineError> {
+) -> Result<(Output, Option<Lang>), PipelineError> {
     let started = Instant::now();
     let asr = engines.transcriber(cfg).await.map_err(PipelineError::Failed)?;
     let language = cfg.general.preferred_language.code();
@@ -133,20 +135,25 @@ async fn transcribe(
     let asr_ms = started.elapsed().as_millis() as u64;
     trace_log!(asr_ms, detected = ?transcript.language, transcript = ?transcript.text, "asr transcript");
     let raw_before = std::mem::take(&mut transcript.text);
-    // The language is read from what ASR heard: a transcript of number words alone is English, and `24/7` is not.
+    // The polish rules follow the language ASR heard: a transcript of number words alone is English, and `24/7` is
+    // not. A form scoped to a language needs the engine to have reported that language.
     let lang = transcript_lang(transcript.language.as_deref(), &raw_before);
-    transcript.text = restore_written_forms(raw_before, wordbook, lang, "asr");
+    let spoken_lang = spoken_forms_lang(transcript.language.as_deref(), &raw_before);
+    transcript.text = restore_written_forms(raw_before, wordbook, spoken_lang, "asr");
     if transcript.text.trim().is_empty() {
         return Err(PipelineError::Failed(ProviderError::new(ErrorKind::NoSpeech, "nothing was transcribed")));
     }
-    Ok(Output { raw: transcript.text, polished: None, polish_error: None, lang, asr_ms, polish_ms: 0 })
+    let out = Output { raw: transcript.text, polished: None, polish_error: None, lang, asr_ms, polish_ms: 0 };
+    Ok((out, spoken_lang))
 }
 
-/// Leaves `out` untouched when polishing is off.
+/// Leaves `out` untouched when polishing is off. `spoken_lang` is the language the engine reported for the
+/// transcript, which the polished text is restored in again.
 async fn polish(
     engines: &dyn Engines,
     cfg: &Config,
     job: &PipelineJob<'_>,
+    spoken_lang: Option<Lang>,
     on_phase: &(dyn Fn(PipelinePhase) + Send + Sync),
     cancel: &CancellationToken,
     out: &mut Output,
@@ -169,7 +176,7 @@ async fn polish(
     let request = TextRequest { system: &prompt.system, examples: prompt.examples, text: &prompt.user };
     let result = attempt_polish(engines, cfg, cancel, resolved, &request).await?;
     match result {
-        Ok(Some(text)) => out.polished = Some(restore_written_forms(text, job.wordbook, out.lang, "polish")),
+        Ok(Some(text)) => out.polished = Some(restore_written_forms(text, job.wordbook, spoken_lang, "polish")),
         Ok(None) => {}
         Err(error) => out.polish_error = Some(error),
     }
@@ -180,9 +187,9 @@ async fn polish(
 /// Writes each wordbook term as the term where the text spells it as it sounds or says one of its spoken forms. A
 /// hotword is only a hint to ASR and a style rule may spell `1on1` out again, so the transcript and the polished text
 /// both go through here, whether or not the wordbook is given to polish. A form scoped to a language is written only
-/// on a transcript in that language.
-fn restore_written_forms(text: String, wordbook: &[WordbookEntry], lang: Lang, stage: &'static str) -> String {
-    let restored = match spoken_forms::normalize_entries(&text, wordbook, Some(lang)) {
+/// when the engine reported the transcript in that language.
+fn restore_written_forms(text: String, wordbook: &[WordbookEntry], lang: Option<Lang>, stage: &'static str) -> String {
+    let restored = match spoken_forms::normalize_entries(&text, wordbook, lang) {
         Cow::Borrowed(_) => None,
         Cow::Owned(restored) => Some(restored),
     };
@@ -447,6 +454,16 @@ pub fn transcript_lang(reported: Option<&str>, text: &str) -> Lang {
     reported.and_then(lang_from_code).unwrap_or_else(|| detect_lang(text))
 }
 
+/// The language spoken forms are matched in: the one the engine reported, when it is a language a form can be scoped
+/// to, and `None` when the engine reported any other language, so that only a form for every language applies. A
+/// transcript whose language the engine did not report is read by its script, as the polish rules are chosen.
+pub(crate) fn spoken_forms_lang(reported: Option<&str>, text: &str) -> Option<Lang> {
+    match reported.map(str::trim).filter(|code| !code.is_empty()) {
+        Some(code) => lang_from_code(code),
+        None => Some(detect_lang(text)),
+    }
+}
+
 fn lang_from_code(code: &str) -> Option<Lang> {
     match code.to_ascii_lowercase().get(..2)? {
         "ja" => Some(Lang::Ja),
@@ -464,6 +481,7 @@ mod tests {
     use super::*;
     use crate::factory::FixedEngines;
     use crate::provider::mock::{MockTextModel, MockTranscriber};
+    use crate::provider::{Transcriber, Transcript};
 
     fn tone() -> AudioClip {
         AudioClip::new(vec![0.3; 16_000])
@@ -912,6 +930,50 @@ mod tests {
         assert_eq!((out.lang, out.raw.as_str(), out.polished.as_deref()), (Lang::En, english, Some(english)));
     }
 
+    /// A speech engine that reports a language with every transcript.
+    struct Reports(&'static str);
+
+    #[async_trait::async_trait]
+    impl Transcriber for Reports {
+        async fn transcribe(&self, _: &AsrRequest<'_>) -> ProviderResult<Transcript> {
+            Ok(Transcript { text: "On a un meeting et une pull request demain".into(), language: Some(self.0.into()) })
+        }
+    }
+
+    #[tokio::test]
+    async fn a_form_scoped_to_a_language_needs_the_engine_to_report_that_language() {
+        let scoped =
+            WordbookEntry { term: "MTG".to_string(), spoken: vec!["meeting".to_string()], lang: Some(Lang::En) };
+        let unscoped = WordbookEntry { term: "PR".to_string(), spoken: vec!["pull request".to_string()], lang: None };
+        let wordbook = [scoped, unscoped];
+        async fn dictate(reported: &'static str, wordbook: &[WordbookEntry]) -> Output {
+            // The model spells both forms out again.
+            let spelled_out = "On a un meeting et une pull request.";
+            let e = FixedEngines::new(Arc::new(Reports(reported)), Arc::new(Says(spelled_out)));
+            run(
+                &e,
+                &Config::default(),
+                &PipelineJob { clip: &tone(), target: AppTarget::General, wordbook },
+                &|_| {},
+                &CancellationToken::new(),
+            )
+            .await
+            .unwrap()
+        }
+
+        // French takes the English polish rules, but the engine said French: only the form for every language applies.
+        let french = dictate("fr", &wordbook).await;
+        assert_eq!(
+            (french.lang, french.raw.as_str(), french.polished.as_deref()),
+            (Lang::En, "On a un meeting et une PR demain", Some("On a un meeting et une PR."))
+        );
+        let english = dictate("en", &wordbook).await;
+        assert_eq!(
+            (english.raw.as_str(), english.polished.as_deref()),
+            ("On a un MTG et une PR demain", Some("On a un MTG et une PR."))
+        );
+    }
+
     #[tokio::test]
     async fn wordbook_reaches_polish_only_when_enabled() {
         struct Spy(std::sync::Mutex<String>);
@@ -966,5 +1028,15 @@ mod tests {
         assert_eq!(transcript_lang(Some("zh-CN"), "うん、接下来"), Lang::Zh);
         assert_eq!(transcript_lang(None, "明日の会議"), Lang::Ja);
         assert_eq!(transcript_lang(Some("ko"), "hello"), Lang::En, "no prompt set for it: the script decides");
+    }
+
+    #[test]
+    fn a_form_scoped_to_a_language_waits_for_the_engine_to_report_it() {
+        assert_eq!(spoken_forms_lang(Some("ja-JP"), "hello"), Some(Lang::Ja));
+        assert_eq!(spoken_forms_lang(None, "明日の会議"), Some(Lang::Ja));
+        assert_eq!(spoken_forms_lang(Some(""), "Thanks"), Some(Lang::En), "no language reported: the script decides");
+        for other in ["fr", "ko", "de", "French", "mn-Cyrl"] {
+            assert_eq!(spoken_forms_lang(Some(other), "hello"), None, "{other} was reported");
+        }
     }
 }

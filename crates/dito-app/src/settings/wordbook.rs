@@ -169,6 +169,8 @@ pub struct WordbookPage {
     edit_spoken: Entity<InputState>,
     /// The Edit word dialog, while it is open.
     edit: Option<EditWord>,
+    /// The number given to the dialog opened last.
+    edit_rev: u64,
     edit_focus: FocusHandle,
     motion: ui::MotionScope,
     scroll: ScrollHandle,
@@ -179,11 +181,16 @@ impl EventEmitter<ModalChanged> for WordbookPage {}
 
 /// The Edit word dialog while it is open: the entry it edits and what is not one of its inputs.
 struct EditWord {
+    /// Tells this opening of the dialog from the next: a save that finishes after it was closed, or reopened for
+    /// another entry, still wrote to the wordbook and leaves the dialog alone.
+    rev: u64,
     /// The term as stored, which the save addresses.
     original: String,
     lang: Option<Lang>,
     /// Whether the language menu is open.
     menu_open: bool,
+    /// Whether a save is running, so Enter and Save wait for it.
+    saving: bool,
     /// Why the last save wrote nothing, until the term is edited again.
     error: Option<Tr>,
 }
@@ -293,6 +300,7 @@ impl WordbookPage {
             edit_term,
             edit_spoken,
             edit: None,
+            edit_rev: 0,
             edit_focus: cx.focus_handle(),
             scroll: ScrollHandle::new(),
             grid: GridState::new(),
@@ -328,7 +336,15 @@ impl WordbookPage {
     fn open_edit(&mut self, entry: &WordbookEntry, window: &mut Window, cx: &mut Context<Self>) {
         self.edit_term.update(cx, |s, cx| s.set_value(entry.term.clone(), window, cx));
         self.edit_spoken.update(cx, |s, cx| s.set_value(entry.spoken.join(", "), window, cx));
-        self.edit = Some(EditWord { original: entry.term.clone(), lang: entry.lang, menu_open: false, error: None });
+        self.edit_rev += 1;
+        self.edit = Some(EditWord {
+            rev: self.edit_rev,
+            original: entry.term.clone(),
+            lang: entry.lang,
+            menu_open: false,
+            saving: false,
+            error: None,
+        });
         self.edit_term.update(cx, |s, cx| s.focus(window, cx));
         ui::dismiss_tips(&self.motion.handle());
         cx.emit(ModalChanged);
@@ -336,40 +352,53 @@ impl WordbookPage {
 
     /// Writes the dialog's fields. A term another entry already has keeps the dialog open and says why.
     fn save_edit(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let Some(edit) = &self.edit else { return };
         let term = self.edit_term.read(cx).value().to_string();
         if term.trim().is_empty() {
             return;
         }
-        let original = edit.original.clone();
-        let lang = edit.lang;
+        let Some(edit) = self.edit.as_mut().filter(|edit| !edit.saving) else { return };
+        let (rev, original, lang) = (edit.rev, edit.original.clone(), edit.lang);
+        edit.saving = true;
         let spoken = parse_spoken_list(&self.edit_spoken.read(cx).value());
         let st = self.st.clone();
         cx.spawn_in(window, async move |this, cx| {
             let store = st.store.clone();
-            let address = original.clone();
             let saved =
-                off_main(&st, move || Ok(store.update_word_entry(&address, &term, &spoken, lang, now())?)).await;
+                off_main(&st, move || Ok(store.update_word_entry(&original, &term, &spoken, lang, now())?)).await;
             let _ = this.update_in(cx, |this, window, cx| {
-                // The dialog may have been closed, or opened for another entry, while the save ran.
-                if !this.edit.as_ref().is_some_and(|edit| edit.original == original) {
-                    return;
-                }
-                match saved {
-                    Ok(true) => {
+                let open = this.edit.as_mut().is_some_and(|edit| {
+                    edit.saving = false;
+                    edit.rev == rev
+                });
+                if matches!(saved, Ok(true)) {
+                    // The wordbook was written, whatever became of the dialog while the save ran.
+                    this.succeeded(cx);
+                    this.load(cx);
+                    if open {
                         this.close_edit(window, cx);
-                        this.succeeded(cx);
-                        this.load(cx);
                     }
-                    Ok(false) => this.edit_failed(Tr::WordbookDuplicateTerm, cx),
-                    Err(e) => {
-                        tracing::warn!("wordbook: edit failed: {e:#}");
-                        this.edit_failed(Tr::WordbookUpdateFailed, cx);
-                    }
+                } else if open {
+                    // Only the dialog that is still open for this save hears why it wrote nothing.
+                    let failure = match &saved {
+                        Err(e) => {
+                            tracing::warn!("wordbook: edit failed: {e:#}");
+                            Tr::WordbookUpdateFailed
+                        }
+                        Ok(_) => Tr::WordbookDuplicateTerm,
+                    };
+                    this.edit_failed(failure, cx);
                 }
             });
         })
         .detach();
+    }
+
+    /// Enter on the dialog itself saves, which is where the keyboard is after a click on its padding or a pick from
+    /// the language menu. Inside an input, the input's own Enter saves.
+    fn enter_edit(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.edit.as_ref().is_some_and(|edit| !edit.menu_open) {
+            self.save_edit(window, cx);
+        }
     }
 
     fn close_edit(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -557,7 +586,10 @@ impl WordbookPage {
                 ElementId::from((ElementId::from(EDIT_DIALOG), "save")),
                 BtnKind::Primary,
                 None,
-                ui::DialogAnswer { label: c.t(Tr::WordbookSave), on_click: (!blank).then(|| cbk(cx, Self::save_edit)) },
+                ui::DialogAnswer {
+                    label: c.t(Tr::WordbookSave),
+                    on_click: (!blank && !edit.saving).then(|| cbk(cx, Self::save_edit)),
+                },
             )
             .into_any_element(),
         ];
@@ -570,6 +602,7 @@ impl WordbookPage {
             content,
             actions,
             Some(cbk(cx, Self::escape_edit)),
+            Some(cbk(cx, Self::enter_edit)),
         );
         ui::render_with_scope(self.motion.handle(), || dialog)
     }
@@ -1215,6 +1248,11 @@ impl WordbookPage {
     /// The entry the Edit word dialog edits, with the id of why its last save wrote nothing.
     pub(super) fn editing(&self) -> Option<(String, Option<&'static str>)> {
         self.edit.as_ref().map(|edit| (edit.original.clone(), edit.error.map(Tr::id)))
+    }
+
+    /// The terms the page lists, as loaded from the wordbook.
+    pub(super) fn listed(&self) -> Vec<String> {
+        self.words.data.matching.iter().map(|entry| entry.term.clone()).collect()
     }
 
     pub(super) fn probe(&mut self, case: &str, arg: &str, window: &mut Window, cx: &mut Context<Self>) {

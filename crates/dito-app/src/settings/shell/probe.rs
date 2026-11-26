@@ -57,6 +57,11 @@ impl Settings {
         self.wordbook.read(cx).marker()
     }
 
+    #[cfg(feature = "screenshots")]
+    pub fn wordbook_listed(&self, cx: &App) -> Vec<String> {
+        self.wordbook.read(cx).listed()
+    }
+
     /// How many words are selected, and the entry the Edit word dialog edits with the id of its error.
     #[cfg(feature = "screenshots")]
     pub fn wordbook_state(&self, cx: &App) -> (Option<usize>, Option<(String, Option<&'static str>)>) {

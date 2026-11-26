@@ -25,9 +25,9 @@
 //! A symbol said as a word keeps a separator on each side (`r and d`, never `rand`). A derived spelling starts and
 //! ends at the edge of a word, where the letters of every script count as part of the word except Japanese, Chinese
 //! and Korean characters, so a term still matches inside a sentence written without spaces around it; of several
-//! spellings at one place the longest that ends a word is written, then one already written as the term, then one the
-//! user wrote over one derived from a term, then the longer term. Text already written as the term is left alone, so
-//! restoring twice changes nothing the second time.
+//! that match at one place the longest is written, then one the user entered over one derived from a term, then one
+//! already written as the term, then the longer term. Text that already holds a term as written is left alone, also
+//! where a form the user entered is the start of that term, so restoring twice changes nothing the second time.
 
 use std::borrow::Cow;
 
@@ -128,8 +128,8 @@ impl SpokenForms {
         }
     }
 
-    /// The spelling to write at `at`: the longest, then one already written as its term, then one the user entered
-    /// over one derived from a term, then the longer term.
+    /// What is written at `at`: the longest, then one the user entered over one derived from a term, then one
+    /// already written as its term, then the longer term.
     fn longest<'a>(&'a self, text: &str, at: usize, lang: Option<Lang>) -> Option<(usize, &'a str)> {
         let before = text[..at].chars().next_back();
         let (end, written, _) = self
@@ -137,8 +137,8 @@ impl SpokenForms {
             .iter()
             .rev()
             .filter(|rule| rule.lang.is_none_or(|scoped| Some(scoped) == lang))
-            .filter_map(|rule| Some((rule.matching(text, at, before)?, rule.written.as_str(), rule.explicit)))
-            .max_by_key(|&(end, written, explicit)| (end - at, &text[at..end] == written, explicit, written.len()))?;
+            .flat_map(|rule| rule.ends(text, at, before))
+            .max_by_key(|&(end, written, explicit)| (end - at, explicit, &text[at..end] == written, written.len()))?;
         Some((end, written))
     }
 }
@@ -171,8 +171,17 @@ impl Rule {
         })
     }
 
-    /// The farthest end of a spelling of the term that starts at `at` and ends a word, if there is one. `before` is
-    /// the character ahead of `at`.
+    /// Where a spelling of the term ends at `at` and where the term as already written ends: each end with the
+    /// term to write and whether the user entered the rule. `before` is the character ahead of `at`.
+    fn ends<'a>(&'a self, text: &str, at: usize, before: Option<char>) -> impl Iterator<Item = (usize, &'a str, bool)> {
+        let written = self.written.as_str();
+        self.matching(text, at, before)
+            .into_iter()
+            .chain(self.already_written(text, at, before))
+            .map(move |end| (end, written, self.explicit))
+    }
+
+    /// The farthest end of a spelling of the term that starts at `at` and ends a word, if there is one.
     fn matching(&self, text: &str, at: usize, before: Option<char>) -> Option<usize> {
         if self.starts_at_word_edge() && before.is_some_and(is_word_char) {
             return None;
@@ -189,6 +198,19 @@ impl Rule {
                 .filter(|&end| ends_word(text, end))
                 .max(),
         }
+    }
+
+    /// The end of the term at `at`, when the text already holds it between the edges of a word. A form the user
+    /// entered may be the start of its own term, which would else be written into the term again on the next pass.
+    fn already_written(&self, text: &str, at: usize, before: Option<char>) -> Option<usize> {
+        let written = self.written.as_str();
+        if written.is_empty() || !text[at..].starts_with(written) {
+            return None;
+        }
+        let end = at + written.len();
+        let inside = (written.starts_with(is_word_char) && before.is_some_and(is_word_char))
+            || (written.ends_with(is_word_char) && !ends_word(text, end));
+        (!inside).then_some(end)
     }
 
     /// Whether a spelling of the rule must start at the edge of a word. One that begins with Japanese, Chinese or
@@ -759,6 +781,23 @@ mod tests {
         assert_eq!(once, "on Git Hub today");
         assert_eq!(said(&once, &wordbook, None), once, "restored again");
         assert_eq!(said("see the github page", &wordbook, None), "see the Git", "the longest spelling wins");
+    }
+
+    #[test]
+    fn a_term_is_not_written_into_itself_when_one_of_its_forms_is_its_start() {
+        let wordbook = entries(&[("Acme Labs", &["Acme"], None)]);
+        let once = said("Acme", &wordbook, None);
+        assert_eq!(once, "Acme Labs");
+        assert_eq!(said(&once, &wordbook, None), "Acme Labs", "restored again");
+        assert_eq!(said("Acme Labs Inc and Acme", &wordbook, None), "Acme Labs Inc and Acme Labs");
+        assert!(matches!(normalize_entries("AcmeLaboratories", &wordbook, None), Cow::Borrowed(_)));
+    }
+
+    #[test]
+    fn an_entered_rule_wins_over_a_derived_one_whatever_the_case() {
+        let wordbook = entries(&[("GitHub", &[], None), ("GH", &["github"], None)]);
+        assert_eq!(said("github and GitHub", &wordbook, None), "GH and GH");
+        assert!(matches!(normalize_entries("GH", &wordbook, None), Cow::Borrowed(_)), "already written as its term");
     }
 
     #[test]

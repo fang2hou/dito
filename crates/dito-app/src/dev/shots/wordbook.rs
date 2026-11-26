@@ -10,7 +10,7 @@ use dito_core::store::WordbookEntry;
 use gpui_kit::*;
 
 use super::capture::{page_shot, resize_settings_window, theme_tag};
-use super::input::{click, on_settings_window};
+use super::input::{click, on_settings_window, press_key};
 use crate::services;
 use crate::settings::{self, Page};
 use crate::state::AppState;
@@ -157,9 +157,23 @@ async fn expect_edit_error(cx: &mut AsyncApp, original: &str, error: &'static st
     }
 }
 
+/// Waits until the Edit word dialog is closed.
+async fn expect_edit_closed(cx: &mut AsyncApp, within: Duration) {
+    let start = Instant::now();
+    while let Some(editing) = wordbook_state(cx).1 {
+        assert!(start.elapsed() < within, "the dialog for {editing:?} stayed open");
+        cx.background_executor().timer(Duration::from_millis(50)).await;
+    }
+}
+
+/// The terms the page lists.
+fn listed(cx: &mut AsyncApp) -> Vec<String> {
+    cx.update(|cx| settings::handle(cx).map(|(_, view)| view.read(cx).wordbook_listed(cx))).expect("settings window")
+}
+
 /// Opt-in: `DITO_SHOTS_ONLY=wordbookspoken`, with `--mock --data-dir <dir>`. The chips with spoken forms, the marker
-/// that selects a word without opening the Edit word dialog, the dialog, and its banner for a term another entry
-/// already has.
+/// that selects a word without opening the Edit word dialog, the dialog, its banner for a term another entry
+/// already has, Enter on the dialog itself, and a save that outlives the dialog.
 pub async fn wordbook_spoken_form_shots(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     let source: PathBuf = dir.join("wordbook-spoken-forms.txt");
     std::fs::write(&source, SPOKEN_FORMS).expect("write the sample word list");
@@ -204,27 +218,44 @@ pub async fn wordbook_spoken_form_shots(st: &Arc<AppState>, dir: &Path, cx: &mut
         assert!(st.store.words(None).unwrap().contains(&"MTG".to_string()), "a refused rename writes nothing");
         page_shot(cx, dir, &format!("wordbook-spoken-forms-duplicate-{tag}.png")).await;
 
+        // Enter on the dialog itself saves, which is where the keyboard is after a click on its padding.
         probe(cx, "edit-term", "Stand-up");
         cx.background_executor().timer(Duration::from_millis(100)).await;
-        probe(cx, "edit-save", "");
-        let start = Instant::now();
-        while wordbook_state(cx).1.is_some() {
-            assert!(start.elapsed() < quick, "the dialog stayed open after a save");
-            cx.background_executor().timer(Duration::from_millis(50)).await;
-        }
+        on_settings_window(cx, |w, cx, _| click(w, cx, point(px(820.), px(250.))));
+        cx.background_executor().timer(Duration::from_millis(150)).await;
+        on_settings_window(cx, |w, cx, _| press_key(w, cx, "enter"));
+        expect_edit_closed(cx, quick).await;
         let forms = vec!["meeting".to_string(), "ミーティング".to_string()];
+        let stand_up = WordbookEntry { term: "Stand-up".to_string(), spoken: forms.clone(), lang: Some(Lang::Ja) };
         assert!(
-            st.store.wordbook_entries(None).unwrap().contains(&WordbookEntry {
-                term: "Stand-up".to_string(),
-                spoken: forms,
-                lang: Some(Lang::Ja),
-            }),
-            "the rename kept the spoken forms and their language"
+            st.store.wordbook_entries(None).unwrap().contains(&stand_up),
+            "Enter on the dialog saved the rename with its spoken forms and their language"
         );
         page_shot(cx, dir, &format!("wordbook-spoken-forms-saved-{tag}.png")).await;
 
+        // Escape while the save runs: the wordbook is written anyway, and the list follows it.
+        probe(cx, "edit", "Stand-up");
+        cx.background_executor().timer(Duration::from_millis(150)).await;
+        assert_eq!(wordbook_state(cx).1.map(|(original, _)| original), Some("Stand-up".to_string()));
+        probe(cx, "edit-term", "Race");
+        cx.background_executor().timer(Duration::from_millis(100)).await;
+        on_settings_window(cx, |w, cx, view| {
+            view.update(cx, |settings, cx| settings.probe_wordbook("edit-save", "", w, cx));
+            press_key(w, cx, "escape");
+        });
+        assert!(wordbook_state(cx).1.is_none(), "Escape closed the dialog while its save ran");
+        let start = Instant::now();
+        while !listed(cx).iter().any(|term| term == "Race") {
+            assert!(start.elapsed() < quick, "the list did not follow the save: {:?}", listed(cx));
+            cx.background_executor().timer(Duration::from_millis(50)).await;
+        }
+        let race = WordbookEntry { term: "Race".to_string(), spoken: forms, lang: Some(Lang::Ja) };
+        assert!(st.store.wordbook_entries(None).unwrap().contains(&race), "the save outlived its dialog");
+        assert!(wordbook_state(cx).1.is_none(), "the finished save did not touch the closed dialog");
+        page_shot(cx, dir, &format!("wordbook-spoken-forms-escaped-{tag}.png")).await;
+
         // The next pass imports the list again, so the renamed entry goes first.
-        probe(cx, "remove", "Stand-up");
+        probe(cx, "remove", "Race");
         cx.background_executor().timer(Duration::from_millis(300)).await;
     }
     services::save_config(st, |c| {

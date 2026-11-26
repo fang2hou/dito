@@ -332,16 +332,15 @@ impl WordbookPage {
 
     fn add_candidates(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Stage::Results { candidates, selected, .. } = &self.find.stage else { return };
-        let words: Vec<&str> = selected.iter().filter_map(|i| candidates.get(*i)).map(|c| c.term.as_str()).collect();
+        let words: Vec<String> = selected.iter().filter_map(|i| candidates.get(*i)).map(|c| c.term.clone()).collect();
         if words.is_empty() {
             return;
         }
-        let words = words.join("\n");
         self.close_find(window, cx);
         let st = self.st.clone();
         cx.spawn(async move |this, cx| {
             let store = st.store.clone();
-            let added = off_main(&st, move || Ok(store.import_words(&words, now())?)).await;
+            let added = off_main(&st, move || Ok(store.add_words(&words, now())?)).await;
             let _ = this.update(cx, |this, cx| match added {
                 Ok(_) => {
                     this.succeeded(cx);

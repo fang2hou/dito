@@ -29,6 +29,7 @@ use crate::i18n::{Lang, Tr};
 use crate::pipeline::polish_wordbook;
 use crate::prompts::fence;
 use crate::provider::{TextModel, TextRequest};
+use crate::spoken_forms::SpokenForms;
 use crate::store::{Store, wordbook_terms};
 
 const IDLE_TICK: Duration = Duration::from_millis(250);
@@ -352,10 +353,13 @@ async fn run(
     });
 }
 
+/// A paragraph that waits for its polish. `lang` is the language the engine reported for it, which its spoken forms
+/// are matched in again.
 struct Closed {
     id: i64,
     speaker: Speaker,
     text: String,
+    lang: Option<Lang>,
 }
 
 struct Source {
@@ -444,6 +448,8 @@ async fn record(
     let entries = deps.store.wordbook_entries(None).unwrap_or_default();
     let words = wordbook_terms(&entries);
     let terms = polish_wordbook(&cfg, &words).to_vec();
+    // Compiled once for the session: the recognizer asks for it on every partial, about each second.
+    let forms = Arc::new(SpokenForms::from_entries(&entries));
     let mut wanted = Vec::new();
     for (source, speaker) in SOURCES {
         if on(sources, source) {
@@ -494,14 +500,25 @@ async fn record(
 
     let (job_tx, job_rx) = mpsc::unbounded_channel::<Job>();
     let (text_tx, mut text_rx) = mpsc::unbounded_channel::<Recognized>();
-    let recognizer =
-        Recognizer { asr, language: cfg.general.preferred_language.code().map(str::to_string), words, entries };
+    let recognizer = Recognizer {
+        asr,
+        language: cfg.general.preferred_language.code().map(str::to_string),
+        words,
+        forms: forms.clone(),
+    };
     let recognizer = tokio::spawn(recognizer.run(job_rx, text_tx));
     let (polish_tx, polish_rx) = mpsc::unbounded_channel::<Closed>();
     // Read per paragraph: the user may turn the second source on or off while the session runs.
     let labelled = Arc::new(AtomicBool::new(held.both()));
-    let polish_task =
-        tokio::spawn(polish_loop(deps.store.clone(), polisher, terms, labelled.clone(), polish_rx, status.clone()));
+    let polish_task = tokio::spawn(polish_loop(
+        deps.store.clone(),
+        polisher,
+        terms,
+        forms,
+        labelled.clone(),
+        polish_rx,
+        status.clone(),
+    ));
     let mut session = Session {
         store: &deps.store,
         id,
@@ -671,11 +688,11 @@ impl Session<'_> {
                 self.hearing.partial(speaker, seq, start_ms, text);
                 false
             }
-            Recognized::Final { speaker, seq, start_ms, end_ms, text } => {
+            Recognized::Final { speaker, seq, start_ms, end_ms, text, lang } => {
                 let start_ms = self.hearing.start_of(speaker, seq).map_or(start_ms, |s| s.min(start_ms));
                 self.hearing.finished_utterance(speaker, seq);
                 let Some(text) = text else { return false };
-                for p in self.paragraphs.push(paragraphs::Utterance { speaker, start_ms, end_ms, text }) {
+                for p in self.paragraphs.push(paragraphs::Utterance { speaker, start_ms, end_ms, text, lang }) {
                     self.close(p);
                 }
                 if let Some(p) = self.paragraphs.open().cloned() {
@@ -728,7 +745,7 @@ impl Session<'_> {
             if let Err(e) = self.store.set_paragraph_polishing(id) {
                 tracing::warn!("could not store a paragraph: {e}");
             }
-            let _ = self.polish_tx.send(Closed { id, speaker: p.speaker, text: p.text });
+            let _ = self.polish_tx.send(Closed { id, speaker: p.speaker, text: p.text, lang: p.lang });
             self.closed += 1;
         }
     }
@@ -810,10 +827,13 @@ fn clean_title(reply: &str) -> Option<String> {
     (!title.trim().is_empty()).then(|| title.trim().to_owned())
 }
 
+/// Polishes each paragraph as it closes and stores the result. The model may spell a spoken form out again, so the
+/// polished text is restored with the wordbook's spoken forms in the language the engine reported for the paragraph.
 async fn polish_loop(
     store: Arc<Store>,
     polisher: Option<Result<Arc<dyn TextModel>, String>>,
     terms: Vec<String>,
+    forms: Arc<SpokenForms>,
     labelled: Arc<AtomicBool>,
     mut rx: mpsc::UnboundedReceiver<Closed>,
     status: Status,
@@ -831,7 +851,7 @@ async fn polish_loop(
                     .polish(&TextRequest { system: &prompt.system, examples: prompt.examples, text: &prompt.user })
                     .await
                 {
-                    Ok(out) if !out.trim().is_empty() => (out.trim().to_string(), None),
+                    Ok(out) if !out.trim().is_empty() => (forms.apply_for_lang(out.trim(), p.lang).into_owned(), None),
                     Ok(_) => (p.text.clone(), None),
                     Err(e) => (p.text.clone(), Some(e.to_string())),
                 }
@@ -857,7 +877,7 @@ mod tests {
     use crate::controller::RecorderError;
     use crate::factory::FixedEngines;
     use crate::provider::mock::{MockTextModel, MockTranscriber};
-    use crate::store::{ParagraphState, Speaker};
+    use crate::store::{ParagraphState, Speaker, WordbookEntry};
     use crate::transcription::{ChunkSink, EnergyDetectors, LiveInput};
 
     #[tokio::test]
@@ -879,15 +899,64 @@ mod tests {
         let transcript = store.create_transcript(1, Sources::default()).unwrap();
         let id = store.add_paragraph(transcript, Speaker::Me, 0, 1_000, raw).unwrap();
         let (tx, rx) = mpsc::unbounded_channel();
-        tx.send(Closed { id, speaker: Speaker::Me, text: raw.into() }).unwrap();
+        tx.send(Closed { id, speaker: Speaker::Me, text: raw.into(), lang: None }).unwrap();
         drop(tx);
         let status = Arc::new(watch::channel(TranscriptionStatus::default()).0);
-        polish_loop(store.clone(), Some(Ok(Arc::new(Editor))), vec![], Arc::new(AtomicBool::new(false)), rx, status)
-            .await;
+        let no_forms = Arc::new(SpokenForms::from_entries(&[]));
+        polish_loop(
+            store.clone(),
+            Some(Ok(Arc::new(Editor))),
+            vec![],
+            no_forms,
+            Arc::new(AtomicBool::new(false)),
+            rx,
+            status,
+        )
+        .await;
         let result = store.get_transcript(transcript).unwrap().unwrap();
         assert_eq!(result.paragraphs[0].raw, raw);
         assert_eq!(result.paragraphs[0].text, raw);
         assert_eq!(result.paragraphs[0].state, ParagraphState::Done);
+    }
+
+    #[tokio::test]
+    async fn a_polished_paragraph_has_its_spoken_forms_written_again_in_its_language() {
+        // Answers with the paragraph it was given, as a model that spells the forms out again does.
+        struct Echo;
+        #[async_trait::async_trait]
+        impl TextModel for Echo {
+            async fn polish(&self, request: &TextRequest<'_>) -> crate::error::ProviderResult<String> {
+                Ok(crate::prompts::unfenced(request.text).to_string())
+            }
+        }
+        // The paragraph, the language the engine reported for it, and what is stored: a form scoped to Japanese
+        // waits for Japanese to be reported, while a form for every language always applies.
+        let paragraphs = [
+            ("明日のmeetingです。", Some(Lang::Ja), "明日のMTGです。"),
+            ("une pull request demain", None, "une PR demain"),
+            ("On a un meeting demain", None, "On a un meeting demain"),
+        ];
+        let store = Arc::new(Store::open_in_memory().unwrap());
+        let transcript = store.create_transcript(1, Sources::default()).unwrap();
+        let (tx, rx) = mpsc::unbounded_channel();
+        for (index, (raw, lang, _)) in paragraphs.iter().enumerate() {
+            let start_ms = 1_000 * index as u64;
+            let id = store.add_paragraph(transcript, Speaker::Me, start_ms, start_ms + 1_000, raw).unwrap();
+            tx.send(Closed { id, speaker: Speaker::Me, text: (*raw).into(), lang: *lang }).unwrap();
+        }
+        drop(tx);
+        let status = Arc::new(watch::channel(TranscriptionStatus::default()).0);
+        let entries = [
+            WordbookEntry { term: "MTG".to_string(), spoken: vec!["meeting".to_string()], lang: Some(Lang::Ja) },
+            WordbookEntry { term: "PR".to_string(), spoken: vec!["pull request".to_string()], lang: None },
+        ];
+        let forms = Arc::new(SpokenForms::from_entries(&entries));
+        let labelled = Arc::new(AtomicBool::new(false));
+        polish_loop(store.clone(), Some(Ok(Arc::new(Echo))), vec![], forms, labelled, rx, status).await;
+        let stored = store.get_transcript(transcript).unwrap().unwrap().paragraphs;
+        let texts: Vec<&str> = stored.iter().map(|paragraph| paragraph.text.as_str()).collect();
+        let expected: Vec<&str> = paragraphs.iter().map(|(_, _, text)| *text).collect();
+        assert_eq!(texts, expected);
     }
 
     #[test]

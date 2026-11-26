@@ -1,6 +1,7 @@
 //! Grouping recognized utterances into paragraphs.
 
 use super::Speaker;
+use crate::i18n::Lang;
 
 /// A pause at least this long between utterances ends the paragraph.
 pub const PARAGRAPH_GAP_MS: u64 = 2_000;
@@ -16,6 +17,8 @@ pub(super) struct Utterance {
     pub start_ms: u64,
     pub end_ms: u64,
     pub text: String,
+    /// The language the engine reported for the utterance, which its spoken forms were matched in.
+    pub lang: Option<Lang>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -24,6 +27,8 @@ pub(super) struct Paragraph {
     pub start_ms: u64,
     pub end_ms: u64,
     pub text: String,
+    /// The language of its latest utterance, which its polished text is restored in.
+    pub lang: Option<Lang>,
 }
 
 #[derive(Debug, Default)]
@@ -44,12 +49,14 @@ impl Paragrapher {
             {
                 join(&mut p.text, &u.text);
                 p.end_ms = p.end_ms.max(u.end_ms);
+                p.lang = u.lang;
             }
             _ => {
                 closed.extend(self.open.replace(Paragraph {
                     speaker: u.speaker,
                     start_ms: u.start_ms,
                     end_ms: u.end_ms,
+                    lang: u.lang,
                     text: u.text,
                 }));
             }
@@ -65,9 +72,21 @@ impl Paragrapher {
             let total = p.text.chars().count().max(1) as u64;
             let at = p.start_ms + (p.end_ms - p.start_ms) * head.chars().count() as u64 / total;
             if !rest.is_empty() {
-                self.open = Some(Paragraph { speaker: p.speaker, start_ms: at, end_ms: p.end_ms, text: rest.into() });
+                self.open = Some(Paragraph {
+                    speaker: p.speaker,
+                    lang: p.lang,
+                    start_ms: at,
+                    end_ms: p.end_ms,
+                    text: rest.into(),
+                });
             }
-            closed.push(Paragraph { speaker: p.speaker, start_ms: p.start_ms, end_ms: at, text: head.into() });
+            closed.push(Paragraph {
+                speaker: p.speaker,
+                lang: p.lang,
+                start_ms: p.start_ms,
+                end_ms: at,
+                text: head.into(),
+            });
         }
         closed
     }
@@ -127,7 +146,7 @@ mod tests {
     use super::*;
 
     fn u(speaker: Speaker, start_ms: u64, end_ms: u64, text: &str) -> Utterance {
-        Utterance { speaker, start_ms, end_ms, text: text.into() }
+        Utterance { speaker, start_ms, end_ms, text: text.into(), lang: None }
     }
 
     #[test]

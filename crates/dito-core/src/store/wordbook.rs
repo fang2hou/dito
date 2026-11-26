@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use rusqlite::{Connection, params};
+use rusqlite::{Connection, Statement, params};
 
 use super::*;
 use crate::i18n::Lang;
@@ -28,9 +28,10 @@ pub fn wordbook_terms(entries: &[WordbookEntry]) -> Vec<String> {
     entries.iter().map(|entry| entry.term.clone()).collect()
 }
 
-/// The spoken forms typed in one field: split at ASCII and Japanese commas, trimmed, without repeats, in order.
+/// The spoken forms typed in one field: split at ASCII, Japanese and Chinese commas, trimmed, without repeats, in
+/// order.
 pub fn parse_spoken_list(input: &str) -> Vec<String> {
-    deduped(input.split([',', '\u{3001}'])).into_iter().map(str::to_owned).collect()
+    deduped(input.split([',', '\u{3001}', '\u{FF0C}'])).into_iter().map(str::to_owned).collect()
 }
 
 const INSERT_WORD: &str = "INSERT OR IGNORE INTO wordbook (term, created) VALUES (?1, ?2)";
@@ -41,6 +42,22 @@ impl Store {
     /// Returns false when the term already exists (or is blank).
     pub fn add_word(&self, term: &str, now: i64) -> Result<bool> {
         self.add_word_entry(term, &[], None, now)
+    }
+
+    /// Adds every term as it is written, or on an error none of them. Returns how many were new: a blank or known
+    /// term adds nothing. Nothing in a term is read as the format of an imported line.
+    pub fn add_words(&self, terms: &[String], now: i64) -> Result<usize> {
+        let mut conn = self.conn();
+        let tx = conn.transaction()?;
+        let mut added = 0;
+        {
+            let mut insert = tx.prepare(INSERT_WORD)?;
+            for term in terms {
+                added += usize::from(insert_word(&mut insert, term, now)?);
+            }
+        }
+        tx.commit()?;
+        Ok(added)
     }
 
     /// Adds the term with its spoken forms. Returns false, writing nothing, when the term already exists or is
@@ -105,25 +122,24 @@ impl Store {
 
     pub fn words(&self, query: Option<&str>) -> Result<Vec<String>> {
         let c = self.conn();
-        let like = format!("%{}%", query.unwrap_or("").trim());
-        let mut stmt = c.prepare("SELECT term FROM wordbook WHERE term LIKE ?1 ORDER BY created DESC, term")?;
-        Ok(stmt.query_map([like], |r| r.get(0))?.collect::<std::result::Result<_, _>>()?)
+        let mut stmt =
+            c.prepare("SELECT term FROM wordbook WHERE term LIKE ?1 ESCAPE '\\' ORDER BY created DESC, term")?;
+        Ok(stmt.query_map([contains(query)], |r| r.get(0))?.collect::<std::result::Result<_, _>>()?)
     }
 
     /// The entries whose term, or one of its spoken forms, contains `query`, newest first.
     pub fn wordbook_entries(&self, query: Option<&str>) -> Result<Vec<WordbookEntry>> {
         let c = self.conn();
-        let like = format!("%{}%", query.unwrap_or("").trim());
         let mut entries: Vec<WordbookEntry> = {
             let mut stmt = c.prepare(
                 "SELECT term FROM wordbook
-                 WHERE term LIKE ?1 OR EXISTS (
+                 WHERE term LIKE ?1 ESCAPE '\\' OR EXISTS (
                    SELECT 1 FROM wordbook_spoken
-                   WHERE wordbook_spoken.term = wordbook.term AND spoken LIKE ?1
+                   WHERE wordbook_spoken.term = wordbook.term AND spoken LIKE ?1 ESCAPE '\\'
                  )
                  ORDER BY created DESC, term",
             )?;
-            let terms = stmt.query_map([like], |row| row.get::<_, String>(0))?;
+            let terms = stmt.query_map([contains(query)], |row| row.get::<_, String>(0))?;
             terms.map(|term| term.map(WordbookEntry::plain)).collect::<std::result::Result<Vec<_>, _>>()?
         };
         let mut forms: HashMap<String, (Vec<String>, Option<Lang>)> = HashMap::new();
@@ -155,20 +171,23 @@ impl Store {
 
     /// Adds every new line or, on an error, none of them. Returns how many were added. A line is a term, or a term
     /// with its spoken forms after `=` (`1on1 = one on one`), scoped to a language with `[ja]`, `[en]` or `[zh]`
-    /// after the term (`MTG [ja] = meeting, meet-up`).
+    /// after the term (`MTG [ja] = meeting, meet-up`). Inside a term a backslash escapes the `\`, `=` or `[` that
+    /// follows it, which is how a term that holds one of them, or ends like a language tag, is written.
     pub fn import_words(&self, text: &str, now: i64) -> Result<usize> {
         let mut conn = self.conn();
         let tx = conn.transaction()?;
         let mut added = 0;
         for line in text.lines() {
             let (term, spoken, lang) = parse_line(line);
-            added += usize::from(add_entry(&tx, term, &spoken, lang, now)?);
+            added += usize::from(add_entry(&tx, &term, &spoken, lang, now)?);
         }
         tx.commit()?;
         Ok(added)
     }
 
-    /// One line per entry in the format [`import_words`](Self::import_words) reads, in term order.
+    /// One line per entry in the format [`import_words`](Self::import_words) reads, in term order. A term gets a
+    /// backslash only before a `\` or `=` it holds, or before the bracket of a trailing `[ja]`, `[en]` or `[zh]`
+    /// when it has spoken forms and no scope, which would else read as one.
     pub fn export_words(&self) -> Result<String> {
         let mut entries = self.wordbook_entries(None)?;
         entries.sort_unstable_by(|a, b| a.term.cmp(&b.term));
@@ -178,16 +197,21 @@ impl Store {
 
 /// Writes the term with its spoken forms, unless the term is blank or already stored. Returns whether it was written.
 fn add_entry(conn: &Connection, term: &str, spoken: &[String], lang: Option<Lang>, now: i64) -> Result<bool> {
+    let mut insert = conn.prepare(INSERT_WORD)?;
+    if !insert_word(&mut insert, term, now)? {
+        return Ok(false);
+    }
+    insert_spoken(conn, term.trim(), spoken, lang, now)?;
+    Ok(true)
+}
+
+/// Writes the term as it is written, unless it is blank or already stored. Returns whether it was written.
+fn insert_word(insert: &mut Statement<'_>, term: &str, now: i64) -> Result<bool> {
     let term = term.trim();
     if term.is_empty() {
         return Ok(false);
     }
-    let mut insert = conn.prepare(INSERT_WORD)?;
-    if insert.execute(params![term, now])? == 0 {
-        return Ok(false);
-    }
-    insert_spoken(conn, term, spoken, lang, now)?;
-    Ok(true)
+    Ok(insert.execute(params![term, now])? > 0)
 }
 
 /// Writes each spoken form once. `created` grows by one per form, so they keep their order when they are read.
@@ -211,44 +235,120 @@ fn deduped<'a>(forms: impl IntoIterator<Item = &'a str>) -> Vec<&'a str> {
     unique
 }
 
-/// One line of an imported file: the term, its spoken forms and their language.
-fn parse_line(line: &str) -> (&str, Vec<String>, Option<Lang>) {
-    let Some((left, right)) = line.split_once('=') else {
-        return (line, Vec::new(), None);
+/// One line of an imported file: the term, its spoken forms and their language. The forms after the `=` are read as
+/// they are written.
+fn parse_line(line: &str) -> (String, Vec<String>, Option<Lang>) {
+    let Some(at) = unescaped_equals(line) else {
+        return (unescape(line), Vec::new(), None);
     };
-    let left = left.trim();
-    let tagged = left.strip_suffix(']').and_then(|rest| rest.rsplit_once('['));
-    let (term, lang) = match tagged {
-        Some((term, tag)) if tag.trim().eq_ignore_ascii_case("ja") => (term, Some(Lang::Ja)),
-        Some((term, tag)) if tag.trim().eq_ignore_ascii_case("en") => (term, Some(Lang::En)),
-        Some((term, tag)) if tag.trim().eq_ignore_ascii_case("zh") => (term, Some(Lang::Zh)),
-        _ => (left, None),
-    };
-    (term.trim(), parse_spoken_list(right), lang)
+    let (term, lang) = split_tag(line[..at].trim_end());
+    (unescape(term), parse_spoken_list(&line[at + 1..]), lang)
 }
 
-fn export_line(entry: &WordbookEntry) -> String {
-    match entry.spoken.as_slice() {
-        [] => entry.term.clone(),
-        spoken => {
-            let tag = entry.lang.map_or(String::new(), |lang| format!(" [{}]", lang.code()));
-            format!("{}{tag} = {}", entry.term, spoken.join(", "))
-        }
+/// The term on the left of the `=` of a line, and the language its unescaped trailing tag names (`MTG [ja]`).
+fn split_tag(left: &str) -> (&str, Option<Lang>) {
+    let tag = (left.len() >= 4 && left.ends_with(']') && !is_escaped(left, left.len() - 1))
+        .then(|| left.get(left.len() - 4..))
+        .flatten()
+        .filter(|tag| tag.starts_with('[') && !is_escaped(left, left.len() - 4))
+        .and_then(|tag| lang_of(tag.get(1..3)?));
+    match tag {
+        Some(lang) => (&left[..left.len() - 4], Some(lang)),
+        None => (left, None),
     }
 }
 
-/// The stored language of a spoken form: only a language Dito has polish rules for can be scoped to.
+fn export_line(entry: &WordbookEntry) -> String {
+    let term = escape_term(&entry.term);
+    if entry.spoken.is_empty() {
+        return term;
+    }
+    let tag = entry.lang.map_or(String::new(), |lang| format!(" [{}]", lang.code()));
+    // With no tag of its own after it, a term that ends like one would read as scoped.
+    let term = if entry.lang.is_none() { escape_tag(term) } else { term };
+    format!("{term}{tag} = {}", entry.spoken.join(", "))
+}
+
+/// The term as a line writes it, with each `\` and `=` it holds escaped.
+fn escape_term(term: &str) -> String {
+    let mut escaped = String::with_capacity(term.len());
+    for c in term.chars() {
+        match c {
+            '\\' => escaped.push_str("\\\\"),
+            '=' => escaped.push_str("\\="),
+            _ => escaped.push(c),
+        }
+    }
+    escaped
+}
+
+/// The term with the `[` of its trailing `[ja]`, `[en]` or `[zh]` escaped.
+fn escape_tag(mut term: String) -> String {
+    let tagged = term.len().checked_sub(4).is_some_and(|at| {
+        term.as_bytes()[at] == b'[' && term.ends_with(']') && term.get(at + 1..at + 3).and_then(lang_of).is_some()
+    });
+    if tagged {
+        term.insert(term.len() - 4, '\\');
+    }
+    term
+}
+
+/// `text` without the backslashes that escape a `\`, `=` or `[` in it. Before any other character a backslash is
+/// part of the text, so a list written before terms were escaped reads as it was written.
+fn unescape(text: &str) -> String {
+    let mut plain = String::with_capacity(text.len());
+    let mut chars = text.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '\\'
+            && let Some(escaped) = chars.next_if(|next| matches!(next, '\\' | '=' | '['))
+        {
+            plain.push(escaped);
+        } else {
+            plain.push(c);
+        }
+    }
+    plain
+}
+
+/// Where the first `=` of `text` stands that no backslash escapes.
+fn unescaped_equals(text: &str) -> Option<usize> {
+    let mut chars = text.char_indices().peekable();
+    while let Some((at, c)) = chars.next() {
+        match c {
+            '\\' => {
+                chars.next_if(|(_, next)| matches!(next, '\\' | '=' | '['));
+            }
+            '=' => return Some(at),
+            _ => {}
+        }
+    }
+    None
+}
+
+/// Whether the character at `at` is escaped: an odd number of backslashes stands before it.
+fn is_escaped(text: &str, at: usize) -> bool {
+    text[..at].bytes().rev().take_while(|byte| *byte == b'\\').count() % 2 == 1
+}
+
+/// The stored language of a spoken form, and the language a tag names: only a language Dito has polish rules for
+/// can be scoped to.
 fn lang_code(lang: Option<Lang>) -> Option<&'static str> {
     lang.filter(|lang| matches!(lang, Lang::Ja | Lang::En | Lang::Zh)).map(Lang::code)
 }
 
 fn lang_of(code: &str) -> Option<Lang> {
-    match code {
+    match code.to_ascii_lowercase().as_str() {
         "ja" => Some(Lang::Ja),
         "en" => Some(Lang::En),
         "zh" => Some(Lang::Zh),
         _ => None,
     }
+}
+
+/// The pattern for text that contains the search: `%`, `_` and `\` in the search match themselves.
+fn contains(query: Option<&str>) -> String {
+    let query = query.unwrap_or("").trim().replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_");
+    format!("%{query}%")
 }
 
 #[cfg(test)]
@@ -319,9 +419,9 @@ mod tests {
     }
 
     #[test]
-    fn spoken_forms_are_split_at_both_commas_trimmed_and_kept_once() {
+    fn spoken_forms_are_split_at_every_comma_trimmed_and_kept_once() {
         assert_eq!(
-            parse_spoken_list(" meeting ,ミーティング、meeting , ,one on one"),
+            parse_spoken_list(" meeting ,ミーティング、meeting， ,one on one"),
             forms(&["meeting", "ミーティング", "one on one"])
         );
         assert_eq!(parse_spoken_list("  \n"), Vec::<String>::new());
@@ -415,5 +515,74 @@ mod tests {
         assert_eq!(again.import_words(&exported, 2).unwrap(), 5);
         assert_eq!(again.wordbook_entries(None).unwrap(), stored);
         assert_eq!(again.export_words().unwrap(), exported);
+    }
+
+    #[test]
+    fn a_batch_of_terms_is_added_as_written() {
+        let s = Store::open_in_memory().unwrap();
+        let terms = forms(&["A=B", " x [ja] ", "C:\\path", "E = mc^2 [en]", "A=B", " "]);
+        assert_eq!(s.add_words(&terms, 1).unwrap(), 4);
+        let stored = [
+            entry("A=B", &[], None),
+            entry("C:\\path", &[], None),
+            entry("E = mc^2 [en]", &[], None),
+            entry("x [ja]", &[], None),
+        ];
+        assert_eq!(s.wordbook_entries(None).unwrap(), stored);
+        assert_eq!(s.export_words().unwrap(), "A\\=B\nC:\\\\path\nE \\= mc^2 [en]\nx [ja]");
+    }
+
+    #[test]
+    fn export_and_import_keep_an_equals_sign_a_backslash_and_a_trailing_tag_in_a_term() {
+        let s = Store::open_in_memory().unwrap();
+        let text = "A\\=B\nfoo [ja]\nbar \\[ja] = baz, qux\nC:\\\\Users\\\\name\n1on1 = ワンオンワン\nMTG [ja] = meeting, ミーティング\n";
+        assert_eq!(s.import_words(text, 1).unwrap(), 6);
+        let stored = [
+            entry("1on1", &["ワンオンワン"], None),
+            entry("A=B", &[], None),
+            entry("C:\\Users\\name", &[], None),
+            entry("MTG", &["meeting", "ミーティング"], Some(Lang::Ja)),
+            entry("bar [ja]", &["baz", "qux"], None),
+            entry("foo [ja]", &[], None),
+        ];
+        assert_eq!(s.wordbook_entries(None).unwrap(), stored);
+
+        // Only a term that needs it gets a backslash; the other lines read as before.
+        let exported = s.export_words().unwrap();
+        assert_eq!(
+            exported,
+            "1on1 = ワンオンワン\nA\\=B\nC:\\\\Users\\\\name\nMTG [ja] = meeting, ミーティング\nbar \\[ja] = baz, qux\nfoo [ja]"
+        );
+        let again = Store::open_in_memory().unwrap();
+        assert_eq!(again.import_words(&exported, 2).unwrap(), 6);
+        assert_eq!(again.wordbook_entries(None).unwrap(), stored);
+        assert_eq!(again.export_words().unwrap(), exported);
+
+        // A backslash of its own before the bracket, and a scope after a term that ends like a tag.
+        let tricky = Store::open_in_memory().unwrap();
+        let text = "a\\\\\\[ja] = x\nb [ja] [en] = y\n";
+        assert_eq!(tricky.import_words(text, 1).unwrap(), 2);
+        assert_eq!(
+            tricky.wordbook_entries(None).unwrap(),
+            [entry("a\\[ja]", &["x"], None), entry("b [ja]", &["y"], Some(Lang::En))]
+        );
+        assert_eq!(tricky.export_words().unwrap(), text.trim_end());
+    }
+
+    #[test]
+    fn a_search_matches_the_wildcards_as_text() {
+        let s = Store::open_in_memory().unwrap();
+        s.add_words(&forms(&["a_b", "axb", "100%", "back\\slash"]), 1).unwrap();
+        s.add_word_entry("T", &forms(&["x_y"]), None, 1).unwrap();
+        let words = |query: &str| s.words(Some(query)).unwrap();
+        assert_eq!(words("x_"), Vec::<String>::new());
+        assert_eq!(words("_"), ["a_b"]);
+        assert_eq!(words("%"), ["100%"]);
+        assert_eq!(words("\\"), ["back\\slash"]);
+        let found = |query: &str| {
+            s.wordbook_entries(Some(query)).unwrap().iter().map(|entry| entry.term.clone()).collect::<Vec<_>>()
+        };
+        assert_eq!(found("_"), ["T", "a_b"]);
+        assert_eq!(found("xy"), Vec::<String>::new());
     }
 }
