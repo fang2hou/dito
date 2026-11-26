@@ -89,6 +89,16 @@ pub(super) const MIGRATIONS: &[&str] = &[
        ts INTEGER NOT NULL
      );
      CREATE INDEX chat_messages_chat ON chat_messages(chat_id, id);",
+    // 8: how a wordbook term may be said instead of written, one row per spoken form. `lang` is NULL when the form
+    // counts for every language, else `ja`, `en` or `zh`. An entry keeps the language on each of its forms.
+    "CREATE TABLE IF NOT EXISTS wordbook_spoken (
+       term TEXT NOT NULL,
+       spoken TEXT NOT NULL,
+       lang TEXT,
+       created INTEGER NOT NULL,
+       PRIMARY KEY (term, spoken)
+     );
+     CREATE INDEX IF NOT EXISTS wordbook_spoken_term ON wordbook_spoken(term);",
 ];
 
 pub(super) const SCHEMA_VERSION: u32 = MIGRATIONS.len() as u32;
@@ -130,9 +140,18 @@ pub(super) fn decode<T: DeserializeOwned + Default>(column: &str, stored: &str) 
 #[cfg(test)]
 mod tests {
     use crate::config::EngineLabels;
+    use crate::i18n::Lang;
 
     use super::super::*;
     use super::*;
+
+    fn entry(term: &str, spoken: &[&str], lang: Lang) -> WordbookEntry {
+        WordbookEntry {
+            term: term.to_owned(),
+            spoken: spoken.iter().map(|form| form.to_string()).collect(),
+            lang: Some(lang),
+        }
+    }
 
     /// The schema as it shipped before versioning. Frozen here on purpose: real databases hold exactly this, whatever
     /// migrations are appended later. It omits `IF NOT EXISTS`, so migration 1 must tolerate tables that already exist.
@@ -225,6 +244,37 @@ mod tests {
         assert!(s.list_chats().unwrap().is_empty());
         let chat = s.create_chat("first", 1).unwrap();
         assert_eq!(s.get_chat(chat).unwrap().unwrap().summary.title, "first");
+    }
+
+    #[test]
+    fn a_version_seven_database_gains_spoken_forms_and_keeps_its_words() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("h.db");
+        {
+            let old = Connection::open(&path).unwrap();
+            for migration in &MIGRATIONS[..7] {
+                old.execute_batch(migration).unwrap();
+            }
+            old.execute("INSERT INTO wordbook (term, created) VALUES ('Acme', 10), ('1on1', 20)", ()).unwrap();
+            old.pragma_update(None, "user_version", 7).unwrap();
+        }
+
+        let s = Store::open(&path, 0).unwrap();
+        assert_eq!(user_version(&s.conn()).unwrap(), SCHEMA_VERSION);
+        assert_eq!(s.wordbook_entries(None).unwrap(), [WordbookEntry::plain("1on1"), WordbookEntry::plain("Acme")]);
+        let forms = ["meeting".to_string(), "ミーティング".to_string()];
+        assert!(s.add_word_entry("MTG", &forms, Some(Lang::Ja), 30).unwrap());
+        let added = [
+            entry("MTG", &["meeting", "ミーティング"], Lang::Ja),
+            WordbookEntry::plain("1on1"),
+            WordbookEntry::plain("Acme"),
+        ];
+        assert_eq!(s.wordbook_entries(None).unwrap(), added);
+        drop(s);
+
+        let reopened = Store::open(&path, 0).unwrap();
+        assert_eq!(reopened.wordbook_entries(None).unwrap(), added);
+        assert_eq!(reopened.words(None).unwrap(), ["MTG", "1on1", "Acme"]);
     }
 
     #[test]

@@ -526,6 +526,7 @@ impl ModelsPage {
                 content,
                 actions,
                 Some(close),
+                None,
             )
         }))
     }

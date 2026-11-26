@@ -54,7 +54,7 @@ pub use button::{
     icon_button, icon_button_with, status_disc,
 };
 pub use callbacks::{Cb, CopyCb, IndexCb, ToggleCb, cbk, cbk_copy, cbk_idx, click_cb};
-pub use chip::{chip_surface, selection_ring};
+pub use chip::{chip_surface, selection_ring, wordbook_chip_surface};
 pub use choice_surface::choice_surface;
 pub use code_block::{code_block, code_block_with};
 pub use config_tiles::{ConfigTile, TilePlus, TileRowState, cbk_id, cbk_move, tile_row};

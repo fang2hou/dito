@@ -83,12 +83,15 @@ pub fn confirm_dialog_with_header(
         content,
         actions,
         escape,
+        None,
     )
 }
 
 /// A Standard dialog whose answers the caller builds, for answers a [`DialogAnswer`] cannot express (an icon, more
-/// than two). `escape` is what Escape does; make each answer with [`dialog_button`]. It never grows past the window:
-/// give the part of `content` that may run long `flex_1` and `min_h(0)` and let it scroll.
+/// than two). `escape` is what Escape does; make each answer with [`dialog_button`]. `enter` is what Enter does
+/// while the dialog itself has the keyboard, as after a click on its padding or a pick from one of its menus; inside
+/// one of its controls the key stays with the control. It never grows past the window: give the part of `content`
+/// that may run long `flex_1` and `min_h(0)` and let it scroll.
 #[allow(clippy::too_many_arguments)]
 pub fn dialog_with_actions(
     window: &Window,
@@ -99,6 +102,7 @@ pub fn dialog_with_actions(
     content: Vec<AnyElement>,
     actions: Vec<AnyElement>,
     escape: Option<Cb>,
+    enter: Option<Cb>,
 ) -> AnyElement {
     shell(
         window,
@@ -110,6 +114,7 @@ pub fn dialog_with_actions(
         content,
         actions,
         escape,
+        enter,
     )
 }
 
@@ -133,7 +138,9 @@ fn shell(
     content: Vec<AnyElement>,
     actions: Vec<AnyElement>,
     escape: Option<Cb>,
+    enter: Option<Cb>,
 ) -> AnyElement {
+    let layer = focus.clone();
     let body = div()
         .w(px(frame.width))
         .max_w(window.viewport_size().width - px(48.))
@@ -151,10 +158,17 @@ fn shell(
         .child(div().w_full().flex_none().flex().justify_end().gap(px(frame.action_gap)).children(actions));
     modal_layer(id, focus)
         .on_key_down(move |event: &KeyDownEvent, window, cx| {
-            if event.keystroke.key == "escape"
+            let key = event.keystroke.key.as_str();
+            if key == "escape"
                 && let Some(cancel) = &escape
             {
                 cancel(window, cx);
+                cx.stop_propagation();
+            } else if matches!(key, "enter" | "return")
+                && layer.is_focused(window)
+                && let Some(enter) = &enter
+            {
+                enter(window, cx);
                 cx.stop_propagation();
             }
         })

@@ -22,7 +22,7 @@ use crate::intent::{AUTO_THRESHOLD, Decision, Intent};
 use crate::pipeline::{self, PipelineError, or_cancel};
 use crate::prompts::{AppTarget, detect_lang};
 use crate::store::{CommandDetails, CommandOutcome, HistoryKind, InstructionOrigin, NewHistory, SourceKind};
-use crate::store::{StepMillis, Store, ToolChoice};
+use crate::store::{StepMillis, Store, ToolChoice, wordbook_terms};
 use crate::surrounding::{Surrounding, context_tokens};
 use crate::trace;
 use crate::trace_log;
@@ -155,8 +155,8 @@ fn elapsed_ms(started: Instant) -> u64 {
 }
 
 async fn transcribe_step(env: StepEnv, clip: Arc<AudioClip>) -> StepResult {
-    let words = load_wordbook(env.store).await;
-    let transcript = pipeline::transcribe_clip(env.engines.as_ref(), &env.cfg, &clip, &words, &env.cancel).await;
+    let entries = load_wordbook(env.store).await;
+    let transcript = pipeline::transcribe_clip(env.engines.as_ref(), &env.cfg, &clip, &entries, &env.cancel).await;
     StepResult::Instruction(transcript)
 }
 
@@ -197,8 +197,11 @@ async fn tool_step(
     let started = Instant::now();
     let run = async {
         let text_model = env.engines.configured_text_model(&env.cfg).await?;
-        let words =
-            if matches!(tool, Tool::Polish { .. }) { load_wordbook(env.store.clone()).await } else { Vec::new() };
+        let words = if matches!(tool, Tool::Polish { .. }) {
+            wordbook_terms(&load_wordbook(env.store.clone()).await)
+        } else {
+            Vec::new()
+        };
         let ctx = ToolContext {
             prompts: &env.cfg.prompts,
             target: style,

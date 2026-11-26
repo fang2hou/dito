@@ -18,6 +18,7 @@ pub mod pipeline;
 pub mod prompts;
 pub mod provider;
 pub mod secrets;
+pub mod spoken_forms;
 pub mod store;
 pub mod surrounding;
 pub mod time;

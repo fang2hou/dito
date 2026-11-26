@@ -1,3 +1,6 @@
+//! The Wordbook page: words with optional spoken forms and a language scope, added in one form, listed as chips that
+//! open the Edit word dialog, and searched by term or spoken form (`design:settings/wordbook/spoken-forms`).
+
 use std::cell::Cell;
 use std::collections::BTreeSet;
 use std::ops::Range;
@@ -7,6 +10,7 @@ use std::sync::Arc;
 
 use dito_core::config::Source;
 use dito_core::i18n::{Lang, Tr, fmt};
+use dito_core::store::{WordbookEntry, parse_spoken_list};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
@@ -19,7 +23,7 @@ use crate::services::{self, WordbookWords};
 use crate::state::AppState;
 use crate::theme::Palette;
 use crate::timefmt::now;
-use crate::ui::{self, BtnKind, InputEvent, InputState, cbk, text};
+use crate::ui::{self, BtnKind, InputEvent, InputState, cbk, cbk_idx, text};
 
 /// One at a time: the newest failure replaces the last.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -49,7 +53,7 @@ pub(super) struct ModalChanged;
 const COUNT_FADE_POWER: f32 = 1.4;
 const COUNT_SIZE: f32 = 13.;
 
-const CHIP_H: f32 = 44.;
+const CHIP_H: f32 = 48.;
 const GRID_GAP: f32 = 10.;
 const ROW_PITCH: f32 = CHIP_H + GRID_GAP;
 /// Rows built beyond the window on each side. The grid's top is known from the frame before, and nothing above the
@@ -58,6 +62,16 @@ const OVERSCAN_ROWS: usize = 4;
 /// Two, so that a chip the change moved out of the built rows while hovered is sampled once more after its hover
 /// is dropped.
 const RESYNC_RENDERS: u8 = 2;
+
+const ADD_LANG: &str = "wordbook-add-lang";
+const EDIT_DIALOG: &str = "wordbook-edit";
+const EDIT_LANG: &str = "wordbook-edit-lang";
+/// The languages a spoken form can be scoped to, every language first.
+const SCOPES: [Option<Lang>; 4] = [None, Some(Lang::Ja), Some(Lang::En), Some(Lang::Zh)];
+
+/// A term and where the selection marker of its chip was painted, for the screenshot harness.
+#[cfg(feature = "screenshots")]
+type MarkerHit = (SharedString, Bounds<Pixels>);
 
 /// What a grid that builds only the rows near the window remembers between renders.
 struct GridState {
@@ -68,11 +82,24 @@ struct GridState {
     resync: u8,
     /// The words the last two renders built.
     built: [Range<usize>; 2],
+    /// The selection marker of the term the screenshot harness asked for, where it was last painted.
+    #[cfg(feature = "screenshots")]
+    marker: Rc<Cell<Option<MarkerHit>>>,
+    #[cfg(feature = "screenshots")]
+    watched: Rc<std::cell::RefCell<Option<SharedString>>>,
 }
 
 impl GridState {
     fn new() -> Self {
-        Self { top: Rc::new(Cell::new(None)), resync: RESYNC_RENDERS, built: [0..0, 0..0] }
+        Self {
+            top: Rc::new(Cell::new(None)),
+            resync: RESYNC_RENDERS,
+            built: [0..0, 0..0],
+            #[cfg(feature = "screenshots")]
+            marker: Rc::new(Cell::new(None)),
+            #[cfg(feature = "screenshots")]
+            watched: Rc::new(std::cell::RefCell::new(None)),
+        }
     }
 }
 
@@ -121,6 +148,11 @@ impl SelectionFades {
 pub struct WordbookPage {
     st: Arc<AppState>,
     add: Entity<InputState>,
+    add_spoken: Entity<InputState>,
+    /// The language scope of the word being added; `None` for every language.
+    add_lang: Option<Lang>,
+    /// Whether the language menu of the add form is open.
+    add_menu_open: bool,
     search: Entity<InputState>,
     query_text: String,
     words: PageQuery<WordbookWords>,
@@ -133,12 +165,35 @@ pub struct WordbookPage {
     deleting: bool,
     delete_focus: FocusHandle,
     find: find_words::FindWords,
+    edit_term: Entity<InputState>,
+    edit_spoken: Entity<InputState>,
+    /// The Edit word dialog, while it is open.
+    edit: Option<EditWord>,
+    /// The number given to the dialog opened last.
+    edit_rev: u64,
+    edit_focus: FocusHandle,
     motion: ui::MotionScope,
     scroll: ScrollHandle,
     grid: GridState,
 }
 
 impl EventEmitter<ModalChanged> for WordbookPage {}
+
+/// The Edit word dialog while it is open: the entry it edits and what is not one of its inputs.
+struct EditWord {
+    /// Tells this opening of the dialog from the next: a save that finishes after it was closed, or reopened for
+    /// another entry, still wrote to the wordbook and leaves the dialog alone.
+    rev: u64,
+    /// The term as stored, which the save addresses.
+    original: String,
+    lang: Option<Lang>,
+    /// Whether the language menu is open.
+    menu_open: bool,
+    /// Whether a save is running, so Enter and Save wait for it.
+    saving: bool,
+    /// Why the last save wrote nothing, until the term is edited again.
+    error: Option<Tr>,
+}
 
 impl QueryPage for WordbookPage {
     type Data = WordbookWords;
@@ -161,7 +216,7 @@ impl QueryPage for WordbookPage {
 }
 
 impl WordbookPage {
-    /// Leaving drops any result still in flight.
+    /// Leaving drops any result still in flight, and whatever dialog was open.
     pub fn set_active(&mut self, active: bool, cx: &mut Context<Self>) {
         self.words.set_active(active);
         if active {
@@ -170,6 +225,8 @@ impl WordbookPage {
             self.grid.top.set(None);
             self.load(cx);
         } else {
+            self.edit = None;
+            self.add_menu_open = false;
             self.selection = None;
             self.grid.resync = RESYNC_RENDERS;
             self.confirming_delete = false;
@@ -179,13 +236,37 @@ impl WordbookPage {
     pub fn new(st: Arc<AppState>, window: &mut Window, cx: &mut Context<Self>) -> Self {
         services::watch_config(&st, cx);
         let lang = st.cfg.get().general.lang();
-        let add = cx.new(|cx| InputState::new(window, cx).placeholder(lang.tr(Tr::GeneralExampleHint)));
-        let search = cx.new(|cx| InputState::new(window, cx).placeholder(lang.tr(Tr::GeneralSearchWords)));
-        ui::notify_on_focus(&add, window, cx);
-        ui::notify_on_focus(&search, window, cx);
-        cx.subscribe_in(&add, window, |this: &mut Self, _, ev: &InputEvent, window, cx| {
+        let add = cx.new(|cx| InputState::new(window, cx).placeholder(lang.tr(Tr::WordbookExampleHint)));
+        let add_spoken = cx.new(|cx| InputState::new(window, cx).placeholder(lang.tr(Tr::WordbookSpokenExample)));
+        let search = cx.new(|cx| InputState::new(window, cx).placeholder(lang.tr(Tr::WordbookSearchWords)));
+        let edit_term = cx.new(|cx| InputState::new(window, cx));
+        let edit_spoken = cx.new(|cx| InputState::new(window, cx));
+        for input in [&add, &add_spoken, &search, &edit_term, &edit_spoken] {
+            ui::notify_on_focus(input, window, cx);
+        }
+        for input in [&add, &add_spoken] {
+            cx.subscribe_in(input, window, |this: &mut Self, _, ev: &InputEvent, window, cx| {
+                if matches!(ev, InputEvent::PressEnter { .. }) {
+                    this.add_word(window, cx);
+                }
+            })
+            .detach();
+        }
+        cx.subscribe_in(&edit_term, window, |this: &mut Self, _, ev: &InputEvent, window, cx| match ev {
+            InputEvent::PressEnter { .. } => this.save_edit(window, cx),
+            // Save follows the term, and a complaint about the term goes with the term.
+            InputEvent::Change => {
+                if let Some(edit) = &mut this.edit {
+                    edit.error = None;
+                }
+                cx.notify();
+            }
+            _ => {}
+        })
+        .detach();
+        cx.subscribe_in(&edit_spoken, window, |this: &mut Self, _, ev: &InputEvent, window, cx| {
             if matches!(ev, InputEvent::PressEnter { .. }) {
-                this.add_word(window, cx);
+                this.save_edit(window, cx);
             }
         })
         .detach();
@@ -201,6 +282,9 @@ impl WordbookPage {
             motion: ui::MotionScope::new(),
             st,
             add,
+            add_spoken,
+            add_lang: None,
+            add_menu_open: false,
             search,
             query_text: String::new(),
             words: PageQuery::new("wordbook", WordbookWords::default()),
@@ -213,6 +297,11 @@ impl WordbookPage {
             deleting: false,
             delete_focus: cx.focus_handle(),
             find: find_words::FindWords::new(window, cx),
+            edit_term,
+            edit_spoken,
+            edit: None,
+            edit_rev: 0,
+            edit_focus: cx.focus_handle(),
             scroll: ScrollHandle::new(),
             grid: GridState::new(),
         }
@@ -220,13 +309,18 @@ impl WordbookPage {
 
     fn add_word(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let word = self.add.read(cx).value().to_string();
+        let spoken = parse_spoken_list(&self.add_spoken.read(cx).value());
+        let lang = self.add_lang;
         let st = self.st.clone();
         cx.spawn_in(window, async move |this, cx| {
             let store = st.store.clone();
-            let added = off_main(&st, move || Ok(store.add_word(&word, now())?)).await;
+            let added = off_main(&st, move || Ok(store.add_word_entry(&word, &spoken, lang, now())?)).await;
             let _ = this.update_in(cx, |this, window, cx| match added {
                 Ok(true) => {
                     this.add.update(cx, |s, cx| s.set_value("", window, cx));
+                    this.add_spoken.update(cx, |s, cx| s.set_value("", window, cx));
+                    this.add_lang = None;
+                    this.add_menu_open = false;
                     this.succeeded(cx);
                     this.load(cx);
                 }
@@ -236,6 +330,97 @@ impl WordbookPage {
             });
         })
         .detach();
+    }
+
+    /// Opens the entry in the Edit word dialog. Nothing is written until it is saved.
+    fn open_edit(&mut self, entry: &WordbookEntry, window: &mut Window, cx: &mut Context<Self>) {
+        self.edit_term.update(cx, |s, cx| s.set_value(entry.term.clone(), window, cx));
+        self.edit_spoken.update(cx, |s, cx| s.set_value(entry.spoken.join(", "), window, cx));
+        self.edit_rev += 1;
+        self.edit = Some(EditWord {
+            rev: self.edit_rev,
+            original: entry.term.clone(),
+            lang: entry.lang,
+            menu_open: false,
+            saving: false,
+            error: None,
+        });
+        self.edit_term.update(cx, |s, cx| s.focus(window, cx));
+        ui::dismiss_tips(&self.motion.handle());
+        cx.emit(ModalChanged);
+    }
+
+    /// Writes the dialog's fields. A term another entry already has keeps the dialog open and says why.
+    fn save_edit(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let term = self.edit_term.read(cx).value().to_string();
+        if term.trim().is_empty() {
+            return;
+        }
+        let Some(edit) = self.edit.as_mut().filter(|edit| !edit.saving) else { return };
+        let (rev, original, lang) = (edit.rev, edit.original.clone(), edit.lang);
+        edit.saving = true;
+        let spoken = parse_spoken_list(&self.edit_spoken.read(cx).value());
+        let st = self.st.clone();
+        cx.spawn_in(window, async move |this, cx| {
+            let store = st.store.clone();
+            let saved =
+                off_main(&st, move || Ok(store.update_word_entry(&original, &term, &spoken, lang, now())?)).await;
+            let _ = this.update_in(cx, |this, window, cx| {
+                let open = this.edit.as_mut().is_some_and(|edit| {
+                    edit.saving = false;
+                    edit.rev == rev
+                });
+                if matches!(saved, Ok(true)) {
+                    // The wordbook was written, whatever became of the dialog while the save ran.
+                    this.succeeded(cx);
+                    this.load(cx);
+                    if open {
+                        this.close_edit(window, cx);
+                    }
+                } else if open {
+                    // Only the dialog that is still open for this save hears why it wrote nothing.
+                    let failure = match &saved {
+                        Err(e) => {
+                            tracing::warn!("wordbook: edit failed: {e:#}");
+                            Tr::WordbookUpdateFailed
+                        }
+                        Ok(_) => Tr::WordbookDuplicateTerm,
+                    };
+                    this.edit_failed(failure, cx);
+                }
+            });
+        })
+        .detach();
+    }
+
+    /// Enter on the dialog itself saves, which is where the keyboard is after a click on its padding or a pick from
+    /// the language menu. Inside an input, the input's own Enter saves.
+    fn enter_edit(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.edit.as_ref().is_some_and(|edit| !edit.menu_open) {
+            self.save_edit(window, cx);
+        }
+    }
+
+    fn close_edit(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.edit = None;
+        window.blur(cx);
+        cx.emit(ModalChanged);
+    }
+
+    /// Escape closes the language menu first, then the dialog.
+    fn escape_edit(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.edit.as_mut().is_some_and(|edit| std::mem::take(&mut edit.menu_open)) {
+            cx.notify();
+            return;
+        }
+        self.close_edit(window, cx);
+    }
+
+    fn edit_failed(&mut self, error: Tr, cx: &mut Context<Self>) {
+        if let Some(edit) = &mut self.edit {
+            edit.error = Some(error);
+            cx.notify();
+        }
     }
 
     fn toggle_word(&mut self, word: &str, cx: &mut Context<Self>) {
@@ -308,8 +493,8 @@ impl WordbookPage {
                         this.exit_selection(cx);
                         this.succeeded(cx);
                         // Drop deleted terms immediately and discard any snapshot fetched before the deletion.
-                        let words: BTreeSet<_> = words.into_iter().collect();
-                        this.words.data.matching.retain(|term| !words.contains(term));
+                        let removed: BTreeSet<_> = words.into_iter().collect();
+                        this.words.data.matching.retain(|entry| !removed.contains(&entry.term));
                         this.grid.resync = RESYNC_RENDERS;
                         this.changed(cx);
                     }
@@ -323,6 +508,9 @@ impl WordbookPage {
     pub(super) fn overlay(&self, window: &Window, cx: &mut Context<Self>) -> Option<AnyElement> {
         if self.find.is_open() {
             return Some(self.find_overlay(window, cx));
+        }
+        if self.edit.is_some() {
+            return Some(self.edit_overlay(window, cx));
         }
         if !self.confirming_delete {
             return None;
@@ -343,6 +531,80 @@ impl WordbookPage {
                 ui::ConfirmStyle::CompactDestructive,
             )
         }))
+    }
+
+    /// The Edit word dialog: the term, how it is said, and the language that is listened for.
+    fn edit_overlay(&self, window: &Window, cx: &mut Context<Self>) -> AnyElement {
+        let c = Ctx::new(&self.st, cx);
+        let p = c.p;
+        let edit = self.edit.as_ref().expect("the edit dialog is open");
+        let blank = self.edit_term.read(cx).value().trim().is_empty();
+        let language = ui::select(
+            EDIT_LANG,
+            &p,
+            &scope_options(c.lang),
+            scope_index(edit.lang),
+            edit.menu_open,
+            Some(180.),
+            cbk(cx, |this: &mut Self, _, cx| {
+                if let Some(edit) = &mut this.edit {
+                    edit.menu_open = !edit.menu_open;
+                }
+                cx.notify();
+            }),
+            cbk_idx(cx, |this: &mut Self, index, _, cx| {
+                if let Some(edit) = &mut this.edit {
+                    edit.lang = SCOPES[index];
+                }
+                cx.notify();
+            }),
+        );
+        let mut content = vec![
+            text(c.t(Tr::WordbookEditDesc), 13., FontWeight::NORMAL, p.muted).line_height(px(20.)).into_any_element(),
+            ui::field(&p, c.t(Tr::WordbookWord), ui::text_input(&p, &self.edit_term, None)).into_any_element(),
+            described(
+                &p,
+                c.t(Tr::WordbookSpokenForms),
+                ui::text_input(&p, &self.edit_spoken, None),
+                c.t(Tr::WordbookEditSpokenHint),
+            )
+            .into_any_element(),
+            described(&p, c.t(Tr::WordbookTargetLanguage), language, c.t(Tr::WordbookEditLangHint)).into_any_element(),
+        ];
+        content.extend(edit.error.map(|error| ui::banner(&p, c.t(error), None).into_any_element()));
+        let actions = vec![
+            ui::dialog_button(
+                &p,
+                ElementId::from((ElementId::from(EDIT_DIALOG), "cancel")),
+                BtnKind::Secondary,
+                None,
+                ui::DialogAnswer { label: c.t(Tr::AsrEditorCancel), on_click: Some(cbk(cx, Self::close_edit)) },
+            )
+            .into_any_element(),
+            ui::dialog_button(
+                &p,
+                ElementId::from((ElementId::from(EDIT_DIALOG), "save")),
+                BtnKind::Primary,
+                None,
+                ui::DialogAnswer {
+                    label: c.t(Tr::WordbookSave),
+                    on_click: (!blank && !edit.saving).then(|| cbk(cx, Self::save_edit)),
+                },
+            )
+            .into_any_element(),
+        ];
+        let dialog = ui::dialog_with_actions(
+            window,
+            &p,
+            EDIT_DIALOG,
+            &self.edit_focus,
+            text(c.t(Tr::WordbookEditTitle), 20., FontWeight::BOLD, p.text).into_any_element(),
+            content,
+            actions,
+            Some(cbk(cx, Self::escape_edit)),
+            Some(cbk(cx, Self::enter_edit)),
+        );
+        ui::render_with_scope(self.motion.handle(), || dialog)
     }
 
     fn import(&mut self, cx: &mut Context<Self>) {
@@ -457,8 +719,9 @@ impl WordbookPage {
         let p = c.p;
         if self.placeholder_lang != c.lang {
             self.placeholder_lang = c.lang;
-            self.add.update(cx, |s, cx| s.set_placeholder(c.lang.tr(Tr::GeneralExampleHint), window, cx));
-            self.search.update(cx, |s, cx| s.set_placeholder(c.lang.tr(Tr::GeneralSearchWords), window, cx));
+            self.add.update(cx, |s, cx| s.set_placeholder(c.lang.tr(Tr::WordbookExampleHint), window, cx));
+            self.add_spoken.update(cx, |s, cx| s.set_placeholder(c.lang.tr(Tr::WordbookSpokenExample), window, cx));
+            self.search.update(cx, |s, cx| s.set_placeholder(c.lang.tr(Tr::WordbookSearchWords), window, cx));
         }
         let total = self.loaded.then_some(self.words.data.total);
 
@@ -537,26 +800,54 @@ impl WordbookPage {
         let cfg = self.st.cfg.get();
         let hotwords_unsupported = cfg.asr.source == Source::Local
             && self.st.models.spec(&cfg.asr.local_model).is_some_and(|spec| !spec.format.supports_hotwords());
-        let mut add_card = ui::card(&p).bg(p.sub).px(px(26.)).py(px(18.)).gap(px(12.)).child(
-            div()
-                .w_full()
-                .flex()
-                .items_end()
-                .gap(px(12.))
-                .child(div().flex_1().min_w(px(0.)).child(ui::field(
-                    &p,
-                    c.t(Tr::WordbookWord),
-                    ui::text_input(&p, &self.add, None),
-                )))
-                .child(ui::button(
-                    "add-word",
-                    &p,
-                    &c.t(Tr::WordbookAdd),
-                    BtnKind::Primary,
-                    Some(Ic::Plus),
-                    cbk(cx, |this: &mut Self, w, cx| this.add_word(w, cx)),
-                )),
+        let language = ui::select(
+            ADD_LANG,
+            &p,
+            &scope_options(c.lang),
+            scope_index(self.add_lang),
+            self.add_menu_open,
+            Some(132.),
+            cbk(cx, |this: &mut Self, _, cx| {
+                this.add_menu_open = !this.add_menu_open;
+                cx.notify();
+            }),
+            cbk_idx(cx, |this: &mut Self, index, _, cx| {
+                this.add_lang = SCOPES[index];
+                cx.notify();
+            }),
         );
+        let field = |label, control| div().flex_1().min_w(px(0.)).child(ui::field(&p, label, control));
+        let mut add_card = ui::card(&p)
+            .bg(p.sub)
+            .px(px(26.))
+            .py(px(18.))
+            .gap(px(12.))
+            .child(
+                div()
+                    .w_full()
+                    .flex()
+                    .items_end()
+                    .gap(px(12.))
+                    .child(field(c.t(Tr::WordbookWord), ui::text_input(&p, &self.add, None)))
+                    .child(ui::button(
+                        "add-word",
+                        &p,
+                        &c.t(Tr::WordbookAdd),
+                        BtnKind::Primary,
+                        Some(Ic::Plus),
+                        cbk(cx, |this: &mut Self, w, cx| this.add_word(w, cx)),
+                    )),
+            )
+            .child(
+                div()
+                    .w_full()
+                    .flex()
+                    .items_end()
+                    .gap(px(12.))
+                    .child(field(c.t(Tr::WordbookSpokenForms), ui::text_input(&p, &self.add_spoken, None)))
+                    .child(div().flex_none().child(ui::field(&p, c.t(Tr::WordbookTargetLanguage), language))),
+            )
+            .child(ui::muted12(&p, c.t(Tr::WordbookSpokenHint)).line_height(px(18.)));
         if hotwords_unsupported {
             add_card = add_card.child(
                 div().w_full().flex().items_start().gap(px(10.)).child(ui::icon(Ic::Alert, 16., p.accent_text)).child(
@@ -705,22 +996,22 @@ impl WordbookPage {
             [last.clone(), before]
         };
         for index in stale.into_iter().flatten().filter(|index| !built.contains(index)) {
-            let Some(word) = words.get(index) else { continue };
-            let chip_id = chip_id(SharedString::new(word.as_str()));
+            let Some(entry) = words.get(index) else { continue };
+            let chip_id = chip_id(entry.term.as_str());
             let ring_id = ElementId::from((chip_id.clone(), "ring"));
             // Nothing tells a chip that is not painted that the pointer left: its hover is dropped after this
             // build, and the next render has to come to fade it.
             if ui::is_hovered(&chip_id) || ui::is_hovered(&ring_id) {
                 fades.active.set(true);
             }
-            self.chip_fades(&chip_id, &ring_id, word, fades);
+            self.chip_fades(&chip_id, &ring_id, &entry.term, fades);
         }
         self.grid.built = [built, last];
     }
 
-    fn chip_fades(&self, chip_id: &ElementId, ring_id: &ElementId, word: &str, fades: &SelectionFades) -> ChipFades {
+    fn chip_fades(&self, chip_id: &ElementId, ring_id: &ElementId, term: &str, fades: &SelectionFades) -> ChipFades {
         let selecting = self.selection.is_some();
-        let selected = self.selection.as_ref().is_some_and(|terms| terms.contains(word));
+        let selected = self.selection.as_ref().is_some_and(|terms| terms.contains(term));
         let card_hovered = ui::is_hovered(chip_id);
         let ring_hovered = ui::is_hovered(ring_id);
         ChipFades {
@@ -746,7 +1037,7 @@ impl WordbookPage {
             .grid()
             .grid_cols(rows.columns)
             .gap(px(GRID_GAP))
-            .children(words[rows.words(words.len())].iter().map(|word| self.word_chip(&p, cx, word, fades)));
+            .children(words[rows.words(words.len())].iter().map(|entry| self.word_chip(c, cx, entry, fades)));
         if rows.is_whole() {
             return grid;
         }
@@ -785,32 +1076,85 @@ impl WordbookPage {
         .inset_0()
     }
 
-    fn word_chip(&self, p: &Palette, cx: &mut Context<Self>, word: &str, fades: &SelectionFades) -> Stateful<Div> {
-        let word = SharedString::new(word);
-        let chip_id = chip_id(word.clone());
+    fn word_chip(
+        &self,
+        c: &Ctx,
+        cx: &mut Context<Self>,
+        entry: &WordbookEntry,
+        fades: &SelectionFades,
+    ) -> Stateful<Div> {
+        let p = &c.p;
+        let term = SharedString::new(entry.term.as_str());
+        let chip_id = chip_id(&entry.term);
         let hit_id = ElementId::from((chip_id.clone(), "hit"));
         let ring_id = ElementId::from((chip_id.clone(), "ring"));
         let selecting = self.selection.is_some();
-        let ChipFades { marker: opacity, ring: hover, chosen } = self.chip_fades(&chip_id, &ring_id, &word, fades);
+        let ChipFades { marker: opacity, ring: hover, chosen } =
+            self.chip_fades(&chip_id, &ring_id, &entry.term, fades);
 
         let toggle = ui::click_cb(cbk(cx, {
-            let word = word.clone();
-            move |this: &mut Self, _, cx| this.toggle_word(&word, cx)
+            let term = term.clone();
+            move |this: &mut Self, _, cx| this.toggle_word(&term, cx)
         }));
         let ring = ui::selection_ring(p, ring_id, hover, chosen).opacity(opacity);
         let marker = div().id(hit_id).size(px(24.)).flex_none().flex().items_center().justify_center().child(ring);
-        let mut chip = ui::chip_surface(p, chip_id, word, chosen);
+        #[cfg(feature = "screenshots")]
+        let marker = marker.child(self.marker_probe(&entry.term));
+        let lang = entry.lang.map(|lang| SharedString::new_static(lang.name(c.lang)));
+        let spoken = (!entry.spoken.is_empty()).then(|| SharedString::from(entry.spoken.join(", ")));
+        let mut chip = ui::wordbook_chip_surface(p, chip_id, term.clone(), lang, spoken, chosen);
         if selecting && !self.deleting {
             chip = chip.cursor_pointer().on_click(toggle);
         } else if !selecting && !self.deleting {
-            return chip.child(marker.cursor_pointer().on_click(toggle));
+            // The chip body opens the Edit word dialog. The marker over it selects instead, and keeps the click
+            // from reaching the chip.
+            let edit = ui::click_cb(cbk(cx, {
+                let term = term.clone();
+                move |this: &mut Self, window, cx| {
+                    let entry = this.words.data.matching.iter().find(|entry| entry.term.as_str() == term.as_ref());
+                    if let Some(entry) = entry.cloned() {
+                        this.open_edit(&entry, window, cx);
+                    }
+                }
+            }));
+            let select = move |event: &ClickEvent, window: &mut Window, cx: &mut App| {
+                cx.stop_propagation();
+                toggle(event, window, cx);
+            };
+            return chip.cursor_pointer().on_click(edit).child(marker.cursor_pointer().on_click(select));
         }
         chip.child(marker)
     }
 }
 
-fn chip_id(word: SharedString) -> ElementId {
-    ElementId::from((ElementId::from("word"), word))
+/// The name of a language scope in the display language.
+fn scope_label(scope: Option<Lang>, ui: Lang) -> &'static str {
+    match scope {
+        None => ui.tr(Tr::WordbookLangAll),
+        Some(lang) => lang.name(ui),
+    }
+}
+
+fn scope_options(ui: Lang) -> Vec<SharedString> {
+    SCOPES.iter().map(|scope| SharedString::new_static(scope_label(*scope, ui))).collect()
+}
+
+fn scope_index(scope: Option<Lang>) -> usize {
+    SCOPES.iter().position(|candidate| *candidate == scope).unwrap_or(0)
+}
+
+/// A labeled control of the Edit word dialog, with one line of help under it.
+fn described(p: &Palette, label: SharedString, control: impl IntoElement, hint: SharedString) -> Div {
+    div()
+        .flex()
+        .flex_col()
+        .gap(px(6.))
+        .child(ui::field(p, label, control))
+        .child(ui::muted12(p, hint).line_height(px(18.)))
+}
+
+fn chip_id(term: &str) -> ElementId {
+    ElementId::from((ElementId::from("word"), SharedString::new(term)))
 }
 
 /// The rows of a grid with its top at `top` in the window that a window `window_h` tall can show.
@@ -869,12 +1213,62 @@ fn word_columns(window: &Window) -> u16 {
 /// The same handlers the controls call.
 #[cfg(feature = "screenshots")]
 impl WordbookPage {
+    /// Where the selection marker of the term's chip is painted next; read it with [`Self::marker`](Self::marker)
+    /// once a frame has run.
+    pub(super) fn watch_marker(&mut self, term: &str, cx: &mut Context<Self>) {
+        *self.grid.watched.borrow_mut() = Some(SharedString::new(term));
+        cx.notify();
+    }
+
+    pub(super) fn marker(&self) -> Option<Bounds<Pixels>> {
+        self.grid.marker.take().map(|(_, bounds)| bounds)
+    }
+
+    fn marker_probe(&self, term: &str) -> Canvas<()> {
+        let marker = self.grid.marker.clone();
+        let watched = self.grid.watched.clone();
+        let term = SharedString::new(term);
+        canvas(
+            move |bounds, _, _| {
+                if watched.borrow().as_ref() == Some(&term) {
+                    marker.set(Some((term.clone(), bounds)));
+                }
+            },
+            |_, _, _, _| {},
+        )
+        .absolute()
+        .inset_0()
+    }
+
+    /// How many words are selected; `None` outside selection mode.
+    pub(super) fn selection(&self) -> Option<usize> {
+        self.selection.as_ref().map(BTreeSet::len)
+    }
+
+    /// The entry the Edit word dialog edits, with the id of why its last save wrote nothing.
+    pub(super) fn editing(&self) -> Option<(String, Option<&'static str>)> {
+        self.edit.as_ref().map(|edit| (edit.original.clone(), edit.error.map(Tr::id)))
+    }
+
+    /// The terms the page lists, as loaded from the wordbook.
+    pub(super) fn listed(&self) -> Vec<String> {
+        self.words.data.matching.iter().map(|entry| entry.term.clone()).collect()
+    }
+
     pub(super) fn probe(&mut self, case: &str, arg: &str, window: &mut Window, cx: &mut Context<Self>) {
         match case {
             "add" => {
                 self.add.update(cx, |s, cx| s.set_value(arg, window, cx));
                 self.add_word(window, cx);
             }
+            "edit" => {
+                let entry = self.words.data.matching.iter().find(|entry| entry.term == arg).cloned();
+                if let Some(entry) = entry {
+                    self.open_edit(&entry, window, cx);
+                }
+            }
+            "edit-term" => self.edit_term.update(cx, |s, cx| s.set_value(arg, window, cx)),
+            "edit-save" => self.save_edit(window, cx),
             "remove" => self.remove_words(vec![arg.to_owned()], cx),
             "import" => self.import_from(arg.into(), cx),
             "export" => self.export_to(arg.into(), cx),
@@ -898,7 +1292,8 @@ mod tests {
     use super::{GRID_GAP, OVERSCAN_ROWS, ROW_PITCH, Range, rows_in_window, rows_to_build};
 
     const WINDOW_H: f32 = 860.;
-    const WINDOW_ROWS: usize = 16;
+    /// The rows of the grid that a window `WINDOW_H` tall shows, whole or in part.
+    const WINDOW_ROWS: usize = (WINDOW_H / ROW_PITCH).ceil() as usize;
 
     fn covers(built: &Range<usize>, shown: &Range<usize>) -> bool {
         built.start <= shown.start && shown.end <= built.end

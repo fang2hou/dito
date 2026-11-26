@@ -11,7 +11,9 @@ use tokio::sync::mpsc;
 use super::Speaker;
 use crate::audio::AudioClip;
 use crate::error::ErrorKind;
+use crate::i18n::Lang;
 use crate::provider::{AsrRequest, Transcriber};
+use crate::spoken_forms::SpokenForms;
 
 pub(super) struct Utterance {
     pub speaker: Speaker,
@@ -33,13 +35,15 @@ pub(super) enum Job {
 }
 
 pub(super) enum Recognized {
-    /// `text` is `None` for an utterance with nothing recognizable or a failed recognition.
+    /// `text` is `None` for an utterance with nothing recognizable or a failed recognition. `lang` is the language
+    /// the engine reported, which the paragraph's spoken forms are matched in.
     Final {
         speaker: Speaker,
         seq: u64,
         start_ms: u64,
         end_ms: u64,
         text: Option<String>,
+        lang: Option<Lang>,
     },
     Partial {
         speaker: Speaker,
@@ -54,7 +58,10 @@ pub(super) enum Recognized {
 pub(super) struct Recognizer {
     pub asr: Arc<dyn Transcriber>,
     pub language: Option<String>,
+    /// The terms of the wordbook, passed to ASR as hotwords.
     pub words: Vec<String>,
+    /// The spoken forms of the wordbook, compiled once for the whole session: this task runs for every partial.
+    pub forms: Arc<SpokenForms>,
 }
 
 struct Partial {
@@ -84,16 +91,17 @@ impl Recognizer {
                 let started = Instant::now();
                 let (speaker, seq, start_ms, end_ms) = (u.speaker, u.seq, u.start_ms, u.end_ms);
                 let secs = u.samples.len() as f32 / crate::audio::SAMPLE_RATE as f32;
-                let text = match self.transcribe(u.samples).await {
-                    Ok(text) => text,
+                let (text, lang) = match self.transcribe(u.samples).await {
+                    Ok(Some((text, lang))) => (Some(text), lang),
+                    Ok(None) => (None, None),
                     Err(e) => {
                         tracing::warn!("transcription of an utterance failed: {e}");
                         let _ = out.send(Recognized::Failed(e));
-                        None
+                        (None, None)
                     }
                 };
                 tracing::debug!("final {speaker:?}#{seq} ({secs:.1} s of audio) in {:?}", started.elapsed());
-                let _ = out.send(Recognized::Final { speaker, seq, start_ms, end_ms, text });
+                let _ = out.send(Recognized::Final { speaker, seq, start_ms, end_ms, text, lang });
                 continue;
             }
             if !open {
@@ -113,7 +121,7 @@ impl Recognizer {
             // Dropping `work` cancels the recognition at its next token.
             let text = loop {
                 tokio::select! {
-                    text = &mut work => break text.ok().flatten(),
+                    text = &mut work => break text.ok().flatten().map(|(text, _)| text),
                     job = jobs.recv() => match job {
                         Some(Job::Final(u)) => {
                             queue(Job::Final(u), &mut finals, &mut partials);
@@ -135,11 +143,17 @@ impl Recognizer {
         }
     }
 
-    async fn transcribe(&self, samples: Vec<f32>) -> Result<Option<String>, String> {
+    /// The text of the utterance with each spoken form written as its term, and the language it was matched in.
+    async fn transcribe(&self, samples: Vec<f32>) -> Result<Option<(String, Option<Lang>)>, String> {
         let clip = AudioClip::new(samples);
         let request = AsrRequest { clip: &clip, language: self.language.as_deref(), hotwords: &self.words };
         match self.asr.transcribe(&request).await {
-            Ok(t) => Ok(Some(t.text.trim().to_string()).filter(|t| !t.is_empty())),
+            Ok(t) => {
+                let raw = t.text.trim();
+                let lang = crate::pipeline::spoken_forms_lang(t.language.as_deref(), raw);
+                let text = self.forms.apply_for_lang(raw, lang).into_owned();
+                Ok(Some((text, lang)).filter(|(text, _)| !text.is_empty()))
+            }
             Err(e) if e.kind == ErrorKind::NoSpeech => Ok(None),
             Err(e) => Err(e.to_string()),
         }
