@@ -11,7 +11,7 @@ use crate::error::{ErrorKind, ProviderError, ProviderResult};
 use crate::factory::Engines;
 use crate::health::EngineStatus;
 use crate::i18n::Lang;
-use crate::prompts::{AppTarget, PromptInput, Prompts, SCAFFOLD_MARKERS, build_prompt, detect_lang};
+use crate::prompts::{AppTarget, FENCE, PromptInput, Prompts, SCAFFOLD_MARKERS, build_prompt, detect_lang};
 use crate::provider::{AsrRequest, TextModel, TextRequest};
 use crate::spoken_forms;
 use crate::store::{WordbookEntry, wordbook_terms};
@@ -374,14 +374,32 @@ fn trace_polish_retry(succeeded: bool, error: Option<ErrorKind>) {
     trace_log!(succeeded, error = ?error, "polish retry finished");
 }
 
-fn validate_polish_output(text: String) -> ProviderResult<String> {
-    if text.trim().is_empty() {
+/// What the model wrote, trimmed. Empty, or still holding a piece of its prompt or of its reasoning, it is an error
+/// to retry: typed as it is, it would replace the user's words.
+pub(crate) fn validate_polish_output(text: String) -> ProviderResult<String> {
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
         return Err(ProviderError::retryable(ErrorKind::BadResponse, "empty model output"));
     }
-    if text.lines().any(|line| SCAFFOLD_MARKERS.contains(&line) || matches!(line, "<think>" | "</think>")) {
+    let leaked = trimmed.contains("<think>")
+        || trimmed.contains("</think>")
+        || trimmed.lines().any(|line| {
+            let line = line.trim();
+            line == FENCE || SCAFFOLD_MARKERS.iter().any(|marker| leaks(marker, line))
+        });
+    if leaked {
         return Err(ProviderError::retryable(ErrorKind::BadResponse, "polish output leaked its scaffold"));
     }
-    Ok(text)
+    Ok(if trimmed.len() == text.len() { text } else { trimmed.to_string() })
+}
+
+/// Whether a line repeats a piece of the prompt: a tag opens or closes a block wherever the line starts with it,
+/// while a section header (`#Section#`) stands alone or takes a colon, so prose that merely begins like one is kept.
+fn leaks(marker: &str, line: &str) -> bool {
+    let Some(rest) = line.strip_prefix(marker) else {
+        return false;
+    };
+    !marker.starts_with('#') || rest.is_empty() || rest.starts_with([':', '\u{ff1a}'])
 }
 
 async fn checked_attempt(
@@ -719,13 +737,28 @@ mod tests {
 
     #[test]
     fn polish_output_check_rejects_only_known_broken_shapes() {
-        for marker in SCAFFOLD_MARKERS.into_iter().chain(["<think>", "</think>"]) {
-            let error = validate_polish_output(format!("before\n{marker}\nafter")).unwrap_err();
-            assert!(error.is_retryable(), "{marker}");
+        for marker in SCAFFOLD_MARKERS {
+            // A whole line of the prompt, or one with a note after it.
+            for leaked in [format!("before\n{marker}\nafter"), format!("before\n{marker}: note\nafter")] {
+                let error = validate_polish_output(leaked).unwrap_err();
+                assert!(error.is_retryable(), "{marker}");
+            }
         }
-        for text in ["hello", "x", "hello hello hello", &"x".repeat(20_000)] {
+        // A tag opens a block wherever the line starts with it; a section header must stand alone or take a colon,
+        // so prose that merely begins like one stays.
+        assert!(validate_polish_output("<instruction>text</instruction>".into()).unwrap_err().is_retryable());
+        assert!(validate_polish_output("#Outputs#\u{ff1a} note".into()).unwrap_err().is_retryable());
+        for text in ["#Style# and more", "#Purpose#ful"] {
+            assert_eq!(validate_polish_output(text.to_string()).unwrap(), text, "{text}");
+        }
+        for leaked in ["===\ntext\n===", " #Outputs# ", "#Outputs#: text", "<think>hmm</think>hi", "hi</think>"] {
+            let error = validate_polish_output(leaked.to_string()).unwrap_err();
+            assert!(error.is_retryable(), "{leaked}");
+        }
+        for text in ["hello", "x", "hello hello hello", "a === b and 1 < 2", &"x".repeat(20_000)] {
             assert_eq!(validate_polish_output(text.to_string()).unwrap(), text);
         }
+        assert_eq!(validate_polish_output("  padded\n".into()).unwrap(), "padded");
     }
 
     #[tokio::test]

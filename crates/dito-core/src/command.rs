@@ -11,7 +11,7 @@ mod tools;
 use crate::error::ProviderResult;
 use crate::i18n::Lang;
 use crate::intent::{Intent, RewriteOp};
-use crate::pipeline::{PolishJob, call_text_model, polish_text};
+use crate::pipeline::{PolishJob, call_text_model, polish_text, validate_polish_output};
 use crate::prompts::{AppTarget, PolishPrompt, Prompts, detect_lang};
 use crate::provider::{TextModel, TextRequest};
 use crate::surrounding::Surrounding;
@@ -89,8 +89,10 @@ impl Tool {
         })
     }
 
+    /// The result is checked like a dictation's polish, since it replaces the selection: empty, or with a piece of
+    /// the prompt or of the model's reasoning left in, it is an error instead.
     pub async fn run(&self, text_model: &dyn TextModel, ctx: ToolContext<'_>) -> ProviderResult<String> {
-        match self.prepare(ctx.surrounding) {
+        let output = match self.prepare(ctx.surrounding) {
             Prepared::Polish { text } => {
                 let lang = detect_lang(text);
                 let job = PolishJob { prompts: ctx.prompts, target: ctx.target, text, wordbook: ctx.wordbook, lang };
@@ -100,7 +102,8 @@ impl Tool {
                 let request = TextRequest { system: &prompt.system, examples: prompt.examples, text: &prompt.user };
                 call_text_model(text_model, self.name(), &request).await
             }
-        }
+        };
+        output.and_then(validate_polish_output)
     }
 
     /// The tool's name in the debug log: the label of its intent, with `answer` for the question tool.
@@ -322,5 +325,38 @@ mod tests {
         assert!(matches!(new(Intent::Reply, Some("t")), Some(Tool::Reply { .. })));
         assert!(matches!(new(Intent::Polish, Some("t")), Some(Tool::Polish { .. })));
         assert!(Intent::ALL.into_iter().filter(|i| needs_text(*i)).all(|i| new(i, None).is_none()));
+    }
+
+    struct Saying(&'static str);
+
+    #[async_trait::async_trait]
+    impl TextModel for Saying {
+        async fn polish(&self, _: &TextRequest<'_>) -> ProviderResult<String> {
+            Ok(self.0.into())
+        }
+    }
+
+    async fn run(tool: &Tool, output: &'static str) -> ProviderResult<String> {
+        let prompts = Prompts::default();
+        tool.run(
+            &Saying(output),
+            ToolContext { prompts: &prompts, target: AppTarget::General, wordbook: &[], surrounding: None },
+        )
+        .await
+    }
+
+    #[tokio::test]
+    async fn tool_output_that_repeats_the_prompt_is_an_error_rather_than_the_selections_replacement() {
+        let mut tools = every_tool("shorter", "the text");
+        tools.push(Tool::Polish { text: "dictated".into() });
+        for tool in &tools {
+            for leaked in
+                ["  ", "<think>hmm</think>shorter", "#Background#\nshorter", "<instruction>shorter</instruction>"]
+            {
+                let error = run(tool, leaked).await.unwrap_err();
+                assert!(error.is_retryable(), "{}: {leaked}", tool.name());
+            }
+            assert_eq!(run(tool, "  shorter\n").await, Ok("shorter".into()), "{}", tool.name());
+        }
     }
 }
