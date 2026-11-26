@@ -43,6 +43,7 @@ const GROUPS: &[ShotGroup] = &[
     opt_in("chat", |st, dir, cx| Box::pin(super::chat::run(st, dir, cx))),
     opt_in("transcriptfilm", |st, dir, cx| Box::pin(super::transcript_film::run(st, dir, cx))),
     opt_in("wordbook", |st, dir, cx| Box::pin(wordbook::wordbook_failure_shots(st, dir, cx))),
+    opt_in("wordbookspoken", |st, dir, cx| Box::pin(wordbook::wordbook_spoken_form_shots(st, dir, cx))),
     opt_in("tilerow", |_, dir, cx| Box::pin(tile_row::tile_row_shots(dir, cx))),
     opt_in("status", |st, dir, cx| Box::pin(pages::status_shots(st, dir, cx))),
     opt_in("statuslog", |st, dir, cx| Box::pin(pages::status_log_shots(st, dir, cx))),

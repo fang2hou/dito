@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use dito_core::store::{HistoryEntry, HistoryFilter, Period, Stats, Store, shown_days};
+use dito_core::store::{HistoryEntry, HistoryFilter, Period, Stats, Store, WordbookEntry, shown_days};
 
 use crate::state::AppState;
 use crate::timefmt::day_start;
@@ -73,7 +73,8 @@ pub async fn chars_since(st: Arc<AppState>, since_ts: i64) -> Result<u64> {
 
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct WordbookWords {
-    pub matching: Vec<String>,
+    /// The entries whose term or one of its spoken forms matches the search.
+    pub matching: Vec<WordbookEntry>,
     pub total: usize,
 }
 
@@ -86,7 +87,7 @@ pub async fn wordbook_words(st: Arc<AppState>, query: String) -> Result<Wordbook
 }
 
 fn wordbook_snapshot(store: &Store, query: &str) -> Result<WordbookWords> {
-    Ok(WordbookWords { matching: store.words(Some(query))?, total: store.word_count()? })
+    Ok(WordbookWords { matching: store.wordbook_entries(Some(query))?, total: store.word_count()? })
 }
 
 pub fn aws_profiles() -> Vec<String> {
@@ -124,14 +125,20 @@ mod tests {
     use super::*;
 
     #[test]
-    fn wordbook_snapshot_filters_matches_but_counts_every_word() {
+    fn wordbook_snapshot_filters_matches_by_term_or_spoken_form_but_counts_every_word() {
         let store = Store::open_in_memory().unwrap();
         for word in ["alpha", "beta", "alphabet"] {
             store.add_word(word, 1).unwrap();
         }
+        store.add_word_entry("MTG", &["meeting".to_string()], None, 1).unwrap();
         let snapshot = wordbook_snapshot(&store, "alpha").unwrap();
-        assert_eq!(snapshot.total, 3);
-        assert_eq!(snapshot.matching.len(), 2);
+        assert_eq!(snapshot.total, 4);
+        assert_eq!(
+            snapshot.matching.iter().map(|entry| entry.term.as_str()).collect::<Vec<_>>(),
+            ["alpha", "alphabet"]
+        );
+        let snapshot = wordbook_snapshot(&store, "meeting").unwrap();
+        assert_eq!((snapshot.total, snapshot.matching.len()), (4, 1));
     }
 
     #[test]

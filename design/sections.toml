@@ -138,6 +138,11 @@ board = "20.02"
 item = "20.02.9"
 layer = "Find words with another AI"
 
+[settings.wordbook.spoken-forms]
+board = "20.02"
+item = "20.02.10"
+layer = "Spoken forms"
+
 [settings.local-models]
 board = "20.04"
 layer = "Local Models"

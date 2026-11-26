@@ -29,7 +29,7 @@ use crate::i18n::{Lang, Tr};
 use crate::pipeline::polish_wordbook;
 use crate::prompts::fence;
 use crate::provider::{TextModel, TextRequest};
-use crate::store::Store;
+use crate::store::{Store, wordbook_terms};
 
 const IDLE_TICK: Duration = Duration::from_millis(250);
 
@@ -441,7 +441,8 @@ async fn record(
         Err(e) => Some(Err(e.to_string())),
     };
     let titler = polisher.as_ref().and_then(|p| p.as_ref().ok().cloned()).filter(|_| cfg.transcription.auto_title);
-    let words = deps.store.words(None).unwrap_or_default();
+    let entries = deps.store.wordbook_entries(None).unwrap_or_default();
+    let words = wordbook_terms(&entries);
     let terms = polish_wordbook(&cfg, &words).to_vec();
     let mut wanted = Vec::new();
     for (source, speaker) in SOURCES {
@@ -493,7 +494,8 @@ async fn record(
 
     let (job_tx, job_rx) = mpsc::unbounded_channel::<Job>();
     let (text_tx, mut text_rx) = mpsc::unbounded_channel::<Recognized>();
-    let recognizer = Recognizer { asr, language: cfg.general.preferred_language.code().map(str::to_string), words };
+    let recognizer =
+        Recognizer { asr, language: cfg.general.preferred_language.code().map(str::to_string), words, entries };
     let recognizer = tokio::spawn(recognizer.run(job_rx, text_tx));
     let (polish_tx, polish_rx) = mpsc::unbounded_channel::<Closed>();
     // Read per paragraph: the user may turn the second source on or off while the session runs.

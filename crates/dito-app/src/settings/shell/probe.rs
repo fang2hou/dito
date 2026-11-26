@@ -47,6 +47,23 @@ impl Settings {
         self.wordbook.read(cx).failure_name()
     }
 
+    #[cfg(feature = "screenshots")]
+    pub fn wordbook_watch_marker(&mut self, term: &str, cx: &mut Context<Self>) {
+        self.wordbook.update(cx, |page, cx| page.watch_marker(term, cx));
+    }
+
+    #[cfg(feature = "screenshots")]
+    pub fn wordbook_marker(&self, cx: &App) -> Option<Bounds<Pixels>> {
+        self.wordbook.read(cx).marker()
+    }
+
+    /// How many words are selected, and the entry the Edit word dialog edits with the id of its error.
+    #[cfg(feature = "screenshots")]
+    pub fn wordbook_state(&self, cx: &App) -> (Option<usize>, Option<(String, Option<&'static str>)>) {
+        let page = self.wordbook.read(cx);
+        (page.selection(), page.editing())
+    }
+
     pub fn probe_models(&self, case: &str, arg: &str, text: &str, window: &mut Window, cx: &mut Context<Self>) {
         self.models.update(cx, |m, cx| m.probe(case, arg, text, window, cx));
     }

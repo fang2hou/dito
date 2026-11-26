@@ -17,7 +17,7 @@ use crate::config::{EngineLabels, MusicMuteMode, RecordMode};
 use crate::error::{ErrorKind, ProviderError};
 use crate::pipeline::{self, Output, PipelineError, PipelineJob, PipelinePhase};
 use crate::prompts::AppTarget;
-use crate::store::{HistoryKind, NewHistory, StepMillis, Store};
+use crate::store::{HistoryKind, NewHistory, StepMillis, Store, WordbookEntry};
 use crate::trace::{self, RunId};
 use crate::trace_log;
 
@@ -149,8 +149,8 @@ pub fn spawn(deps: Deps) -> DictationHandle {
 }
 
 /// Wordbook words are a hint only: without them the dictation still runs.
-pub(crate) async fn load_wordbook(store: Arc<Store>) -> Vec<String> {
-    let loaded = tokio::task::spawn_blocking(move || store.words(None))
+pub(crate) async fn load_wordbook(store: Arc<Store>) -> Vec<WordbookEntry> {
+    let loaded = tokio::task::spawn_blocking(move || store.wordbook_entries(None))
         .await
         .map_err(|e| e.to_string())
         .and_then(|words| words.map_err(|e| e.to_string()));

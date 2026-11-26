@@ -6,7 +6,7 @@ use crate::config::Config;
 use crate::error::{ErrorKind, ProviderError};
 use crate::factory::Engines;
 use crate::pipeline::{self, CancellationToken, PipelineError, PipelineJob, PolishJob};
-use crate::store::{HistoryEntry, NewHistory, StepMillis, Store, StoreError};
+use crate::store::{HistoryEntry, NewHistory, StepMillis, Store, StoreError, wordbook_terms};
 
 #[derive(Debug, thiserror::Error)]
 pub enum HistoryRerunError {
@@ -74,7 +74,7 @@ pub async fn polish_again(
         .text_model(&engine_cfg)
         .await?
         .ok_or_else(|| ProviderError::new(ErrorKind::Unavailable, "no text model is available"))?;
-    let words = super::actor::load_wordbook(store.clone()).await;
+    let words = wordbook_terms(&super::actor::load_wordbook(store.clone()).await);
     let polish_job = PolishJob {
         prompts: &cfg.prompts,
         target: entry.style,

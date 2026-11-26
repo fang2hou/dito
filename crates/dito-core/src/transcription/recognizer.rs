@@ -12,6 +12,7 @@ use super::Speaker;
 use crate::audio::AudioClip;
 use crate::error::ErrorKind;
 use crate::provider::{AsrRequest, Transcriber};
+use crate::store::WordbookEntry;
 
 pub(super) struct Utterance {
     pub speaker: Speaker,
@@ -54,7 +55,10 @@ pub(super) enum Recognized {
 pub(super) struct Recognizer {
     pub asr: Arc<dyn Transcriber>,
     pub language: Option<String>,
+    /// The terms of the wordbook, passed to ASR as hotwords.
     pub words: Vec<String>,
+    /// The wordbook entries, whose spoken forms are written as their terms.
+    pub entries: Vec<WordbookEntry>,
 }
 
 struct Partial {
@@ -140,7 +144,9 @@ impl Recognizer {
         let request = AsrRequest { clip: &clip, language: self.language.as_deref(), hotwords: &self.words };
         match self.asr.transcribe(&request).await {
             Ok(t) => {
-                let text = crate::spoken_forms::normalize(t.text.trim(), &self.words).into_owned();
+                let raw = t.text.trim();
+                let lang = crate::pipeline::transcript_lang(t.language.as_deref(), raw);
+                let text = crate::spoken_forms::normalize_entries(raw, &self.entries, Some(lang)).into_owned();
                 Ok(Some(text).filter(|text| !text.is_empty()))
             }
             Err(e) if e.kind == ErrorKind::NoSpeech => Ok(None),

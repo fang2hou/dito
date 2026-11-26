@@ -22,6 +22,7 @@ use schema::{SCHEMA_VERSION, migrate, user_version};
 pub use transcripts::{
     ParagraphState, RESUME_WINDOW_SECS, Reopened, Sources, Speaker, Transcript, TranscriptParagraph, TranscriptSummary,
 };
+pub use wordbook::{WordbookEntry, parse_spoken_list, wordbook_terms};
 
 pub struct Store {
     conn: Mutex<Connection>,

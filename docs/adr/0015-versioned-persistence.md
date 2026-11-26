@@ -47,6 +47,7 @@ The SQLite store counts its migrations in `PRAGMA user_version` (`MIGRATIONS` in
 | 5 | Transcription sessions and their paragraphs: `transcripts` and `transcript_paragraphs`. A paragraph keeps the text the user reads and edits and the recognized words, so a failed polish never loses them |
 | 6 | `transcripts` gains `recorded_ms`, the time recorded across its sessions without the gaps between them; nullable, so an earlier transcript uses its span from start to end |
 | 7 | Chat conversations: `chats` and `chat_messages`. A message keeps the files and meetings it carried as a JSON list in `attachments`, with their text copied in |
+| 8 | Spoken forms of a wordbook term: `wordbook_spoken`, one row per form a transcript may say instead of the term. `lang` is NULL when the form counts for every language, else `ja`, `en` or `zh`. The wordbook keeps its rows unchanged: a word without spoken forms has none |
 
 Version 4 stores the details of a command in one JSON column, `CommandDetails`. Its shape is a persisted shape like any column: a change to it is a new migration of the stored JSON, and `CommandDetails` gets no serde defaults to paper over old rows. A row whose details a build cannot read (written by a newer build) still lists, without them.
 
