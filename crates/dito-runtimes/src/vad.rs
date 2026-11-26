@@ -76,12 +76,17 @@ impl SileroVad {
 
     fn collect(&mut self) {
         let p = self.detector.as_ptr();
-        // SAFETY: the detector is live; each front segment is copied out and freed before it is popped.
+        // SAFETY: the detector is live; each front segment is copied out and freed before it is popped. Its samples
+        // are read only behind a non-null pointer with a positive count.
         unsafe {
             while ffi::SherpaOnnxVoiceActivityDetectorEmpty(p) == 0 {
                 let segment = ffi::SherpaOnnxVoiceActivityDetectorFront(p);
                 if let Some(s) = segment.as_ref() {
-                    let samples = std::slice::from_raw_parts(s.samples, s.n.max(0) as usize).to_vec();
+                    let samples = if s.n > 0 && !s.samples.is_null() {
+                        std::slice::from_raw_parts(s.samples, s.n as usize).to_vec()
+                    } else {
+                        Vec::new()
+                    };
                     self.ready.push_back(Speech { start_sample: s.start.max(0) as u64, samples });
                     ffi::SherpaOnnxDestroySpeechSegment(segment);
                 }
