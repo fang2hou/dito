@@ -137,22 +137,17 @@ fn notes_body(page: &TranscriptionPage, c: &Ctx, cx: &mut Context<TranscriptionP
     let mut column = div().w_full().flex().flex_col().pt(px(12.)).pb(px(8.));
     let message = |tr: Tr| text(c.t(tr), 12., FontWeight::NORMAL, p.muted).line_height(px(20.));
     match (&view.phase, &view.notes) {
-        (NotesPhase::Unavailable(why), _) => {
-            let (note, offer) = match why {
-                Unavailable::NeedsLocalModel => (Tr::TranscriptionNotesNeedLocal, true),
-                Unavailable::ModelFailed(_) => (Tr::TranscriptionNotesModelFailed, true),
-            };
-            column = column.gap(px(12.)).child(message(note));
-            if offer {
-                column = column.child(div().flex().child(ui::button(
+        (NotesPhase::Unavailable(Unavailable::ModelFailed(_)), _) => {
+            column = column.gap(px(12.)).child(message(Tr::TranscriptionNotesModelFailed)).child(div().flex().child(
+                ui::button(
                     "meeting-notes-model-settings",
                     &p,
                     &c.t(Tr::TranscriptionNotesOpenModel),
                     BtnKind::Secondary,
                     None,
                     ui::cbk(cx, |page, _, cx| page.open_chat_model_settings(cx)),
-                )));
-            }
+                ),
+            ));
         }
         (_, Some(notes)) if !notes.is_empty() => {
             column = notes_column(column, notes, view.stale, c);

@@ -1,6 +1,5 @@
-//! Where the live meeting notes get their model: the chat model in use, and only when it runs on this Mac. A cloud
-//! chat model is never asked, whatever the other settings say, so the notes keep the meeting off the network
-//! (ADR-0002, ADR-0008).
+//! Where the live meeting notes get their model: the chat model in use, on this Mac or in the cloud, as for any chat
+//! (ADR-0008).
 
 use std::sync::Arc;
 
@@ -27,9 +26,6 @@ impl NotesModelSource for ChatNotes {
 
     fn model(&self) -> ModelFuture<'_> {
         Box::pin(async {
-            if !chat_model_is_local(&self.st) {
-                return Err(Unavailable::NeedsLocalModel);
-            }
             let engine = self.st.cfg.get().chat_engine().into_owned();
             let facts = chat_model_facts(&self.st);
             // Held until the request ends, so the keeper never unloads the model under it.

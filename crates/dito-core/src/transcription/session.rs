@@ -1127,6 +1127,51 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn a_meeting_is_polished_by_a_cloud_text_model_when_it_is_the_one_set() {
+        use crate::config::{Config, Source};
+        use crate::error::ProviderResult;
+        use crate::provider::{Router, Transcriber};
+
+        struct CloudOnly(FixedEngines);
+        #[async_trait::async_trait]
+        impl Engines for CloudOnly {
+            async fn transcriber(&self, cfg: &Config) -> ProviderResult<Arc<dyn Transcriber>> {
+                self.0.transcriber(cfg).await
+            }
+            async fn text_model(&self, cfg: &Config) -> ProviderResult<Option<Arc<dyn TextModel>>> {
+                assert_eq!(cfg.text_model.source, Source::Provider);
+                self.0.text_model(cfg).await
+            }
+            async fn router(&self, cfg: &Config) -> ProviderResult<Arc<dyn Router>> {
+                self.0.router(cfg).await
+            }
+        }
+
+        let dir = tempfile::tempdir().unwrap();
+        let config = Arc::new(ConfigStore::open(dir.path().join("config.toml")).unwrap());
+        config.update(|c| c.text_model.source = Source::Provider).unwrap();
+        let store = Arc::new(Store::open_in_memory().unwrap());
+        let handle = spawn(TranscriptionDeps {
+            audio: ScriptedAudio::new(vec![(AudioSource::System, speech(1.0))]),
+            detectors: Arc::new(EnergyDetectors),
+            engines: Arc::new(CloudOnly(FixedEngines::new(
+                Arc::new(MockTranscriber::new("えーと決済の件です")),
+                Arc::new(MockTextModel::default()),
+            ))),
+            config,
+            store: store.clone(),
+        });
+
+        handle.start(Sources { system: true, microphone: false });
+        let t = record_once(&handle, &store).await;
+        assert!(!t.paragraphs.is_empty());
+        for p in &t.paragraphs {
+            assert_eq!(p.state, ParagraphState::Done);
+            assert!(!p.text.contains("えーと"), "polished: {}", p.text);
+        }
+    }
+
+    #[tokio::test]
     async fn a_resumed_session_appends_to_the_same_transcript_on_its_clock() {
         let store = Arc::new(Store::open_in_memory().unwrap());
         let started = crate::unix_seconds() - 600;

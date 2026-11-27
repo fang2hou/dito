@@ -197,7 +197,7 @@ impl TranscriptionPage {
         self.notes.meeting = None;
     }
 
-    /// A chat model switched to a local one brings the notes of an open panel back to life.
+    /// A changed chat model brings the notes of an open panel that could not start back to life.
     fn watch_chat_model(&mut self, cx: &mut Context<Self>) {
         let mut cfg = self.st.cfg.subscribe();
         self.notes._config = Some(cx.spawn(async move |this, cx| {
