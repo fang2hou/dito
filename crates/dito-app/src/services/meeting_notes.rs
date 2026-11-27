@@ -40,6 +40,7 @@ impl NotesModelSource for ChatNotes {
             Ok(NotesModel {
                 model,
                 limits: facts.limits,
+                local: engine.source == Source::Local,
                 thinking_off: facts.thinking.is_some_and(|t| t.can_disable),
                 max_tokens,
                 hold: Some(Box::new(hold)),

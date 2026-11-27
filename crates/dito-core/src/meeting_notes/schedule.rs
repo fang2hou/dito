@@ -1,126 +1,166 @@
-//! When a refresh of the notes is due. Pure: the runner feeds it the clock and what it sees, and the rules are
-//! tested without a model.
+//! Which request to run next, given the recording and monotonic clocks.
 
 use std::time::Duration;
 
-/// While text keeps arriving, the notes refresh no more often than this.
-pub const REFRESH_EVERY: Duration = Duration::from_secs(60);
+pub(super) const HINT_EVERY: Duration = Duration::from_secs(30);
+pub(super) const FINAL_GAP: Duration = Duration::from_secs(5);
+const MEMO_EVERY_MS: u64 = 5 * 60 * 1_000;
+const LATE_OPEN_MS: u64 = 2 * 60 * 1_000;
 
-/// Once the recording is over, the last refresh waits this long after the one before it.
-const FINAL_GAP: Duration = Duration::from_secs(5);
-
-/// What the runner sees at one look.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Poll {
-    /// A monotonic clock.
+pub(super) enum Job {
+    Hint,
+    Memo { last: bool },
+}
+
+#[derive(Clone, Copy)]
+pub(super) enum Outcome {
+    Succeeded { more: bool },
+    Failed,
+}
+
+pub(super) struct Poll {
     pub now: Duration,
-    /// Changes whenever the transcript reaches further or holds more.
-    pub fingerprint: u64,
+    pub meeting_ms: u64,
+    pub covered_ms: u64,
     pub has_text: bool,
+    pub hint_changed: bool,
+    pub memo_changed: bool,
     pub paused: bool,
-    /// The session is over: no more text will arrive, so the last refresh may run ahead of the interval.
     pub ending: bool,
 }
 
-#[derive(Debug)]
-pub struct Scheduler {
-    every: Duration,
+pub(super) struct Scheduler {
+    hint_every: Duration,
+    final_gap: Duration,
+    hint: Attempts,
+    memo: Attempts,
+    hint_attempted: bool,
+    late_open: bool,
+    memo_started_ms: Option<u64>,
+    memo_more: bool,
+    final_started: bool,
     last_start: Option<Duration>,
-    last_ok: Option<u64>,
 }
 
-impl Default for Scheduler {
-    fn default() -> Self {
-        Self::new(REFRESH_EVERY)
+#[derive(Default)]
+struct Attempts {
+    started: Option<Duration>,
+    took: Duration,
+    retry_at: Duration,
+    failures: usize,
+}
+
+impl Attempts {
+    fn ready(&self, now: Duration) -> bool {
+        now >= self.retry_at
+    }
+
+    fn finished(&mut self, now: Duration, success: bool, backoff_unit: Duration) {
+        self.took = now.saturating_sub(self.started.unwrap_or(now));
+        if success {
+            self.failures = 0;
+            self.retry_at = Duration::ZERO;
+        } else {
+            let units = [1, 2, 4, 8, 10];
+            self.retry_at = now + backoff_unit * units[self.failures.min(units.len() - 1)];
+            self.failures = self.failures.saturating_add(1);
+        }
     }
 }
 
 impl Scheduler {
-    pub fn new(every: Duration) -> Self {
-        Self { every, last_start: None, last_ok: None }
+    pub fn new(hint_every: Duration, final_gap: Duration, seeded_hint: bool, memo_ms: Option<u64>) -> Self {
+        Self {
+            hint_every,
+            final_gap,
+            hint: Attempts::default(),
+            memo: Attempts::default(),
+            hint_attempted: seeded_hint || memo_ms.is_some(),
+            late_open: false,
+            memo_started_ms: memo_ms,
+            memo_more: false,
+            final_started: false,
+            last_start: None,
+        }
     }
 
-    /// Whether a refresh should start now. At most one runs at a time: the caller asks again only when none is
-    /// running.
-    pub fn due(&self, poll: &Poll) -> bool {
-        if !poll.has_text || self.last_ok == Some(poll.fingerprint) {
-            return false;
+    pub fn final_pending(&self, poll: &Poll) -> bool {
+        poll.has_text && poll.memo_changed && (!self.final_started || self.memo_more)
+    }
+
+    pub fn next(&self, poll: &Poll) -> Option<Job> {
+        if !poll.has_text {
+            return None;
         }
-        let Some(last) = self.last_start else { return true };
-        let since = poll.now.saturating_sub(last);
         if poll.ending {
-            return since >= self.every.min(FINAL_GAP);
+            let gap_passed = self.last_start.is_none_or(|last| poll.now >= last + self.final_gap);
+            return (self.final_pending(poll) && (self.final_started || gap_passed))
+                .then_some(Job::Memo { last: true });
         }
-        !poll.paused && since >= self.every
+        if !self.hint_attempted {
+            return Some(Job::Hint);
+        }
+        if poll.paused {
+            return None;
+        }
+
+        let hint_interval = self.hint_every.max(3 * self.hint.took);
+        let hint_due = poll.hint_changed
+            && self.hint.ready(poll.now)
+            && self.hint.started.is_none_or(|last| poll.now >= last + hint_interval);
+
+        // The first chunk gets priority. Give an overdue hint a slot between chunks.
+        if self.memo_more {
+            return Some(if hint_due { Job::Hint } else { Job::Memo { last: false } });
+        }
+        let memo_due = poll.memo_changed
+            && self.memo.ready(poll.now)
+            && (self.memo.failures > 0
+                || self.memo_started_ms.is_none() && self.late_open
+                || poll.meeting_ms >= self.memo_started_ms.unwrap_or(0) + MEMO_EVERY_MS);
+        if memo_due { Some(Job::Memo { last: false }) } else { hint_due.then_some(Job::Hint) }
     }
 
-    /// The refresh that succeeded last covered the transcript as `fingerprint` saw it.
-    pub fn covers(&self, fingerprint: u64) -> bool {
-        self.last_ok == Some(fingerprint)
+    pub fn started(&mut self, job: Job, poll: &Poll) {
+        self.last_start = Some(poll.now);
+        match job {
+            Job::Hint => {
+                if !self.hint_attempted {
+                    self.late_open = poll.covered_ms >= LATE_OPEN_MS;
+                    self.hint_attempted = true;
+                }
+                self.hint.started = Some(poll.now);
+            }
+            Job::Memo { last } => {
+                if !self.memo_more {
+                    self.memo_started_ms = Some(poll.meeting_ms);
+                }
+                self.final_started |= last;
+                self.memo.started = Some(poll.now);
+            }
+        }
     }
 
-    pub fn started(&mut self, now: Duration) {
-        self.last_start = Some(now);
+    pub fn finished(&mut self, job: Job, now: Duration, outcome: Outcome) {
+        let success = matches!(outcome, Outcome::Succeeded { .. });
+        match job {
+            Job::Hint => self.hint.finished(now, success, self.hint_every),
+            Job::Memo { .. } => {
+                self.memo.finished(now, success, self.hint_every);
+                self.memo_more = matches!(outcome, Outcome::Succeeded { more: true });
+            }
+        }
     }
 
-    /// The refresh covered the transcript as `fingerprint` saw it.
-    pub fn succeeded(&mut self, fingerprint: u64) {
-        self.last_ok = Some(fingerprint);
+    pub fn stale_hint(&self) -> bool {
+        self.hint.failures >= 2
+    }
+
+    pub fn stale_memo(&self) -> bool {
+        self.memo.failures > 0
     }
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn poll(secs: u64, fingerprint: u64) -> Poll {
-        Poll { now: Duration::from_secs(secs), fingerprint, has_text: true, paused: false, ending: false }
-    }
-
-    #[test]
-    fn the_first_look_with_text_starts_at_once_and_an_empty_transcript_waits() {
-        let s = Scheduler::default();
-        assert!(s.due(&poll(0, 1)));
-        assert!(!s.due(&Poll { has_text: false, ..poll(0, 0) }));
-    }
-
-    #[test]
-    fn new_text_refreshes_about_once_a_minute_and_the_same_text_never_does() {
-        let mut s = Scheduler::default();
-        s.started(Duration::from_secs(0));
-        s.succeeded(1);
-        assert!(!s.due(&poll(30, 2)), "too soon");
-        assert!(!s.due(&poll(61, 1)), "nothing new");
-        assert!(s.due(&poll(60, 2)));
-        s.started(Duration::from_secs(60));
-        s.succeeded(2);
-        assert!(!s.due(&poll(119, 3)));
-        assert!(s.due(&poll(125, 3)));
-    }
-
-    #[test]
-    fn a_failed_refresh_is_tried_again_after_the_interval_not_on_every_look() {
-        let mut s = Scheduler::default();
-        s.started(Duration::from_secs(0));
-        assert!(!s.due(&poll(10, 1)));
-        assert!(s.due(&poll(60, 1)));
-    }
-
-    #[test]
-    fn a_pause_holds_refreshes_and_the_end_ignores_the_interval_once() {
-        let mut s = Scheduler::default();
-        s.started(Duration::from_secs(0));
-        s.succeeded(1);
-        assert!(!s.due(&Poll { paused: true, ..poll(600, 2) }));
-        assert!(s.due(&Poll { ending: true, ..poll(10, 2) }));
-        s.started(Duration::from_secs(10));
-        s.succeeded(2);
-        assert!(!s.due(&Poll { ending: true, ..poll(20, 2) }), "the final text is covered");
-    }
-
-    #[test]
-    fn a_paused_meeting_still_gets_its_first_notes() {
-        let s = Scheduler::default();
-        assert!(s.due(&Poll { paused: true, ..poll(0, 1) }));
-    }
-}
+mod tests;

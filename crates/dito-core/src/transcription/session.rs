@@ -1584,7 +1584,12 @@ mod tests {
             ) -> crate::error::ProviderResult<String> {
                 self.0.fetch_add(1, Ordering::SeqCst);
                 self.1.lock().unwrap().push(request.messages.last().unwrap().content.clone());
-                Ok("NOW: 決済の件".into())
+                let reply = if request.messages[0].content.contains("You keep the memo of a meeting") {
+                    "DECIDED: 決済の件\nEND"
+                } else {
+                    "NOW: 決済の件"
+                };
+                Ok(reply.into())
             }
         }
         struct Source(Arc<Notes>);
@@ -1594,6 +1599,7 @@ mod tests {
                     Ok(NotesModel {
                         model: self.0.clone(),
                         limits: crate::chat::Limits::local(None),
+                        local: true,
                         thinking_off: true,
                         max_tokens: None,
                         hold: None,
@@ -1626,7 +1632,11 @@ mod tests {
                 others: "相手".into(),
                 prior: None,
                 offset_secs: 0,
-                cadence: Cadence { look_every: Duration::from_millis(10), refresh_every: Duration::from_millis(300) },
+                cadence: Cadence {
+                    look_every: Duration::from_millis(10),
+                    hint_every: Duration::from_millis(300),
+                    final_gap: Duration::from_millis(50),
+                },
             },
             id,
             None,
@@ -1649,19 +1659,18 @@ mod tests {
 
         handle.stop();
         wait_until(&handle, |s| s.state == SessionState::Idle).await;
-        let last = tokio::time::timeout(Duration::from_secs(5), async {
-            loop {
-                let seen = view.borrow_and_update().clone();
-                let covered =
-                    store.get_transcript(id).unwrap().unwrap().paragraphs.iter().map(|p| p.end_ms).max().unwrap_or(0);
-                if seen.notes.as_ref().is_some_and(|n| n.covered_ms() == covered) {
-                    break seen;
-                }
-                let _ = view.changed().await;
-            }
-        })
+        let covered = store.get_transcript(id).unwrap().unwrap().paragraphs.iter().map(|p| p.end_ms).max().unwrap();
+        let last = tokio::time::timeout(
+            Duration::from_secs(5),
+            view.wait_for(|v| {
+                v.ended && v.notes.as_ref().is_some_and(|n| n.memo.covered_ms == covered && !n.memo.is_empty())
+            }),
+        )
         .await
-        .expect("the notes cover the finished meeting");
+        .expect("the memo covers the finished meeting")
+        .unwrap()
+        .clone();
         assert_eq!(last.phase, NotesPhase::Ready);
+        assert_eq!(model.0.load(Ordering::SeqCst), calls + 1);
     }
 }
