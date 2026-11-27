@@ -11,6 +11,8 @@ use crate::assets::Ic;
 use crate::settings::Ctx;
 use crate::theme::Palette;
 use crate::timefmt::hhmm;
+use crate::tools::chat::markdown::Document;
+use crate::tools::chat::markdown_view;
 use crate::tools::transcription::TranscriptionPage;
 use crate::ui::{self, BtnKind, TextAreaStyle, text};
 
@@ -222,7 +224,7 @@ fn conversation_body(page: &TranscriptionPage, c: &Ctx) -> Stateful<Div> {
     for row in &ask.rows {
         column = column.child(match row.author {
             Author::User => question(row, &p),
-            Author::Assistant => answer(row, ask.generating(), c),
+            Author::Assistant => answer(row, ask.answers.get(&row.id), ask.generating(), c),
         });
     }
     scroller("meeting-notes-ask-scroll", &ask.scroll, column, &p)
@@ -240,7 +242,7 @@ fn question(row: &ChatMessageRow, p: &Palette) -> Div {
     )
 }
 
-fn answer(row: &ChatMessageRow, generating: bool, c: &Ctx) -> Div {
+fn answer(row: &ChatMessageRow, doc: Option<&Document>, generating: bool, c: &Ctx) -> Div {
     let p = c.p;
     if row.content.is_empty() {
         let (label, color) = match row.state {
@@ -251,14 +253,10 @@ fn answer(row: &ChatMessageRow, generating: bool, c: &Ctx) -> Div {
         };
         return div().child(text(label, 12., FontWeight::NORMAL, color).line_height(px(20.)));
     }
-    div().w_full().text_size(px(13.)).line_height(px(23.)).child(ui::selectable_text(
-        &p,
-        ElementId::from(("meeting-notes-answer", row.id as usize)),
-        row.content.clone(),
-        13.,
-        FontWeight::NORMAL,
-        p.text,
-    ))
+    match doc {
+        Some(doc) => markdown_view::document_on_sub(doc, &p),
+        None => div(),
+    }
 }
 
 fn scroller(id: &'static str, handle: &ScrollHandle, content: Div, p: &Palette) -> Stateful<Div> {

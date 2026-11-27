@@ -239,4 +239,15 @@ impl TranscriptionPage {
         composer.update(cx, |state, cx| state.set_value(question, window, cx));
         self.ask_send(window, cx);
     }
+
+    /// Shows a finished question and answer in the panel without a model, to film how a reply is drawn.
+    pub fn pose_conversation(&mut self, question: &str, answer: &str, cx: &mut Context<Self>) {
+        self.notes.ask.pose(question, answer);
+        cx.notify();
+    }
+
+    pub fn pose_conversation_reset(&mut self, cx: &mut Context<Self>) {
+        self.ask_reset();
+        cx.notify();
+    }
 }

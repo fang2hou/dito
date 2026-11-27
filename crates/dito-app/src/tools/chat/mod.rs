@@ -5,8 +5,8 @@ mod composer;
 mod files;
 pub(crate) mod generation;
 mod highlight;
-mod markdown;
-mod markdown_view;
+pub(crate) mod markdown;
+pub(crate) mod markdown_view;
 mod messages;
 mod picker;
 #[cfg(feature = "screenshots")]

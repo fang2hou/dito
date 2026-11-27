@@ -396,7 +396,7 @@ fn stable_prefix_after(src: &str, known: usize) -> usize {
 /// A reply's blocks, ready to draw: the part before a stable boundary is parsed and prepared once, only the tail
 /// again as text arrives.
 #[derive(Clone)]
-pub(super) struct Document {
+pub(crate) struct Document {
     /// The element id of the reply, which the id of every block starts from.
     root: ElementId,
     seen: usize,
@@ -434,7 +434,7 @@ impl Document {
         self.seen = text.len();
     }
 
-    pub fn blocks(&self) -> impl Iterator<Item = &Prepared> {
+    pub(super) fn blocks(&self) -> impl Iterator<Item = &Prepared> {
         self.stable.iter().chain(&self.tail)
     }
 }
