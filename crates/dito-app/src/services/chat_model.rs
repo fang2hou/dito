@@ -18,6 +18,8 @@ const BUSY_RECHECK: Duration = Duration::from_secs(5);
 #[derive(Default)]
 pub struct ChatModelKeeper {
     open: AtomicBool,
+    /// The live meeting notes are being written, so the model is in use even with the chat closed.
+    notes: AtomicBool,
     /// Bumped by every open and leave, so a release timer older than the latest one does nothing.
     epoch: AtomicU64,
     /// Replies in flight: a model is never released under one.
@@ -40,24 +42,50 @@ pub fn chat_reply_started(st: &AppState) -> ReplyGuard {
     ReplyGuard(st.chat_model.busy.clone())
 }
 
+impl ChatModelKeeper {
+    /// The chat or the meeting notes need the model now.
+    fn in_use(&self) -> bool {
+        self.open.load(Ordering::SeqCst) || self.notes.load(Ordering::SeqCst)
+    }
+}
+
 pub fn chat_opened(st: &Arc<AppState>) {
-    let keeper = &st.chat_model;
-    keeper.open.store(true, Ordering::SeqCst);
-    keeper.epoch.fetch_add(1, Ordering::SeqCst);
+    st.chat_model.open.store(true, Ordering::SeqCst);
+    in_use_again(st);
+}
+
+pub fn chat_left(st: &Arc<AppState>) {
+    st.chat_model.open.store(false, Ordering::SeqCst);
+    maybe_release_later(st);
+}
+
+/// The notes panel starts writing notes: a model that loads only while it is needed loads now, and stays.
+pub fn meeting_notes_started(st: &Arc<AppState>) {
+    st.chat_model.notes.store(true, Ordering::SeqCst);
+    in_use_again(st);
+}
+
+/// The notes stopped; the model is released a while later unless the chat has it.
+pub fn meeting_notes_stopped(st: &Arc<AppState>) {
+    st.chat_model.notes.store(false, Ordering::SeqCst);
+    maybe_release_later(st);
+}
+
+fn in_use_again(st: &Arc<AppState>) {
+    st.chat_model.epoch.fetch_add(1, Ordering::SeqCst);
     if let Some(id) = on_demand_model(&st.cfg.get()) {
         warm(st, id);
     }
 }
 
-pub fn chat_left(st: &Arc<AppState>) {
+fn maybe_release_later(st: &Arc<AppState>) {
     let keeper = &st.chat_model;
-    keeper.open.store(false, Ordering::SeqCst);
     let epoch = keeper.epoch.fetch_add(1, Ordering::SeqCst) + 1;
     let st = st.clone();
     st.rt.clone().spawn(async move {
         tokio::time::sleep(RELEASE_AFTER).await;
         loop {
-            if st.chat_model.epoch.load(Ordering::SeqCst) != epoch {
+            if st.chat_model.epoch.load(Ordering::SeqCst) != epoch || st.chat_model.in_use() {
                 return;
             }
             if st.chat_model.busy.load(Ordering::SeqCst) == 0 {
@@ -85,7 +113,7 @@ pub fn follow_chat_model(st: &Arc<AppState>) {
                 release_unless_used(&st, &config, previous);
             }
             if let Some(id) = on_demand_model(&config) {
-                if st.chat_model.open.load(Ordering::SeqCst) {
+                if st.chat_model.in_use() {
                     warm(&st, id);
                 } else if st.chat_model.busy.load(Ordering::SeqCst) == 0 {
                     release_unless_used(&st, &config, id.to_owned());

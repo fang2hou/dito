@@ -16,7 +16,7 @@ mod watch_config;
 
 pub use chat_model::{
     ChatModelKeeper, ModelFacts, chat_left, chat_model_facts, chat_model_is_local, chat_model_label, chat_opened,
-    chat_reply_started, chat_thinking_choice, follow_chat_model,
+    chat_reply_started, chat_thinking_choice, follow_chat_model, meeting_notes_started, meeting_notes_stopped,
 };
 pub use compare_asr::{Heard, compare_transcribe};
 pub use connection::{test_asr_draft, test_connection, try_polish};

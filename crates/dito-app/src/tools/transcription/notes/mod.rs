@@ -119,7 +119,11 @@ impl TranscriptionPage {
 
     /// Makes the runner match the panel: one while it is open on a transcript, none otherwise.
     pub(super) fn sync_notes(&mut self, cx: &mut Context<Self>) {
-        let wanted = self.open.as_ref().map(|open| open.summary.id).filter(|_| self.notes.open && self.detail_shown());
+        let wanted = self
+            .open
+            .as_ref()
+            .map(|open| open.summary.id)
+            .filter(|_| self.notes.open && self.detail_shown() && self.active);
         if self.notes.meeting == wanted && (wanted.is_none() || self.notes.handle.is_some()) {
             return;
         }
@@ -176,10 +180,14 @@ impl TranscriptionPage {
         }));
         self.notes.handle = Some(handle);
         self.notes.meeting = Some(id);
+        services::meeting_notes_started(&self.st);
         self.watch_chat_model(cx);
     }
 
     fn stop_notes(&mut self) {
+        if self.notes.handle.is_some() {
+            services::meeting_notes_stopped(&self.st);
+        }
         if let (Some(id), Some(notes)) = (self.notes.meeting, self.notes.view.notes.clone()) {
             self.notes.seed = Some((id, notes));
         }

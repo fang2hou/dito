@@ -200,11 +200,19 @@ async fn a_pause_holds_refreshes_and_the_end_writes_the_last_notes_once() {
 }
 
 #[tokio::test]
-async fn a_long_meeting_folds_what_aged_out_into_points_and_keeps_them_for_the_next_refresh() {
+async fn a_long_meeting_shows_its_notes_first_and_folds_what_aged_out_afterwards() {
     let mut rig = Rig::start(true);
     let minute = 60_000;
     for i in 0..14 {
         rig.say(i * minute, &format!("{i}分目の発言です。決定事項があります。"));
+    }
+    rig.until("the first notes", |r| r.handle.view().notes.is_some()).await;
+    {
+        let requests = rig.model.requests.lock().unwrap();
+        assert!(
+            requests[0].messages[0].content.contains("Write the notes for the transcript"),
+            "the first request writes the notes, not a fold"
+        );
     }
     rig.until("the folded notes", |r| r.handle.view().notes.is_some_and(|n| !n.earlier.is_empty())).await;
     let notes = rig.handle.view().notes.unwrap();
@@ -220,6 +228,30 @@ async fn a_long_meeting_folds_what_aged_out_into_points_and_keeps_them_for_the_n
     assert_eq!(rig.model.folds(), 1, "less than a window's worth aged out, so nothing is folded again");
     let requests = rig.model.requests.lock().unwrap();
     assert!(requests.last().unwrap().messages[1].content.contains("<point>決定一</point>"));
+}
+
+#[tokio::test]
+async fn a_very_long_meeting_folds_in_short_requests_and_shows_each_step() {
+    let mut rig = Rig::start(true);
+    let minute = 60_000;
+    let long = "あ".repeat(1_500);
+    for i in 0..24 {
+        rig.say(i * minute, &format!("{i}{long}"));
+    }
+    rig.until("the first notes", |r| r.handle.view().notes.is_some()).await;
+    rig.until("the folds", |r| r.model.folds() >= 4).await;
+    rig.wait(100).await;
+    let requests = rig.model.requests.lock().unwrap();
+    let fold_sizes: Vec<usize> = requests
+        .iter()
+        .filter(|r| r.messages[0].content.contains("Merge the earlier points"))
+        .map(|r| r.messages[1].content.chars().count())
+        .collect();
+    assert!(fold_sizes.len() >= 4, "{fold_sizes:?}");
+    assert!(fold_sizes.iter().all(|n| *n < 6_500), "each request stays short: {fold_sizes:?}");
+    assert!(requests[0].messages[0].content.contains("Write the notes"));
+    let refresh_len = requests[0].messages[1].content.chars().count();
+    assert!(refresh_len < 14_000, "the first request does not read the whole 36 000 characters: {refresh_len}");
 }
 
 #[tokio::test]

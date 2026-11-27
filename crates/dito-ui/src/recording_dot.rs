@@ -59,7 +59,7 @@ pub fn recording_dot(id: impl Into<ElementId>, state: DotState, p: &Palette, mot
         .child(div().absolute().size(px(FRAME)).flex().items_center().justify_center().child(
             div().size(px(FRAME)).flex().items_center().justify_center().with_animation(
                 (id, "halo"),
-                Animation::new(Duration::from_millis((HALO_MS + REST_MS) as u64)).repeat(),
+                Animation::new(Duration::from_millis((HALO_MS + REST_MS) as u64)).repeat().with_max_fps(30.),
                 move |_, t| div().size(px(FRAME)).flex().items_center().justify_center().child(halo(t)),
             ),
         ))

@@ -244,6 +244,8 @@ impl TranscriptionPage {
     pub fn set_active(&mut self, active: bool, cx: &mut Context<Self>) {
         let was = self.active;
         self.active = active;
+        // Notes are written only while the page is the one on screen; the panel and what it held wait for the return.
+        self.sync_notes(cx);
         if active {
             if !was {
                 self.perms = Perms::read();

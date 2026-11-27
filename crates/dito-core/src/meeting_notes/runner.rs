@@ -222,8 +222,16 @@ enum Failure {
     Request,
 }
 
-/// One refresh: folds what aged out of the window when a window's worth of it has piled up, then writes the topic and
-/// the recent lines.
+/// Older speech not yet folded goes to a refresh only up to this much, so a long meeting never makes the first notes
+/// wait for a long read.
+const OLDER_CHARS: usize = 4_000;
+
+/// One fold request reads at most this much speech, so each request is short however long the meeting is.
+const FOLD_CHUNK_CHARS: usize = 6_000;
+
+/// One refresh. The topic and the recent lines come first and are published at once, so the notes appear without
+/// waiting for anything older. Then, when a window's worth of speech has aged out of the newest five minutes, it is
+/// folded into the earlier points in short requests, each published as it lands.
 async fn refresh(
     deps: &NotesDeps,
     context: &MeetingContext,
@@ -237,47 +245,40 @@ async fn refresh(
     let names = SpeakerNames { me: &deps.me, others: &deps.others };
     let budget = (ready.limits.context_chars / 2).max(2_000);
     let covered = context.covered_ms();
-    let mut earlier = previous.map(|n| n.earlier.clone()).unwrap_or_default();
-    let mut span = previous.and_then(|n| n.earlier_span_ms);
+    let earlier = previous.map(|n| n.earlier.clone()).unwrap_or_default();
+    let span = previous.and_then(|n| n.earlier_span_ms);
     let folded_until = span.map_or(0, |(_, until)| until);
     let window = split_window(&context.utterances, covered, folded_until);
-    let mut unfolded = window.unfolded.clone();
 
-    if window.from_ms.saturating_sub(folded_until) >= RECENT_WINDOW_MS && !unfolded.is_empty() {
-        let start = span.map_or(unfolded[0].start_ms, |(from, _)| from);
-        let end = unfolded.iter().map(|u| u.end_ms).max().unwrap_or(start);
-        let mut points = earlier.clone();
-        let mut folded_all = true;
-        for chunk in chunks(&unfolded, budget) {
-            let request = fold_request(context, &points, &chunk, names, deps.offset_secs, ready.thinking_off);
-            match ask(&ready, &request).await.and_then(|reply| read_points(&reply)) {
-                Some(next) => points = next,
-                None => {
-                    folded_all = false;
-                    break;
-                }
-            }
-        }
-        if folded_all {
-            earlier = points;
-            span = Some((start, end));
-            unfolded.clear();
-        }
-    }
-
-    let older = newest_within(&unfolded, budget);
+    let older = newest_within(&window.unfolded, budget.min(OLDER_CHARS));
     let recent = newest_within(&window.recent, budget);
     let request = refresh_request(context, &earlier, &older, &recent, names, deps.offset_secs, ready.thinking_off);
     let reply = ask(&ready, &request).await.ok_or(Failure::Request)?;
     let (topic, lines) = read_refresh(&reply).ok_or(Failure::Request)?;
-    Ok(Notes {
+    let mut notes = Notes {
         topic,
         recent: lines,
-        earlier,
+        earlier: earlier.clone(),
         earlier_span_ms: span,
         covered_ms: covered,
         started_ts: context.started_ts,
-    })
+    };
+    publish(view, NotesPhase::Working { loading_model: false }, Some(notes.clone()), false);
+
+    if window.from_ms.saturating_sub(folded_until) >= RECENT_WINDOW_MS && !window.unfolded.is_empty() {
+        let start = span.map_or(window.unfolded[0].start_ms, |(from, _)| from);
+        let mut points = earlier;
+        for chunk in chunks(&window.unfolded, budget.min(FOLD_CHUNK_CHARS)) {
+            let request = fold_request(context, &points, &chunk, names, deps.offset_secs, ready.thinking_off);
+            let Some(next) = ask(&ready, &request).await.and_then(|reply| read_points(&reply)) else { break };
+            points = next;
+            let until = chunk.iter().map(|u| u.end_ms).max().unwrap_or(start);
+            notes.earlier.clone_from(&points);
+            notes.earlier_span_ms = Some((start, until));
+            publish(view, NotesPhase::Working { loading_model: false }, Some(notes.clone()), false);
+        }
+    }
+    Ok(notes)
 }
 
 async fn ask(ready: &NotesModel, request: &crate::provider::ChatRequest) -> Option<String> {
