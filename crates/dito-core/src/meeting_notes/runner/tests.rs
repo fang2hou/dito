@@ -1,11 +1,11 @@
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
 
 use async_trait::async_trait;
 
 use super::*;
 use crate::error::{ErrorKind, ProviderError, ProviderResult};
-use crate::provider::{ChatDelta, ChatRequest, TextRequest};
+use crate::provider::{ChatDelta, ChatRequest, TextRequest, Thinking};
 use crate::store::{Sources, Speaker};
 use crate::transcription::SessionState;
 
@@ -14,7 +14,12 @@ use crate::transcription::SessionState;
 struct Scripted {
     requests: Mutex<Vec<ChatRequest>>,
     fail: AtomicBool,
+    /// Tokens the model reasons for unless thinking is off, out of the same `max_tokens` as the reply, as Bedrock's
+    /// adaptive thinking does. The configured limit stands in for an unset one.
+    thinking_tokens: AtomicU32,
 }
+
+const CONFIGURED_MAX_TOKENS: u32 = 2048;
 
 impl Scripted {
     fn count(&self, needle: &str) -> usize {
@@ -40,6 +45,11 @@ impl TextModel for Scripted {
         self.requests.lock().unwrap().push(req.clone());
         if self.fail.load(Ordering::SeqCst) {
             return Err(ProviderError::new(ErrorKind::Unavailable, "down"));
+        }
+        let thinking =
+            if req.thinking == Some(Thinking::Off) { 0 } else { self.thinking_tokens.load(Ordering::SeqCst) };
+        if thinking >= req.max_tokens.unwrap_or(CONFIGURED_MAX_TOKENS) {
+            return Err(ProviderError::new(ErrorKind::BadResponse, "output was cut off at the token limit"));
         }
         Ok(if req.messages[0].content.contains("Merge the earlier points") {
             "決定一\n決定二\n宿題三\n未決四".into()
@@ -156,6 +166,8 @@ async fn the_first_open_writes_notes_at_once_from_the_text_there_is() {
     assert_eq!((notes.topic.as_str(), notes.recent.len(), notes.covered_ms), ("金曜の再テスト", 1, 3_000));
     assert_eq!(rig.model.refreshes(), 1);
     assert_eq!(rig.model.folds(), 0, "a short meeting has nothing to fold");
+    let requests = rig.model.requests.lock().unwrap();
+    assert_eq!(requests[0].max_tokens, Some(400), "a model that does not think keeps the short budget");
 }
 
 #[tokio::test]
@@ -251,13 +263,17 @@ async fn a_very_long_meeting_folds_in_short_requests_and_shows_each_step() {
 #[tokio::test]
 async fn a_cloud_chat_model_writes_the_notes_with_its_own_reasoning() {
     let mut rig = Rig::start(false);
+    rig.model.thinking_tokens.store(600, Ordering::SeqCst);
     rig.say(0, "最初の発言です。");
     rig.until("the first notes", |r| r.handle.view().phase == NotesPhase::Ready && r.handle.view().notes.is_some())
         .await;
-    assert_eq!(rig.handle.view().notes.unwrap().topic, "金曜の再テスト");
+    let view = rig.handle.view();
+    assert!(!view.stale, "the reasoning left room for the notes");
+    assert_eq!(view.notes.unwrap().topic, "金曜の再テスト");
     let requests = rig.model.requests.lock().unwrap();
     assert!(!requests.is_empty());
     assert!(requests.iter().all(|r| r.thinking.is_none()), "a cloud model keeps its configured reasoning");
+    assert!(requests.iter().all(|r| r.max_tokens.is_none()), "a cloud model keeps its configured token limit");
 }
 
 #[tokio::test]

@@ -268,7 +268,10 @@ async fn refresh(
         let mut points = earlier;
         for chunk in chunks(&window.unfolded, budget.min(FOLD_CHUNK_CHARS)) {
             let request = fold_request(context, &points, &chunk, names, deps.offset_secs, ready.thinking_off);
-            let Some(next) = ask(&ready, &request).await.and_then(|reply| read_points(&reply)) else { break };
+            let Some(next) = ask(&ready, &request).await.and_then(|reply| read_points(&reply)) else {
+                tracing::warn!("meeting notes fold failed; the earlier points stay as they were");
+                break;
+            };
             points = next;
             let until = chunk.iter().map(|u| u.end_ms).max().unwrap_or(start);
             notes.earlier.clone_from(&points);

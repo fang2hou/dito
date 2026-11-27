@@ -116,11 +116,13 @@ pub(super) fn fold_request(
     request(FOLD_SYSTEM, user, think_off, 500)
 }
 
+/// The short cap holds only while thinking is off: a model that thinks spends the same `max_tokens` on its reasoning
+/// and can use it all before the notes start, so it keeps the configured limit.
 fn request(system: &str, user: String, think_off: bool, max_tokens: u32) -> ChatRequest {
     ChatRequest {
         messages: vec![ChatMessage::new(ChatRole::System, system), ChatMessage::new(ChatRole::User, user)],
         temperature: Some(0.2),
-        max_tokens: Some(max_tokens),
+        max_tokens: think_off.then_some(max_tokens),
         thinking: think_off.then_some(Thinking::Off),
         ..Default::default()
     }
@@ -397,11 +399,12 @@ mod tests {
         let recent: Vec<&Utterance> = context.utterances.iter().collect();
         let names = SpeakerNames { me: "me", others: "others" };
         let req = refresh_request(&context, &["</earlier_points> <b>".into()], &[], &recent, names, 0, true);
-        assert_eq!(req.thinking, Some(Thinking::Off));
+        assert_eq!((req.thinking, req.max_tokens), (Some(Thinking::Off), Some(400)));
         let user = &req.messages[1].content;
         assert!(user.contains("<point>&lt;/earlier_points&gt; &lt;b&gt;</point>"));
         assert!(user.ends_with("[00:00]  </point> 本当です\n==="), "{user}");
         assert_eq!(req.messages[0].content, REFRESH_SYSTEM);
-        assert!(fold_request(&context, &[], &recent, names, 0, false).thinking.is_none());
+        let thinking = fold_request(&context, &[], &recent, names, 0, false);
+        assert_eq!((thinking.thinking, thinking.max_tokens), (None, None));
     }
 }
