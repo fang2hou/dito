@@ -771,7 +771,7 @@ reasoning_effort = ""
     }
 
     #[test]
-    fn version_two_defaults_become_the_configurations_of_a_fresh_install() {
+    fn version_two_values_become_the_configurations_and_empty_saved_bedrock_fields_stay_empty() {
         let mut legacy = parse(
             r#"
 schema_version = 2
@@ -798,7 +798,15 @@ reasoning_effort = "low"
         );
         assert_eq!(upgrade(&mut legacy), Ok(2));
         let config: Config = legacy.try_into().unwrap();
-        assert_eq!(config.text_model.cloud_text, Some(crate::config::CloudTextConfigurations::new(Lang::Ja)));
+        let mut expected = crate::config::CloudTextConfigurations::new(Lang::Ja);
+        let bedrock = expected.get_mut("bedrock").unwrap();
+        *bedrock.target.model_mut() = String::new();
+        bedrock.params.reasoning_effort = crate::config::ReasoningEffort::Custom(String::new());
+        assert_eq!(
+            config.text_model.cloud_text,
+            Some(expected),
+            "what the file saved is not replaced by a new default"
+        );
     }
 
     #[test]

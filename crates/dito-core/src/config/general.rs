@@ -6,7 +6,7 @@ use super::HudPosition;
 use super::hud::DEFAULT_HUD_OFFSET;
 use crate::i18n::{self, Lang, Tr};
 
-pub const DEFAULT_SHORTCUT: &str = "RightCommand";
+pub const DEFAULT_SHORTCUT: &str = "RightOption";
 pub const DEFAULT_TOOLS_SHORTCUT: &str = "Control+Option+T";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]

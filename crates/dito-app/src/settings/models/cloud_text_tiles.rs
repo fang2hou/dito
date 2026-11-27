@@ -197,7 +197,7 @@ mod tests {
             feed,
             [
                 ("azure".into(), "Azure OpenAI".into(), none.into(), false),
-                ("bedrock".into(), "Amazon Bedrock".into(), none.into(), false),
+                ("bedrock".into(), "Amazon Bedrock".into(), "jp.anthropic.claude-haiku-5-5".into(), false),
                 ("compat".into(), "Fast".into(), "gpt-x".into(), true),
             ],
             "ordered as saved, the selected one marked, a missing model said so"

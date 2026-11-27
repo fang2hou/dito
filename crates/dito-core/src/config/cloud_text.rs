@@ -54,7 +54,7 @@ impl CloudTextTemplate {
             Self::Bedrock => CloudTextParams {
                 temperature: Some(0.2),
                 max_tokens: Some(2048),
-                reasoning_effort: ReasoningEffort::Custom(String::new()),
+                reasoning_effort: ReasoningEffort::Low,
                 ..CloudTextParams::default()
             },
         }
@@ -196,9 +196,20 @@ impl Entry for CloudTextConfiguration {
     }
 }
 
+/// The model the built-in Bedrock configuration of a fresh list names. The template itself leaves the model empty.
+const DEFAULT_BEDROCK_MODEL_ID: &str = "jp.anthropic.claude-haiku-5-5";
+
 /// The templates a fresh list starts from; the first is in use.
 const STARTING: [CloudTextTemplate; 3] =
     [CloudTextTemplate::Azure, CloudTextTemplate::Bedrock, CloudTextTemplate::Compat];
+
+fn starting_configuration(template: CloudTextTemplate, name: &str) -> CloudTextConfiguration {
+    let mut configuration = template.configuration(template.id(), name);
+    if template == CloudTextTemplate::Bedrock {
+        *configuration.target.model_mut() = DEFAULT_BEDROCK_MODEL_ID.into();
+    }
+    configuration
+}
 
 /// The cloud polish configurations and the one in use. Only `new` makes a list with content: its names depend on the
 /// language the UI is shown in, which a default has no way to know.
@@ -214,16 +225,14 @@ impl CloudTextConfigurations {
     /// The three templates as configurations, named after their templates in `lang`. Their ids are the ones the
     /// migration from version 2 gives the old forms, so a fresh list and a migrated one use the same Keychain accounts.
     pub fn new(lang: Lang) -> Self {
-        let items: Vec<_> =
-            STARTING.map(|template| template.configuration(template.id(), lang.tr(template.label()))).into();
+        let items: Vec<_> = STARTING.map(|template| starting_configuration(template, lang.tr(template.label()))).into();
         Self { selected: items[0].id.clone(), items }
     }
 
     /// The configuration in use while no list is saved, as `new` makes it but without a name, since no request reads
     /// one.
     pub(super) fn stand_in_active() -> CloudTextConfiguration {
-        let template = STARTING[0];
-        template.configuration(template.id(), "")
+        starting_configuration(STARTING[0], "")
     }
 
     pub fn active_mut(&mut self) -> Option<&mut CloudTextConfiguration> {
@@ -288,7 +297,9 @@ mod tests {
         assert_eq!(bedrock.target.address(), "ap-northeast-1");
         assert_eq!(bedrock.params.temperature, Some(0.2));
         assert_eq!(bedrock.params.max_tokens, Some(2048));
-        assert_eq!(bedrock.params.reasoning_effort.as_str(), "");
+        assert_eq!(bedrock.params.reasoning_effort.as_str(), "low");
+        assert_eq!(bedrock.target.model(), DEFAULT_BEDROCK_MODEL_ID);
+        assert_eq!(DEFAULT_BEDROCK_MODEL_ID, "jp.anthropic.claude-haiku-5-5");
         for plain in [ja.get("azure").unwrap(), ja.get("compat").unwrap()] {
             assert_eq!(plain.target.address(), "");
             assert_eq!(plain.target.model(), "");
@@ -309,6 +320,30 @@ mod tests {
         let mut azure = CloudTextTemplate::Azure.configuration("a", "A");
         *azure.target.model_mut() = "gpt-x".into();
         assert_eq!(azure.label(), "azure:gpt-x");
+    }
+
+    #[test]
+    fn every_template_starts_at_low_effort_and_only_the_built_in_bedrock_names_a_model() {
+        for template in CloudTextTemplate::ALL {
+            let made = template.configuration("x", "X");
+            assert_eq!(made.params.reasoning_effort, ReasoningEffort::Low, "{}", template.id());
+            assert_eq!(made.target.model(), "", "a template leaves the model to the user: {}", template.id());
+        }
+        let list = CloudTextConfigurations::new(Lang::En);
+        let models: Vec<_> = list.items.iter().map(|c| (c.id.as_str(), c.target.model())).collect();
+        assert_eq!(models, [("azure", ""), ("bedrock", DEFAULT_BEDROCK_MODEL_ID), ("compat", "")]);
+        assert!(list.items.iter().all(|c| c.params.reasoning_effort == ReasoningEffort::Low));
+    }
+
+    #[test]
+    fn a_saved_effort_stays_and_a_missing_one_reads_as_low() {
+        let saved = |params: &str| -> CloudTextConfiguration {
+            toml::from_str(&format!("id = 'b'\nname = 'B'\ntemplate = 'bedrock'\n{params}")).unwrap()
+        };
+        assert_eq!(saved("").params.reasoning_effort, ReasoningEffort::Low, "no params table");
+        assert_eq!(saved("[params]\ntemperature = 0.5\n").params.reasoning_effort, ReasoningEffort::Low);
+        assert_eq!(saved("[params]\nreasoning_effort = ''\n").params.reasoning_effort.as_str(), "", "unset on purpose");
+        assert_eq!(saved("[params]\nreasoning_effort = 'high'\n").params.reasoning_effort, ReasoningEffort::High);
     }
 
     #[test]
