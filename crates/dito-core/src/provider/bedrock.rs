@@ -100,11 +100,16 @@ fn polish_response(truncated: bool, text: String) -> ProviderResult<String> {
     Ok(text)
 }
 
-fn additional_fields(model_id: &str, params: &CloudTextParams) -> Option<Document> {
+/// Claude 5 and later think adaptively when `thinking` is left out, so `thinking_off` has to say `disabled`; a model
+/// that cannot switch thinking off refuses the request instead of thinking anyway.
+/// <https://docs.aws.amazon.com/bedrock/latest/userguide/claude-messages-adaptive-thinking.html>
+fn additional_fields(model_id: &str, params: &CloudTextParams, thinking_off: bool) -> Option<Document> {
     let text = |value: &str| Document::String(value.to_owned());
     let mut fields = HashMap::new();
     let effort = params.reasoning_effort.as_str().trim();
-    if adaptive_thinking(model_id, params) {
+    if thinking_off && model_id.contains("anthropic") {
+        fields.insert("thinking".into(), Document::Object(HashMap::from([("type".into(), text("disabled"))])));
+    } else if adaptive_thinking(model_id, params) {
         fields.insert("thinking".into(), Document::Object(HashMap::from([("type".into(), text("adaptive"))])));
         fields.insert("output_config".into(), Document::Object(HashMap::from([("effort".into(), text(effort))])));
     } else if !effort.is_empty() {
@@ -166,7 +171,7 @@ impl BedrockEngine {
         if let Some(config) = inference_config(&self.model_id, &self.params) {
             call = call.inference_config(config);
         }
-        if let Some(fields) = additional_fields(&self.model_id, &self.params) {
+        if let Some(fields) = additional_fields(&self.model_id, &self.params, false) {
             call = call.additional_model_request_fields(fields);
         }
         if let Some(s) = system {
@@ -190,12 +195,14 @@ impl BedrockEngine {
         on_delta: ChatDelta<'_>,
         cancel: &ChatCancel,
     ) -> ProviderResult<String> {
+        let thinking_off = req.thinking == Some(Thinking::Off);
         let params = CloudTextParams {
             temperature: req.temperature.or(self.params.temperature),
             top_p: req.top_p.or(self.params.top_p),
             max_tokens: req.max_tokens.or(self.params.max_tokens),
             reasoning_effort: match &req.thinking {
                 Some(Thinking::Level(level)) => level.clone().into(),
+                Some(Thinking::Off) => String::new().into(),
                 _ => self.params.reasoning_effort.clone(),
             },
             ..self.params.clone()
@@ -224,7 +231,7 @@ impl BedrockEngine {
         if let Some(config) = inference_config(&self.model_id, &params) {
             call = call.inference_config(config);
         }
-        if let Some(fields) = additional_fields(&self.model_id, &params) {
+        if let Some(fields) = additional_fields(&self.model_id, &params, thinking_off) {
             call = call.additional_model_request_fields(fields);
         }
         let out = call.send().await.map_err(classify)?;
@@ -421,12 +428,12 @@ mod tests {
 
     #[test]
     fn the_reasoning_effort_takes_the_form_of_the_model_family_and_extra_goes_over_it() {
-        assert_eq!(additional_fields(CLAUDE, &params("")), None);
-        let claude = additional_fields(CLAUDE, &params(" low ")).unwrap();
+        assert_eq!(additional_fields(CLAUDE, &params(""), false), None);
+        let claude = additional_fields(CLAUDE, &params(" low "), false).unwrap();
         let expected =
             document(&serde_json::json!({"thinking": {"type": "adaptive"}, "output_config": {"effort": "low"}}));
         assert_eq!(claude, expected);
-        let other = additional_fields(OTHER, &params("high")).unwrap();
+        let other = additional_fields(OTHER, &params("high"), false).unwrap();
         assert_eq!(other, document(&serde_json::json!({"reasoning_effort": "high"})));
 
         let extra = CloudTextParams {
@@ -434,9 +441,16 @@ mod tests {
                 .unwrap(),
             ..params("high")
         };
-        let merged = additional_fields(OTHER, &extra).unwrap();
+        let merged = additional_fields(OTHER, &extra, false).unwrap();
         let expected =
             document(&serde_json::json!({"reasoning_effort": "x", "top_k": 5, "stop": [null, 1.5, -2, true]}));
         assert_eq!(merged, expected);
+    }
+
+    #[test]
+    fn thinking_off_disables_claude_thinking_instead_of_leaving_it_out() {
+        let off = additional_fields(CLAUDE, &params(""), true).unwrap();
+        assert_eq!(off, document(&serde_json::json!({"thinking": {"type": "disabled"}})));
+        assert_eq!(additional_fields(OTHER, &params(""), true), None);
     }
 }
