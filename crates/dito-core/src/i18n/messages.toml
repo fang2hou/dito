@@ -613,6 +613,7 @@ fmt.chat_selected_count = { ja = "{count} 件を選択", en = "{count} selected"
 fmt.chat_file_detail = { ja = "{kind}、{size}", en = "{kind}, {size}", zh = "{kind}，{size}", zh_hant = "{kind}，{size}", ko = "{kind}, {size}", mn = "{kind}, {size}", fr = "{kind}, {size}" }
 fmt.chat_meeting_detail = { ja = "会議、{duration}", en = "Meeting, {duration}", zh = "会议，{duration}", zh_hant = "會議，{duration}", ko = "회의, {duration}", mn = "Хурал, {duration}", fr = "Réunion, {duration}" }
 fmt.transcription_notes_until = { ja = "{time} まで", en = "Until {time}", zh = "截至 {time}", zh_hant = "截至 {time}", ko = "{time}까지", mn = "{time} хүртэл", fr = "Jusqu’à {time}" }
+fmt.transcription_notes_topic_until = { ja = "今の話題（{time} まで）", en = "Current topic (until {time})", zh = "当前话题（截至 {time}）", zh_hant = "目前話題（截至 {time}）", ko = "현재 주제({time}까지)", mn = "Одоогийн сэдэв ({time} хүртэл)", fr = "Sujet en cours (jusqu’à {time})" }
 fmt.transcription_notes_range = { ja = "{from}〜{to}", en = "{from} to {to}", zh = "{from} 至 {to}", zh_hant = "{from} 至 {to}", ko = "{from}~{to}", mn = "{from}–{to}", fr = "{from} à {to}" }
 fmt.chat_file_too_large = { ja = "ファイルが大きすぎます。{limit} までのテキストファイルを選んでください。", en = "That file is too large. Choose a text file up to {limit}.", zh = "文件太大。请选择不超过 {limit} 的文本文件。", zh_hant = "檔案太大。請選擇不超過 {limit} 的文字檔。", ko = "파일이 너무 큽니다. {limit} 이하의 텍스트 파일을 선택하세요.", mn = "Файл хэт том байна. {limit} хүртэлх текст файл сонгоно уу.", fr = "Ce fichier est trop volumineux. Choisissez un fichier texte de {limit} au maximum." }
 
@@ -686,11 +687,18 @@ transcription.readiness_vad = { ja = "連続する音声から発話の区間を
 transcription.notes_open = { ja = "会議メモを開く", en = "Open meeting notes", zh = "打开会议笔记", zh_hant = "開啟會議筆記", ko = "회의 메모 열기", mn = "Хурлын тэмдэглэл нээх", fr = "Ouvrir les notes de réunion" }
 transcription.notes_close = { ja = "会議メモを閉じる", en = "Close meeting notes", zh = "关闭会议笔记", zh_hant = "關閉會議筆記", ko = "회의 메모 닫기", mn = "Хурлын тэмдэглэл хаах", fr = "Fermer les notes de réunion" }
 transcription.notes_title = { ja = "会議メモ", en = "Meeting notes", zh = "会议笔记", zh_hant = "會議筆記", ko = "회의 메모", mn = "Хурлын тэмдэглэл", fr = "Notes de réunion" }
-transcription.notes_recent = { ja = "直近5分", en = "Last 5 minutes", zh = "最近 5 分钟", zh_hant = "最近 5 分鐘", ko = "최근 5분", mn = "Сүүлийн 5 минут", fr = "5 dernières minutes" }
+transcription.notes_current_topic = { ja = "今の話題", en = "Current topic", zh = "当前话题", zh_hant = "目前話題", ko = "현재 주제", mn = "Одоогийн сэдэв", fr = "Sujet en cours" }
 transcription.notes_earlier = { ja = "これまでの要点", en = "So far", zh = "此前的要点", zh_hant = "此前的要點", ko = "지금까지의 요점", mn = "Өмнөх гол санаа", fr = "Jusqu’ici" }
+transcription.notes_decided = { ja = "決まったこと", en = "Decided", zh = "已决定", zh_hant = "已決定", ko = "결정된 것", mn = "Шийдсэн зүйл", fr = "Décisions" }
+transcription.notes_todo = { ja = "やること", en = "To do", zh = "待办", zh_hant = "待辦", ko = "할 일", mn = "Хийх ажил", fr = "À faire" }
+transcription.notes_open_questions = { ja = "未決", en = "Open questions", zh = "待定", zh_hant = "待定", ko = "미결", mn = "Шийдээгүй", fr = "Questions ouvertes" }
+transcription.notes_flow = { ja = "話の流れ", en = "How it went", zh = "讨论经过", zh_hant = "討論經過", ko = "논의 흐름", mn = "Яриа хэрхэн өрнөсөн", fr = "Déroulé" }
+transcription.notes_copy = { ja = "メモをコピー", en = "Copy notes", zh = "复制笔记", zh_hant = "拷貝筆記", ko = "메모 복사", mn = "Тэмдэглэл хуулах", fr = "Copier les notes" }
 transcription.notes_waiting = { ja = "発言があると、ここにメモを作ります", en = "Notes appear here once someone speaks", zh = "有人发言后，笔记会显示在这里", zh_hant = "有人發言後，筆記會顯示在這裡", ko = "발언이 있으면 여기에 메모가 만들어집니다", mn = "Хэн нэгэн ярьсны дараа тэмдэглэл энд гарна", fr = "Les notes apparaîtront ici dès qu’on parlera" }
 transcription.notes_working = { ja = "メモを作成しています", en = "Writing the notes", zh = "正在整理笔记", zh_hant = "正在整理筆記", ko = "메모를 작성하는 중", mn = "Тэмдэглэл бичиж байна", fr = "Rédaction des notes" }
 transcription.notes_stale = { ja = "メモを更新できませんでした。前回の内容を表示しています", en = "The notes could not be updated. Showing the last version", zh = "未能更新笔记，显示的是上一次的内容", zh_hant = "未能更新筆記，顯示的是上一次的內容", ko = "메모를 갱신하지 못했습니다. 지난 내용을 표시합니다", mn = "Тэмдэглэлийг шинэчилж чадсангүй. Сүүлийн хувилбарыг харуулж байна", fr = "Impossible de mettre à jour les notes. Dernière version affichée" }
+transcription.notes_topic_stale = { ja = "今の話題を更新できませんでした", en = "The current topic could not be updated", zh = "未能更新当前话题", zh_hant = "未能更新目前話題", ko = "현재 주제를 갱신하지 못했습니다", mn = "Одоогийн сэдвийг шинэчилж чадсангүй", fr = "Impossible de mettre à jour le sujet en cours" }
+transcription.notes_memo_failed = { ja = "メモを作成できませんでした", en = "The notes could not be written", zh = "未能整理笔记", zh_hant = "未能整理筆記", ko = "메모를 작성하지 못했습니다", mn = "Тэмдэглэл бичиж чадсангүй", fr = "Impossible de rédiger les notes" }
 transcription.notes_model_failed = { ja = "チャットモデルを起動できませんでした", en = "The chat model could not be started", zh = "无法启动聊天模型", zh_hant = "無法啟動聊天模型", ko = "채팅 모델을 시작하지 못했습니다", mn = "Чатын загварыг эхлүүлж чадсангүй", fr = "Impossible de démarrer le modèle de chat" }
 transcription.notes_open_model = { ja = "モデル設定を開く", en = "Open model settings", zh = "打开模型设置", zh_hant = "開啟模型設定", ko = "모델 설정 열기", mn = "Загварын тохиргоо нээх", fr = "Ouvrir les réglages du modèle" }
 transcription.notes_ask_title = { ja = "この会議への質問", en = "Ask about this meeting", zh = "关于这场会议的提问", zh_hant = "關於這場會議的提問", ko = "이 회의에 대한 질문", mn = "Энэ хурлын тухай асуулт", fr = "Question sur cette réunion" }

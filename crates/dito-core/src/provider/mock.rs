@@ -315,17 +315,17 @@ impl TextModel for MockMeetingModel {
             let lines = Self::transcript(last);
             let step = (lines.len() / 4).max(1);
             let picked: Vec<_> = lines.iter().step_by(step).take(4).collect();
-            let clip = |i: usize| picked.get(i).map(|(_, words)| Self::clip(words, 26));
-            let mut reply: Vec<String> = [("DECIDED", clip(0)), ("TODO", clip(1)), ("OPEN", clip(2))]
+            let words = |i: usize| picked.get(i).map(|(_, words)| words);
+            let mut reply: Vec<String> = [("DECIDED", words(0)), ("TODO", words(1)), ("OPEN", words(2))]
                 .into_iter()
                 .filter_map(|(label, words)| Some(format!("{label}: {}", words?)))
                 .collect();
-            reply.extend(picked.iter().map(|(at, words)| format!("FLOW: [{at}] {}", Self::clip(words, 26))));
+            reply.extend(picked.iter().map(|(at, words)| format!("FLOW: [{at}] {words}")));
             reply.push("END".into());
             reply.join("\n")
         } else if system.contains("You name the current topic") {
             let lines = Self::transcript(last);
-            let topic = lines.last().map_or_else(String::new, |(_, words)| Self::clip(words, 14));
+            let topic = lines.last().map_or("", |(_, words)| words.as_str());
             format!("NOW: {topic}")
         } else {
             let lines = Self::transcript(last);
