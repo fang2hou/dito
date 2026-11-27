@@ -7,9 +7,9 @@ use dito_core::i18n::Tr;
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
-use super::chat::ChatPage;
+use super::chat::{ChatEvent, ChatPage};
 use super::local_api::LocalApiPage;
-use super::transcription::TranscriptionPage;
+use super::transcription::{TranscriptionEvent, TranscriptionPage};
 use crate::app_shell::{self, Chrome, NavHost, NavPage, ShellView, WindowDestination};
 use crate::assets::Ic;
 use crate::services;
@@ -97,6 +97,21 @@ impl Tools {
         })
         .detach();
         let chat = cx.new(|cx| ChatPage::new(st.clone(), window, cx));
+        // The pages hold no handles to each other: what one asks of the other goes through this window.
+        cx.subscribe_in(&chat, window, |this: &mut Self, _, event: &ChatEvent, window, cx| match event {
+            ChatEvent::ReturnToRecording => {
+                this.select_page(ToolsPage::Transcription, cx);
+                this.transcription.update(cx, |page, cx| page.show_active_recording(window, cx));
+            }
+        })
+        .detach();
+        cx.subscribe(&transcription, |this: &mut Self, _, event: &TranscriptionEvent, cx| match event {
+            TranscriptionEvent::OpenInChat(handoff) => {
+                this.select_page(ToolsPage::Chat, cx);
+                this.chat.update(cx, |page, cx| page.continue_conversation(handoff.clone(), cx));
+            }
+        })
+        .detach();
         let local_api = cx.new(|cx| LocalApiPage::new(st.clone(), window, cx));
         Self {
             chrome: Chrome::new(st),

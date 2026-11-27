@@ -89,6 +89,27 @@ An app whose focused element supports no text through Accessibility (Zed and oth
 
 A command that got past its recording writes one history row of its own kind, whatever its outcome, holding the instruction, the decision, the tool, the source text, the result and the time of each step.
 
+## Live Meeting Notes
+
+While a meeting records, the recording page can show notes beside the transcript (`design:tools/recording/live-notes`): the current topic, what was said in the last five minutes, and a few points that fold everything earlier. Chat can attach the meeting while it records and ask about it. Three boundaries keep the pieces apart:
+
+```mermaid
+flowchart LR
+    Session[transcription session: status + store] --> Context[MeetingContext: latest available text]
+    Context --> Runner[meeting_notes runner: scheduler + prompts]
+    Runner -- local chat model only --> Notes[Notes: topic, recent, earlier]
+    Notes -- watch --> Panel[recording page: notes panel]
+    Panel -- question --> ChatStore[(chat store)]
+    Context --> Attach[Chat: linked meeting attachment]
+    Panel -. handoff .-> Chat[Chat page]
+```
+
+- **Recording state and context** (`dito-core::transcription::context`). `ActiveRecording` is the meeting a session is writing and whether it records, is paused or winds down; the sidebar dot, Chat's way back and a live attachment's dot all read it. `MeetingContext::read` is the one reader of the latest available text: the closed paragraphs the recording page shows, plus the words still being heard, so each word is in one place. Chat attachments and the notes get the meeting only through it.
+- **Background summary** (`dito-core::meeting_notes`). `Scheduler` is a pure rule set: the first notes at once from the text there is, then no more often than about once a minute while new text arrives, none while the recording is paused or when nothing new was said, and one last refresh when the session is over. When a window's worth (five minutes) of speech has aged out of the newest five minutes, a fold request merges it with the earlier points into four or five points that keep decisions, owners, deadlines and open questions; older speech is never sent again, only the points. `runner` is the actor: it looks at the meeting every two seconds, awaits each request before looking again (never two at once, never more than one fold in a refresh), keeps the last notes through a failed refresh, and ends with its handle, cancelling a request in flight. Prompts follow ADR-0012: a fixed English scaffold, the transcript fenced, earlier points escaped as references.
+- **UI** (`dito-app::tools::transcription::notes`, `tools::chat`). The page owns the panel's slide, the runner while the panel is open and the question field (ADR-0013); the runner's model comes from `services::notes_model_source`, which returns the chat model only when it runs on this Mac. A cloud chat model is never asked: the panel says so and opens the model settings. The panel opens over 240 ms (ease-out cubic): its width and opacity come from one retargetable fade, so a quick second press turns around from where it is; the recording dock is outside that row and stays put. Below the width both fit (776 pt) notes and transcript take turns.
+
+A question asked from the panel is a real chat: the first one creates the conversation with the meeting attached, each question reads the meeting as it is then, and the reply is written by the same engine as in Chat. The single round button hands the conversation to the Chat page, together with the reply still being written. A meeting attached in Chat while it records stays linked: it is read again on every send and kept after it, and a request carries only the newest copy of a meeting that appears in several messages (`chat::request_for`). The notes exist in memory only and are never stored; the model, the transcript and the questions never leave the Mac (ADR-0002, ADR-0008).
+
 ## Invariants
 
 - **Layer responsibilities**: dictation logic lives in `dito-core`. The app renders and forwards user intent; it never runs dictation logic itself.

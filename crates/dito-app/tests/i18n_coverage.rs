@@ -17,6 +17,8 @@ const EXEMPT: &[(&str, &str)] = &[
     ("dev/shots/readme_film.rs", "*"),
     // The conversations the chat shots seed (user content, not UI copy).
     ("dev/shots/chat.rs", "*"),
+    // The questions the live meeting notes shots type (user content, not UI copy).
+    ("dev/shots/live_notes.rs", "*"),
     // Configuration names the polish form shots type into the form (user content, not UI copy).
     ("dev/shots/text_model_form.rs", "*"),
     // The words with spoken forms the wordbook shots import (user content, not UI copy).

@@ -48,10 +48,13 @@ What the app is for and what it does, from the user's side. How it looks and mov
 - Each paragraph is polished with the two paragraphs before it as read-only context, plus the wordbook when it applies to polishing. A paragraph keeps the recognized words if polishing fails or is off.
 - Each session is one entry, like a memo: a title, the start time and length, and its paragraphs with time and speaker. Finished paragraphs are edited in place; an entry can be copied as text or deleted.
 - The voice activity model (Silero VAD, about 0.6 MB) is downloaded from the 発話検出 tab of the Models page, like every other model.
+- While a meeting records, the book button beside すべてをコピー opens 会議メモ beside the transcript (`design:tools/recording/live-notes`): the topic being discussed and its time of coverage first, what was said in 直近5分, and これまでの要点 that fold older speech into four or five points keeping decisions, owners and open questions. The first notes come at once when it opens, then about once a minute while new speech arrives; nothing refreshes while paused, and one last refresh follows the end. The notes use the chat model only when it runs on this Mac, stay in memory, and keep the last result when a refresh fails. The panel slides in over 240 ms with the transcript narrowing and the recording dock fixed; in a window too narrow for both, the same button swaps them.
+- A question asked in the panel is a chat about the meeting as it is then, and one round button continues the same conversation in Chat with the meeting still attached.
 
 ## Chat
 
 - A chat page in the Tools window uses the selected text model and supports attaching files or completed meeting transcripts. It streams replies with Markdown, code and tables.
+- A meeting that is still recording can be attached too, and it stays linked for follow-ups: each message carries what was said up to then, with the time of each utterance so an answer can name them. While any recording is active or paused, the toolbar offers a capsule 書き起こしに戻る that opens the recording without stopping it, whichever conversation is open.
 - When the chat uses a separate local model, the conversation stays on the Mac. The README documents the chat as shipped (`README.md`, `Chat and Local API`).
 
 ## Local API

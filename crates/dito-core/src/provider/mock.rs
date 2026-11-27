@@ -276,6 +276,93 @@ impl Router for MockRouter {
     }
 }
 
+/// A local model for `--mock` runs: it writes meeting notes and answers questions about a meeting from the
+/// transcript in the request, by rule, so every state of the live notes can be reached without a model on disk.
+pub struct MockMeetingModel;
+
+impl MockMeetingModel {
+    /// The `[HH:MM] speaker: words` lines of the fenced transcript in a notes request.
+    fn transcript(user: &str) -> Vec<(String, String)> {
+        let start = user.rfind("\n===\n").map_or(0, |end| user[..end].rfind("===\n").map_or(0, |at| at + 4));
+        user[start..]
+            .lines()
+            .filter_map(|line| {
+                let rest = line.strip_prefix('[')?;
+                let (at, words) = rest.split_once(']')?;
+                let words = words.trim();
+                let words = words.split_once(": ").map_or(words, |(_, text)| text);
+                (!words.is_empty() && at.len() == 5).then(|| (at.to_owned(), words.to_owned()))
+            })
+            .collect()
+    }
+
+    fn clip(text: &str, chars: usize) -> String {
+        let head: String = text.chars().take(chars).collect();
+        if text.chars().count() > chars { format!("{head}…") } else { head }
+    }
+}
+
+#[async_trait]
+impl TextModel for MockMeetingModel {
+    async fn polish(&self, req: &TextRequest<'_>) -> ProviderResult<String> {
+        Ok(rule_reply(req.system, req.text))
+    }
+
+    async fn chat(&self, req: &ChatRequest, on_delta: ChatDelta<'_>, _: &ChatCancel) -> ProviderResult<String> {
+        let system = req.messages.iter().find(|m| m.role == ChatRole::System).map_or("", |m| m.content.as_str());
+        let last = req.messages.iter().rev().find(|m| m.role == ChatRole::User).map_or("", |m| m.content.as_str());
+        let reply = if system.contains("Merge the earlier points") {
+            let lines = Self::transcript(last);
+            let step = (lines.len() / 4).max(1);
+            lines.iter().step_by(step).take(4).map(|(_, words)| Self::clip(words, 26)).collect::<Vec<_>>().join("\n")
+        } else if system.contains("Write the notes for the transcript") {
+            let lines = Self::transcript(last);
+            let topic = lines.last().map_or_else(String::new, |(_, words)| Self::clip(words, 14));
+            let recent = lines.iter().rev().take(3).rev();
+            let notes: Vec<String> = recent.map(|(at, words)| format!("[{at}] {}", Self::clip(words, 30))).collect();
+            format!("Topic: {topic}\n{}", notes.join("\n"))
+        } else {
+            let lines = Self::transcript(last);
+            let times: Vec<&str> = lines.iter().rev().take(3).rev().map(|(at, _)| at.as_str()).collect();
+            let asked = last.rsplit("</meeting>").next().unwrap_or(last).trim();
+            let said = lines.last().map_or("（まだ発言がありません）", |(_, words)| words.as_str());
+            let evidence =
+                if times.is_empty() { String::new() } else { format!("\n\n{} の発言", times.join("、")) };
+            format!("{asked} について、直近の発言は「{}」です。{evidence}", Self::clip(said, 40))
+        };
+        for piece in reply.split_inclusive('。') {
+            on_delta(piece);
+        }
+        Ok(reply)
+    }
+}
+
+/// The local engines of a `--mock` run: only the text model exists, and it is [`MockMeetingModel`].
+pub struct MockLocal;
+
+#[async_trait]
+impl crate::factory::LocalBackend for MockLocal {
+    async fn transcriber(&self, _: &str) -> ProviderResult<std::sync::Arc<dyn Transcriber>> {
+        Err(ProviderError::new(ErrorKind::Unavailable, "no local speech model in a mock run"))
+    }
+
+    async fn text_model(
+        &self,
+        _: &str,
+        _: &crate::config::LocalTextParams,
+    ) -> ProviderResult<std::sync::Arc<dyn TextModel>> {
+        Ok(std::sync::Arc::new(MockMeetingModel))
+    }
+
+    async fn router(&self, _: &str) -> ProviderResult<std::sync::Arc<dyn Router>> {
+        Err(ProviderError::new(ErrorKind::Unavailable, "no local router in a mock run"))
+    }
+
+    fn status(&self, _: &str) -> crate::health::EngineStatus {
+        crate::health::EngineStatus::Running
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

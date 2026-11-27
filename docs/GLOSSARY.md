@@ -75,6 +75,10 @@ How a command is decided is in [INTENT_ROUTING.md](INTENT_ROUTING.md); how it is
 | Transcription | Continuous live transcription of desktop audio, the microphone, or both into an editable meeting entry inside the Tools window | 書き起こし | Transcription | 转写 | `transcription/` | meeting mode, live dictation |
 | Chat | Multi-turn conversation in the Tools window with the chat model, with optional file and meeting transcript attachments | チャット | Chat | 聊天 | `chat/`, `tools/chat/` | assistant |
 | Chat model | The model the chat uses: the text model by default, or its own local model or cloud configuration; a separate local one stays loaded or loads only while the chat is open | チャットモデル | Chat model | 聊天模型 | `ChatSettings`, `Config::chat_engine`, `services::chat_model` | assistant model |
+| Live meeting notes | The notes beside the transcript of a recording meeting: current topic, the last five minutes, and a few points folding what is older; written by the local chat model, kept in memory | 会議メモ | Meeting notes | 会议笔记 | `meeting_notes`, `tools/transcription/notes/` | summary, recap |
+| Active recording | The meeting a transcription session is writing, with whether it records, is paused or winds down | 録音中 / 一時停止中 | Recording / Paused | 正在录音 / 已暂停 | `ActiveRecording` | current session |
+| Meeting context | The latest available text of a meeting: closed paragraphs plus the words still being heard | — | — | — | `MeetingContext` | transcript snapshot |
+| Linked meeting | A meeting attached in Chat while it records; it stays with the conversation and is read again on every send | — | — | — | `ChatPage::linked` | live attachment |
 | Local API | The opt-in loopback service (`127.0.0.1`) in the Tools window that serves the active text and speech models over an OpenAI-compatible HTTP API and MCP | ローカル API | Local API | 本地 API | `local_api/`, `tools/local_api/` | local server |
 | Speech detection | The on-device voice activity detector model role (`Silero VAD`) that cuts live streams into utterances | 発話検出 | Speech detection | 发话检测 | `ModelKind::Vad`, `VoiceDetector` | speaker detection, diarization |
 | Tile | The horizontal card control representing one saved cloud configuration | — | — | — | `ConfigTile`, `config_tiles/` | card (cards are grouped containers) |
@@ -98,7 +102,7 @@ Code, docs, and skills name a design section as `design:<id>` (for example `desi
 | Shortcuts, permissions, insertion, Keychain | `dito-platform` | [6](adr/0006-minimal-permissions.md) |
 | Settings, schema versions | `dito-core` (`config`) | [10](adr/0010-one-home-per-setting.md), [15](adr/0015-versioned-persistence.md) |
 | History, wordbook, stats, transcripts, chats | `dito-core` (`store`) | [8](adr/0008-data-stays-local.md) |
-| Meeting transcription, chat, Local API | `dito-core` (`transcription`, `chat`, `local_api`), `dito-app` (`tools`) | [6](adr/0006-minimal-permissions.md), [8](adr/0008-data-stays-local.md), [13](adr/0013-ui-state-ownership.md) |
+| Meeting transcription, live meeting notes, chat, Local API | `dito-core` (`transcription`, `meeting_notes`, `chat`, `local_api`), `dito-app` (`tools`) | [6](adr/0006-minimal-permissions.md), [8](adr/0008-data-stays-local.md), [13](adr/0013-ui-state-ownership.md) |
 | UI copy | `dito-core` (`i18n/messages.toml`) | [11](adr/0011-japanese-first.md) |
 | Shared controls, motion, typography, color tokens | `dito-ui` (`crates/dito-ui/src`) | [13](adr/0013-ui-state-ownership.md), [16](adr/0016-ui-kit-crate.md) |
 | App-bound UI, HUD, settings, Tools window, onboarding | `dito-app` (`crates/dito-app/src/ui` for app-bound controls) | [4](adr/0004-hud-out-of-the-way.md), [13](adr/0013-ui-state-ownership.md), [14](adr/0014-silent-launch.md) |

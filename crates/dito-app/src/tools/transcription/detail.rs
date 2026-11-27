@@ -1,13 +1,15 @@
 //! One transcript as an editable document: a fixed speaker column, paragraphs edited in place, and the whole
 //! meeting's copy and delete in the header.
 
+use std::time::Instant;
+
 use dito_core::i18n::{Tr, fmt};
 use dito_core::store::{ParagraphState, Speaker};
 use dito_core::transcription::SessionState;
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
-use super::{OpenTranscript, ParagraphView, TranscriptionPage, row_fill, speaker_label};
+use super::{OpenTranscript, ParagraphView, TranscriptionPage, notes, row_fill, speaker_label};
 use crate::assets::Ic;
 use crate::settings::{Ctx, Edge, edge_fade};
 use crate::theme::Palette;
@@ -88,16 +90,61 @@ pub(super) fn view(
                     )
                 }),
         )
-        .child(
-            div().relative().flex_1().min_h(px(0.)).child(
-                paragraph_card(open, page, c, pose.entry, window, cx)
-                    .absolute()
-                    .top_0()
-                    .left_0()
-                    .w_full()
-                    .h(relative(pose.entry)),
-            ),
-        )
+        .child(div().relative().flex_1().min_h(px(0.)).child(
+            body(open, page, c, pose.entry, window, cx).absolute().top_0().left_0().w_full().h(relative(pose.entry)),
+        ))
+}
+
+/// The transcript, with the meeting notes beside it while the panel is out. The panel slides in from the right and
+/// fades up while the transcript narrows by the room it takes; the transcript keeps its left edge. When the page is
+/// too narrow for both they take turns and cross-fade. The recording dock below is not part of this row.
+fn body(
+    open: &OpenTranscript,
+    page: &TranscriptionPage,
+    c: &Ctx,
+    entry: f32,
+    window: &mut Window,
+    cx: &mut Context<TranscriptionPage>,
+) -> Div {
+    let now = Instant::now();
+    let card = paragraph_card(open, page, c, entry, window, cx);
+    if !page.notes.visible(now) {
+        return div().size_full().flex().child(card);
+    }
+    let (slide, fade) = page.notes.sample(now);
+    if page.notes.compact {
+        let mut turns = div().size_full().relative();
+        if fade < 1. {
+            turns = turns.child(div().absolute().inset_0().flex().opacity(1. - fade).child(card));
+        }
+        if fade > 0. {
+            turns = turns.child(div().absolute().inset_0().opacity(fade).child(notes::panel_view(page, c, true, cx)));
+        }
+        return turns;
+    }
+    let room = (notes::PANEL_W + notes::GAP) * slide;
+    div().size_full().flex().child(card).child(
+        div().relative().h_full().flex_none().w(px(room)).overflow_hidden().child(
+            div()
+                .absolute()
+                .top_0()
+                .left(px(notes::GAP * slide))
+                .h_full()
+                .opacity(fade)
+                .child(notes::panel_view(page, c, false, cx)),
+        ),
+    )
+}
+
+/// The book button beside Copy: it only opens and closes the notes.
+fn notes_toggle(page: &TranscriptionPage, c: &Ctx, cx: &mut Context<TranscriptionPage>) -> impl IntoElement {
+    let id = ElementId::from("transcript-notes-toggle");
+    let label = c.t(if page.notes.open { Tr::TranscriptionNotesClose } else { Tr::TranscriptionNotesOpen });
+    ui::tip_label(id.clone(), label.clone());
+    ui::icon_button(id.clone(), &c.p, Ic::BookOpen, page.notes.open, cbk(cx, |page, _, cx| page.toggle_notes(cx)))
+        .role(Role::Button)
+        .aria_label(label)
+        .child(ui::tip_above(&c.p, &id))
 }
 
 /// The header of the transcript the session is writing: when it started, how much it has, and the way back.
@@ -138,8 +185,19 @@ fn live_head(open: &OpenTranscript, page: &TranscriptionPage, c: &Ctx, cx: &mut 
                     FontWeight::NORMAL,
                     p.muted,
                 ))
-                .child(super::list::badge(p, fmt::transcription_count(c.lang, &count.to_string()))),
+                .child(super::list::badge(p, fmt::transcription_count(c.lang, &count.to_string())))
+                .child(div().flex().items_center().gap(px(8.)).child(copy_all(c, cx)).child(notes_toggle(page, c, cx))),
         )
+}
+
+fn copy_all(c: &Ctx, cx: &mut Context<TranscriptionPage>) -> impl IntoElement {
+    let copy_id = ElementId::from("transcript-copy-all");
+    let label = c.t(Tr::TranscriptionCopyAll);
+    ui::tip_label(copy_id.clone(), label.clone());
+    ui::copy_button(copy_id.clone(), &c.p, cbk_copy(cx, |page, _, cx| page.copy_open(cx)))
+        .role(Role::Button)
+        .aria_label(label)
+        .child(ui::tip_above(&c.p, &copy_id))
 }
 
 /// The header of a finished transcript: the way back, copy, and delete.
@@ -159,6 +217,7 @@ fn finished_head(page: &TranscriptionPage, c: &Ctx, cx: &mut Context<Transcripti
                     .aria_label(copy_all)
                     .child(ui::tip_above(p, &copy_id)),
             )
+            .children(page.notes.open.then(|| notes_toggle(page, c, cx)))
             .child(delete_button(page, c, cx)),
     )
 }
@@ -290,6 +349,7 @@ fn paragraph_card(
         .relative()
         .flex_1()
         .min_h(px(0.))
+        .min_w(px(0.))
         .on_hover(ui::hover_tracker(area.clone()))
         .child(card)
         .child(ui::overlay_thumb("transcript-detail-thumb", p, ui::is_hovered(&area), extent, 0.))

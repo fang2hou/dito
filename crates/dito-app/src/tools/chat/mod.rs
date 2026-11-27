@@ -3,7 +3,7 @@
 
 mod composer;
 mod files;
-mod generation;
+pub(crate) mod generation;
 mod highlight;
 mod markdown;
 mod markdown_view;
@@ -14,18 +14,17 @@ mod pose;
 mod sidebar;
 mod switch;
 
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use dito_core::chat::{self, FileError, Limits};
+use dito_core::chat::{self, FileError};
 use dito_core::config::Source;
 use dito_core::i18n::{Lang, Tr, fmt};
-use dito_core::provider::ThinkingCapabilities;
-use dito_core::store::{
-    Attachment, Author, ChatMessageRow, ChatSummary, MessageState, NewChatMessage, TranscriptSummary,
-};
+use dito_core::store::{Attachment, Author, ChatMessageRow, ChatSummary, MessageState, NewChatMessage};
+use dito_core::transcription::{ActiveRecording, MeetingContext, SpeakerNames};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
@@ -33,6 +32,7 @@ use self::generation::{Finished, Generation};
 use self::markdown::Document;
 use self::switch::{Phase, Switch};
 use crate::app_shell::{RAIL_COLLAPSE, RAIL_EXPAND};
+use crate::services::{self, ModelFacts};
 use crate::settings::{self, Ctx};
 use crate::state::AppState;
 use crate::timefmt::{date_time, now};
@@ -50,6 +50,21 @@ const STREAM_FRAME: Duration = Duration::from_millis(33);
 const BOTTOM_SLACK: f32 = 4.;
 const DRAWER_MS: u64 = 180;
 
+/// What the Chat page asks of the window around it.
+#[derive(Clone)]
+pub(crate) enum ChatEvent {
+    /// The user wants the recording page back, with the meeting being recorded open.
+    ReturnToRecording,
+}
+
+/// A conversation the meeting notes hand over, and the reply still being written for it.
+#[derive(Clone)]
+pub(crate) struct Handoff {
+    pub chat_id: i64,
+    pub meeting_id: i64,
+    pub generation: Rc<RefCell<Option<Generation>>>,
+}
+
 pub(crate) struct ChatPage {
     st: Arc<AppState>,
     motion: ui::MotionScope,
@@ -64,6 +79,12 @@ pub(crate) struct ChatPage {
     composer: Entity<TextareaState>,
     composer_lang: Lang,
     pending: Vec<Attachment>,
+    /// Meetings attached while they were being recorded. They stay with the conversation after a send and are read
+    /// again on the next one, so each message carries what was said up to then.
+    linked: Vec<i64>,
+    /// The meeting a session is writing now: it gives the way back, and the live dot of an attached meeting.
+    recording: Option<ActiveRecording>,
+    _recording_watch: Task<()>,
     notice: Option<String>,
     generation: Option<Generation>,
     /// Redraws the page while a reply streams; it ends with the reply or with the view.
@@ -90,16 +111,6 @@ pub(crate) struct ChatPage {
 struct TextMenu {
     at: Point<Pixels>,
     text: String,
-}
-
-/// What the chat needs to know about the chat model in use.
-struct ModelFacts {
-    /// Names the model in `chat.thinking` of the configuration.
-    key: String,
-    limits: Limits,
-    thinking: Option<ThinkingCapabilities>,
-    /// The reasoning effort a cloud configuration names, which is the choice until another is saved.
-    configured: Option<String>,
 }
 
 struct Switching {
@@ -156,6 +167,22 @@ impl ChatPage {
                 let _ = weak.update(cx, |page, cx| page.dismiss_overlays(cx));
             }
         });
+        let mut status = st.transcription.subscribe();
+        let recording = ActiveRecording::of(&status.borrow());
+        let recording_watch = cx.spawn(async move |this, cx| {
+            while status.changed().await.is_ok() {
+                let next = ActiveRecording::of(&status.borrow_and_update());
+                let alive = this.update(cx, |page, cx| {
+                    if page.recording != next {
+                        page.recording = next;
+                        cx.notify();
+                    }
+                });
+                if alive.is_err() {
+                    break;
+                }
+            }
+        });
         let mut page = Self {
             st,
             motion: ui::MotionScope::new(),
@@ -168,6 +195,9 @@ impl ChatPage {
             composer,
             composer_lang: lang,
             pending: Vec::new(),
+            linked: Vec::new(),
+            recording,
+            _recording_watch: recording_watch,
             notice: None,
             generation: None,
             ticker: None,
@@ -250,36 +280,12 @@ impl ChatPage {
     }
 
     fn model_facts(&self) -> ModelFacts {
-        let cfg = self.st.cfg.get();
-        let engine = cfg.chat_engine();
-        match engine.source {
-            Source::Local => {
-                let capabilities = self.st.models.spec(&engine.local_model).and_then(|spec| spec.text_capabilities);
-                ModelFacts {
-                    key: format!("local:{}", engine.local_model),
-                    limits: Limits::local(capabilities.as_ref()),
-                    thinking: capabilities.and_then(|c| c.thinking),
-                    configured: None,
-                }
-            }
-            Source::Provider => {
-                let active = engine.active_text();
-                ModelFacts {
-                    key: format!("cloud:{}", active.as_ref().map_or("", |t| t.id.as_str())),
-                    limits: Limits::CLOUD,
-                    thinking: Some(chat::CLOUD_THINKING),
-                    configured: active.map(|t| t.params.reasoning_effort.as_str().to_owned()),
-                }
-            }
-        }
+        services::chat_model_facts(&self.st)
     }
 
     /// The choice saved for this model, else the effort its cloud configuration names, else the model's default.
     fn thinking_choice(&self, facts: &ModelFacts) -> Option<&'static str> {
-        let capabilities = facts.thinking.as_ref()?;
-        let cfg = self.st.cfg.get();
-        let saved = cfg.chat.thinking.get(&facts.key).map(String::as_str).or(facts.configured.as_deref());
-        chat::thinking_choice(capabilities, saved)
+        services::chat_thinking_choice(&self.st, facts)
     }
 
     fn toggle_thinking_menu(&mut self, cx: &mut Context<Self>) {
@@ -306,14 +312,7 @@ impl ChatPage {
     }
 
     fn model_label(&self) -> String {
-        let cfg = self.st.cfg.get();
-        let engine = cfg.chat_engine();
-        match engine.source {
-            Source::Local => {
-                self.st.models.spec(&engine.local_model).map_or_else(|| engine.local_model.clone(), |s| s.name.clone())
-            }
-            Source::Provider => engine.active_text().map(|t| t.target.model().to_owned()).unwrap_or_default(),
-        }
+        services::chat_model_label(&self.st)
     }
 
     fn open_model_settings(&self, cx: &mut Context<Self>) {
@@ -452,7 +451,13 @@ impl ChatPage {
         if text.trim().is_empty() && self.pending.is_empty() {
             return;
         }
-        let attachments = std::mem::take(&mut self.pending);
+        // A meeting that stays linked says what was said up to this message.
+        self.refresh_linked();
+        let fresh = self.pending.iter().any(|a| !is_linked(&self.linked, a));
+        if text.trim().is_empty() && !fresh {
+            return;
+        }
+        let attachments = self.pending.clone();
         let ts = now();
         let chat_id = match self.current {
             Some(id) => id,
@@ -466,7 +471,6 @@ impl ChatPage {
                     }
                     Err(e) => {
                         tracing::warn!("could not create a chat: {e}");
-                        self.pending = attachments;
                         self.fail(Tr::ChatSaveFailed, cx);
                         return;
                     }
@@ -494,11 +498,12 @@ impl ChatPage {
             }),
             Err(e) => {
                 tracing::warn!("could not save a chat message: {e}");
-                self.pending = attachments;
                 self.fail(Tr::ChatSaveFailed, cx);
                 return;
             }
         }
+        let linked = &self.linked;
+        self.pending.retain(|a| is_linked(linked, a));
         self.composer.update(cx, |state, cx| state.set_value("", window, cx));
         self.reload_sessions();
         self.begin_reply(chat_id, cx);
@@ -511,41 +516,19 @@ impl ChatPage {
 
     /// Adds the reply's row and starts the request for the conversation as it stands.
     fn begin_reply(&mut self, chat_id: i64, cx: &mut Context<Self>) {
-        let facts = self.model_facts();
-        let mut request = chat::request_for(&self.rows, self.date_label(), facts.limits.context_chars);
-        request.thinking = chat::thinking_request(self.thinking_choice(&facts));
-        let model = self.model_label();
-        let ts = now();
-        let placeholder = NewChatMessage {
-            author: Author::Assistant,
-            content: "",
-            state: MessageState::Generating,
-            attachments: &[],
-            model: Some(&model),
-            ts,
-        };
-        let id = match self.st.store.add_chat_message(chat_id, &placeholder) {
-            Ok(id) => id,
+        match generation::begin(&self.st, chat_id, &self.rows) {
+            Ok((row, generation)) => {
+                self.push_row(row);
+                self.generation = Some(generation);
+                self.scroll.scroll_to_bottom();
+                self.watch_generation(cx);
+                cx.notify();
+            }
             Err(e) => {
                 tracing::warn!("could not save a chat reply: {e}");
                 self.fail(Tr::ChatSaveFailed, cx);
-                return;
             }
-        };
-        self.push_row(ChatMessageRow {
-            id,
-            author: Author::Assistant,
-            content: String::new(),
-            state: MessageState::Generating,
-            error: None,
-            attachments: Vec::new(),
-            model: Some(model),
-            ts,
-        });
-        self.generation = Some(Generation::start(&self.st, chat_id, id, request));
-        self.scroll.scroll_to_bottom();
-        self.watch_generation(cx);
-        cx.notify();
+        }
     }
 
     fn watch_generation(&mut self, cx: &mut Context<Self>) {
@@ -653,7 +636,9 @@ impl ChatPage {
 
     fn remove_pending(&mut self, index: usize, cx: &mut Context<Self>) {
         if index < self.pending.len() {
-            self.pending.remove(index);
+            if let Attachment::Meeting { transcript_id, .. } = self.pending.remove(index) {
+                self.linked.retain(|id| *id != transcript_id);
+            }
             cx.notify();
         }
     }
@@ -682,6 +667,7 @@ impl ChatPage {
             Attachment::Meeting { transcript_id, .. } => picker.selected.contains(transcript_id),
             Attachment::File { .. } => true,
         });
+        self.linked.retain(|id| picker.selected.contains(id));
         let kept: Vec<i64> = self
             .pending
             .iter()
@@ -693,7 +679,12 @@ impl ChatPage {
         let mut failed = false;
         for id in picker.selected.iter().filter(|id| !kept.contains(id)) {
             match self.meeting_attachment(*id) {
-                Some(meeting) => self.pending.push(meeting),
+                Some(meeting) => {
+                    self.pending.push(meeting);
+                    if self.recording.is_some_and(|r| r.id == *id) {
+                        self.linked.push(*id);
+                    }
+                }
                 None => failed = true,
             }
         }
@@ -703,30 +694,63 @@ impl ChatPage {
         cx.notify();
     }
 
+    /// The meeting as it reads now: for the one being recorded, the closed paragraphs and the words still being
+    /// heard, each with its time so an answer can say when something was said.
     fn meeting_attachment(&self, id: i64) -> Option<Attachment> {
-        let transcript = self.st.store.get_transcript(id).ok().flatten()?;
+        let status = self.st.transcription.status();
+        let context = MeetingContext::read(&self.st.store, &status, id).ok().flatten()?;
         let lang = self.lang();
-        let both = transcript.summary.sources.both();
-        let text = chat::meeting_text(transcript.paragraphs.iter().map(|p| {
-            let speaker = both.then(|| match p.speaker {
-                dito_core::store::Speaker::Me => lang.tr(Tr::TranscriptionMe),
-                dito_core::store::Speaker::Others => lang.tr(Tr::TranscriptionOthers),
-            });
-            (speaker, p.text.as_str())
-        }));
-        let summary: &TranscriptSummary = &transcript.summary;
-        let title = if summary.title.trim().is_empty() {
-            self.date_label()(summary.started_ts)
+        let names = SpeakerNames { me: lang.tr(Tr::TranscriptionMe), others: lang.tr(Tr::TranscriptionOthers) };
+        let text = if context.live {
+            context.text(names, true, dito_platform::local_utc_offset_secs())
         } else {
-            summary.title.trim().to_owned()
+            context.text(names, false, 0)
         };
+        let title =
+            if context.title.is_empty() { self.date_label()(context.started_ts) } else { context.title.clone() };
         Some(Attachment::Meeting {
             transcript_id: id,
             title,
-            started_ts: summary.started_ts,
-            duration_ms: summary.length_ms,
+            started_ts: context.started_ts,
+            duration_ms: context.duration_ms,
             text,
         })
+    }
+
+    /// Reads every linked meeting again.
+    fn refresh_linked(&mut self) {
+        let fresh: Vec<Attachment> = self.linked.iter().filter_map(|id| self.meeting_attachment(*id)).collect();
+        for latest in fresh {
+            let Attachment::Meeting { transcript_id, .. } = &latest else { continue };
+            if let Some(slot) = self
+                .pending
+                .iter_mut()
+                .find(|a| matches!(a, Attachment::Meeting { transcript_id: id, .. } if id == transcript_id))
+            {
+                *slot = latest;
+            }
+        }
+    }
+
+    /// Continues a conversation the meeting notes started: the same chat, the meeting still linked for follow-ups, and
+    /// the reply that is being written carried over.
+    pub(crate) fn continue_conversation(&mut self, handoff: Handoff, cx: &mut Context<Self>) {
+        self.switch_to(Some(handoff.chat_id), cx);
+        let attached = self
+            .pending
+            .iter()
+            .any(|a| matches!(a, Attachment::Meeting { transcript_id, .. } if *transcript_id == handoff.meeting_id));
+        if !attached && let Some(meeting) = self.meeting_attachment(handoff.meeting_id) {
+            self.pending.push(meeting);
+        }
+        if !self.linked.contains(&handoff.meeting_id) {
+            self.linked.push(handoff.meeting_id);
+        }
+        if let Some(generation) = handoff.generation.borrow_mut().take() {
+            self.generation = Some(generation);
+            self.watch_generation(cx);
+        }
+        cx.notify();
     }
 
     /// The window's width decides it, as the sidebar's rail does; the same hysteresis keeps a drag across the edge
@@ -740,6 +764,8 @@ impl ChatPage {
         }
     }
 }
+
+impl EventEmitter<ChatEvent> for ChatPage {}
 
 impl Render for ChatPage {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
@@ -859,11 +885,45 @@ impl ChatPage {
             .items_center()
             .gap(px(12.))
             .child(ui::page_title(&p, c.t(Tr::NavChat)).line_height(px(TOOLBAR_H)).flex_1().min_w(px(0.)))
+            .children(self.return_button(c, cx))
             .child(self.model_button(c, cx));
         if self.compact {
             bar = bar.child(sidebar::history_button(c, cx));
         }
         bar
+    }
+
+    /// The way back to the recording, in every conversation while a session records or is paused
+    /// (`design:tools/chat`, 23.05.5). It leaves the attachments and the recording as they are.
+    fn return_button(&self, c: &Ctx, cx: &mut Context<Self>) -> Option<impl IntoElement + use<>> {
+        let recording = self.recording.filter(|r| r.can_return())?;
+        let p = c.p;
+        let id = ElementId::from("chat-return-to-recording");
+        let label = c.t(Tr::ChatReturnToRecording);
+        let dot = if recording.phase == dito_core::transcription::RecordingPhase::Paused { p.muted } else { p.danger };
+        Some(
+            div()
+                .id(id.clone())
+                .relative()
+                .h(px(36.))
+                .px(px(12.))
+                .flex_none()
+                .flex()
+                .items_center()
+                .gap(px(6.))
+                .rounded_full()
+                .bg(p.input_bg)
+                .border_1()
+                .border_color(p.border_strong)
+                .cursor_pointer()
+                .role(Role::Button)
+                .aria_label(label.clone())
+                .on_hover(ui::hover_tracker(id.clone()))
+                .on_click(ui::click_cb(ui::cbk(cx, |_, _, cx| cx.emit(ChatEvent::ReturnToRecording))))
+                .child(ui::hover_fill(&id, None, p.seg))
+                .child(div().size(px(7.)).flex_none().rounded_full().bg(dot))
+                .child(ui::text(label, 13., FontWeight::MEDIUM, p.text).line_height(px(20.))),
+        )
     }
 
     /// The chat model and where it runs: it opens Settings at its card, and there is no dropdown.
@@ -890,6 +950,10 @@ impl ChatPage {
             .child(ui::text(self.model_label(), 13., FontWeight::MEDIUM, p.text).line_height(px(18.)))
             .child(ui::source_label(&p, local, source))
     }
+}
+
+fn is_linked(linked: &[i64], attachment: &Attachment) -> bool {
+    matches!(attachment, Attachment::Meeting { transcript_id, .. } if linked.contains(transcript_id))
 }
 
 fn selected_text(window: &mut Window, cx: &mut App) -> String {

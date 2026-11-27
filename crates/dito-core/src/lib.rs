@@ -14,6 +14,7 @@ pub mod identity;
 pub mod insert;
 pub mod intent;
 pub mod local_api;
+pub mod meeting_notes;
 pub mod pipeline;
 pub mod prompts;
 pub mod provider;

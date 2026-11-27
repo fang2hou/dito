@@ -5,7 +5,9 @@ use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use dito_core::chat::{self, Limits};
 use dito_core::config::{ChatLoading, Config, Source};
+use dito_core::provider::ThinkingCapabilities;
 
 use crate::state::AppState;
 
@@ -122,4 +124,63 @@ fn release_unless_used(st: &Arc<AppState>, cfg: &Config, id: String) {
         let local = st.local.clone();
         st.rt.spawn_blocking(move || local.unload(&id));
     }
+}
+
+/// What the chat needs to know about the chat model in use.
+pub struct ModelFacts {
+    /// Names the model in `chat.thinking` of the configuration.
+    pub key: String,
+    pub limits: Limits,
+    pub thinking: Option<ThinkingCapabilities>,
+    /// The reasoning effort a cloud configuration names, which is the choice until another is saved.
+    pub configured: Option<String>,
+}
+
+pub fn chat_model_facts(st: &AppState) -> ModelFacts {
+    let cfg = st.cfg.get();
+    let engine = cfg.chat_engine();
+    match engine.source {
+        Source::Local => {
+            let capabilities = st.models.spec(&engine.local_model).and_then(|spec| spec.text_capabilities);
+            ModelFacts {
+                key: format!("local:{}", engine.local_model),
+                limits: Limits::local(capabilities.as_ref()),
+                thinking: capabilities.and_then(|c| c.thinking),
+                configured: None,
+            }
+        }
+        Source::Provider => {
+            let active = engine.active_text();
+            ModelFacts {
+                key: format!("cloud:{}", active.as_ref().map_or("", |t| t.id.as_str())),
+                limits: Limits::CLOUD,
+                thinking: Some(chat::CLOUD_THINKING),
+                configured: active.map(|t| t.params.reasoning_effort.as_str().to_owned()),
+            }
+        }
+    }
+}
+
+/// The choice saved for this model, else the effort its cloud configuration names, else the model's default.
+pub fn chat_thinking_choice(st: &AppState, facts: &ModelFacts) -> Option<&'static str> {
+    let capabilities = facts.thinking.as_ref()?;
+    let cfg = st.cfg.get();
+    let saved = cfg.chat.thinking.get(&facts.key).map(String::as_str).or(facts.configured.as_deref());
+    chat::thinking_choice(capabilities, saved)
+}
+
+pub fn chat_model_label(st: &AppState) -> String {
+    let cfg = st.cfg.get();
+    let engine = cfg.chat_engine();
+    match engine.source {
+        Source::Local => {
+            st.models.spec(&engine.local_model).map_or_else(|| engine.local_model.clone(), |s| s.name.clone())
+        }
+        Source::Provider => engine.active_text().map(|t| t.target.model().to_owned()).unwrap_or_default(),
+    }
+}
+
+/// Whether the chat model in use runs on this Mac.
+pub fn chat_model_is_local(st: &AppState) -> bool {
+    st.cfg.get().chat_engine().source == Source::Local
 }
