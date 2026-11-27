@@ -6,7 +6,7 @@ use gpui_kit::*;
 use super::highlight::Ink;
 use super::markdown::{CodeLine, Document, Inline, Prepared};
 use crate::theme::Palette;
-use crate::ui;
+use crate::ui::{self, Palette as UiPalette};
 
 const BODY_SIZE: f32 = 14.;
 const BODY_LINE: f32 = 24.;
@@ -18,6 +18,12 @@ const CODE_LINE: f32 = 20.;
 /// A reply's blocks in the reply typography, for every surface that shows a reply.
 pub(crate) fn document(doc: &Document, p: &Palette) -> Div {
     blocks(doc.blocks(), p)
+}
+
+/// The same blocks on a surface that is itself `p.sub`, where inline code and table heads would vanish: they take
+/// `p.border` instead, which stays visible in both themes.
+pub(crate) fn document_on_sub(doc: &Document, p: &Palette) -> Div {
+    blocks(doc.blocks(), &Palette { ui: UiPalette { sub: p.border, ..p.ui }, ..*p })
 }
 
 fn blocks<'a>(blocks: impl Iterator<Item = &'a Prepared>, p: &Palette) -> Div {

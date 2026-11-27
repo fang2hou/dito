@@ -254,7 +254,7 @@ fn answer(row: &ChatMessageRow, doc: Option<&Document>, generating: bool, c: &Ct
         return div().child(text(label, 12., FontWeight::NORMAL, color).line_height(px(20.)));
     }
     match doc {
-        Some(doc) => markdown_view::document(doc, &p),
+        Some(doc) => markdown_view::document_on_sub(doc, &p),
         None => div(),
     }
 }
