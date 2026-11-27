@@ -3,6 +3,7 @@
 //! and the reply is written by the same engine as in Chat, with the same chat model.
 
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::rc::Rc;
 use std::time::Duration;
 
@@ -17,6 +18,7 @@ use super::TranscriptionEvent;
 use crate::timefmt::{date_time, now};
 use crate::tools::chat::Handoff;
 use crate::tools::chat::generation::{self, Finished, Generation};
+use crate::tools::chat::markdown::Document;
 use crate::tools::transcription::TranscriptionPage;
 use crate::ui::{InputEvent, TextareaState};
 
@@ -29,6 +31,8 @@ pub(crate) struct Ask {
     pub meeting: Option<i64>,
     pub chat_id: Option<i64>,
     pub rows: Vec<ChatMessageRow>,
+    /// Each reply parsed once, as in Chat, keyed by the row it belongs to.
+    pub answers: HashMap<i64, Document>,
     pub generation: Option<Generation>,
     ticker: Option<Task<()>>,
     /// The panel shows the conversation instead of the notes.
@@ -53,6 +57,7 @@ impl Ask {
             meeting: None,
             chat_id: None,
             rows: Vec::new(),
+            answers: HashMap::new(),
             generation: None,
             ticker: None,
             conversation: false,
@@ -63,6 +68,36 @@ impl Ask {
 
     pub fn generating(&self) -> bool {
         self.generation.is_some()
+    }
+
+    /// Writes the reply of a row, in the row and in its document.
+    fn write_answer(&mut self, id: i64, text: &str) {
+        let Some(row) = self.rows.iter_mut().find(|r| r.id == id) else { return };
+        row.content = text.to_owned();
+        self.answers
+            .entry(id)
+            .or_insert_with(|| Document::new(ElementId::from(("meeting-notes-answer", id as usize))))
+            .update(text);
+    }
+}
+
+#[cfg(feature = "screenshots")]
+impl Ask {
+    pub(super) fn pose(&mut self, question: &str, answer: &str) {
+        let row = |id, author, content: &str| ChatMessageRow {
+            id,
+            author,
+            content: content.to_owned(),
+            state: MessageState::Done,
+            error: None,
+            attachments: Vec::new(),
+            model: None,
+            ts: 0,
+        };
+        self.rows = vec![row(-1, Author::User, question), row(-2, Author::Assistant, answer)];
+        self.answers.clear();
+        self.write_answer(-2, answer);
+        self.conversation = true;
     }
 }
 
@@ -174,14 +209,14 @@ impl TranscriptionPage {
         let ask = &mut self.notes.ask;
         let Some(generation) = &mut ask.generation else { return false };
         let id = generation.message_id;
-        if let Some(text) = generation.grown()
-            && let Some(row) = ask.rows.iter_mut().find(|r| r.id == id)
-        {
-            row.content = text;
+        let grown = generation.grown();
+        let finished = generation.finished();
+        if let Some(text) = grown {
+            ask.write_answer(id, &text);
         }
-        if let Some(Finished { content, state, error }) = generation.finished() {
+        if let Some(Finished { content, state, error }) = finished {
+            ask.write_answer(id, &content);
             if let Some(row) = ask.rows.iter_mut().find(|r| r.id == id) {
-                row.content = content;
                 row.state = state;
                 row.error = error;
             }
@@ -215,6 +250,7 @@ impl TranscriptionPage {
         ask.chat_id = None;
         ask.meeting = None;
         ask.rows.clear();
+        ask.answers.clear();
         ask.generation = None;
         ask.ticker = None;
         ask.conversation = false;

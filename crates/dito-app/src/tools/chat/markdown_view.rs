@@ -3,9 +3,8 @@
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
-use super::ChatPage;
 use super::highlight::Ink;
-use super::markdown::{CodeLine, Inline, Prepared};
+use super::markdown::{CodeLine, Document, Inline, Prepared};
 use crate::theme::Palette;
 use crate::ui;
 
@@ -16,29 +15,34 @@ const CODE_FONT: &str = "Menlo";
 const CODE_SIZE: f32 = 12.;
 const CODE_LINE: f32 = 20.;
 
-pub(super) fn blocks<'a>(blocks: impl Iterator<Item = &'a Prepared>, p: &Palette, cx: &mut Context<ChatPage>) -> Div {
+/// A reply's blocks in the reply typography, for every surface that shows a reply.
+pub(crate) fn document(doc: &Document, p: &Palette) -> Div {
+    blocks(doc.blocks(), p)
+}
+
+fn blocks<'a>(blocks: impl Iterator<Item = &'a Prepared>, p: &Palette) -> Div {
     let mut column = div().w_full().flex().flex_col().gap(px(BLOCK_GAP));
     for block in blocks {
-        column = column.child(block_view(block, p, cx));
+        column = column.child(block_view(block, p));
     }
     column
 }
 
-fn block_view(block: &Prepared, p: &Palette, cx: &mut Context<ChatPage>) -> AnyElement {
+fn block_view(block: &Prepared, p: &Palette) -> AnyElement {
     match block {
         Prepared::Paragraph(text) => inline(text, p, BODY_SIZE, BODY_LINE, FontWeight::NORMAL).into_any_element(),
         Prepared::Heading { level, text } => {
             let (size, line) = if *level == 1 { (17., 26.) } else { (15., 24.) };
             inline(text, p, size, line, FontWeight::BOLD).into_any_element()
         }
-        Prepared::List { start, items } => list(*start, items, p, cx).into_any_element(),
+        Prepared::List { start, items } => list(*start, items, p).into_any_element(),
         Prepared::Quote(inner) => div()
             .w_full()
             .px(px(16.))
             .py(px(12.))
             .rounded(px(12.))
             .bg(p.accent_soft)
-            .child(blocks(inner.iter(), p, cx))
+            .child(blocks(inner.iter(), p))
             .into_any_element(),
         Prepared::Code { id, lang, text, lines } => code_block(id, lang, text, lines, p).into_any_element(),
         Prepared::Table { head, rows } => table(head, rows, p).into_any_element(),
@@ -46,7 +50,7 @@ fn block_view(block: &Prepared, p: &Palette, cx: &mut Context<ChatPage>) -> AnyE
     }
 }
 
-fn list(start: Option<u64>, items: &[Vec<Prepared>], p: &Palette, cx: &mut Context<ChatPage>) -> Div {
+fn list(start: Option<u64>, items: &[Vec<Prepared>], p: &Palette) -> Div {
     let mut column = div().w_full().flex().flex_col().gap(px(8.));
     for (i, item) in items.iter().enumerate() {
         let marker = match start {
@@ -63,11 +67,12 @@ fn list(start: Option<u64>, items: &[Vec<Prepared>], p: &Palette, cx: &mut Conte
                 .child(div().size(px(5.)).rounded_full().bg(p.accent)),
         };
         column = column.child(
-            div().w_full().flex().gap(px(4.)).child(marker).child(div().flex_1().min_w(px(0.)).child(blocks(
-                item.iter(),
-                p,
-                cx,
-            ))),
+            div()
+                .w_full()
+                .flex()
+                .gap(px(4.))
+                .child(marker)
+                .child(div().flex_1().min_w(px(0.)).child(blocks(item.iter(), p))),
         );
     }
     column

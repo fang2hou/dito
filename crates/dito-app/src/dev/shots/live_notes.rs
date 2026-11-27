@@ -59,6 +59,10 @@ fn on_chat(cx: &mut AsyncApp, f: impl FnOnce(&mut Window, &mut App, &Entity<crat
     });
 }
 
+/// A reply with a list, bold text and long Chinese paragraphs, as a chat model writes them.
+const MARKDOWN_QUESTION: &str = "这次调查的结论是什么？";
+const MARKDOWN_ANSWER: &str = "调查的结论分为三点，**玩家调查**和访谈的结果基本一致：\n\n- **玩家调查**：约70%的受访者认为，即使主角的成长速度放慢，只要剧情的推进足够紧凑，他们也愿意继续玩下去。\n- **访谈结果**：多数玩家更在意战斗的手感，而不是数值的成长，这一点在 `PC` 和主机两个平台上相同。\n- **待确认**：关于付费内容的接受度，样本太少，需要在下一轮调查中补充。\n\n1. 先确定战斗手感的改进方案\n2. 再决定成长曲线是否调整\n\n整体来看，团队倾向于保持现有的节奏，同时把调查中暴露出的问题放进下一个版本的计划里，而不是推迟发布。";
+
 /// Buttons' centres on the 1120 by 720 window, found by looking at the shots.
 const BOOK_BUTTON: (f32, f32) = (1045., 67.);
 const CONTINUE_IN_CHAT: (f32, f32) = (1032., 131.);
@@ -180,6 +184,18 @@ pub async fn run(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     // The way back: one click on the capsule, and the page is as it was left.
     on_tools_window(cx, |w, app, _| click(w, app, point(px(RETURN_CAPSULE.0), px(RETURN_CAPSULE.1))));
     shot(cx, dir, "livenotes-returned.png", 800).await;
+
+    // A reply in Markdown: the list, the bold text and the long paragraphs in the panel's width, in both themes.
+    cx.update(|cx| resize_tools_window(cx, 1120., 1000.));
+    on_page(cx, |_, app, page| page.update(app, |p, cx| p.pose_conversation(MARKDOWN_QUESTION, MARKDOWN_ANSWER, cx)));
+    shot(cx, dir, "livenotes-markdown-light.png", 600).await;
+    services::save_config(st, |c| c.general.appearance = Appearance::Dark);
+    shot(cx, dir, "livenotes-markdown-dark.png", 800).await;
+    services::save_config(st, |c| c.general.appearance = Appearance::Light);
+    cx.update(|cx| resize_tools_window(cx, 900., 1000.));
+    shot(cx, dir, "livenotes-markdown-narrow.png", 800).await;
+    on_page(cx, |_, app, page| page.update(app, |p, cx| p.pose_conversation_reset(cx)));
+    cx.update(|cx| resize_tools_window(cx, 1120., 720.));
 
     // A window too narrow for both: notes and transcript take turns.
     cx.update(|cx| resize_tools_window(cx, 900., 720.));

@@ -218,7 +218,7 @@ fn reply(
     }
     let mut body = div().w_full().flex().flex_col().gap(px(12.));
     if let Some(doc) = doc {
-        body = body.child(markdown_view::blocks(doc.blocks(), &p, cx));
+        body = body.child(markdown_view::document(doc, &p));
     }
     if live {
         body = body.child(div().w(px(2.)).h(px(16.)).rounded(px(1.)).bg(p.accent));
