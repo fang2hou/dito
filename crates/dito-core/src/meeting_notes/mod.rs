@@ -8,10 +8,12 @@
 //! through [`MeetingContext`](crate::transcription::MeetingContext), runs one request at a time and publishes the
 //! result. Notes live in memory only and go to the chat model in use, local or cloud (ADR-0008).
 
+mod lang;
 mod prompt;
 mod runner;
 mod schedule;
 
+pub use lang::{Judge, LangChoice, MeetingLang, classify, language_sample, meeting_lang};
 pub use prompt::{Note, Notes};
 pub use runner::{
     Cadence, ModelFuture, NotesDeps, NotesHandle, NotesModel, NotesModelSource, NotesPhase, NotesView, Unavailable,
