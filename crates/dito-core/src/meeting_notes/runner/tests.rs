@@ -10,7 +10,7 @@ use crate::provider::{ChatDelta, ChatRequest, TextRequest, Thinking};
 use crate::store::{Sources, Speaker};
 use crate::transcription::SessionState;
 
-/// Answers a hint with a topic and one line and a memo with one line per group, in the language the request names,
+/// Answers a hint with a topic and a memo with one line per group, in the language the request names,
 /// and keeps every request.
 #[derive(Default)]
 struct Scripted {
@@ -23,7 +23,7 @@ struct Scripted {
 
 const CONFIGURED_MAX_TOKENS: u32 = 2048;
 
-const HINT: &str = "You write a one-glance hint";
+const HINT: &str = "You name the current topic";
 const MEMO: &str = "You keep the memo of a meeting";
 
 fn last_user(request: &ChatRequest) -> &str {
@@ -67,8 +67,8 @@ impl TextModel for Scripted {
                 "DECIDED: 金曜に決めた\nTODO: 自分: 宿題を出す\nOPEN: 未決のまま\nFLOW: [00:00] 流れを確認\nEND"
             }
             (true, true) => "DECIDED: decision one\nFLOW: [00:00] flow two\nEND",
-            (false, false) => "NOW: 金曜の再テスト\nSAID: [00:01] 修正を反映する",
-            (false, true) => "NOW: Friday retest\nSAID: [00:01] ship the fix",
+            (false, false) => "NOW: 金曜の再テスト",
+            (false, true) => "NOW: Friday retest",
         }
         .into())
     }
@@ -188,11 +188,11 @@ async fn the_first_open_writes_notes_at_once_from_the_text_there_is() {
     let view = rig.handle.view();
     let notes = view.notes.unwrap();
     let now = notes.now.as_ref().unwrap();
-    assert_eq!((now.topic.as_str(), now.said.is_some(), notes.covered_ms()), ("金曜の再テスト", true, 3_000));
+    assert_eq!((now.topic.as_str(), notes.covered_ms()), ("金曜の再テスト", 3_000));
     assert_eq!(rig.model.hints(), 1);
     assert_eq!(rig.model.memos(), 0, "a short meeting has nothing for the memo yet");
     let requests = rig.model.requests.lock().unwrap();
-    assert_eq!(requests[0].max_tokens, Some(160), "a model that does not think keeps the short budget");
+    assert_eq!(requests[0].max_tokens, Some(80), "a model that does not think keeps the short budget");
 }
 
 #[tokio::test]
@@ -339,7 +339,7 @@ async fn a_japanese_meeting_is_written_in_japanese_by_every_request() {
     let notes = rig.handle.view().notes.unwrap();
     assert_eq!(notes.lang, Some(Lang::Ja));
     let now = notes.now.unwrap();
-    assert!(has_kana(&now.topic) && has_kana(&now.said.unwrap().text));
+    assert!(has_kana(&now.topic));
     let memo = &notes.memo;
     assert!(
         [&memo.decided, &memo.todo, &memo.open, &memo.flow].iter().flat_map(|g| g.iter()).all(|i| has_kana(&i.text))

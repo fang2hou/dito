@@ -184,10 +184,6 @@ fn notes_column(mut column: Div, notes: &Notes, stale: bool, c: &Ctx) -> Div {
     if let Some(now) = &notes.now {
         column = column
             .child(div().pt(px(3.)).child(text(now.topic.clone(), 16., FontWeight::BOLD, p.text).line_height(px(23.))));
-        if let Some(said) = &now.said {
-            column = column
-                .child(div().pt(px(8.)).child(text(dated(said), 12., FontWeight::NORMAL, p.text).line_height(px(18.))));
-        }
     }
     let memo = &notes.memo;
     if !memo.is_empty() {

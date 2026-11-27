@@ -323,13 +323,10 @@ impl TextModel for MockMeetingModel {
             reply.extend(picked.iter().map(|(at, words)| format!("FLOW: [{at}] {}", Self::clip(words, 26))));
             reply.push("END".into());
             reply.join("\n")
-        } else if system.contains("You write a one-glance hint") {
+        } else if system.contains("You name the current topic") {
             let lines = Self::transcript(last);
             let topic = lines.last().map_or_else(String::new, |(_, words)| Self::clip(words, 14));
-            match lines.last() {
-                Some((at, words)) => format!("NOW: {topic}\nSAID: [{at}] {}", Self::clip(words, 30)),
-                None => format!("NOW: {topic}"),
-            }
+            format!("NOW: {topic}")
         } else {
             let lines = Self::transcript(last);
             let times: Vec<&str> = lines.iter().rev().take(3).rev().map(|(at, _)| at.as_str()).collect();

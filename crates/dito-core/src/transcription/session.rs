@@ -1584,7 +1584,7 @@ mod tests {
             ) -> crate::error::ProviderResult<String> {
                 self.0.fetch_add(1, Ordering::SeqCst);
                 self.1.lock().unwrap().push(request.messages.last().unwrap().content.clone());
-                Ok("NOW: 決済の件\nSAID: [00:00] 決済の件を確認".into())
+                Ok("NOW: 決済の件".into())
             }
         }
         struct Source(Arc<Notes>);

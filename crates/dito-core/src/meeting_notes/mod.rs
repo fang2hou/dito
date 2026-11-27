@@ -1,5 +1,5 @@
-//! Live notes for the meeting being recorded (`design:tools/recording/live-notes`): a one-glance hint of what is
-//! being discussed now, and a memo of the whole meeting with what was decided, what is to be done, what is open and
+//! Live notes for the meeting being recorded (`design:tools/recording/live-notes`): a hint naming the topic
+//! discussed now, and a memo of the whole meeting with what was decided, what is to be done, what is open and
 //! how the discussion went, written by the chat model while the recording goes on, in the meeting's language.
 //!
 //! Four parts, each testable alone. `schedule` decides when a refresh is due (the first one at once, then about

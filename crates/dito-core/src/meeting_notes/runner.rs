@@ -257,12 +257,12 @@ async fn refresh(
     let frame = Frame { context, lang: lang.request, ui_names, offset: deps.offset_secs };
     let request = hint_request(&frame, &window, notes.now.as_ref(), budget);
     let reply = ask(&ready, &request).await.ok_or(Failure::Request)?;
-    let (topic, said) = read_hint(&reply).map_err(|e| {
+    let topic = read_hint(&reply).map_err(|e| {
         tracing::warn!("meeting notes hint was not taken: {e:?}");
         Failure::Request
     })?;
     notes.lang = lang.settled;
-    notes.now = Some(Hint { topic, said, covered_ms: covered });
+    notes.now = Some(Hint { topic, covered_ms: covered });
     publish(view, NotesPhase::Working { loading_model: false }, Some(notes.clone()), false);
 
     let memo_until = notes.memo.covered_ms;

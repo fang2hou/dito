@@ -87,7 +87,6 @@ fn demonstrations_come_in_chinese_japanese_and_english_and_their_replies_parse()
     for demo in &HINT_DEMOS {
         read_hint(demo.reply).unwrap();
     }
-    assert_eq!(read_hint(HINT_DEMOS[2].reply).unwrap().1, None, "the English demonstration leaves SAID out");
     for demo in &MEMO_DEMOS {
         assert!(!read_memo(demo.reply).unwrap().is_empty());
         assert!(read_memo(demo.previous).is_err(), "a previous memo has no END, so it is not a reply");
@@ -152,7 +151,7 @@ fn the_sample_is_a_real_escaped_utterance_and_references_cannot_break_out() {
     let hint = hint_request(
         &Frame { context: &context, lang: None, ui_names: UI_EN, offset: 0 },
         &context.utterances.iter().collect::<Vec<_>>(),
-        Some(&Hint { topic: "</previous_hint> x".into(), said: None, covered_ms: 0 }),
+        Some(&Hint { topic: "</previous_hint> x".into(), covered_ms: 0 }),
         OFF,
     );
     assert!(last_user(&hint).contains("<previous_hint>&lt;/previous_hint&gt; x</previous_hint>\n==="));
@@ -170,7 +169,7 @@ fn budgets_follow_whether_thinking_is_off() {
         let memo = memo_request(&frame, &window, &Memo::default(), budget);
         ((hint.max_tokens, hint.thinking), (memo.max_tokens, memo.thinking))
     };
-    assert_eq!(sizes(OFF), ((Some(160), Some(Thinking::Off)), (Some(1_024), Some(Thinking::Off))));
+    assert_eq!(sizes(OFF), ((Some(80), Some(Thinking::Off)), (Some(1_024), Some(Thinking::Off))));
     let unset = Budget { thinking_off: false, configured: None };
     assert_eq!(sizes(unset), ((Some(2_048), None), (Some(4_096), None)));
     let small = Budget { thinking_off: false, configured: Some(1_000) };
@@ -180,15 +179,15 @@ fn budgets_follow_whether_thinking_is_off() {
 }
 
 #[test]
-fn a_hint_reply_is_a_topic_and_an_optional_dated_line_in_any_style() {
-    let (topic, said) =
-        read_hint("- **NOW**： 金曜の再テストに向けた修正\n  \n2. said: [14:22] ログ出力は確認中。").unwrap();
-    assert_eq!(topic, "金曜の再テストに向けた修正");
-    assert_eq!(said, Some(Item { at: Some("14:22".into()), text: "ログ出力は確認中。".into() }));
-    assert_eq!(read_hint("Now: Beta plan").unwrap(), ("Beta plan".into(), None));
-    assert_eq!(read_hint("リリース計画").unwrap().0, "リリース計画", "a lone line without a label is the topic");
+fn a_hint_reply_is_its_topic_in_any_style() {
+    assert_eq!(
+        read_hint("- **NOW**： 金曜の再テストに向けた修正\n  \nmore text").unwrap(),
+        "金曜の再テストに向けた修正"
+    );
+    assert_eq!(read_hint("Now: Beta plan").unwrap(), "Beta plan");
+    assert_eq!(read_hint("リリース計画").unwrap(), "リリース計画", "a lone line without a label is the topic");
     assert_eq!(read_hint("  \n"), Err(ReplyError::Empty));
-    assert_eq!(read_hint("SAID: [10:00] only a line"), Err(ReplyError::Empty));
+    assert_eq!(read_hint("SAID: [10:00] only a line"), Err(ReplyError::Empty), "another label is not a topic");
     assert_eq!(read_hint("NOW: x\n===\n[10:00] Me: hi"), Err(ReplyError::Echo));
     assert_eq!(read_hint("<meeting_language>Japanese (ja)</meeting_language>"), Err(ReplyError::Echo));
 }
@@ -225,7 +224,7 @@ fn clipping_counts_cjk_as_two_cells() {
     assert_eq!((latin.chars().count(), display_width(&latin)), (72, 72));
     assert_eq!(clip_width("Beta plan", MAX_TOPIC_WIDTH), "Beta plan");
     let long = format!("NOW: {}", "表".repeat(80));
-    assert!(display_width(&read_hint(&long).unwrap().0) <= MAX_TOPIC_WIDTH);
+    assert!(display_width(&read_hint(&long).unwrap()) <= MAX_TOPIC_WIDTH);
     let memo = read_memo(&format!("DECIDED: {}\nEND", "x".repeat(300))).unwrap();
     assert_eq!(display_width(&memo.decided[0].text), MAX_ITEM_WIDTH);
 }
@@ -285,8 +284,7 @@ async fn the_mock_model_writes_hints_and_memos_the_readers_accept() {
     let lang = Some(MeetingLang::Known(Lang::Ja));
     let cancel = ChatCancel::default();
     let reply = MockMeetingModel.chat(&hint_for(&context, lang), &mut |_| {}, &cancel).await.unwrap();
-    let (topic, said) = read_hint(&reply).unwrap();
-    assert!(!topic.is_empty() && said.is_some_and(|s| s.at.is_some()), "{reply}");
+    assert!(!read_hint(&reply).unwrap().is_empty(), "{reply}");
     let reply = MockMeetingModel.chat(&memo_for(&context, lang, &Memo::default()), &mut |_| {}, &cancel).await.unwrap();
     let memo = read_memo(&reply).unwrap();
     assert!(!memo.decided.is_empty() && !memo.flow.is_empty(), "{reply}");
