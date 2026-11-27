@@ -248,25 +248,13 @@ fn the_hint_reads_the_last_minute_and_takes_in_a_long_utterance_that_began_befor
 }
 
 #[test]
-fn the_memo_waits_for_what_aged_out_of_the_last_five_minutes() {
-    let minute = 60_000;
-    let u: Vec<_> = (0..10).map(|i| utterance(i * minute, i * minute + 10_000, Speaker::Others, "x")).collect();
-    let w = split_window(&u, 9 * minute + 10_000, 0);
-    assert_eq!((w.from_ms, w.unfolded.len(), w.recent.len()), (4 * minute + 10_000, 5, 5));
-    let covered = split_window(&u, 9 * minute + 10_000, 4 * minute + 10_000);
-    assert_eq!(covered.unfolded.len(), 0, "what the memo covers is not read twice");
-}
-
-#[test]
-fn chunks_and_budgets_never_split_an_utterance_and_keep_the_newest() {
+fn the_hint_budget_keeps_the_newest_utterances_whole() {
     let u: Vec<_> = ["aaaa", "bbbb", "cc", "dddddd"]
         .iter()
         .enumerate()
         .map(|(i, t)| utterance(i as u64, i as u64, Speaker::Others, t))
         .collect();
     let refs: Vec<&Utterance> = u.iter().collect();
-    let sizes: Vec<_> = chunks(&refs, 6).iter().map(|c| c.len()).collect();
-    assert_eq!(sizes, [1, 2, 1]);
     let kept = newest_within(&refs, 8);
     assert_eq!(kept.iter().map(|u| u.text.as_str()).collect::<Vec<_>>(), ["cc", "dddddd"]);
     assert_eq!(newest_within(&refs[3..], 2).len(), 1, "the newest utterance stays however long it is");

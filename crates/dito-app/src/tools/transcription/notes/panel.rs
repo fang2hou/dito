@@ -2,7 +2,7 @@
 //! (`design:tools/recording/live-notes`, 23.02.8).
 
 use dito_core::i18n::{Tr, fmt};
-use dito_core::meeting_notes::{Item, Notes, NotesPhase, Unavailable};
+use dito_core::meeting_notes::{Item, Notes, NotesPhase, NotesView, Unavailable};
 use dito_core::store::{Author, ChatMessageRow, MessageState};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
@@ -152,7 +152,7 @@ fn notes_body(page: &TranscriptionPage, c: &Ctx, cx: &mut Context<TranscriptionP
             ));
         }
         (_, Some(notes)) if !notes.is_empty() => {
-            column = notes_column(column, notes, view.stale, c);
+            column = notes_column(column, notes, view, c);
         }
         (NotesPhase::Working { loading_model: true }, _) => column = column.child(message(Tr::ChatLoadingModel)),
         (NotesPhase::Working { .. }, _) => column = column.child(message(Tr::TranscriptionNotesWorking)),
@@ -161,9 +161,13 @@ fn notes_body(page: &TranscriptionPage, c: &Ctx, cx: &mut Context<TranscriptionP
     scroller(NOTES_SCROLL, &page.notes.scroll, column, &p)
 }
 
+fn notes_are_stale(view: &NotesView) -> bool {
+    view.stale.memo || !view.ended && view.stale.hint
+}
+
 /// Draws the hint and the memo in the layout the panel had before the memo grew groups; `design:tools/recording/live-notes`
 /// gives them their own blocks next.
-fn notes_column(mut column: Div, notes: &Notes, stale: bool, c: &Ctx) -> Div {
+fn notes_column(mut column: Div, notes: &Notes, view: &NotesView, c: &Ctx) -> Div {
     let p = c.p;
     let off = dito_platform::local_utc_offset_secs();
     let clock = |ms: u64| hhmm(notes.started_ts + (ms / 1000) as i64, off);
@@ -173,16 +177,18 @@ fn notes_column(mut column: Div, notes: &Notes, stale: bool, c: &Ctx) -> Div {
         Some(at) => format!("{at}\u{3000}{}", item.text),
         None => item.text.clone(),
     };
-    column = column.child(
-        div()
-            .flex()
-            .items_center()
-            .justify_between()
-            .child(label(c.t(Tr::TranscriptionNotesRecent)))
-            .child(aside(fmt::transcription_notes_until(c.lang, &clock(notes.covered_ms())))),
-    );
-    if let Some(now) = &notes.now {
+    if let Some(now) = &notes.now
+        && !view.ended
+    {
         column = column
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .justify_between()
+                    .child(label(c.t(Tr::TranscriptionNotesRecent)))
+                    .child(aside(fmt::transcription_notes_until(c.lang, &clock(now.covered_ms)))),
+            )
             .child(div().pt(px(3.)).child(text(now.topic.clone(), 16., FontWeight::BOLD, p.text).line_height(px(23.))));
     }
     let memo = &notes.memo;
@@ -205,7 +211,7 @@ fn notes_column(mut column: Div, notes: &Notes, stale: bool, c: &Ctx) -> Div {
         }
         column = column.child(points);
     }
-    if stale {
+    if notes_are_stale(view) {
         column = column.child(div().pt(px(10.)).child(aside(c.t(Tr::TranscriptionNotesStale).to_string())));
     }
     column

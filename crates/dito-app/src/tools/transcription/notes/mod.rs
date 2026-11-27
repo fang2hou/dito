@@ -9,7 +9,7 @@ mod reveal;
 
 use std::time::Instant;
 
-use dito_core::meeting_notes::{Cadence, Notes, NotesDeps, NotesHandle, NotesPhase, NotesView, Unavailable};
+use dito_core::meeting_notes::{Cadence, Notes, NotesDeps, NotesHandle, NotesPhase, NotesView, Stale, Unavailable};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
@@ -56,7 +56,7 @@ impl NotesPane {
             compact: false,
             meeting: None,
             handle: None,
-            view: NotesView { phase: NotesPhase::Waiting, notes: None, stale: false, seq: 0 },
+            view: NotesView { phase: NotesPhase::Waiting, notes: None, stale: Stale::default(), ended: false, seq: 0 },
             seed: None,
             watching: None,
             scroll: ScrollHandle::new(),
@@ -124,7 +124,9 @@ impl TranscriptionPage {
             .as_ref()
             .map(|open| open.summary.id)
             .filter(|_| self.notes.open && self.detail_shown() && self.active);
-        if self.notes.meeting == wanted && (wanted.is_none() || self.notes.handle.is_some()) {
+        let resumed = wanted.is_some_and(|id| self.status.state.transcript_id() == Some(id))
+            && self.notes.handle.as_ref().is_some_and(|handle| handle.view().ended);
+        if self.notes.meeting == wanted && (wanted.is_none() || self.notes.handle.is_some()) && !resumed {
             return;
         }
         self.stop_notes();
@@ -190,7 +192,9 @@ impl TranscriptionPage {
         if self.notes.handle.is_some() {
             services::meeting_notes_stopped(&self.st);
         }
-        if let (Some(id), Some(notes)) = (self.notes.meeting, self.notes.view.notes.clone()) {
+        if let (Some(id), Some(notes)) =
+            (self.notes.meeting, self.notes.handle.as_ref().and_then(|handle| handle.view().notes))
+        {
             self.notes.seed = Some((id, notes));
         }
         self.notes.handle = None;

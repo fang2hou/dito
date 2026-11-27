@@ -3,7 +3,6 @@
 //! turn as data, a tag and a real line of the transcript, and the transcript is fenced content, never instructions
 //! (ADR-0012).
 
-use super::RECENT_WINDOW_MS;
 use super::lang::{MeetingLang, language_sample};
 use crate::i18n::{Lang, Tr};
 use crate::prompts::{escape_reference, fence};
@@ -446,48 +445,6 @@ pub(super) fn hint_window(utterances: &[Utterance], covered_ms: u64) -> Vec<&Utt
     let first = utterances.iter().position(|u| u.end_ms > from).unwrap_or(utterances.len());
     let window: Vec<&Utterance> = utterances[first.min(utterances.len().saturating_sub(2))..].iter().collect();
     newest_within(&window, HINT_INPUT_CHARS)
-}
-
-/// Splits what the memo does not cover yet: the stretch that aged out of the newest five minutes, then those five
-/// minutes.
-pub(super) fn split_window(utterances: &[Utterance], covered_ms: u64, memo_until_ms: u64) -> Window<'_> {
-    let from = covered_ms.saturating_sub(RECENT_WINDOW_MS);
-    let mut out = Window { from_ms: from, unfolded: Vec::new(), recent: Vec::new() };
-    for u in utterances {
-        if u.end_ms <= memo_until_ms && memo_until_ms > 0 {
-            continue;
-        }
-        if u.end_ms > from { out.recent.push(u) } else { out.unfolded.push(u) }
-    }
-    out
-}
-
-pub(super) struct Window<'a> {
-    /// Where the recent window starts on the meeting's clock.
-    pub from_ms: u64,
-    /// Aged out of the window, not in the memo yet.
-    pub unfolded: Vec<&'a Utterance>,
-    pub recent: Vec<&'a Utterance>,
-}
-
-/// Cuts text into pieces of at most `max_chars`, never inside an utterance unless one alone is longer.
-pub(super) fn chunks<'a>(utterances: &[&'a Utterance], max_chars: usize) -> Vec<Vec<&'a Utterance>> {
-    let mut out: Vec<Vec<&Utterance>> = Vec::new();
-    let mut size = 0;
-    for u in utterances {
-        let n = u.text.chars().count();
-        match out.last_mut() {
-            Some(last) if size + n <= max_chars => {
-                last.push(u);
-                size += n;
-            }
-            _ => {
-                out.push(vec![u]);
-                size = n;
-            }
-        }
-    }
-    out
 }
 
 /// Keeps the newest utterances that fit in `max_chars`.

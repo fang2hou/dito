@@ -2,11 +2,12 @@
 //! discussed now, and a memo of the whole meeting with what was decided, what is to be done, what is open and
 //! how the discussion went, written by the chat model while the recording goes on, in the meeting's language.
 //!
-//! Four parts, each testable alone. `schedule` decides when a refresh is due (the first one at once, then about
-//! once a minute while new text arrives, none while paused, one more when the meeting ends). `lang` decides the
-//! meeting's language from the transcript. `prompt` builds the fixed-scaffold requests and reads the replies back
-//! (ADR-0012). `runner` is the actor that reads the meeting through
-//! [`MeetingContext`](crate::transcription::MeetingContext), runs one request at a time and publishes the result.
+//! The first hint is immediate. While text arrives, hints use the last minute and run about every 30 seconds,
+//! less often for slow models. The memo takes in new speech about every five minutes of recording time, in
+//! chunks when needed. The runner awaits each request and only advances coverage on success. A successful
+//! memo retires the hints it covers. Pausing allows only the first hint, and ending allows one final memo.
+//! `lang` chooses the meeting language, `prompt` builds the two requests and reads their replies (ADR-0012),
+//! and the runner reads the transcript through [`MeetingContext`](crate::transcription::MeetingContext).
 //! Notes live in memory only and go to the chat model in use, local or cloud (ADR-0008).
 
 mod lang;
@@ -17,10 +18,6 @@ mod schedule;
 pub use lang::{Judge, LangChoice, MeetingLang, classify, language_sample, meeting_lang};
 pub use prompt::{Budget, Hint, Item, MAX_TRAIL, Memo, Notes, ReplyError};
 pub use runner::{
-    Cadence, ModelFuture, NotesDeps, NotesHandle, NotesModel, NotesModelSource, NotesPhase, NotesView, Unavailable,
-    spawn,
+    Cadence, ModelFuture, NotesDeps, NotesHandle, NotesModel, NotesModelSource, NotesPhase, NotesView, Stale,
+    Unavailable, spawn,
 };
-pub use schedule::{Poll, REFRESH_EVERY, Scheduler};
-
-/// The memo takes in speech once it is older than this.
-pub const RECENT_WINDOW_MS: u64 = 5 * 60 * 1000;
