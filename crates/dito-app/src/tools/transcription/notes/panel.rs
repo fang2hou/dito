@@ -328,10 +328,6 @@ fn memo_item(item: &Item, c: &Ctx) -> Div {
 fn copied_notes(view: &NotesView, lang: Lang, offset: i32) -> Option<String> {
     let notes = view.notes.as_ref()?;
     let mut contents = String::new();
-    if let Some(topic) = current_topic(notes, view.ended) {
-        let title = fmt::transcription_notes_topic_until(lang, &clock(notes, topic.covered_ms, offset));
-        let _ = writeln!(contents, "{title}\n- {}", topic.topic);
-    }
     if !notes.memo.is_empty() {
         contents.push_str(lang.tr(Tr::TranscriptionNotesTitle));
         if let Some(range) = memo_range(notes, lang, offset) {
@@ -348,6 +344,10 @@ fn copied_notes(view: &NotesView, lang: Lang, offset: i32) -> Option<String> {
                 let _ = writeln!(contents, "{}", item.text);
             }
         }
+    }
+    if let Some(topic) = current_topic(notes, view.ended) {
+        let title = fmt::transcription_notes_topic_until(lang, &clock(notes, topic.covered_ms, offset));
+        let _ = writeln!(contents, "{title}\n- {}", topic.topic);
     }
     (!contents.is_empty()).then(|| {
         contents.pop();
@@ -469,7 +469,7 @@ mod tests {
     use super::copied_notes;
 
     #[test]
-    fn copies_the_current_topic_and_nonempty_memo_groups_in_order() {
+    fn copies_nonempty_memo_groups_then_the_current_topic() {
         let mut view = NotesView {
             phase: NotesPhase::Ready,
             notes: Some(Notes {
@@ -490,7 +490,7 @@ mod tests {
         };
         let memo =
             "Meeting notes 14:02 to 14:07\nDecided\n- Retest on Friday.\nHow it went\n- 14:02 Reviewed the scope.";
-        assert_eq!(copied_notes(&view, Lang::En, 0), Some(format!("Current topic (until 14:10)\n- Retest\n{memo}")));
+        assert_eq!(copied_notes(&view, Lang::En, 0), Some(format!("{memo}\nCurrent topic (until 14:10)\n- Retest")));
 
         view.ended = true;
         assert_eq!(copied_notes(&view, Lang::En, 0).as_deref(), Some(memo));
