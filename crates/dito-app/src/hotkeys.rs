@@ -298,13 +298,13 @@ mod tests {
         let cfg = ConfigStore::open(&path).unwrap();
         let hotkeys = Arc::new(Hotkeys::new());
         let tools = || "Control+Option+T".to_owned();
-        assert_eq!(saved(&cfg), ("RightCommand".into(), String::new(), tools()), "unset on a fresh config");
+        assert_eq!(saved(&cfg), ("RightOption".into(), String::new(), tools()), "unset on a fresh config");
 
         capture(&hotkeys, &cfg, ShortcutTarget::Command, "Control+Option+K");
         assert_eq!(*hotkeys.capture.borrow(), CaptureState::Idle);
         assert_eq!(
             saved(&ConfigStore::open(&path).unwrap()),
-            ("RightCommand".into(), "Control+Option+K".into(), tools())
+            ("RightOption".into(), "Control+Option+K".into(), tools())
         );
     }
 
@@ -315,28 +315,28 @@ mod tests {
         let hotkeys = Arc::new(Hotkeys::new());
         let tools = || "Control+Option+T".to_owned();
 
-        capture(&hotkeys, &cfg, ShortcutTarget::Command, "RightCommand");
+        capture(&hotkeys, &cfg, ShortcutTarget::Command, "RightOption");
         assert_eq!(
             *hotkeys.capture.borrow(),
             CaptureState::Refused { target: ShortcutTarget::Command, conflicting: ShortcutTarget::Dictation }
         );
-        assert_eq!(saved(&cfg), ("RightCommand".into(), String::new(), tools()), "nothing saved");
+        assert_eq!(saved(&cfg), ("RightOption".into(), String::new(), tools()), "nothing saved");
 
-        capture(&hotkeys, &cfg, ShortcutTarget::Command, "RightOption");
-        capture(&hotkeys, &cfg, ShortcutTarget::Dictation, "RightOption");
+        capture(&hotkeys, &cfg, ShortcutTarget::Command, "RightCommand");
+        capture(&hotkeys, &cfg, ShortcutTarget::Dictation, "RightCommand");
         assert_eq!(
             *hotkeys.capture.borrow(),
             CaptureState::Refused { target: ShortcutTarget::Dictation, conflicting: ShortcutTarget::Command }
         );
-        assert_eq!(saved(&cfg), ("RightCommand".into(), "RightOption".into(), tools()));
+        assert_eq!(saved(&cfg), ("RightOption".into(), "RightCommand".into(), tools()));
 
         // The Tools row refuses both of the others, and both of them refuse it.
-        capture(&hotkeys, &cfg, ShortcutTarget::Tools, "RightOption");
+        capture(&hotkeys, &cfg, ShortcutTarget::Tools, "RightCommand");
         assert_eq!(
             *hotkeys.capture.borrow(),
             CaptureState::Refused { target: ShortcutTarget::Tools, conflicting: ShortcutTarget::Command }
         );
-        capture(&hotkeys, &cfg, ShortcutTarget::Tools, "RightCommand");
+        capture(&hotkeys, &cfg, ShortcutTarget::Tools, "RightOption");
         assert_eq!(
             *hotkeys.capture.borrow(),
             CaptureState::Refused { target: ShortcutTarget::Tools, conflicting: ShortcutTarget::Dictation }
@@ -346,10 +346,10 @@ mod tests {
             *hotkeys.capture.borrow(),
             CaptureState::Refused { target: ShortcutTarget::Dictation, conflicting: ShortcutTarget::Tools }
         );
-        assert_eq!(saved(&cfg), ("RightCommand".into(), "RightOption".into(), tools()), "nothing saved");
+        assert_eq!(saved(&cfg), ("RightOption".into(), "RightCommand".into(), tools()), "nothing saved");
 
         capture(&hotkeys, &cfg, ShortcutTarget::Dictation, "Fn");
-        assert_eq!(saved(&cfg), ("Fn".into(), "RightOption".into(), tools()));
+        assert_eq!(saved(&cfg), ("Fn".into(), "RightCommand".into(), tools()));
         assert_eq!(*hotkeys.capture.borrow(), CaptureState::Idle);
     }
 
@@ -364,7 +364,7 @@ mod tests {
         assert_eq!(*hotkeys.capture.borrow(), CaptureState::Idle);
         let config = ConfigStore::open(&path).unwrap().get();
         let general = &config.general;
-        assert_eq!((general.tools_shortcut.as_str(), general.shortcut.as_str()), ("Control+Shift+3", "RightCommand"));
+        assert_eq!((general.tools_shortcut.as_str(), general.shortcut.as_str()), ("Control+Shift+3", "RightOption"));
     }
 
     #[test]
@@ -373,6 +373,6 @@ mod tests {
         let cfg = ConfigStore::open(dir.path().join("config.toml")).unwrap();
         let hotkeys = Arc::new(Hotkeys::new());
         hotkeys.finish_capture(Shortcut::parse("Fn").unwrap(), &cfg);
-        assert_eq!(saved(&cfg).0, "RightCommand");
+        assert_eq!(saved(&cfg).0, "RightOption");
     }
 }

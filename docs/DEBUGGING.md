@@ -30,7 +30,7 @@ Run, inspect and diagnose Dito locally. Setup and commands are in [IMPLEMENTATIO
 - `--data-dir` doesn't move the models folder; set `models_dir` for that.
 - Use `--mock --log-sink` for any automated or agent run.
 - `DITO_MOCK_LOCAL_CHAT=1` gives a mock run a local chat model that answers by rule, so the live meeting notes (which never use a cloud model) can be tried without a model on disk; `DITO_SHOTS_ONLY=livenotes` then films them through the real session and page.
-- Examples for manual checks: `cargo run -p dito-audio --example record`, `cargo run -p dito-platform --example probe`, `cargo run -p dito-platform --example press_shortcut -- 2` (presses right Command, to drive a running Dito), `cargo run -p dito-platform --example request -- accessibility` or `-- mic` (asks for a permission and watches its status), `cargo run -p dito-runtimes --example local_e2e`. The `intent_decide` and `intent_probe` examples of `dito-runtimes` are driven by `mise run bench intent` (see `bench/INTENT.md`).
+- Examples for manual checks: `cargo run -p dito-audio --example record`, `cargo run -p dito-platform --example probe`, `cargo run -p dito-platform --example press_shortcut -- 2` (presses right Option, to drive a running Dito), `cargo run -p dito-platform --example request -- accessibility` or `-- mic` (asks for a permission and watches its status), `cargo run -p dito-runtimes --example local_e2e`. The `intent_decide` and `intent_probe` examples of `dito-runtimes` are driven by `mise run bench intent` (see `bench/INTENT.md`).
 
 ## Debug log of a run
 

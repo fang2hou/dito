@@ -134,7 +134,7 @@ mod tests {
         assert_eq!(id("Control+RightOption", "").as_deref(), Some("Control+Shift+RightOption"));
         assert_eq!(id("Control+Option+Space", "").as_deref(), Some("Control+Option+Shift+Space"));
         assert_eq!(id("F5", "").as_deref(), Some("Shift+F5"));
-        assert_eq!(id("Nope", "").as_deref(), Some("Shift+RightCommand"), "follows the dictation fallback");
+        assert_eq!(id("Nope", "").as_deref(), Some("Shift+RightOption"), "follows the dictation fallback");
         // Shift is already part of the dictation shortcut: nothing to derive.
         for dictation in ["RightShift", "Shift+Fn", "Shift+Command+A"] {
             assert_eq!(id(dictation, ""), None, "{dictation}");
@@ -152,13 +152,13 @@ mod tests {
     #[test]
     fn only_a_modifier_shortcut_with_the_same_key_and_more_modifiers_may_hand_over() {
         let may = |dictation, command| dictation_may_hand_over(dictation, command);
-        assert!(may("RightCommand", ""), "the default Shift variant");
-        assert!(may("RightCommand", "Shift+RightCommand"));
+        assert!(may("RightOption", ""), "the default Shift variant");
+        assert!(may("RightOption", "Shift+RightOption"));
         assert!(may("Fn", "Control+Fn"));
-        assert!(!may("RightCommand", "RightOption"), "another key");
+        assert!(!may("RightOption", "RightCommand"), "another key");
         assert!(!may("Shift+Fn", ""), "no command shortcut");
         assert!(!may("Control+Option+Space", ""), "combos never hand over");
-        assert!(!may("RightCommand", "Nope"));
+        assert!(!may("RightOption", "Nope"));
     }
 
     #[test]

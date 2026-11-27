@@ -92,13 +92,24 @@ async fn nothing_is_sent_for_parameters_that_are_not_set() {
 }
 
 #[tokio::test]
-async fn the_template_starts_with_the_sampling_the_engine_always_sent() {
+async fn the_template_starts_at_low_effort_so_claude_thinks_adaptively_without_sampling() {
     let body = sent(CLAUDE, template_params()).await;
+    assert_eq!(body["inferenceConfig"], json!({"maxTokens": 2048}), "{body}");
+    assert_eq!(
+        body["additionalModelRequestFields"],
+        json!({"thinking": {"type": "adaptive"}, "output_config": {"effort": "low"}})
+    );
+}
+
+#[tokio::test]
+async fn with_the_effort_unset_the_template_sampling_is_sent() {
+    let params = CloudTextParams { reasoning_effort: ReasoningEffort::Custom(String::new()), ..template_params() };
+    let body = sent(CLAUDE, params).await;
     let config = &body["inferenceConfig"];
     assert_eq!(config["maxTokens"], json!(2048));
     assert!(approx(&config["temperature"], 0.2), "{config}");
     assert!(config.get("topP").is_none(), "{config}");
-    assert!(body.get("additionalModelRequestFields").is_none(), "no reasoning effort by default: {body}");
+    assert!(body.get("additionalModelRequestFields").is_none(), "no effort, no extra fields: {body}");
 }
 
 #[tokio::test]
