@@ -11,6 +11,7 @@ mod prompt;
 mod recognizer;
 mod session;
 mod source;
+mod wordbook;
 
 pub use context::{ActiveRecording, MeetingContext, RecordingPhase, SpeakerNames, Utterance};
 pub use energy_vad::EnergyDetectors;

@@ -1,6 +1,7 @@
 //! SQLite-backed history and wordbook.
 
 use std::path::Path;
+use std::sync::atomic::AtomicU64;
 use std::sync::{Mutex, MutexGuard};
 
 use rusqlite::Connection;
@@ -27,6 +28,8 @@ pub use wordbook::{WordbookEntry, parse_spoken_list, wordbook_terms};
 pub struct Store {
     conn: Mutex<Connection>,
     tz_offset_secs: i32,
+    /// Bumped by every wordbook write, so a running session knows when to read the wordbook again.
+    wordbook_revision: AtomicU64,
 }
 
 impl Store {
@@ -49,7 +52,7 @@ impl Store {
         }
         conn.execute_batch("PRAGMA journal_mode = WAL;")?;
         migrate(&mut conn, applied)?;
-        let store = Self { conn: Mutex::new(conn), tz_offset_secs };
+        let store = Self { conn: Mutex::new(conn), tz_offset_secs, wordbook_revision: AtomicU64::new(0) };
         store.recover_chats()?;
         Ok(store)
     }
