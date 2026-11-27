@@ -2,7 +2,7 @@
 //! (`design:tools/recording/live-notes`, 23.02.8).
 
 use dito_core::i18n::{Tr, fmt};
-use dito_core::meeting_notes::{Notes, NotesPhase, Unavailable};
+use dito_core::meeting_notes::{Item, Notes, NotesPhase, Unavailable};
 use dito_core::store::{Author, ChatMessageRow, MessageState};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
@@ -161,37 +161,36 @@ fn notes_body(page: &TranscriptionPage, c: &Ctx, cx: &mut Context<TranscriptionP
     scroller(NOTES_SCROLL, &page.notes.scroll, column, &p)
 }
 
+/// Draws the hint and the memo in the layout the panel had before the memo grew groups; `design:tools/recording/live-notes`
+/// gives them their own blocks next.
 fn notes_column(mut column: Div, notes: &Notes, stale: bool, c: &Ctx) -> Div {
     let p = c.p;
     let off = dito_platform::local_utc_offset_secs();
     let clock = |ms: u64| hhmm(notes.started_ts + (ms / 1000) as i64, off);
     let label = |s: SharedString| text(s, 11., FontWeight::BOLD, p.muted).line_height(px(18.));
     let aside = |s: String| text(s, 11., FontWeight::NORMAL, p.muted).line_height(px(18.));
+    let dated = |item: &Item| match &item.at {
+        Some(at) => format!("{at}\u{3000}{}", item.text),
+        None => item.text.clone(),
+    };
     column = column.child(
         div()
             .flex()
             .items_center()
             .justify_between()
             .child(label(c.t(Tr::TranscriptionNotesRecent)))
-            .child(aside(fmt::transcription_notes_until(c.lang, &clock(notes.covered_ms)))),
+            .child(aside(fmt::transcription_notes_until(c.lang, &clock(notes.covered_ms())))),
     );
-    if !notes.topic.is_empty() {
-        column = column.child(
-            div().pt(px(3.)).child(text(notes.topic.clone(), 16., FontWeight::BOLD, p.text).line_height(px(23.))),
-        );
-    }
-    if !notes.recent.is_empty() {
-        let mut lines = div().pt(px(8.)).flex().flex_col().gap(px(4.));
-        for note in &notes.recent {
-            let line = match &note.at {
-                Some(at) => format!("{at}\u{3000}{}", note.text),
-                None => note.text.clone(),
-            };
-            lines = lines.child(text(line, 12., FontWeight::NORMAL, p.text).line_height(px(18.)));
+    if let Some(now) = &notes.now {
+        column = column
+            .child(div().pt(px(3.)).child(text(now.topic.clone(), 16., FontWeight::BOLD, p.text).line_height(px(23.))));
+        if let Some(said) = &now.said {
+            column = column
+                .child(div().pt(px(8.)).child(text(dated(said), 12., FontWeight::NORMAL, p.text).line_height(px(18.))));
         }
-        column = column.child(lines);
     }
-    if !notes.earlier.is_empty() {
+    let memo = &notes.memo;
+    if !memo.is_empty() {
         column = column.child(div().mt(px(12.)).h(px(1.)).w_full().bg(p.border)).child(
             div()
                 .pt(px(11.))
@@ -200,14 +199,13 @@ fn notes_column(mut column: Div, notes: &Notes, stale: bool, c: &Ctx) -> Div {
                 .justify_between()
                 .child(label(c.t(Tr::TranscriptionNotesEarlier)))
                 .children(
-                    notes
-                        .earlier_span_ms
+                    memo.span_ms
                         .map(|(from, to)| aside(fmt::transcription_notes_range(c.lang, &clock(from), &clock(to)))),
                 ),
         );
         let mut points = div().pt(px(4.)).flex().flex_col();
-        for point in &notes.earlier {
-            points = points.child(text(point.clone(), 12., FontWeight::NORMAL, p.text).line_height(px(17.)));
+        for item in memo.decided.iter().chain(&memo.todo).chain(&memo.open).chain(&memo.flow) {
+            points = points.child(text(dated(item), 12., FontWeight::NORMAL, p.text).line_height(px(17.)));
         }
         column = column.child(points);
     }

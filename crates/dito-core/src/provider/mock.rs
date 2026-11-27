@@ -311,16 +311,25 @@ impl TextModel for MockMeetingModel {
     async fn chat(&self, req: &ChatRequest, on_delta: ChatDelta<'_>, _: &ChatCancel) -> ProviderResult<String> {
         let system = req.messages.iter().find(|m| m.role == ChatRole::System).map_or("", |m| m.content.as_str());
         let last = req.messages.iter().rev().find(|m| m.role == ChatRole::User).map_or("", |m| m.content.as_str());
-        let reply = if system.contains("Merge the earlier points") {
+        let reply = if system.contains("You keep the memo of a meeting") {
             let lines = Self::transcript(last);
             let step = (lines.len() / 4).max(1);
-            lines.iter().step_by(step).take(4).map(|(_, words)| Self::clip(words, 26)).collect::<Vec<_>>().join("\n")
-        } else if system.contains("Write the notes for the transcript") {
+            let picked: Vec<_> = lines.iter().step_by(step).take(4).collect();
+            let clip = |i: usize| picked.get(i).map(|(_, words)| Self::clip(words, 26));
+            let mut reply: Vec<String> = [("DECIDED", clip(0)), ("TODO", clip(1)), ("OPEN", clip(2))]
+                .into_iter()
+                .filter_map(|(label, words)| Some(format!("{label}: {}", words?)))
+                .collect();
+            reply.extend(picked.iter().map(|(at, words)| format!("FLOW: [{at}] {}", Self::clip(words, 26))));
+            reply.push("END".into());
+            reply.join("\n")
+        } else if system.contains("You write a one-glance hint") {
             let lines = Self::transcript(last);
             let topic = lines.last().map_or_else(String::new, |(_, words)| Self::clip(words, 14));
-            let recent = lines.iter().rev().take(3).rev();
-            let notes: Vec<String> = recent.map(|(at, words)| format!("[{at}] {}", Self::clip(words, 30))).collect();
-            format!("Topic: {topic}\n{}", notes.join("\n"))
+            match lines.last() {
+                Some((at, words)) => format!("NOW: {topic}\nSAID: [{at}] {}", Self::clip(words, 30)),
+                None => format!("NOW: {topic}"),
+            }
         } else {
             let lines = Self::transcript(last);
             let times: Vec<&str> = lines.iter().rev().take(3).rev().map(|(at, _)| at.as_str()).collect();

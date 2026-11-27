@@ -1,12 +1,13 @@
-//! Live notes for the meeting being recorded (`design:tools/recording/live-notes`): the current topic, what was said
-//! in the last five minutes, and a few points that fold everything earlier, written by the chat model while the
-//! recording goes on.
+//! Live notes for the meeting being recorded (`design:tools/recording/live-notes`): a one-glance hint of what is
+//! being discussed now, and a memo of the whole meeting with what was decided, what is to be done, what is open and
+//! how the discussion went, written by the chat model while the recording goes on, in the meeting's language.
 //!
-//! Three parts, each testable alone. `schedule` decides when a refresh is due (the first one at once, then about
-//! once a minute while new text arrives, none while paused, one more when the meeting ends). `prompt` builds the
-//! fixed-scaffold requests and reads the replies back (ADR-0012). `runner` is the actor that reads the meeting
-//! through [`MeetingContext`](crate::transcription::MeetingContext), runs one request at a time and publishes the
-//! result. Notes live in memory only and go to the chat model in use, local or cloud (ADR-0008).
+//! Four parts, each testable alone. `schedule` decides when a refresh is due (the first one at once, then about
+//! once a minute while new text arrives, none while paused, one more when the meeting ends). `lang` decides the
+//! meeting's language from the transcript. `prompt` builds the fixed-scaffold requests and reads the replies back
+//! (ADR-0012). `runner` is the actor that reads the meeting through
+//! [`MeetingContext`](crate::transcription::MeetingContext), runs one request at a time and publishes the result.
+//! Notes live in memory only and go to the chat model in use, local or cloud (ADR-0008).
 
 mod lang;
 mod prompt;
@@ -14,15 +15,12 @@ mod runner;
 mod schedule;
 
 pub use lang::{Judge, LangChoice, MeetingLang, classify, language_sample, meeting_lang};
-pub use prompt::{Note, Notes};
+pub use prompt::{Budget, Hint, Item, MAX_TRAIL, Memo, Notes, ReplyError};
 pub use runner::{
     Cadence, ModelFuture, NotesDeps, NotesHandle, NotesModel, NotesModelSource, NotesPhase, NotesView, Unavailable,
     spawn,
 };
 pub use schedule::{Poll, REFRESH_EVERY, Scheduler};
 
-/// How much of the newest speech the notes keep in detail.
+/// The memo takes in speech once it is older than this.
 pub const RECENT_WINDOW_MS: u64 = 5 * 60 * 1000;
-
-/// Older speech is folded into this many points, every time a window's worth of it has aged out.
-pub const EARLIER_POINTS: std::ops::RangeInclusive<usize> = 4..=5;

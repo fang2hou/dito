@@ -3,6 +3,7 @@
 
 use std::sync::Arc;
 
+use dito_core::config::Source;
 use dito_core::factory::LocalBackend;
 use dito_core::health::EngineStatus;
 use dito_core::meeting_notes::{ModelFuture, NotesModel, NotesModelSource, Unavailable};
@@ -32,10 +33,15 @@ impl NotesModelSource for ChatNotes {
             let hold = chat_reply_started(&self.st);
             let model =
                 self.st.factory.text_model_for(&engine).await.map_err(|e| Unavailable::ModelFailed(e.to_string()))?;
+            let max_tokens = match engine.source {
+                Source::Local => engine.local_params_for(&engine.local_model).max_tokens,
+                Source::Provider => engine.active_text().and_then(|text| text.params.max_tokens),
+            };
             Ok(NotesModel {
                 model,
                 limits: facts.limits,
                 thinking_off: facts.thinking.is_some_and(|t| t.can_disable),
+                max_tokens,
                 hold: Some(Box::new(hold)),
             })
         })
