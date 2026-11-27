@@ -40,6 +40,8 @@ pub(super) struct NotesPane {
     meeting: Option<i64>,
     handle: Option<NotesHandle>,
     pub view: NotesView,
+    #[cfg(feature = "screenshots")]
+    shot_view: Option<NotesView>,
     /// The last notes of a meeting, so a panel opened again does not write the memo again and keeps its language.
     seed: Option<(i64, Notes)>,
     watching: Option<Task<()>>,
@@ -57,6 +59,8 @@ impl NotesPane {
             meeting: None,
             handle: None,
             view: NotesView { phase: NotesPhase::Waiting, notes: None, stale: Stale::default(), ended: false, seq: 0 },
+            #[cfg(feature = "screenshots")]
+            shot_view: None,
             seed: None,
             watching: None,
             scroll: ScrollHandle::new(),
@@ -101,6 +105,14 @@ impl NotesPane {
             NotesPhase::Unavailable(why) => Some(why),
             _ => None,
         }
+    }
+
+    fn panel_view(&self) -> &NotesView {
+        #[cfg(feature = "screenshots")]
+        if let Some(view) = &self.shot_view {
+            return view;
+        }
+        &self.view
     }
 }
 
@@ -239,6 +251,15 @@ impl TranscriptionPage {
 
 #[cfg(feature = "screenshots")]
 impl TranscriptionPage {
+    /// Freeze the panel's presentation without changing the recording or its notes runner.
+    pub fn pose_notes(&mut self, view: Option<NotesView>, cx: &mut Context<Self>) {
+        if view.is_some() && !self.notes.open {
+            self.toggle_notes(cx);
+        }
+        self.notes.shot_view = view;
+        cx.notify();
+    }
+
     /// Asks `question` about the meeting on screen, as typing it and pressing Enter does.
     pub fn pose_ask(&mut self, question: &str, window: &mut Window, cx: &mut Context<Self>) {
         let composer = self.notes.ask.composer.clone();

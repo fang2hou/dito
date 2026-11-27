@@ -9,6 +9,7 @@ use std::time::{Duration, Instant};
 
 use dito_core::config::Appearance;
 use dito_core::factory::FixedEngines;
+use dito_core::meeting_notes::{Hint, Item, Memo, Notes, NotesPhase, NotesView, Stale, Unavailable};
 use dito_core::provider::mock::{MockTextModel, ToneTranscriber, tone};
 use dito_core::transcription::{
     self, ActiveRecording, EnergyDetectors, RecordingPhase, SessionState, Sources, TranscriptionDeps,
@@ -16,8 +17,8 @@ use dito_core::transcription::{
 };
 use gpui_kit::*;
 
-use super::capture::{close_window, render_tools_window, resize_tools_window, save};
-use super::input::{click, on_tools_window};
+use super::capture::{close_window, render_tools_window, resize_tools_window, save, theme_tag};
+use super::input::{click, hover, on_tools_window, redraw};
 use super::transcript_film::Talk;
 use crate::services;
 use crate::state::AppState;
@@ -29,15 +30,13 @@ async fn settle(cx: &mut AsyncApp, ms: u64) {
 
 async fn shot(cx: &mut AsyncApp, dir: &Path, name: &str, wait: u64) {
     settle(cx, wait).await;
-    sync(cx, None);
     if let Some(Ok(img)) = render_tools_window(cx) {
         save(dir, name, img);
     }
 }
 
 /// Hands the page the session's status at once, as its subscription would between frames.
-fn sync(cx: &mut AsyncApp, handle: Option<&TranscriptionHandle>) {
-    let Some(handle) = handle else { return };
+fn sync(cx: &mut AsyncApp, handle: &TranscriptionHandle) {
     let status = handle.status();
     on_tools_window(cx, |w, app, view| view.update(app, |t, cx| t.sync_transcription(status, w, cx)));
 }
@@ -70,6 +69,112 @@ const BACK_TO_NOTES: (f32, f32) = (958., 131.);
 const RETURN_CAPSULE: (f32, f32) = (540., 54.);
 /// The book button once the window is 900 wide.
 const NARROW_BOOK_BUTTON: (f32, f32) = (826., 67.);
+
+fn sample_notes(mixed: bool) -> Notes {
+    let hint = |minute: u64, topic: &str| Hint { covered_ms: minute * 60_000, topic: topic.into() };
+    let item = |text: &str| Item { at: None, text: text.into() };
+    let flow = |at: &str, text: &str| Item { at: Some(at.into()), text: text.into() };
+    let topic = if mixed {
+        "注文 API を v2 に上げる件と、Safari 17 で崩れる注文フローの再検証に必要な QA の実施範囲と調整日程の確認"
+    } else {
+        "金曜の再テストに向けた修正"
+    };
+    let previous = if mixed {
+        "Release note の wording と App Store に出す修正内容の確認、QA smoke test の担当と期限"
+    } else {
+        "配送設定の確認日程"
+    };
+    let decision = if mixed {
+        "注文 API の v2 移行は 12 月の release に含めず、先に webhook の retry を直す。"
+    } else {
+        "再テストは金曜に実施。"
+    };
+    Notes {
+        now: Some(hint(20, topic)),
+        trail: vec![hint(17, "表示崩れの修正状況"), hint(19, previous)],
+        memo: Memo {
+            decided: vec![item(decision), item("優先するのは表示崩れと配送設定。")],
+            todo: vec![item("相手: 今日中に修正パッチを共有。"), item("QA: 明日午前に配送設定を確認。")],
+            open: vec![item("ログ出力を今回の修正に含めるか。")],
+            flow: vec![
+                flow("14:02", "再テストの範囲を確認。"),
+                flow("14:09", "表示崩れ2件の原因を共有。"),
+                flow("14:14", "配送設定の初期値をオフに決定。"),
+            ],
+            span_ms: Some((0, 15 * 60_000)),
+            covered_ms: 15 * 60_000,
+        },
+        started_ts: (14 * 60 + 2) * 60 - i64::from(dito_platform::local_utc_offset_secs()),
+        ..Notes::default()
+    }
+}
+
+fn scroll_memo(cx: &mut AsyncApp, delta: f32) {
+    on_tools_window(cx, |window, app, _| {
+        let position = point(px(920.), px(322.));
+        hover(window, app, position);
+        let delta = ScrollDelta::Pixels(point(px(0.), px(delta)));
+        window.dispatch_event(PlatformInput::Scroll(ScrollEvent { position, delta, ..Default::default() }), app);
+        redraw(window, app);
+    });
+}
+
+async fn panel_states(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp, ended: bool) {
+    let notes = sample_notes(false);
+    let ready =
+        NotesView { phase: NotesPhase::Ready, notes: Some(notes.clone()), stale: Stale::default(), ended, seq: 0 };
+    let first = NotesView { notes: None, ..ready.clone() };
+    let working = NotesPhase::Working { loading_model: false };
+    let mut updated = notes.clone();
+    updated.trail.extend(
+        updated
+            .now
+            .replace(Hint { topic: "ログ出力を今回の修正に含めるか".into(), covered_ms: 21 * 60_000 }),
+    );
+    let states = if ended {
+        vec![("ended", ready)]
+    } else {
+        vec![
+            ("waiting", NotesView { phase: NotesPhase::Waiting, ..first.clone() }),
+            ("first-notes", NotesView { phase: working.clone(), ..first.clone() }),
+            (
+                "model-failed",
+                NotesView { phase: NotesPhase::Unavailable(Unavailable::ModelFailed("mock startup".into())), ..first },
+            ),
+            ("ready", ready.clone()),
+            ("updating", NotesView { phase: working, ..ready.clone() }),
+            ("updated", NotesView { notes: Some(updated), ..ready.clone() }),
+            ("topic-stale", NotesView { stale: Stale { hint: true, memo: false }, ..ready.clone() }),
+            ("memo-stale", NotesView { stale: Stale { hint: false, memo: true }, ..ready.clone() }),
+            ("long-mixed", NotesView { notes: Some(sample_notes(true)), ..ready }),
+        ]
+    };
+    for appearance in [Appearance::Light, Appearance::Dark] {
+        services::save_config(st, |c| c.general.appearance = appearance);
+        let theme = theme_tag(appearance);
+        for (name, view) in &states {
+            let height = match *name {
+                "topic-stale" | "memo-stale" => 896.,
+                "long-mixed" => 908.,
+                "ended" => 724.,
+                _ => 694.,
+            };
+            // Coming back from the narrow shots needs extra width to leave the compact layout.
+            cx.update(|cx| resize_tools_window(cx, 1160., height));
+            let view = view.clone();
+            on_page(cx, move |_, app, page| page.update(app, |p, cx| p.pose_notes(Some(view), cx)));
+            shot(cx, dir, &format!("livenotes-panel-{name}-{theme}.png"), 400).await;
+            if *name == "ready" {
+                scroll_memo(cx, -240.);
+                shot(cx, dir, &format!("livenotes-panel-memo-scrolled-{theme}.png"), 400).await;
+                scroll_memo(cx, 240.);
+                on_tools_window(cx, |window, app, _| hover(window, app, point(px(230.), px(680.))));
+            }
+        }
+    }
+    on_page(cx, |_, app, page| page.update(app, |p, cx| p.pose_notes(None, cx)));
+    services::save_config(st, |c| c.general.appearance = Appearance::Light);
+}
 
 pub async fn run(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     if !services::chat_model_is_local(st) {
@@ -118,7 +223,7 @@ pub async fn run(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     settle(cx, 1_500).await;
     let id = handle.status().state.transcript_id().expect("a running session has its meeting");
 
-    // Nothing there yet: the panel opens on an empty transcript and waits.
+    // Show the transcript before opening the panel.
     shot(cx, dir, "livenotes-closed.png", 8_000).await;
 
     // Opening: frames while the panel slides in, at the design's 0, 50 and 240 ms.
@@ -203,11 +308,14 @@ pub async fn run(st: &Arc<AppState>, dir: &Path, cx: &mut AsyncApp) {
     on_tools_window(cx, |w, app, _| click(w, app, point(px(NARROW_BOOK_BUTTON.0), px(NARROW_BOOK_BUTTON.1))));
     shot(cx, dir, "livenotes-narrow-transcript.png", 600).await;
 
+    panel_states(st, dir, cx, false).await;
+
     handle.stop();
     on_chat(cx, |_, app, chat| chat.update(app, |p, cx| p.pose_recording(None, cx)));
     settle(cx, 4_000).await;
-    sync(cx, Some(&handle));
+    sync(cx, &handle);
     shot(cx, dir, "livenotes-ended.png", 600).await;
+    panel_states(st, dir, cx, true).await;
 
     if let Some((window, _)) = cx.update(|cx| tools::handle(cx)) {
         close_window(cx, window);
