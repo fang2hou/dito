@@ -4,18 +4,21 @@
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Instant;
 
+use dito_core::chat;
 use dito_core::config::{EngineConfig, Source};
 use dito_core::factory::LocalBackend;
 use dito_core::health::EngineStatus;
 
 use dito_core::provider::{ChatCancel, ChatRequest};
-use dito_core::store::MessageState;
+use dito_core::store::{Author, ChatMessageRow, MessageState, NewChatMessage, StoreError};
 use tokio::sync::Notify;
 
+use crate::services;
 use crate::state::AppState;
+use crate::timefmt::{date_time, now};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct Finished {
+pub(crate) struct Finished {
     pub content: String,
     pub state: MessageState,
     /// The encoded error line of a failure, as the history stores them.
@@ -26,7 +29,42 @@ fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
     m.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
-pub(super) struct Generation {
+/// Adds the reply's row to the conversation `rows` of chat `chat_id` and starts the request for it: the one path
+/// every reply takes, whether the Chat page or the meeting notes asked.
+pub(crate) fn begin(
+    st: &Arc<AppState>,
+    chat_id: i64,
+    rows: &[ChatMessageRow],
+) -> Result<(ChatMessageRow, Generation), StoreError> {
+    let facts = services::chat_model_facts(st);
+    let off = dito_platform::local_utc_offset_secs();
+    let mut request = chat::request_for(rows, move |ts| date_time(ts, off), facts.limits.context_chars);
+    request.thinking = chat::thinking_request(services::chat_thinking_choice(st, &facts));
+    let model = services::chat_model_label(st);
+    let ts = now();
+    let placeholder = NewChatMessage {
+        author: Author::Assistant,
+        content: "",
+        state: MessageState::Generating,
+        attachments: &[],
+        model: Some(&model),
+        ts,
+    };
+    let id = st.store.add_chat_message(chat_id, &placeholder)?;
+    let row = ChatMessageRow {
+        id,
+        author: Author::Assistant,
+        content: String::new(),
+        state: MessageState::Generating,
+        error: None,
+        attachments: Vec::new(),
+        model: Some(model),
+        ts,
+    };
+    Ok((row, Generation::start(st, chat_id, id, request)))
+}
+
+pub(crate) struct Generation {
     pub chat_id: i64,
     pub message_id: i64,
     pub started: Instant,

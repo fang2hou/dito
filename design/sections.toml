@@ -222,6 +222,11 @@ layer = ""
 board = "23.02"
 layer = "Recording"
 
+[tools.recording.live-notes]
+board = "23.02"
+item = "23.02.8"
+layer = "Live meeting notes"
+
 [tools.detail]
 board = "23.03"
 layer = "Transcript detail"

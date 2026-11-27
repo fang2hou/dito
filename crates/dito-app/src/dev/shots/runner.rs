@@ -41,6 +41,7 @@ const GROUPS: &[ShotGroup] = &[
     default_group("tools", |st, dir, cx| Box::pin(pages::tools_shots(st, dir, cx))),
     opt_in("localapi", |st, dir, cx| Box::pin(local_api::local_api_shots(st, dir, cx))),
     opt_in("chat", |st, dir, cx| Box::pin(super::chat::run(st, dir, cx))),
+    opt_in("livenotes", |st, dir, cx| Box::pin(super::live_notes::run(st, dir, cx))),
     opt_in("transcriptfilm", |st, dir, cx| Box::pin(super::transcript_film::run(st, dir, cx))),
     opt_in("wordbook", |st, dir, cx| Box::pin(wordbook::wordbook_failure_shots(st, dir, cx))),
     opt_in("wordbookspoken", |st, dir, cx| Box::pin(wordbook::wordbook_spoken_form_shots(st, dir, cx))),

@@ -31,6 +31,7 @@ mod popup_menu;
 mod primitives;
 mod progress_bar;
 mod radio;
+mod recording_dot;
 mod requests;
 mod scope;
 mod scroll_thumb;
@@ -93,6 +94,7 @@ pub use popup_menu::{AddEntry, MenuItem, MenuTone, add_menu, popup_menu, popup_m
 pub use primitives::{hex_alpha, icon, mix, mix_rgb, transparent, white};
 pub use progress_bar::progress_bar;
 pub use radio::radio;
+pub use recording_dot::{DotState, halo_at, recording_dot};
 pub use requests::Requests;
 pub use scope::{MotionScope, ScopeHandle, motion_scope, render_with_scope, with_motion_scope};
 pub use scroll_thumb::{ScrollExtent, overlay_thumb};

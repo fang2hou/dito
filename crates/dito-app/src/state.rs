@@ -104,6 +104,12 @@ impl AppState {
             .with_speech_config(mock_speech);
         #[cfg(feature = "mock")]
         let factory = if opts.mock { factory.with_router(Arc::new(KeywordRouter)) } else { factory };
+        #[cfg(feature = "mock")]
+        let factory = if opts.mock && mock_local_chat() {
+            factory.with_local(Arc::new(dito_core::provider::mock::MockLocal))
+        } else {
+            factory
+        };
         let factory = Arc::new(factory);
         let capture = open_capture(&opts, &cfg);
         let recorder = pick_recorder(&opts, capture.as_ref())?;
@@ -203,8 +209,20 @@ fn start_mock_server(
             *azure.target.address_mut() = server.url.clone();
         }
         c.onboarded = true;
+        if mock_local_chat() {
+            c.chat.same_as_text = false;
+            c.chat.source = dito_core::config::Source::Local;
+            c.chat.local_model = dito_core::config::DEFAULT_TEXT_LOCAL.to_owned();
+        }
     })?;
     Ok(Some(server))
+}
+
+/// `DITO_MOCK_LOCAL_CHAT=1` gives a `--mock` run a local chat model that answers by rule, so the live meeting notes
+/// can be tried without a model on disk.
+#[cfg(feature = "mock")]
+fn mock_local_chat() -> bool {
+    std::env::var_os("DITO_MOCK_LOCAL_CHAT").is_some_and(|value| value != "0")
 }
 
 fn open_store(opts: &Opts, data_dir: &std::path::Path) -> Result<Arc<Store>> {

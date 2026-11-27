@@ -1536,4 +1536,105 @@ mod tests {
         assert!(t.summary.ended_ts.is_some());
         assert_eq!(t.summary.sources, Sources { system: true, microphone: true });
     }
+
+    /// The notes follow a real session from its first words to its end: the session writes paragraphs, the context
+    /// reads them with the live words, the runner writes notes, the pause holds them and the end covers the rest.
+    #[tokio::test]
+    async fn live_notes_follow_a_real_session_through_pause_and_end() {
+        use crate::meeting_notes::{Cadence, ModelFuture, NotesDeps, NotesModel, NotesModelSource, NotesPhase};
+        use crate::provider::{ChatCancel, ChatDelta, ChatRequest};
+        use std::sync::atomic::AtomicUsize;
+
+        struct Notes(AtomicUsize, Mutex<Vec<String>>);
+        #[async_trait::async_trait]
+        impl TextModel for Notes {
+            async fn polish(&self, request: &TextRequest<'_>) -> crate::error::ProviderResult<String> {
+                Ok(crate::prompts::unfenced(request.text).to_string())
+            }
+            async fn chat(
+                &self,
+                request: &ChatRequest,
+                _: ChatDelta<'_>,
+                _: &ChatCancel,
+            ) -> crate::error::ProviderResult<String> {
+                self.0.fetch_add(1, Ordering::SeqCst);
+                self.1.lock().unwrap().push(request.messages[1].content.clone());
+                Ok("Topic: 決済の件\n[00:00] 決済の件を確認".into())
+            }
+        }
+        struct Source(Arc<Notes>);
+        impl NotesModelSource for Source {
+            fn model(&self) -> ModelFuture<'_> {
+                Box::pin(async {
+                    Ok(NotesModel {
+                        model: self.0.clone(),
+                        limits: crate::chat::Limits::local(None),
+                        thinking_off: true,
+                        hold: None,
+                    })
+                })
+            }
+        }
+
+        let store = Arc::new(Store::open_in_memory().unwrap());
+        let handle = spawn(TranscriptionDeps {
+            audio: ScriptedAudio::new(vec![(AudioSource::System, speech(1.0))]),
+            detectors: Arc::new(EnergyDetectors),
+            engines: Arc::new(FixedEngines::new(
+                Arc::new(MockTranscriber::new("決済の件です")),
+                Arc::new(MockTextModel::default()),
+            )),
+            config: config(),
+            store: store.clone(),
+        });
+        handle.start(Sources::default());
+        let recording = wait_until(&handle, |s| matches!(s.state, SessionState::Recording { .. })).await;
+        let id = recording.state.transcript_id().unwrap();
+        let model = Arc::new(Notes(AtomicUsize::new(0), Mutex::new(Vec::new())));
+        let notes = crate::meeting_notes::spawn(
+            NotesDeps {
+                store: store.clone(),
+                status: handle.subscribe(),
+                source: Arc::new(Source(model.clone())),
+                me: "自分".into(),
+                others: "相手".into(),
+                offset_secs: 0,
+                cadence: Cadence { look_every: Duration::from_millis(10), refresh_every: Duration::from_millis(300) },
+            },
+            id,
+            None,
+        );
+        let mut view = notes.subscribe();
+        let first = tokio::time::timeout(Duration::from_secs(5), view.wait_for(|v| v.notes.is_some()))
+            .await
+            .expect("notes written")
+            .unwrap()
+            .clone();
+        assert_eq!(first.phase, NotesPhase::Ready);
+        assert_eq!(first.notes.as_ref().unwrap().topic, "決済の件");
+        assert!(model.1.lock().unwrap()[0].contains("決済の件です"), "the request carries the transcript");
+
+        handle.toggle_pause();
+        wait_until(&handle, |s| matches!(&s.state, SessionState::Recording { segment_start: None, .. })).await;
+        let calls = model.0.load(Ordering::SeqCst);
+        tokio::time::sleep(Duration::from_millis(700)).await;
+        assert_eq!(model.0.load(Ordering::SeqCst), calls, "nothing new was said, and a pause holds the notes");
+
+        handle.stop();
+        wait_until(&handle, |s| s.state == SessionState::Idle).await;
+        let last = tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                let seen = view.borrow_and_update().clone();
+                let covered =
+                    store.get_transcript(id).unwrap().unwrap().paragraphs.iter().map(|p| p.end_ms).max().unwrap_or(0);
+                if seen.notes.as_ref().is_some_and(|n| n.covered_ms == covered) {
+                    break seen;
+                }
+                let _ = view.changed().await;
+            }
+        })
+        .await
+        .expect("the notes cover the finished meeting");
+        assert_eq!(last.phase, NotesPhase::Ready);
+    }
 }

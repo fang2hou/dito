@@ -3,6 +3,7 @@
 //! never stored), utterances are grouped into paragraphs of a few sentences, and every paragraph is polished with the
 //! paragraphs before it as read-only context. One actor owns the running session.
 
+mod context;
 mod energy_vad;
 mod live;
 mod paragraphs;
@@ -11,6 +12,7 @@ mod recognizer;
 mod session;
 mod source;
 
+pub use context::{ActiveRecording, MeetingContext, RecordingPhase, SpeakerNames, Utterance};
 pub use energy_vad::EnergyDetectors;
 pub use live::LiveText;
 pub use paragraphs::{PARAGRAPH_GAP_MS, PARAGRAPH_MAX_CHARS, PARAGRAPH_MIN_CHARS};

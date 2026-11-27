@@ -19,6 +19,8 @@ The tooltip layer retains only its last selected anchor through the exit fade, e
 
 The dictation controller owns a rolling in-memory timing estimate. The HUD owns the displayed progress curve and retargets it from its current position and velocity when results arrive. Text delivery happens immediately, while the HUD waits for its final fill before showing the outcome.
 
+The recording page owns the live meeting notes: the panel's slide, the runner (a task and a handle that live only while the panel is open, so closing it or leaving the transcript ends the work and cancels a request in flight) and the question field. The page follows the runner's published view through a watch channel and redraws on news; nothing slow runs in render, and the Chat page and the recording page never hold each other: a way back or a handed-over conversation goes through the Tools window as an event (2026-11-27).
+
 ## Alternatives Considered
 
 ### Global registries and inline queries

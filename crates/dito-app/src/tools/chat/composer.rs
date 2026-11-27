@@ -5,6 +5,7 @@ use dito_core::chat::{THINKING_OFF, THINKING_ON, thinking_choices};
 use dito_core::i18n::{Tr, fmt};
 use dito_core::provider::ThinkingCapabilities;
 use dito_core::store::Attachment;
+use dito_core::transcription::{ActiveRecording, RecordingPhase};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
@@ -36,7 +37,7 @@ pub(super) fn view(page: &ChatPage, c: &Ctx, window: &mut Window, cx: &mut Conte
     if !page.pending.is_empty() {
         let mut chips = div().w_full().pb(px(10.)).flex().flex_wrap().gap(px(8.));
         for (i, attachment) in page.pending.iter().enumerate() {
-            chips = chips.child(chip(i, attachment, c, cx));
+            chips = chips.child(chip(i, attachment, page.recording, c, cx));
         }
         shell = shell.child(chips);
     }
@@ -199,13 +200,29 @@ fn send_or_stop(page: &ChatPage, c: &Ctx, cx: &mut Context<ChatPage>) -> impl In
 }
 
 /// A 44 pt chip: a 32 pt tile, the name and what it is. Hovering shows Remove.
-fn chip(index: usize, attachment: &Attachment, c: &Ctx, cx: &mut Context<ChatPage>) -> impl IntoElement {
+fn chip(
+    index: usize,
+    attachment: &Attachment,
+    recording: Option<ActiveRecording>,
+    c: &Ctx,
+    cx: &mut Context<ChatPage>,
+) -> impl IntoElement {
     let p = c.p;
     let id = ElementId::from(("chat-chip", index));
     let (tile_fill, tile_glyph, glyph_color) = match attachment {
         Attachment::File { .. } => (p.card, Ic::FileText, p.muted),
         Attachment::Meeting { .. } => (p.accent_soft, Ic::AudioLines, p.accent_text),
     };
+    // A meeting that is being recorded says so after its name, and its type stands alone below it.
+    let live = match attachment {
+        Attachment::Meeting { transcript_id, .. } => recording.filter(|r| r.id == *transcript_id),
+        Attachment::File { .. } => None,
+    };
+    let dot = live.and_then(|r| match r.phase {
+        RecordingPhase::Recording => Some(ui::DotState::Live),
+        RecordingPhase::Paused => Some(ui::DotState::Paused),
+        RecordingPhase::Finishing => None,
+    });
     let detail = match attachment {
         Attachment::File { name, bytes, .. } => {
             let kind = match file_kind(name) {
@@ -215,6 +232,7 @@ fn chip(index: usize, attachment: &Attachment, c: &Ctx, cx: &mut Context<ChatPag
             };
             fmt::chat_file_detail(c.lang, c.lang.tr(kind), &size_label(*bytes))
         }
+        Attachment::Meeting { .. } if live.is_some() => c.lang.tr(Tr::ChatKindMeeting).to_owned(),
         Attachment::Meeting { duration_ms, .. } => {
             fmt::chat_meeting_detail(c.lang, &crate::timefmt::clock(duration_ms.unwrap_or(0)))
         }
@@ -271,10 +289,30 @@ fn chip(index: usize, attachment: &Attachment, c: &Ctx, cx: &mut Context<ChatPag
                 .flex()
                 .flex_col()
                 .child(
-                    ui::text(attachment.name().to_owned(), 13., FontWeight::MEDIUM, p.text)
-                        .line_height(px(18.))
-                        .max_w(px(CHIP_NAME_MAX))
-                        .truncate(),
+                    div()
+                        .flex()
+                        .items_center()
+                        .gap(px(4.))
+                        .child(
+                            ui::text(attachment.name().to_owned(), 13., FontWeight::MEDIUM, p.text)
+                                .line_height(px(18.))
+                                .max_w(px(CHIP_NAME_MAX))
+                                .truncate(),
+                        )
+                        .children(dot.map(|state| {
+                            let label = match state {
+                                ui::DotState::Live => c.t(Tr::TranscriptionRecording),
+                                ui::DotState::Paused => c.t(Tr::TranscriptionPaused),
+                            };
+                            div().id(("chat-chip-status", index)).role(Role::Image).aria_label(label).child(
+                                ui::recording_dot(
+                                    ElementId::from(("chat-chip-dot", index)),
+                                    state,
+                                    &p,
+                                    ui::Motion::system(),
+                                ),
+                            )
+                        })),
                 )
                 .child(ui::text(detail, 11., FontWeight::NORMAL, p.muted).line_height(px(14.))),
         )

@@ -6,6 +6,7 @@ mod dock;
 mod lanes;
 mod list;
 mod morph;
+mod notes;
 mod readiness;
 mod settings;
 
@@ -85,6 +86,8 @@ impl Perms {
     }
 }
 
+pub(crate) use self::notes::TranscriptionEvent;
+
 pub struct TranscriptionPage {
     st: Arc<AppState>,
     motion: ui::MotionScope,
@@ -107,6 +110,8 @@ pub struct TranscriptionPage {
     browse: list::Browse,
     /// The gear's settings dialog and its prompt editor.
     module: settings::ModuleSettings,
+    /// The live meeting notes beside the open transcript, and the questions asked from them.
+    notes: notes::NotesPane,
     /// The bottom panel's size and where its move stands.
     dock: dock::DockAnim,
     /// The bottom panel's real width, measured once it has painted: the shell's sidebar collapses and expands at
@@ -124,6 +129,9 @@ pub struct TranscriptionPage {
     /// Lets the screenshot harness pose the tool past the readiness gate on any machine.
     #[cfg(feature = "screenshots")]
     assume_ready: bool,
+    /// The session the screenshot harness has the page follow instead of the app's own.
+    #[cfg(feature = "screenshots")]
+    followed: Option<dito_core::transcription::TranscriptionHandle>,
 }
 
 impl TranscriptionPage {
@@ -199,6 +207,7 @@ impl TranscriptionPage {
         let status = st.transcription.status();
         let lang = st.cfg.get().general.lang();
         let instruction = st.cfg.get().transcription.title_instruction().to_owned();
+        let placeholder = lang.tr(Tr::TranscriptionNotesAskPlaceholder).to_owned();
         let mut page = Self {
             st,
             motion: ui::MotionScope::new(),
@@ -215,6 +224,7 @@ impl TranscriptionPage {
             scroll: ScrollHandle::new(),
             browse: list::Browse::new(lang, window, cx),
             module: settings::ModuleSettings::new(&instruction, window, cx),
+            notes: notes::NotesPane::new(notes::Ask::new(&placeholder, window, cx)),
             dock: dock::DockAnim::new(),
             dock_width: Rc::new(Cell::new(None)),
             dock_lanes: None,
@@ -223,6 +233,8 @@ impl TranscriptionPage {
             nap: None,
             #[cfg(feature = "screenshots")]
             assume_ready: false,
+            #[cfg(feature = "screenshots")]
+            followed: None,
         };
         page.reload_list();
         page
@@ -232,6 +244,8 @@ impl TranscriptionPage {
     pub fn set_active(&mut self, active: bool, cx: &mut Context<Self>) {
         let was = self.active;
         self.active = active;
+        // Notes are written only while the page is the one on screen; the panel and what it held wait for the return.
+        self.sync_notes(cx);
         if active {
             if !was {
                 self.perms = Perms::read();
@@ -239,6 +253,26 @@ impl TranscriptionPage {
             self.reload_list();
             cx.notify();
         }
+    }
+
+    /// The status the notes follow: the app's session, or the one the screenshot harness plays.
+    fn status_source(&self) -> tokio::sync::watch::Receiver<TranscriptionStatus> {
+        #[cfg(feature = "screenshots")]
+        if let Some(handle) = &self.followed {
+            return handle.subscribe();
+        }
+        self.st.transcription.subscribe()
+    }
+
+    /// The way back from Chat: the transcript of the running session, as the user left it. A page already showing it
+    /// keeps its scroll, its panel and what was asked in it.
+    pub fn show_active_recording(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(id) = self.status.state.transcript_id() else { return };
+        if self.detail_shown() && self.open.as_ref().is_some_and(|open| open.summary.id == id) {
+            cx.notify();
+            return;
+        }
+        self.open_transcript(id, window, cx);
     }
 
     /// True while a session records: the window's sidebar shows a red dot for it.
@@ -326,6 +360,7 @@ impl TranscriptionPage {
         cx: &mut Context<Self>,
     ) {
         let mut rx = handle.subscribe();
+        self.followed = Some(handle);
         cx.spawn_in(window, async move |this, cx| {
             while rx.changed().await.is_ok() {
                 let status = rx.borrow_and_update().clone();
@@ -397,6 +432,7 @@ impl TranscriptionPage {
         let Some(t) = self.load(id) else {
             self.open = None;
             self.view = View::List;
+            self.close_notes_for_other_meeting(cx);
             cx.notify();
             return;
         };
@@ -428,6 +464,7 @@ impl TranscriptionPage {
         let paragraphs = t.paragraphs.into_iter().map(|p| self.paragraph_view(p, window, cx)).collect();
         self.open = Some(OpenTranscript { summary: t.summary, title, _title_focus: title_focus, paragraphs });
         self.view = View::Detail;
+        self.close_notes_for_other_meeting(cx);
         // A live entry opens at its end, where the words arrive.
         if self.status.state.transcript_id() == Some(id) {
             self.scroll.scroll_to_bottom();
@@ -450,6 +487,7 @@ impl TranscriptionPage {
         let Some(t) = self.load(id) else {
             self.open = None;
             self.view = View::List;
+            self.close_notes_for_other_meeting(cx);
             return;
         };
         let mut old = self.open.take().expect("checked above");
@@ -506,6 +544,7 @@ impl TranscriptionPage {
     fn close_detail(&mut self, cx: &mut Context<Self>) {
         self.reset_back_button();
         self.view = View::List;
+        self.close_notes_for_other_meeting(cx);
         self.delete_armed = false;
         self.reload_list();
         cx.notify();
@@ -684,6 +723,8 @@ fn open_row(cx: &mut Context<TranscriptionPage>, id: i64) -> impl Fn(&ClickEvent
     cx.listener(move |page, _, window, cx| page.open_transcript(id, window, cx))
 }
 
+impl EventEmitter<TranscriptionEvent> for TranscriptionPage {}
+
 impl Render for TranscriptionPage {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         ui::render_with_scope(self.motion.handle(), || self.view(window, cx))
@@ -714,6 +755,9 @@ impl TranscriptionPage {
             return page.child(div().flex_1().min_h(px(0.)).child(readiness::view(self, &c, cx)));
         }
         let banner = self.banner(&c, cx);
+        self.notes.follow_width(self.dock_width.get());
+        self.notes.retarget(ui::Motion::system(), Instant::now());
+        self.keep_notes_moving(window);
         let (dock, pose, dock_h) = dock::view(self, &c, window, cx);
         if self.detail_shown() {
             return page
