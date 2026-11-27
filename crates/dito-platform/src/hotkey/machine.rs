@@ -816,7 +816,7 @@ mod tests {
         assert_eq!(m.feed(flags_change(Modifier::RightOption, false), quick).actions, [Action::ShortcutUp]);
     }
 
-    /// Dictation on right ⌘, the default command shortcut on Shift plus the same key.
+    /// Dictation on right ⌘, a command shortcut on Shift plus the same key.
     fn shift_variant() -> Machine {
         two("RightCommand", "Shift+RightCommand")
     }
@@ -992,6 +992,18 @@ mod tests {
         let up = m.feed(RawEvent::KeyUp { keycode: 49, flags: F_CTRL | F_ALT }, now);
         assert_eq!((up.actions, up.swallow), (vec![], true), "the key up is ours and fires nothing");
         assert_eq!(m.feed(down(F_CTRL | F_ALT, false), now).actions, [Action::ToolsPressed], "a new press fires again");
+    }
+
+    #[test]
+    fn the_default_tools_combo_does_not_start_the_default_dictation_shortcut_when_control_comes_first() {
+        let mut m = three("RightOption", "Shift+RightOption", "Control+Option+T");
+        let now = t0();
+        assert_eq!(m.feed(flags_change(Modifier::LeftControl, true), now).actions, []);
+        let option = flags_change_with(Modifier::RightOption, true, L_CTRL | F_CTRL);
+        assert_eq!(m.feed(option, now).actions, [], "right Option next to a held Control is not the lone shortcut");
+        let key = RawEvent::KeyDown { keycode: 17, flags: F_CTRL | F_ALT | R_ALT | L_CTRL, repeat: false };
+        let out = m.feed(key, now);
+        assert_eq!((out.actions, out.swallow), (vec![Action::ToolsPressed], true));
     }
 
     #[test]
