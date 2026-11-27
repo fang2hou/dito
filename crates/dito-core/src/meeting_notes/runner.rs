@@ -41,13 +41,11 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(180);
 /// Why there are no notes to write.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Unavailable {
-    /// The chat model is not a local one. The notes never go to a cloud model.
-    NeedsLocalModel,
-    /// The local chat model could not be started.
+    /// The chat model could not be started.
     ModelFailed(String),
 }
 
-/// The local chat model, ready to answer, with what the request must respect.
+/// The chat model, ready to answer, with what the request must respect.
 pub struct NotesModel {
     pub model: Arc<dyn TextModel>,
     pub limits: Limits,
@@ -60,7 +58,7 @@ pub struct NotesModel {
 /// What asking for the model returns.
 pub type ModelFuture<'a> = Pin<Box<dyn Future<Output = Result<NotesModel, Unavailable>> + Send + 'a>>;
 
-/// Where the model comes from. The app implements it over its chat settings and refuses a cloud model.
+/// Where the model comes from. The app implements it over its chat settings, local or cloud.
 pub trait NotesModelSource: Send + Sync {
     /// The model is not in memory yet, so asking for it takes a while.
     fn loading(&self) -> bool {

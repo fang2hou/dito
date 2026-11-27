@@ -49,20 +49,17 @@ impl TextModel for Scripted {
     }
 }
 
+/// Hands out the scripted model as the app would a local or a cloud chat model.
 struct Source {
     model: Arc<Scripted>,
-    local: AtomicBool,
-    asked: AtomicUsize,
+    local: bool,
 }
 
 impl NotesModelSource for Source {
     fn model(&self) -> ModelFuture<'_> {
         Box::pin(async {
-            self.asked.fetch_add(1, Ordering::SeqCst);
-            if !self.local.load(Ordering::SeqCst) {
-                return Err(Unavailable::NeedsLocalModel);
-            }
-            Ok(NotesModel { model: self.model.clone(), limits: Limits::local(None), thinking_off: true, hold: None })
+            let (limits, thinking_off) = if self.local { (Limits::local(None), true) } else { (Limits::CLOUD, false) };
+            Ok(NotesModel { model: self.model.clone(), limits, thinking_off, hold: None })
         })
     }
 }
@@ -72,7 +69,6 @@ struct Rig {
     id: i64,
     status: watch::Sender<TranscriptionStatus>,
     model: Arc<Scripted>,
-    source: Arc<Source>,
     handle: NotesHandle,
     said: usize,
 }
@@ -99,13 +95,11 @@ impl Rig {
         let id = store.create_transcript(0, Sources::default()).unwrap();
         let (status, rx) = watch::channel(recording(id, false, 0));
         let model = Arc::new(Scripted::default());
-        let source =
-            Arc::new(Source { model: model.clone(), local: AtomicBool::new(local), asked: AtomicUsize::new(0) });
         let handle = spawn(
             NotesDeps {
                 store: store.clone(),
                 status: rx,
-                source: source.clone(),
+                source: Arc::new(Source { model: model.clone(), local }),
                 me: "自分".into(),
                 others: "相手".into(),
                 offset_secs: 0,
@@ -114,7 +108,7 @@ impl Rig {
             id,
             None,
         );
-        Self { store, id, status, model, source, handle, said: 0 }
+        Self { store, id, status, model, handle, said: 0 }
     }
 
     fn say(&mut self, start_ms: u64, text: &str) {
@@ -255,13 +249,15 @@ async fn a_very_long_meeting_folds_in_short_requests_and_shows_each_step() {
 }
 
 #[tokio::test]
-async fn a_cloud_chat_model_is_unavailable_and_nothing_is_sent() {
+async fn a_cloud_chat_model_writes_the_notes_with_its_own_reasoning() {
     let mut rig = Rig::start(false);
     rig.say(0, "最初の発言です。");
-    rig.until("unavailable", |r| matches!(r.handle.view().phase, NotesPhase::Unavailable(_))).await;
-    assert_eq!(rig.handle.view().phase, NotesPhase::Unavailable(Unavailable::NeedsLocalModel));
-    assert_eq!(rig.model.requests.lock().unwrap().len(), 0);
-    assert_eq!(rig.source.asked.load(Ordering::SeqCst), 1);
+    rig.until("the first notes", |r| r.handle.view().phase == NotesPhase::Ready && r.handle.view().notes.is_some())
+        .await;
+    assert_eq!(rig.handle.view().notes.unwrap().topic, "金曜の再テスト");
+    let requests = rig.model.requests.lock().unwrap();
+    assert!(!requests.is_empty());
+    assert!(requests.iter().all(|r| r.thinking.is_none()), "a cloud model keeps its configured reasoning");
 }
 
 #[tokio::test]

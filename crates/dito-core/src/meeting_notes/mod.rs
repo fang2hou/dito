@@ -1,12 +1,12 @@
 //! Live notes for the meeting being recorded (`design:tools/recording/live-notes`): the current topic, what was said
-//! in the last five minutes, and a few points that fold everything earlier, written by the local chat model while
-//! the recording goes on.
+//! in the last five minutes, and a few points that fold everything earlier, written by the chat model while the
+//! recording goes on.
 //!
 //! Three parts, each testable alone. `schedule` decides when a refresh is due (the first one at once, then about
 //! once a minute while new text arrives, none while paused, one more when the meeting ends). `prompt` builds the
 //! fixed-scaffold requests and reads the replies back (ADR-0012). `runner` is the actor that reads the meeting
 //! through [`MeetingContext`](crate::transcription::MeetingContext), runs one request at a time and publishes the
-//! result. Notes live in memory only and go to the local model only (ADR-0002, ADR-0008).
+//! result. Notes live in memory only and go to the chat model in use, local or cloud (ADR-0008).
 
 mod prompt;
 mod runner;

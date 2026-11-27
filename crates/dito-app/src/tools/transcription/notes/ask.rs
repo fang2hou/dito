@@ -1,6 +1,6 @@
 //! A question asked from the notes panel. It is a real conversation in the chat store, so Chat can go on with it:
 //! the first question creates the chat with the meeting attached, every question reads the meeting as it is now,
-//! and the reply is written by the same engine as in Chat, on the local chat model only.
+//! and the reply is written by the same engine as in Chat, with the same chat model.
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -14,7 +14,6 @@ use gpui_kit::prelude::*;
 use gpui_kit::*;
 
 use super::TranscriptionEvent;
-use crate::services;
 use crate::timefmt::{date_time, now};
 use crate::tools::chat::Handoff;
 use crate::tools::chat::generation::{self, Finished, Generation};
@@ -76,12 +75,6 @@ impl TranscriptionPage {
         let text = self.notes.ask.composer.read(cx).value().trim().to_owned();
         let Some(meeting) = self.open.as_ref().map(|open| open.summary.id) else { return };
         if text.is_empty() {
-            return;
-        }
-        // The notes never reach a cloud model, and neither do questions asked from them.
-        if !services::chat_model_is_local(&self.st) {
-            self.notes.ask.notice = Some(Tr::TranscriptionNotesNeedLocal);
-            cx.notify();
             return;
         }
         let lang = self.st.cfg.get().general.lang();
