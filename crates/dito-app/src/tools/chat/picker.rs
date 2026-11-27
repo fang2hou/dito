@@ -148,7 +148,6 @@ fn row(picker: &Picker, meeting: &TranscriptSummary, off: i32, c: &Ctx, cx: &mut
     } else {
         meeting.title.trim().to_owned()
     };
-    let title_color = if live { p.muted } else { p.text };
     let mut trailing = div().flex_none().flex().items_center().gap(px(10.));
     if live {
         trailing = trailing.child(ui::text(c.t(Tr::TranscriptionRecording), 12., FontWeight::NORMAL, p.danger_text));
@@ -169,36 +168,33 @@ fn row(picker: &Picker, meeting: &TranscriptSummary, off: i32, c: &Ctx, cx: &mut
         .items_center()
         .gap(px(12.))
         .rounded(px(8.))
+        .cursor_pointer()
         .on_hover(ui::hover_tracker(key.clone()))
-        .child(ui::hover_fill_if(&key, Some(8.), p.seg, !live))
-        .child(marker(selected, live, &p))
+        .child(ui::hover_fill(&key, Some(8.), p.seg))
+        .child(marker(selected, &p))
         .child(
-            ui::text(title, 13., if selected { FontWeight::MEDIUM } else { FontWeight::NORMAL }, title_color)
+            ui::text(title, 13., if selected { FontWeight::MEDIUM } else { FontWeight::NORMAL }, p.text)
                 .line_height(px(19.))
                 .flex_1()
                 .min_w(px(0.))
                 .truncate(),
         )
         .child(trailing);
-    if live {
-        row = row.opacity(0.6);
-    } else {
-        row = row.cursor_pointer().on_click(ui::click_cb(ui::cbk(cx, move |page, _, cx| {
-            if let Some(picker) = &mut page.picker {
-                picker.toggle(id);
-                cx.notify();
-            }
-        })));
-    }
+    row = row.on_click(ui::click_cb(ui::cbk(cx, move |page, _, cx| {
+        if let Some(picker) = &mut page.picker {
+            picker.toggle(id);
+            cx.notify();
+        }
+    })));
     row
 }
 
-fn marker(selected: bool, live: bool, p: &Palette) -> Div {
+fn marker(selected: bool, p: &Palette) -> Div {
     let ring = div().size(px(MARKER)).flex_none().flex().items_center().justify_center().rounded_full();
     if selected {
         ring.bg(p.accent).child(ui::icon(Ic::Check, 12., ui::white()))
     } else {
-        ring.border_1().border_color(if live { p.border } else { p.border_strong })
+        ring.border_1().border_color(p.border_strong)
     }
 }
 

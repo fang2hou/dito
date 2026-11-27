@@ -6,6 +6,7 @@ mod demo;
 mod hud;
 mod inline_asr;
 mod input;
+mod live_notes;
 mod local_api;
 mod onboarding;
 mod pages;

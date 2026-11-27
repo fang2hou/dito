@@ -5,7 +5,9 @@ use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use dito_core::chat::{self, Limits};
 use dito_core::config::{ChatLoading, Config, Source};
+use dito_core::provider::ThinkingCapabilities;
 
 use crate::state::AppState;
 
@@ -16,6 +18,8 @@ const BUSY_RECHECK: Duration = Duration::from_secs(5);
 #[derive(Default)]
 pub struct ChatModelKeeper {
     open: AtomicBool,
+    /// The live meeting notes are being written, so the model is in use even with the chat closed.
+    notes: AtomicBool,
     /// Bumped by every open and leave, so a release timer older than the latest one does nothing.
     epoch: AtomicU64,
     /// Replies in flight: a model is never released under one.
@@ -38,24 +42,50 @@ pub fn chat_reply_started(st: &AppState) -> ReplyGuard {
     ReplyGuard(st.chat_model.busy.clone())
 }
 
+impl ChatModelKeeper {
+    /// The chat or the meeting notes need the model now.
+    fn in_use(&self) -> bool {
+        self.open.load(Ordering::SeqCst) || self.notes.load(Ordering::SeqCst)
+    }
+}
+
 pub fn chat_opened(st: &Arc<AppState>) {
-    let keeper = &st.chat_model;
-    keeper.open.store(true, Ordering::SeqCst);
-    keeper.epoch.fetch_add(1, Ordering::SeqCst);
+    st.chat_model.open.store(true, Ordering::SeqCst);
+    in_use_again(st);
+}
+
+pub fn chat_left(st: &Arc<AppState>) {
+    st.chat_model.open.store(false, Ordering::SeqCst);
+    maybe_release_later(st);
+}
+
+/// The notes panel starts writing notes: a model that loads only while it is needed loads now, and stays.
+pub fn meeting_notes_started(st: &Arc<AppState>) {
+    st.chat_model.notes.store(true, Ordering::SeqCst);
+    in_use_again(st);
+}
+
+/// The notes stopped; the model is released a while later unless the chat has it.
+pub fn meeting_notes_stopped(st: &Arc<AppState>) {
+    st.chat_model.notes.store(false, Ordering::SeqCst);
+    maybe_release_later(st);
+}
+
+fn in_use_again(st: &Arc<AppState>) {
+    st.chat_model.epoch.fetch_add(1, Ordering::SeqCst);
     if let Some(id) = on_demand_model(&st.cfg.get()) {
         warm(st, id);
     }
 }
 
-pub fn chat_left(st: &Arc<AppState>) {
+fn maybe_release_later(st: &Arc<AppState>) {
     let keeper = &st.chat_model;
-    keeper.open.store(false, Ordering::SeqCst);
     let epoch = keeper.epoch.fetch_add(1, Ordering::SeqCst) + 1;
     let st = st.clone();
     st.rt.clone().spawn(async move {
         tokio::time::sleep(RELEASE_AFTER).await;
         loop {
-            if st.chat_model.epoch.load(Ordering::SeqCst) != epoch {
+            if st.chat_model.epoch.load(Ordering::SeqCst) != epoch || st.chat_model.in_use() {
                 return;
             }
             if st.chat_model.busy.load(Ordering::SeqCst) == 0 {
@@ -83,7 +113,7 @@ pub fn follow_chat_model(st: &Arc<AppState>) {
                 release_unless_used(&st, &config, previous);
             }
             if let Some(id) = on_demand_model(&config) {
-                if st.chat_model.open.load(Ordering::SeqCst) {
+                if st.chat_model.in_use() {
                     warm(&st, id);
                 } else if st.chat_model.busy.load(Ordering::SeqCst) == 0 {
                     release_unless_used(&st, &config, id.to_owned());
@@ -122,4 +152,63 @@ fn release_unless_used(st: &Arc<AppState>, cfg: &Config, id: String) {
         let local = st.local.clone();
         st.rt.spawn_blocking(move || local.unload(&id));
     }
+}
+
+/// What the chat needs to know about the chat model in use.
+pub struct ModelFacts {
+    /// Names the model in `chat.thinking` of the configuration.
+    pub key: String,
+    pub limits: Limits,
+    pub thinking: Option<ThinkingCapabilities>,
+    /// The reasoning effort a cloud configuration names, which is the choice until another is saved.
+    pub configured: Option<String>,
+}
+
+pub fn chat_model_facts(st: &AppState) -> ModelFacts {
+    let cfg = st.cfg.get();
+    let engine = cfg.chat_engine();
+    match engine.source {
+        Source::Local => {
+            let capabilities = st.models.spec(&engine.local_model).and_then(|spec| spec.text_capabilities);
+            ModelFacts {
+                key: format!("local:{}", engine.local_model),
+                limits: Limits::local(capabilities.as_ref()),
+                thinking: capabilities.and_then(|c| c.thinking),
+                configured: None,
+            }
+        }
+        Source::Provider => {
+            let active = engine.active_text();
+            ModelFacts {
+                key: format!("cloud:{}", active.as_ref().map_or("", |t| t.id.as_str())),
+                limits: Limits::CLOUD,
+                thinking: Some(chat::CLOUD_THINKING),
+                configured: active.map(|t| t.params.reasoning_effort.as_str().to_owned()),
+            }
+        }
+    }
+}
+
+/// The choice saved for this model, else the effort its cloud configuration names, else the model's default.
+pub fn chat_thinking_choice(st: &AppState, facts: &ModelFacts) -> Option<&'static str> {
+    let capabilities = facts.thinking.as_ref()?;
+    let cfg = st.cfg.get();
+    let saved = cfg.chat.thinking.get(&facts.key).map(String::as_str).or(facts.configured.as_deref());
+    chat::thinking_choice(capabilities, saved)
+}
+
+pub fn chat_model_label(st: &AppState) -> String {
+    let cfg = st.cfg.get();
+    let engine = cfg.chat_engine();
+    match engine.source {
+        Source::Local => {
+            st.models.spec(&engine.local_model).map_or_else(|| engine.local_model.clone(), |s| s.name.clone())
+        }
+        Source::Provider => engine.active_text().map(|t| t.target.model().to_owned()).unwrap_or_default(),
+    }
+}
+
+/// Whether the chat model in use runs on this Mac.
+pub fn chat_model_is_local(st: &AppState) -> bool {
+    st.cfg.get().chat_engine().source == Source::Local
 }

@@ -22,6 +22,8 @@ The command tools (rewrite, translate, summarize, reply, answer) follow the same
 
 Meeting paragraphs use a fixed English cleanup scaffold regardless of interface or transcript language, a fenced current paragraph, and three demonstration turns in Chinese, Japanese and English. Vocabulary and prior paragraphs are escaped read-only references, separate from the current speech. Questions and instructions in speech stay in the transcript instead of becoming requests to the editor.
 
+Live meeting notes (2026-11-27) use two fixed English requests, one for the topic and the newest lines and one that folds older speech into four or five points. The transcript is the fenced part, earlier points and not-yet-folded speech are escaped references, and the reply is a line format read back by `meeting_notes::prompt`; a reply that does not parse leaves the previous notes in place instead of showing something invented.
+
 Meeting titles use a fixed English system prompt and a fenced transcript. The display language is context, and the title follows the main language spoken in the transcript. The editable title prompt controls style and format.
 
 ## Alternatives Considered

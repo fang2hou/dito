@@ -1,6 +1,7 @@
 //! What the screenshot harness steers on the chat page.
 
 use dito_core::store::{Attachment, Author, ChatMessageRow, MessageState};
+use dito_core::transcription::ActiveRecording;
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
@@ -51,6 +52,25 @@ impl ChatPage {
 
     pub(crate) fn pose_attach(&mut self, attachment: Attachment, cx: &mut Context<Self>) {
         self.pending.push(attachment);
+        cx.notify();
+    }
+
+    /// What the Chat page believes the recording is doing, as the session's status would tell it.
+    pub(crate) fn pose_recording(&mut self, recording: Option<ActiveRecording>, cx: &mut Context<Self>) {
+        self.recording = recording;
+        cx.notify();
+    }
+
+    /// Attaches a meeting as the picker does, linked for follow-ups when it is the one being recorded.
+    pub(crate) fn pose_link_meeting(&mut self, id: i64, live: bool, cx: &mut Context<Self>) {
+        let attached =
+            self.pending.iter().any(|a| matches!(a, Attachment::Meeting { transcript_id, .. } if *transcript_id == id));
+        if !attached && let Some(meeting) = self.meeting_attachment(id) {
+            self.pending.push(meeting);
+        }
+        if live && !self.linked.contains(&id) {
+            self.linked.push(id);
+        }
         cx.notify();
     }
 
