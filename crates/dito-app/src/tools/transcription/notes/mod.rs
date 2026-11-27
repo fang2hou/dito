@@ -40,7 +40,7 @@ pub(super) struct NotesPane {
     meeting: Option<i64>,
     handle: Option<NotesHandle>,
     pub view: NotesView,
-    /// The last notes of a meeting, so a panel opened again does not write the folded points again.
+    /// The last notes of a meeting, so a panel opened again does not write the memo again and keeps its language.
     seed: Option<(i64, Notes)>,
     watching: Option<Task<()>>,
     pub scroll: ScrollHandle,
@@ -147,13 +147,15 @@ impl TranscriptionPage {
     }
 
     fn start_notes(&mut self, id: i64, cx: &mut Context<Self>) {
-        let lang = self.st.cfg.get().general.lang();
+        let cfg = self.st.cfg.get();
+        let lang = cfg.general.lang();
         let deps = NotesDeps {
             store: self.st.store.clone(),
             status: self.status_source(),
             source: services::notes_model_source(&self.st),
             me: lang.tr(dito_core::i18n::Tr::TranscriptionMe).to_owned(),
             others: lang.tr(dito_core::i18n::Tr::TranscriptionOthers).to_owned(),
+            prior: cfg.general.preferred_language.code().and_then(dito_core::i18n::Lang::from_tag),
             offset_secs: dito_platform::local_utc_offset_secs(),
             cadence: Cadence::default(),
         };

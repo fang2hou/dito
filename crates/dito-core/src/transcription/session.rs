@@ -1583,8 +1583,8 @@ mod tests {
                 _: &ChatCancel,
             ) -> crate::error::ProviderResult<String> {
                 self.0.fetch_add(1, Ordering::SeqCst);
-                self.1.lock().unwrap().push(request.messages[1].content.clone());
-                Ok("Topic: 決済の件\n[00:00] 決済の件を確認".into())
+                self.1.lock().unwrap().push(request.messages.last().unwrap().content.clone());
+                Ok("NOW: 決済の件".into())
             }
         }
         struct Source(Arc<Notes>);
@@ -1595,6 +1595,7 @@ mod tests {
                         model: self.0.clone(),
                         limits: crate::chat::Limits::local(None),
                         thinking_off: true,
+                        max_tokens: None,
                         hold: None,
                     })
                 })
@@ -1623,6 +1624,7 @@ mod tests {
                 source: Arc::new(Source(model.clone())),
                 me: "自分".into(),
                 others: "相手".into(),
+                prior: None,
                 offset_secs: 0,
                 cadence: Cadence { look_every: Duration::from_millis(10), refresh_every: Duration::from_millis(300) },
             },
@@ -1636,7 +1638,7 @@ mod tests {
             .unwrap()
             .clone();
         assert_eq!(first.phase, NotesPhase::Ready);
-        assert_eq!(first.notes.as_ref().unwrap().topic, "決済の件");
+        assert_eq!(first.notes.as_ref().unwrap().now.as_ref().unwrap().topic, "決済の件");
         assert!(model.1.lock().unwrap()[0].contains("決済の件です"), "the request carries the transcript");
 
         handle.toggle_pause();
@@ -1652,7 +1654,7 @@ mod tests {
                 let seen = view.borrow_and_update().clone();
                 let covered =
                     store.get_transcript(id).unwrap().unwrap().paragraphs.iter().map(|p| p.end_ms).max().unwrap_or(0);
-                if seen.notes.as_ref().is_some_and(|n| n.covered_ms == covered) {
+                if seen.notes.as_ref().is_some_and(|n| n.covered_ms() == covered) {
                     break seen;
                 }
                 let _ = view.changed().await;

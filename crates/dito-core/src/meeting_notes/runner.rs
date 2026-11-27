@@ -12,12 +12,15 @@ use tokio::sync::watch;
 use tokio::time::Instant;
 use tokio_util::sync::{CancellationToken, DropGuard};
 
+use super::lang::{Judge, meeting_lang};
 use super::prompt::{
-    Notes, chunks, fold_request, newest_within, read_points, read_refresh, refresh_request, split_window,
+    Budget, Frame, Hint, Memo, Notes, chunks, hint_request, hint_window, memo_request, read_hint, read_memo,
+    split_window,
 };
 use super::schedule::{Poll, Scheduler};
 use super::{RECENT_WINDOW_MS, schedule};
 use crate::chat::Limits;
+use crate::i18n::Lang;
 use crate::provider::{ChatCancel, TextModel};
 use crate::store::Store;
 use crate::transcription::{ActiveRecording, MeetingContext, RecordingPhase, SpeakerNames, TranscriptionStatus};
@@ -51,6 +54,8 @@ pub struct NotesModel {
     pub limits: Limits,
     /// The model can switch its reasoning off, which a summary has no use for.
     pub thinking_off: bool,
+    /// The output limit the model's settings name, which a model that thinks keeps when it is the larger one.
+    pub max_tokens: Option<u32>,
     /// Held while the request runs, so the model stays loaded under it.
     pub hold: Option<Box<dyn Send + Sync>>,
 }
@@ -72,8 +77,12 @@ pub struct NotesDeps {
     pub store: Arc<Store>,
     pub status: watch::Receiver<TranscriptionStatus>,
     pub source: Arc<dyn NotesModelSource>,
+    /// The speakers' names in the interface language, for a meeting whose language has no name.
     pub me: String,
     pub others: String,
+    /// The language the user set as the one they speak, if any: the notes' language while too little was said to
+    /// tell, never the interface language.
+    pub prior: Option<Lang>,
     /// The local time zone's offset, for the time marks of the transcript.
     pub offset_secs: i32,
     pub cadence: Cadence,
@@ -118,8 +127,8 @@ impl NotesHandle {
     }
 }
 
-/// Needs a Tokio runtime. `seed` is the notes an earlier panel of the same meeting left, so the folded points are not
-/// written again.
+/// Needs a Tokio runtime. `seed` is the notes an earlier panel of the same meeting left, so the memo is not written
+/// again and the meeting keeps its language.
 pub fn spawn(deps: NotesDeps, meeting: i64, seed: Option<Notes>) -> NotesHandle {
     let initial = NotesView { phase: NotesPhase::Waiting, notes: seed.clone(), stale: false, seq: 0 };
     let (tx, rx) = watch::channel(initial);
@@ -220,16 +229,12 @@ enum Failure {
     Request,
 }
 
-/// Older speech not yet folded goes to a refresh only up to this much, so a long meeting never makes the first notes
-/// wait for a long read.
-const OLDER_CHARS: usize = 4_000;
+/// One memo request reads at most this much speech, so each request is short however long the meeting is.
+const MEMO_CHUNK_CHARS: usize = 6_000;
 
-/// One fold request reads at most this much speech, so each request is short however long the meeting is.
-const FOLD_CHUNK_CHARS: usize = 6_000;
-
-/// One refresh. The topic and the recent lines come first and are published at once, so the notes appear without
-/// waiting for anything older. Then, when a window's worth of speech has aged out of the newest five minutes, it is
-/// folded into the earlier points in short requests, each published as it lands.
+/// One refresh. The hint on the last minute comes first and is published at once, so the notes appear without
+/// waiting for anything older. Then, when five minutes of speech have aged out of the newest five minutes, the memo
+/// takes them in, in short requests, each published as it lands.
 async fn refresh(
     deps: &NotesDeps,
     context: &MeetingContext,
@@ -240,42 +245,49 @@ async fn refresh(
     if deps.source.loading() {
         publish(view, NotesPhase::Working { loading_model: false }, None, false);
     }
-    let names = SpeakerNames { me: &deps.me, others: &deps.others };
-    let budget = (ready.limits.context_chars / 2).max(2_000);
+    let ui_names = SpeakerNames { me: &deps.me, others: &deps.others };
+    let budget = Budget { thinking_off: ready.thinking_off, configured: ready.max_tokens };
+    let chars = (ready.limits.context_chars / 2).max(2_000);
     let covered = context.covered_ms();
-    let earlier = previous.map(|n| n.earlier.clone()).unwrap_or_default();
-    let span = previous.and_then(|n| n.earlier_span_ms);
-    let folded_until = span.map_or(0, |(_, until)| until);
-    let window = split_window(&context.utterances, covered, folded_until);
+    let mut notes = previous.cloned().unwrap_or_default();
+    notes.started_ts = context.started_ts;
 
-    let older = newest_within(&window.unfolded, budget.min(OLDER_CHARS));
-    let recent = newest_within(&window.recent, budget);
-    let request = refresh_request(context, &earlier, &older, &recent, names, deps.offset_secs, ready.thinking_off);
+    let window = hint_window(&context.utterances, covered);
+    let lang = meeting_lang(&window, notes.lang, deps.prior, Judge::Hint);
+    let frame = Frame { context, lang: lang.request, ui_names, offset: deps.offset_secs };
+    let request = hint_request(&frame, &window, notes.now.as_ref(), budget);
     let reply = ask(&ready, &request).await.ok_or(Failure::Request)?;
-    let (topic, lines) = read_refresh(&reply).ok_or(Failure::Request)?;
-    let mut notes = Notes {
-        topic,
-        recent: lines,
-        earlier: earlier.clone(),
-        earlier_span_ms: span,
-        covered_ms: covered,
-        started_ts: context.started_ts,
-    };
+    let topic = read_hint(&reply).map_err(|e| {
+        tracing::warn!("meeting notes hint was not taken: {e:?}");
+        Failure::Request
+    })?;
+    notes.lang = lang.settled;
+    notes.now = Some(Hint { topic, covered_ms: covered });
     publish(view, NotesPhase::Working { loading_model: false }, Some(notes.clone()), false);
 
-    if window.from_ms.saturating_sub(folded_until) >= RECENT_WINDOW_MS && !window.unfolded.is_empty() {
-        let start = span.map_or(window.unfolded[0].start_ms, |(from, _)| from);
-        let mut points = earlier;
-        for chunk in chunks(&window.unfolded, budget.min(FOLD_CHUNK_CHARS)) {
-            let request = fold_request(context, &points, &chunk, names, deps.offset_secs, ready.thinking_off);
-            let Some(next) = ask(&ready, &request).await.and_then(|reply| read_points(&reply)) else {
-                tracing::warn!("meeting notes fold failed; the earlier points stay as they were");
-                break;
+    let memo_until = notes.memo.covered_ms;
+    let aged = split_window(&context.utterances, covered, memo_until);
+    if aged.from_ms.saturating_sub(memo_until) >= RECENT_WINDOW_MS && !aged.unfolded.is_empty() {
+        let start = notes.memo.span_ms.map_or(aged.unfolded[0].start_ms, |(from, _)| from);
+        for (n, chunk) in chunks(&aged.unfolded, chars.min(MEMO_CHUNK_CHARS)).into_iter().enumerate() {
+            let lang = meeting_lang(&chunk, notes.lang, deps.prior, Judge::Memo);
+            let frame = Frame { context, lang: lang.request, ui_names, offset: deps.offset_secs };
+            let request = memo_request(&frame, &chunk, &notes.memo, budget);
+            let Some(reply) = ask(&ready, &request).await else { break };
+            let memo = match read_memo(&reply) {
+                Ok(memo) if memo.is_empty() && !notes.memo.is_empty() => {
+                    tracing::warn!("meeting notes memo chunk {n} came back empty; the memo stays as it was");
+                    break;
+                }
+                Ok(memo) => memo,
+                Err(e) => {
+                    tracing::warn!("meeting notes memo chunk {n} was not taken: {e:?}; the memo stays as it was");
+                    break;
+                }
             };
-            points = next;
             let until = chunk.iter().map(|u| u.end_ms).max().unwrap_or(start);
-            notes.earlier.clone_from(&points);
-            notes.earlier_span_ms = Some((start, until));
+            notes.lang = lang.settled;
+            notes.memo = Memo { span_ms: Some((start, until)), covered_ms: until, ..memo };
             publish(view, NotesPhase::Working { loading_model: false }, Some(notes.clone()), false);
         }
     }
