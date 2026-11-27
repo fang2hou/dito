@@ -1,6 +1,7 @@
 //! SQLite-backed wordbook.
 
 use std::collections::HashMap;
+use std::sync::atomic::Ordering;
 
 use rusqlite::{Connection, Statement, params};
 
@@ -57,6 +58,7 @@ impl Store {
             }
         }
         tx.commit()?;
+        self.wordbook_changed();
         Ok(added)
     }
 
@@ -67,6 +69,7 @@ impl Store {
         let tx = conn.transaction()?;
         let added = add_entry(&tx, term, spoken, lang, now)?;
         tx.commit()?;
+        self.wordbook_changed();
         Ok(added)
     }
 
@@ -101,6 +104,7 @@ impl Store {
             insert_spoken(&tx, new_term, spoken, lang, now)?;
         }
         tx.commit()?;
+        self.wordbook_changed();
         Ok(updated)
     }
 
@@ -117,7 +121,18 @@ impl Store {
             }
         }
         tx.commit()?;
+        self.wordbook_changed();
         Ok(())
+    }
+
+    /// Changes whenever the wordbook may have changed. Only this process writes the wordbook, so a session compares
+    /// it to the revision it last read instead of reading the wordbook again for every utterance.
+    pub fn wordbook_revision(&self) -> u64 {
+        self.wordbook_revision.load(Ordering::Acquire)
+    }
+
+    fn wordbook_changed(&self) {
+        self.wordbook_revision.fetch_add(1, Ordering::AcqRel);
     }
 
     pub fn words(&self, query: Option<&str>) -> Result<Vec<String>> {
@@ -182,6 +197,7 @@ impl Store {
             added += usize::from(add_entry(&tx, &term, &spoken, lang, now)?);
         }
         tx.commit()?;
+        self.wordbook_changed();
         Ok(added)
     }
 

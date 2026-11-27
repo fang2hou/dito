@@ -22,15 +22,14 @@ use super::paragraphs::{self, Paragraph, Paragrapher};
 use super::prompt::{CONTEXT_PARAGRAPHS, ContextParagraph, build_prompt, worth_polishing};
 use super::recognizer::{Job, Recognized, Recognizer, Utterance};
 use super::source::{SourceEvent, detect};
+use super::wordbook::SessionWordbook;
 use super::{AudioSource, LiveAudio, LiveInput, Sources, Speaker, VoiceDetectors};
 use crate::config::ConfigStore;
 use crate::factory::Engines;
 use crate::i18n::{Lang, Tr};
-use crate::pipeline::polish_wordbook;
 use crate::prompts::fence;
 use crate::provider::{TextModel, TextRequest};
-use crate::spoken_forms::SpokenForms;
-use crate::store::{Store, wordbook_terms};
+use crate::store::Store;
 
 const IDLE_TICK: Duration = Duration::from_millis(250);
 
@@ -445,11 +444,7 @@ async fn record(
         Err(e) => Some(Err(e.to_string())),
     };
     let titler = polisher.as_ref().and_then(|p| p.as_ref().ok().cloned()).filter(|_| cfg.transcription.auto_title);
-    let entries = deps.store.wordbook_entries(None).unwrap_or_default();
-    let words = wordbook_terms(&entries);
-    let terms = polish_wordbook(&cfg, &words).to_vec();
-    // Compiled once for the session: the recognizer asks for it on every partial, about each second.
-    let forms = Arc::new(SpokenForms::from_entries(&entries));
+    let wordbook = Arc::new(SessionWordbook::load(deps.store.clone(), cfg.wordbook_for_polish));
     let mut wanted = Vec::new();
     for (source, speaker) in SOURCES {
         if on(sources, source) {
@@ -503,22 +498,14 @@ async fn record(
     let recognizer = Recognizer {
         asr,
         language: cfg.general.preferred_language.code().map(str::to_string),
-        words,
-        forms: forms.clone(),
+        wordbook: wordbook.clone(),
     };
     let recognizer = tokio::spawn(recognizer.run(job_rx, text_tx));
     let (polish_tx, polish_rx) = mpsc::unbounded_channel::<Closed>();
     // Read per paragraph: the user may turn the second source on or off while the session runs.
     let labelled = Arc::new(AtomicBool::new(held.both()));
-    let polish_task = tokio::spawn(polish_loop(
-        deps.store.clone(),
-        polisher,
-        terms,
-        forms,
-        labelled.clone(),
-        polish_rx,
-        status.clone(),
-    ));
+    let polish_task =
+        tokio::spawn(polish_loop(deps.store.clone(), polisher, wordbook, labelled.clone(), polish_rx, status.clone()));
     let mut session = Session {
         store: &deps.store,
         id,
@@ -832,8 +819,7 @@ fn clean_title(reply: &str) -> Option<String> {
 async fn polish_loop(
     store: Arc<Store>,
     polisher: Option<Result<Arc<dyn TextModel>, String>>,
-    terms: Vec<String>,
-    forms: Arc<SpokenForms>,
+    wordbook: Arc<SessionWordbook>,
     labelled: Arc<AtomicBool>,
     mut rx: mpsc::UnboundedReceiver<Closed>,
     status: Status,
@@ -846,12 +832,16 @@ async fn polish_loop(
             _ if !worth_polishing(&p.text) => (p.text.clone(), None),
             Some(Err(e)) => (p.text.clone(), Some(e.clone())),
             Some(Ok(polisher)) => {
-                let prompt = build_prompt(&p.text, context.make_contiguous(), labelled.load(Ordering::Relaxed), &terms);
+                let wordbook = wordbook.current();
+                let labelled = labelled.load(Ordering::Relaxed);
+                let prompt = build_prompt(&p.text, context.make_contiguous(), labelled, &wordbook.polish_terms);
                 match polisher
                     .polish(&TextRequest { system: &prompt.system, examples: prompt.examples, text: &prompt.user })
                     .await
                 {
-                    Ok(out) if !out.trim().is_empty() => (forms.apply_for_lang(out.trim(), p.lang).into_owned(), None),
+                    Ok(out) if !out.trim().is_empty() => {
+                        (wordbook.forms.apply_for_lang(out.trim(), p.lang).into_owned(), None)
+                    }
                     Ok(_) => (p.text.clone(), None),
                     Err(e) => (p.text.clone(), Some(e.to_string())),
                 }
@@ -877,7 +867,7 @@ mod tests {
     use crate::controller::RecorderError;
     use crate::factory::FixedEngines;
     use crate::provider::mock::{MockTextModel, MockTranscriber};
-    use crate::store::{ParagraphState, Speaker, WordbookEntry};
+    use crate::store::{ParagraphState, Speaker};
     use crate::transcription::{ChunkSink, EnergyDetectors, LiveInput};
 
     #[tokio::test]
@@ -902,17 +892,9 @@ mod tests {
         tx.send(Closed { id, speaker: Speaker::Me, text: raw.into(), lang: None }).unwrap();
         drop(tx);
         let status = Arc::new(watch::channel(TranscriptionStatus::default()).0);
-        let no_forms = Arc::new(SpokenForms::from_entries(&[]));
-        polish_loop(
-            store.clone(),
-            Some(Ok(Arc::new(Editor))),
-            vec![],
-            no_forms,
-            Arc::new(AtomicBool::new(false)),
-            rx,
-            status,
-        )
-        .await;
+        let wordbook = Arc::new(SessionWordbook::load(store.clone(), false));
+        polish_loop(store.clone(), Some(Ok(Arc::new(Editor))), wordbook, Arc::new(AtomicBool::new(false)), rx, status)
+            .await;
         let result = store.get_transcript(transcript).unwrap().unwrap();
         assert_eq!(result.paragraphs[0].raw, raw);
         assert_eq!(result.paragraphs[0].text, raw);
@@ -946,13 +928,11 @@ mod tests {
         }
         drop(tx);
         let status = Arc::new(watch::channel(TranscriptionStatus::default()).0);
-        let entries = [
-            WordbookEntry { term: "MTG".to_string(), spoken: vec!["meeting".to_string()], lang: Some(Lang::Ja) },
-            WordbookEntry { term: "PR".to_string(), spoken: vec!["pull request".to_string()], lang: None },
-        ];
-        let forms = Arc::new(SpokenForms::from_entries(&entries));
+        store.add_word_entry("MTG", &["meeting".to_string()], Some(Lang::Ja), 1).unwrap();
+        store.add_word_entry("PR", &["pull request".to_string()], None, 1).unwrap();
+        let wordbook = Arc::new(SessionWordbook::load(store.clone(), false));
         let labelled = Arc::new(AtomicBool::new(false));
-        polish_loop(store.clone(), Some(Ok(Arc::new(Echo))), vec![], forms, labelled, rx, status).await;
+        polish_loop(store.clone(), Some(Ok(Arc::new(Echo))), wordbook, labelled, rx, status).await;
         let stored = store.get_transcript(transcript).unwrap().unwrap().paragraphs;
         let texts: Vec<&str> = stored.iter().map(|paragraph| paragraph.text.as_str()).collect();
         let expected: Vec<&str> = paragraphs.iter().map(|(_, _, text)| *text).collect();

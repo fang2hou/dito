@@ -9,11 +9,11 @@ use std::time::Instant;
 use tokio::sync::mpsc;
 
 use super::Speaker;
+use super::wordbook::SessionWordbook;
 use crate::audio::AudioClip;
 use crate::error::ErrorKind;
 use crate::i18n::Lang;
 use crate::provider::{AsrRequest, Transcriber};
-use crate::spoken_forms::SpokenForms;
 
 pub(super) struct Utterance {
     pub speaker: Speaker,
@@ -58,10 +58,8 @@ pub(super) enum Recognized {
 pub(super) struct Recognizer {
     pub asr: Arc<dyn Transcriber>,
     pub language: Option<String>,
-    /// The terms of the wordbook, passed to ASR as hotwords.
-    pub words: Vec<String>,
-    /// The spoken forms of the wordbook, compiled once for the whole session: this task runs for every partial.
-    pub forms: Arc<SpokenForms>,
+    /// Its terms are passed to ASR as hotwords, and its spoken forms written as the terms.
+    pub wordbook: Arc<SessionWordbook>,
 }
 
 struct Partial {
@@ -146,12 +144,13 @@ impl Recognizer {
     /// The text of the utterance with each spoken form written as its term, and the language it was matched in.
     async fn transcribe(&self, samples: Vec<f32>) -> Result<Option<(String, Option<Lang>)>, String> {
         let clip = AudioClip::new(samples);
-        let request = AsrRequest { clip: &clip, language: self.language.as_deref(), hotwords: &self.words };
+        let wordbook = self.wordbook.current();
+        let request = AsrRequest { clip: &clip, language: self.language.as_deref(), hotwords: &wordbook.hotwords };
         match self.asr.transcribe(&request).await {
             Ok(t) => {
                 let raw = t.text.trim();
                 let lang = crate::pipeline::spoken_forms_lang(t.language.as_deref(), raw);
-                let text = self.forms.apply_for_lang(raw, lang).into_owned();
+                let text = wordbook.forms.apply_for_lang(raw, lang).into_owned();
                 Ok(Some((text, lang)).filter(|(text, _)| !text.is_empty()))
             }
             Err(e) if e.kind == ErrorKind::NoSpeech => Ok(None),

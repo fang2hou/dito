@@ -10,6 +10,7 @@ mod prompt;
 mod recognizer;
 mod session;
 mod source;
+mod wordbook;
 
 pub use energy_vad::EnergyDetectors;
 pub use live::LiveText;
