@@ -94,6 +94,42 @@ fn demonstrations_come_in_chinese_japanese_and_english_and_their_replies_parse()
 }
 
 #[test]
+fn the_hint_demo_waits_for_a_topic_when_there_is_only_an_acknowledgement() {
+    let demo = HINT_DEMOS.iter().find(|demo| demo.lang == Lang::Ja).unwrap();
+    assert_eq!(demo.lines, [("15:40", Speaker::Others, "そうですね。")]);
+    assert_eq!(read_hint(demo.reply).unwrap(), "話題はまだ不明");
+}
+
+#[test]
+fn the_chinese_demo_keeps_unsettled_issues_open_and_copies_the_bilingual_deadline() {
+    let demo = MEMO_DEMOS.iter().find(|demo| demo.lang == Lang::Zh).unwrap();
+    let memo = read_memo(demo.reply).unwrap();
+    assert!(demo.lines.iter().any(|(_, _, text)| text.contains("by Dec 10")));
+    assert_eq!(memo.decided.iter().map(|item| item.text.as_str()).collect::<Vec<_>>(), ["预算改按 100 万上报。"]);
+    assert_eq!(
+        memo.todo.iter().map(|item| item.text.as_str()).collect::<Vec<_>>(),
+        ["我: Dec 10 前把预算明细发给财务。"]
+    );
+    let open: Vec<_> = memo.open.iter().map(|item| item.text.as_str()).collect();
+    assert_eq!(open, ["是否推迟到下个月上线。", "缺少 trace ID 的原因。"]);
+}
+
+#[test]
+fn the_japanese_demo_moves_completed_work_to_flow_and_keeps_the_unknown_cause_open() {
+    let demo = MEMO_DEMOS.iter().find(|demo| demo.lang == Lang::Ja).unwrap();
+    let memo = read_memo(demo.reply).unwrap();
+    assert!(demo.previous.contains("TODO: 田中さん:"));
+    assert_eq!(
+        memo.todo.iter().map(|item| item.text.as_str()).collect::<Vec<_>>(),
+        ["佐藤さん: 木曜までに default_shipping を確認する。"]
+    );
+    assert_eq!(memo.open.iter().map(|item| item.text.as_str()).collect::<Vec<_>>(), ["QA 環境のログイン失敗の原因。"]);
+    assert!(memo.flow.iter().any(|item| {
+        item.at.as_deref() == Some("14:17") && item.text == "ログイン失敗 2 件の調査を完了。"
+    }));
+}
+
+#[test]
 fn a_japanese_meeting_is_named_japanese_whatever_the_interface_language() {
     let context = japanese();
     let window: Vec<&Utterance> = context.utterances.iter().collect();
